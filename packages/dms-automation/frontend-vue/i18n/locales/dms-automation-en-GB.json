@@ -1,0 +1,369 @@
+{
+  "dms_automation": {
+    "module": {
+      "title": "Automation",
+      "description": "Procedures, triggers, and actions"
+    },
+    "builder": {
+      "title": "Builder",
+      "description": "Visual builder — drag blocks from the palette and wire them together.",
+      "palette": {
+        "search": "Search blocks…",
+        "empty": "No blocks match"
+      }
+    },
+    "procedures": {
+      "title": "Procedures",
+      "description": "Every automation procedure — status, triggers and recent health.",
+      "newProcedure": "New procedure",
+      "newProcedureName": "New procedure",
+      "search": "Search procedures…",
+      "pagination": "{shown} of {total}",
+      "filters": {
+        "all": "All",
+        "active": "Active",
+        "paused": "Paused",
+        "failing": "Failing"
+      },
+      "cols": {
+        "procedure": "Procedure",
+        "trigger": "Trigger",
+        "status": "Status",
+        "lastRun": "Last run",
+        "success": "Success",
+        "avg": "Avg",
+        "runs": "Runs"
+      },
+      "status": {
+        "active": "Active",
+        "paused": "Paused",
+        "failing": "Failing"
+      },
+      "trigger": {
+        "none": "No trigger",
+        "manual": "Manual"
+      },
+      "lastRunAgo": "{ago} ago",
+      "runNow": "Run now",
+      "runStarted": "Run started",
+      "edit": "Edit",
+      "runQueued": "Run queued · {name}",
+      "runFailed": "Run failed",
+      "never": "Never",
+      "empty": "No procedures",
+      "emptyHint": "Create your first procedure to get started.",
+      "loadError": "Failed to load procedures",
+      "createError": "Failed to create procedure"
+    },
+    "library": {
+      "title": "Library",
+      "description": "Every building block in one place — triggers, actions, data nodes and reusable templates.",
+      "tabs": {
+        "triggers": "Triggers",
+        "actions": "Actions",
+        "dataNodes": "Data Nodes",
+        "templates": "Templates"
+      }
+    },
+    "editor": {
+      "title": "Editor",
+      "description": "Design procedures",
+      "loadProceduresError": "Failed to load procedures",
+      "loadTemplateError": "Failed to load template",
+      "procedures": "Procedures",
+      "procedureName": "Procedure name",
+      "templateName": "Template name",
+      "enabled": "Enabled",
+      "runNow": "Run now",
+      "noProcedure": "No procedure selected. Open the Procedures drawer to pick or create one.",
+      "templateNotLoaded": "Template not loaded.",
+      "disabledTitle": "This procedure is disabled",
+      "disabledDescription": "Triggers (webhook, cron, …) will not fire until you enable it and save. Manual triggers still work via Run now.",
+      "enableAndSave": "Enable and save",
+      "exitSubgraph": "Exit subgraph",
+      "linkedTitle": "Linked to a template — read-only",
+      "linkedDescription": "This subgraph is provided by a template and updates live whenever the template changes. Fork to a local group to edit a private copy.",
+      "forkToEdit": "Fork to edit",
+      "enterGroup": "Enter group",
+      "groupSelection": "Group selection ({n})",
+      "saveAsTemplate": "Save as template",
+      "forkToLocal": "Fork to local group",
+      "loading": "Loading editor…",
+      "saveTemplateModal": {
+        "title": "Save as template",
+        "name": "Name",
+        "namePlaceholder": "Template name",
+        "description": "Description",
+        "descriptionPlaceholder": "What does this template do?",
+        "icon": "Icon",
+        "iconHelp": "Iconify name, e.g. i-ph-package",
+        "error": "Could not save template",
+        "cancel": "Cancel",
+        "submit": "Save template"
+      },
+      "forkModal": {
+        "title": "Fork to local group",
+        "body": "This template instance will become a local group. Subsequent edits to the original template will no longer affect this copy.",
+        "error": "Could not fork template instance",
+        "cancel": "Cancel",
+        "submit": "Fork to local group"
+      },
+      "canvas": {
+        "addNode": "Add node",
+        "undo": "Undo",
+        "redo": "Redo",
+        "cancel": "Cancel",
+        "apply": "Apply",
+        "zoomOut": "Zoom out",
+        "resetZoom": "Reset zoom",
+        "zoomIn": "Zoom in",
+        "fitView": "Fit view"
+      },
+      "procedureList": {
+        "title": "Procedures",
+        "new": "New",
+        "empty": "No procedures yet. Click \"New\" to create one.",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "deleteAria": "Delete procedure",
+        "deleteTitle": "Delete procedure",
+        "deleteConfirm": "Are you sure you want to delete {name}? This cannot be undone.",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "inspector": {
+        "title": "Inspector",
+        "empty": "Select a node to edit.",
+        "enterSubgraph": "Enter subgraph",
+        "type": "Type",
+        "nodeId": "Node id",
+        "noFields": "This node has no configurable fields.",
+        "arrayPlaceholder": "One item per line",
+        "deleteNode": "Delete node"
+      },
+      "groupPorts": {
+        "title": "Group ports",
+        "duplicate": "Duplicate port name: {name}",
+        "duplicateHelp": "Each port within an inputs or outputs list must have a unique name.",
+        "remove": "Delete port"
+      },
+      "wiredField": {
+        "wiredFrom": "wired from",
+        "unwire": "Unwire"
+      },
+      "runsDrawer": {
+        "title": "Runs",
+        "loading": "Runs (loading…)",
+        "count": "Runs ({n})",
+        "selectProcedure": "Select a procedure to view runs.",
+        "loadingShort": "Loading…",
+        "runCount": "{n} run(s)",
+        "refresh": "Refresh",
+        "empty": "No runs yet.",
+        "cols": {
+          "status": "Status",
+          "started": "Started",
+          "duration": "Duration",
+          "error": "Error"
+        }
+      }
+    },
+    "common": {
+      "refresh": "Refresh",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "catalog": {
+      "empty": "No types registered.",
+      "search": "Search types…",
+      "noResults": "No matches.",
+      "selectPrompt": "Select a type on the left to view its configuration.",
+      "enabled": "Enabled",
+      "enabledHelp": "Allow this type to be used by procedures.",
+      "configSchema": "Config schema (read-only)",
+      "globalConfig": "Global config (JSON)",
+      "save": "Save",
+      "invalidJson": "Invalid JSON"
+    },
+    "triggers": {
+      "title": "Triggers",
+      "description": "Registered triggers",
+      "listLabel": "Trigger types",
+      "loadError": "Failed to load trigger types"
+    },
+    "actions": {
+      "title": "Actions",
+      "description": "Registered actions",
+      "listLabel": "Action types",
+      "loadError": "Failed to load action types"
+    },
+    "runs": {
+      "title": "Runs",
+      "description": "Execution history across all procedures — inspect, replay and debug.",
+      "pageLabel": "Page {n}",
+      "empty": "No runs",
+      "emptyHint": "No runs match this filter.",
+      "kpis": {
+        "today": "Runs today",
+        "success": "Success",
+        "failed": "Failed",
+        "avgDuration": "Avg duration"
+      },
+      "badge": {
+        "success": "Success",
+        "failed": "Failed"
+      },
+      "cols": {
+        "procedure": "Procedure",
+        "status": "Status",
+        "startedAt": "Started",
+        "endedAt": "Ended",
+        "trigger": "Trigger",
+        "error": "Error"
+      },
+      "status": {
+        "ok": "Success",
+        "failed": "Failed"
+      },
+      "display": {
+        "timeline": "Timeline"
+      },
+      "listTitle": "Run history",
+      "timeline": {
+        "trace": "Trace",
+        "replay": "Replay",
+        "completed": "Completed successfully",
+        "failed": "Failed",
+        "replayQueued": "Replay queued",
+        "replayFailed": "Replay failed"
+      },
+      "detail": {
+        "error": "Error",
+        "triggerPayload": "Trigger payload",
+        "logs": "Logs",
+        "noLogs": "No log entries.",
+        "none": "No additional details for this run.",
+        "runId": "run id",
+        "trigger": "trigger"
+      }
+    },
+    "data_nodes": {
+      "title": "Data Nodes",
+      "description": "Pure functions you can wire into a procedure's data flow",
+      "listLabel": "Data nodes",
+      "loadError": "Failed to load data node types",
+      "refresh": "Refresh",
+      "category": "Category",
+      "inputs": "Inputs",
+      "outputs": "Outputs",
+      "empty": "Select a data node to see its details",
+      "noPorts": "No ports declared",
+      "col": {
+        "name": "Name",
+        "type": "Type",
+        "description": "Description"
+      }
+    },
+    "templates": {
+      "title": "Templates",
+      "description": "Reusable groups shared across procedures",
+      "loadError": "Failed to load templates",
+      "saveError": "Failed to save",
+      "usagesError": "Failed to load usages",
+      "deleteError": "Failed to delete",
+      "refresh": "Refresh",
+      "search": "Search templates…",
+      "empty": "No templates yet — create one by selecting a group in the editor and choosing \"Save as template\".",
+      "save": "Save",
+      "editSubgraph": "Edit subgraph",
+      "delete": "Delete",
+      "forceDelete": "Delete and fork usages",
+      "usedInN": "Used in {n}",
+      "form": {
+        "name": "Name",
+        "description": "Description",
+        "icon": "Icon",
+        "iconHelp": "Iconify name, e.g. i-ph-package"
+      },
+      "ports": {
+        "title": "Ports",
+        "editHint": "To edit ports, open the subgraph.",
+        "empty": "No ports declared.",
+        "col": {
+          "kind": "Kind",
+          "direction": "Direction",
+          "name": "Name",
+          "type": "Type"
+        }
+      },
+      "usages": {
+        "title": "Used in",
+        "empty": "Not used by any procedure."
+      },
+      "deleteConfirm": {
+        "title": "Delete template?",
+        "message": "Delete \"{name}\"? This cannot be undone.",
+        "usageWarningTitle": "Template is in use",
+        "usageWarning": "{n} procedure(s) reference this template. Deleting will fork each usage into a local group so they keep working.",
+        "cancel": "Cancel"
+      }
+    },
+    "overview": {
+      "title": "Overview",
+      "description": "Automation health, recent runs and the procedures that need attention.",
+      "loadError": "Failed to load stats",
+      "refresh": "Refresh",
+      "autoPoll": "Auto-poll (30s)",
+      "head": {
+        "procedures": "Procedures",
+        "newProcedure": "New procedure"
+      },
+      "stats": {
+        "procedures": "Procedures",
+        "active": "Active",
+        "runsToday": "Runs today",
+        "successRate": "Success rate"
+      },
+      "runs7d": {
+        "title": "Runs (7 days)"
+      },
+      "chart": {
+        "legendOk": "Success",
+        "legendFailed": "Failed",
+        "empty": "No runs in the last 7 days"
+      },
+      "execHealth": {
+        "title": "Execution health",
+        "operational": "Operational",
+        "needsAttention": "Needs attention",
+        "avgDuration": "Avg duration",
+        "p95Duration": "p95 duration",
+        "failed24h": "Failed (24h)",
+        "total24h": "Runs (24h)",
+        "successRate": "Success rate"
+      },
+      "needsAttention": {
+        "title": "Needs attention",
+        "subtitle": "Failing or paused procedures",
+        "all": "All procedures",
+        "empty": "Nothing needs attention",
+        "failingDetail": "{n} failed runs",
+        "pausedDetail": "Paused",
+        "lastRun": "last run {ago} ago",
+        "open": "Open"
+      },
+      "recentRuns": {
+        "title": "Recent runs",
+        "viewAll": "View all",
+        "empty": "No runs yet",
+        "ago": "{ago} ago"
+      },
+      "timeAgo": {
+        "now": "just now",
+        "min": "{n} min",
+        "hour": "{n}h",
+        "day": "{n}d"
+      }
+    }
+  }
+}

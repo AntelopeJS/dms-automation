@@ -1,0 +1,60 @@
+name: Release DMS automation interface
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: npm distribution channel
+        required: true
+        default: latest
+        type: choice
+        options: [latest, next]
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: npm-release-interface-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate interface release metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate release source
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          test "$GITHUB_REF" = "refs/heads/$DEFAULT_BRANCH" || {
+            echo "Releases must run from the default branch ($DEFAULT_BRANCH), not $GITHUB_REF." >&2
+            exit 1
+          }
+      - name: Validate npm channel
+        env:
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          case "$CHANNEL" in
+            latest|next) ;;
+            *) echo "Unsupported npm channel: $CHANNEL. Pick latest or next." >&2; exit 1 ;;
+          esac
+      - name: Validate release credential
+        env:
+          RELEASE_GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
+        run: |
+          test -n "$RELEASE_GITHUB_TOKEN" || {
+            echo "RELEASE_GITHUB_TOKEN is not configured: the release cannot push the tag and the GitHub release." >&2
+            exit 1
+          }
+      - uses: actions/checkout@v4
+      - name: Validate package metadata
+        run: node .github/scripts/validate-release-metadata.mjs packages/interface-dms-automation
+  release:
+    needs: validate
+    uses: AntelopeJS/.github/.github/workflows/release-npm-public.yml@1df63ee37c5ecb869124cb58f199cef1e19dd138
+    with:
+      channel: ${{ inputs.channel }}
+      package-directory: packages/interface-dms-automation
+    secrets:
+      RELEASE_GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}

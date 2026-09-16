@@ -1,0 +1,369 @@
+{
+  "dms_automation": {
+    "module": {
+      "title": "Automatisation",
+      "description": "Procédures, déclencheurs et actions"
+    },
+    "builder": {
+      "title": "Constructeur",
+      "description": "Constructeur visuel — glissez des blocs depuis la palette et reliez-les entre eux.",
+      "palette": {
+        "search": "Rechercher des blocs…",
+        "empty": "Aucun bloc correspondant"
+      }
+    },
+    "procedures": {
+      "title": "Procédures",
+      "description": "Toutes les procédures d'automatisation — statut, déclencheurs et état récent.",
+      "newProcedure": "Nouvelle procédure",
+      "newProcedureName": "Nouvelle procédure",
+      "search": "Rechercher des procédures…",
+      "pagination": "{shown} sur {total}",
+      "filters": {
+        "all": "Toutes",
+        "active": "Actives",
+        "paused": "En pause",
+        "failing": "En échec"
+      },
+      "cols": {
+        "procedure": "Procédure",
+        "trigger": "Déclencheur",
+        "status": "Statut",
+        "lastRun": "Dernière exécution",
+        "success": "Réussite",
+        "avg": "Moy.",
+        "runs": "Exécutions"
+      },
+      "status": {
+        "active": "Active",
+        "paused": "En pause",
+        "failing": "En échec"
+      },
+      "trigger": {
+        "none": "Aucun déclencheur",
+        "manual": "Manuel"
+      },
+      "lastRunAgo": "il y a {ago}",
+      "runNow": "Exécuter maintenant",
+      "runStarted": "Exécution démarrée",
+      "edit": "Modifier",
+      "runQueued": "Exécution en file d'attente · {name}",
+      "runFailed": "Échec de l'exécution",
+      "never": "Jamais",
+      "empty": "Aucune procédure",
+      "emptyHint": "Créez votre première procédure pour commencer.",
+      "loadError": "Échec du chargement des procédures",
+      "createError": "Échec de la création de la procédure"
+    },
+    "library": {
+      "title": "Bibliothèque",
+      "description": "Tous les blocs de construction au même endroit — déclencheurs, actions, nœuds de données et modèles réutilisables.",
+      "tabs": {
+        "triggers": "Déclencheurs",
+        "actions": "Actions",
+        "dataNodes": "Nœuds de données",
+        "templates": "Modèles"
+      }
+    },
+    "editor": {
+      "title": "Éditeur",
+      "description": "Concevoir des procédures",
+      "loadProceduresError": "Échec du chargement des procédures",
+      "loadTemplateError": "Échec du chargement du modèle",
+      "procedures": "Procédures",
+      "procedureName": "Nom de la procédure",
+      "templateName": "Nom du modèle",
+      "enabled": "Activée",
+      "runNow": "Exécuter maintenant",
+      "noProcedure": "Aucune procédure sélectionnée. Ouvrez le panneau Procédures pour en choisir ou en créer une.",
+      "templateNotLoaded": "Modèle non chargé.",
+      "disabledTitle": "Cette procédure est désactivée",
+      "disabledDescription": "Les déclencheurs (webhook, cron, …) ne se déclencheront pas tant que vous ne l'aurez pas activée et enregistrée. Les déclencheurs manuels fonctionnent toujours via Exécuter maintenant.",
+      "enableAndSave": "Activer et enregistrer",
+      "exitSubgraph": "Quitter le sous-graphe",
+      "linkedTitle": "Lié à un modèle — lecture seule",
+      "linkedDescription": "Ce sous-graphe est fourni par un modèle et se met à jour en direct à chaque modification du modèle. Dupliquez-le en groupe local pour modifier une copie privée.",
+      "forkToEdit": "Dupliquer pour modifier",
+      "enterGroup": "Entrer dans le groupe",
+      "groupSelection": "Sélection de groupe ({n})",
+      "saveAsTemplate": "Enregistrer comme modèle",
+      "forkToLocal": "Dupliquer en groupe local",
+      "loading": "Chargement de l'éditeur…",
+      "saveTemplateModal": {
+        "title": "Enregistrer comme modèle",
+        "name": "Nom",
+        "namePlaceholder": "Nom du modèle",
+        "description": "Description",
+        "descriptionPlaceholder": "Que fait ce modèle ?",
+        "icon": "Icône",
+        "iconHelp": "Nom Iconify, ex. i-ph-package",
+        "error": "Impossible d'enregistrer le modèle",
+        "cancel": "Annuler",
+        "submit": "Enregistrer le modèle"
+      },
+      "forkModal": {
+        "title": "Dupliquer en groupe local",
+        "body": "Cette instance de modèle deviendra un groupe local. Les modifications ultérieures du modèle d'origine n'affecteront plus cette copie.",
+        "error": "Impossible de dupliquer l'instance du modèle",
+        "cancel": "Annuler",
+        "submit": "Dupliquer en groupe local"
+      },
+      "canvas": {
+        "addNode": "Ajouter un nœud",
+        "undo": "Annuler",
+        "redo": "Rétablir",
+        "cancel": "Annuler",
+        "apply": "Appliquer",
+        "zoomOut": "Zoom arrière",
+        "resetZoom": "Réinitialiser le zoom",
+        "zoomIn": "Zoom avant",
+        "fitView": "Ajuster à la vue"
+      },
+      "procedureList": {
+        "title": "Procédures",
+        "new": "Nouvelle",
+        "empty": "Aucune procédure pour l'instant. Cliquez sur « Nouvelle » pour en créer une.",
+        "enabled": "Activée",
+        "disabled": "Désactivée",
+        "deleteAria": "Supprimer la procédure",
+        "deleteTitle": "Supprimer la procédure",
+        "deleteConfirm": "Êtes-vous sûr de vouloir supprimer {name} ? Cette action est irréversible.",
+        "cancel": "Annuler",
+        "delete": "Supprimer"
+      },
+      "inspector": {
+        "title": "Inspecteur",
+        "empty": "Sélectionnez un nœud à modifier.",
+        "enterSubgraph": "Entrer dans le sous-graphe",
+        "type": "Type",
+        "nodeId": "Identifiant du nœud",
+        "noFields": "Ce nœud n'a aucun champ configurable.",
+        "arrayPlaceholder": "Un élément par ligne",
+        "deleteNode": "Supprimer le nœud"
+      },
+      "groupPorts": {
+        "title": "Ports du groupe",
+        "duplicate": "Nom de port en double : {name}",
+        "duplicateHelp": "Chaque port d'une liste d'entrées ou de sorties doit avoir un nom unique.",
+        "remove": "Supprimer le port"
+      },
+      "wiredField": {
+        "wiredFrom": "relié depuis",
+        "unwire": "Délier"
+      },
+      "runsDrawer": {
+        "title": "Exécutions",
+        "loading": "Exécutions (chargement…)",
+        "count": "Exécutions ({n})",
+        "selectProcedure": "Sélectionnez une procédure pour voir les exécutions.",
+        "loadingShort": "Chargement…",
+        "runCount": "{n} exécution(s)",
+        "refresh": "Actualiser",
+        "empty": "Aucune exécution pour l'instant.",
+        "cols": {
+          "status": "Statut",
+          "started": "Démarrée",
+          "duration": "Durée",
+          "error": "Erreur"
+        }
+      }
+    },
+    "common": {
+      "refresh": "Actualiser",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "catalog": {
+      "empty": "Aucun type enregistré.",
+      "search": "Rechercher des types…",
+      "noResults": "Aucun résultat.",
+      "selectPrompt": "Sélectionnez un type à gauche pour voir sa configuration.",
+      "enabled": "Activé",
+      "enabledHelp": "Autoriser l'utilisation de ce type par les procédures.",
+      "configSchema": "Schéma de configuration (lecture seule)",
+      "globalConfig": "Configuration globale (JSON)",
+      "save": "Enregistrer",
+      "invalidJson": "JSON invalide"
+    },
+    "triggers": {
+      "title": "Déclencheurs",
+      "description": "Déclencheurs enregistrés",
+      "listLabel": "Types de déclencheurs",
+      "loadError": "Échec du chargement des types de déclencheurs"
+    },
+    "actions": {
+      "title": "Actions",
+      "description": "Actions enregistrées",
+      "listLabel": "Types d'actions",
+      "loadError": "Échec du chargement des types d'actions"
+    },
+    "runs": {
+      "title": "Exécutions",
+      "description": "Historique d'exécution de toutes les procédures — inspecter, rejouer et déboguer.",
+      "pageLabel": "Page {n}",
+      "empty": "Aucune exécution",
+      "emptyHint": "Aucune exécution ne correspond à ce filtre.",
+      "kpis": {
+        "today": "Exécutions aujourd'hui",
+        "success": "Réussites",
+        "failed": "Échecs",
+        "avgDuration": "Durée moyenne"
+      },
+      "badge": {
+        "success": "Réussite",
+        "failed": "Échec"
+      },
+      "cols": {
+        "procedure": "Procédure",
+        "status": "Statut",
+        "startedAt": "Démarrée",
+        "endedAt": "Terminée",
+        "trigger": "Déclencheur",
+        "error": "Erreur"
+      },
+      "status": {
+        "ok": "Réussite",
+        "failed": "Échec"
+      },
+      "display": {
+        "timeline": "Chronologie"
+      },
+      "listTitle": "Historique des exécutions",
+      "timeline": {
+        "trace": "Trace",
+        "replay": "Rejouer",
+        "completed": "Terminée avec succès",
+        "failed": "Échec",
+        "replayQueued": "Relecture en file d'attente",
+        "replayFailed": "Échec de la relecture"
+      },
+      "detail": {
+        "error": "Erreur",
+        "triggerPayload": "Charge utile du déclencheur",
+        "logs": "Journaux",
+        "noLogs": "Aucune entrée de journal.",
+        "none": "Aucun détail supplémentaire pour cette exécution.",
+        "runId": "id d'exécution",
+        "trigger": "déclencheur"
+      }
+    },
+    "data_nodes": {
+      "title": "Nœuds de données",
+      "description": "Fonctions pures que vous pouvez relier au flux de données d'une procédure",
+      "listLabel": "Nœuds de données",
+      "loadError": "Échec du chargement des types de nœuds de données",
+      "refresh": "Actualiser",
+      "category": "Catégorie",
+      "inputs": "Entrées",
+      "outputs": "Sorties",
+      "empty": "Sélectionnez un nœud de données pour voir ses détails",
+      "noPorts": "Aucun port déclaré",
+      "col": {
+        "name": "Nom",
+        "type": "Type",
+        "description": "Description"
+      }
+    },
+    "templates": {
+      "title": "Modèles",
+      "description": "Groupes réutilisables partagés entre les procédures",
+      "loadError": "Échec du chargement des modèles",
+      "saveError": "Échec de l'enregistrement",
+      "usagesError": "Échec du chargement des utilisations",
+      "deleteError": "Échec de la suppression",
+      "refresh": "Actualiser",
+      "search": "Rechercher des modèles…",
+      "empty": "Aucun modèle pour l'instant — créez-en un en sélectionnant un groupe dans l'éditeur et en choisissant « Enregistrer comme modèle ».",
+      "save": "Enregistrer",
+      "editSubgraph": "Modifier le sous-graphe",
+      "delete": "Supprimer",
+      "forceDelete": "Supprimer et dupliquer les utilisations",
+      "usedInN": "Utilisé dans {n}",
+      "form": {
+        "name": "Nom",
+        "description": "Description",
+        "icon": "Icône",
+        "iconHelp": "Nom Iconify, ex. i-ph-package"
+      },
+      "ports": {
+        "title": "Ports",
+        "editHint": "Pour modifier les ports, ouvrez le sous-graphe.",
+        "empty": "Aucun port déclaré.",
+        "col": {
+          "kind": "Genre",
+          "direction": "Direction",
+          "name": "Nom",
+          "type": "Type"
+        }
+      },
+      "usages": {
+        "title": "Utilisé dans",
+        "empty": "Utilisé par aucune procédure."
+      },
+      "deleteConfirm": {
+        "title": "Supprimer le modèle ?",
+        "message": "Supprimer « {name} » ? Cette action est irréversible.",
+        "usageWarningTitle": "Le modèle est utilisé",
+        "usageWarning": "{n} procédure(s) référencent ce modèle. La suppression dupliquera chaque utilisation en groupe local afin qu'elles continuent de fonctionner.",
+        "cancel": "Annuler"
+      }
+    },
+    "overview": {
+      "title": "Vue d'ensemble",
+      "description": "État de l'automatisation, exécutions récentes et procédures nécessitant une attention.",
+      "loadError": "Échec du chargement des statistiques",
+      "refresh": "Actualiser",
+      "autoPoll": "Actualisation auto (30 s)",
+      "head": {
+        "procedures": "Procédures",
+        "newProcedure": "Nouvelle procédure"
+      },
+      "stats": {
+        "procedures": "Procédures",
+        "active": "Actives",
+        "runsToday": "Exécutions aujourd'hui",
+        "successRate": "Taux de réussite"
+      },
+      "runs7d": {
+        "title": "Exécutions (7 jours)"
+      },
+      "chart": {
+        "legendOk": "Réussites",
+        "legendFailed": "Échecs",
+        "empty": "Aucune exécution sur les 7 derniers jours"
+      },
+      "execHealth": {
+        "title": "État d'exécution",
+        "operational": "Opérationnel",
+        "needsAttention": "Nécessite une attention",
+        "avgDuration": "Durée moyenne",
+        "p95Duration": "Durée p95",
+        "failed24h": "Échecs (24 h)",
+        "total24h": "Exécutions (24 h)",
+        "successRate": "Taux de réussite"
+      },
+      "needsAttention": {
+        "title": "Nécessite une attention",
+        "subtitle": "Procédures en échec ou en pause",
+        "all": "Toutes les procédures",
+        "empty": "Rien ne nécessite d'attention",
+        "failingDetail": "{n} exécutions en échec",
+        "pausedDetail": "En pause",
+        "lastRun": "dernière exécution il y a {ago}",
+        "open": "Ouvrir"
+      },
+      "recentRuns": {
+        "title": "Exécutions récentes",
+        "viewAll": "Tout voir",
+        "empty": "Aucune exécution pour l'instant",
+        "ago": "il y a {ago}"
+      },
+      "timeAgo": {
+        "now": "à l'instant",
+        "min": "{n} min",
+        "hour": "{n} h",
+        "day": "{n} j"
+      }
+    }
+  }
+}

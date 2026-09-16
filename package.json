@@ -1,0 +1,19 @@
+{
+  "name": "dms-automation-workspace",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "knip": "pnpm -r knip",
+    "lint": "oxlint && oxfmt --check . && pnpm --dir packages/dms-automation/frontend-vue lint",
+    "lint:fix": "oxlint --fix --max-warnings=1000000 && oxfmt . && pnpm --dir packages/dms-automation/frontend-vue lint:fix",
+    "format": "oxfmt ."
+  },
+  "devDependencies": {
+    "@antelopejs/tooling-configs": "^0.0.4",
+    "oxfmt": "^0.66.0",
+    "oxlint": "1.81.0",
+    "oxlint-tsgolint": "^7.0.2001"
+  },
+  "packageManager": "pnpm@10.2.0"
+}

@@ -1,0 +1,12 @@
+{
+  // Build-only delta, applied on top of a package config:
+  // `"extends": ["./tsconfig.json", "../../tsconfig.build.json"]`. It has no
+  // `extends` of its own so it never re-applies the base over the package's
+  // own overrides.
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "incremental": false
+  }
+}

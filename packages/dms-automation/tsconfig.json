@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    // The module registers pages and components that type DOM payloads.
+    "lib": ["esnext", "dom"],
+    "allowJs": true,
+    // The database models and route controllers are decorator-driven.
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "removeComments": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "node_modules/.cache/tsc/lint.tsbuildinfo"
+  },
+  "include": ["./src/**/*.ts"]
+}
