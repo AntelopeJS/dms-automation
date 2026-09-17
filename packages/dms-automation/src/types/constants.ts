@@ -1,4 +1,4 @@
-export const MODULE_NAME = "@antelopejs/dms-automation";
+export const FRONTEND_MODULE_NAME = "@antelopejs/dms-automation-frontend-vue";
 export const DATABASE_NAME = "dms-automation";
 export const SCHEMA_NAME = "dms_automation";
 
