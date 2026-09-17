@@ -50,9 +50,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate package metadata
         run: node .github/scripts/validate-release-metadata.mjs packages/dms-automation
-      # The module depends on its interface through `workspace:*`; pnpm rewrites
-      # that to the interface version on pack, so the interface has to be on
-      # npmjs already or the published module is uninstallable.
+      # The module depends on its interface through a range floored at the
+      # interface version in the tree, so the interface has to be on npmjs
+      # already or the published module is uninstallable.
       - name: Verify the interface is published
         run: node packages/dms-automation/scripts/verify-interface-package.cjs
   release:

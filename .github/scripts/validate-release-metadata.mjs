@@ -82,11 +82,24 @@ check(
 // 0.0.x version (`^0.0.1` means `>=0.0.1 <0.0.2`) stops satisfying the
 // canonical installed version on the first patch release and the host refuses
 // to boot with "Incompatible interface package resolution". Every DMS package
-// is therefore referenced by an explicit `>=<floor> <1.0.0` range, or linked
-// inside the workspace.
+// is therefore referenced by an explicit `>=<floor> <1.0.0` range; pnpm links
+// the sibling inside the workspace through `link-workspace-packages`.
 const DMS_PACKAGE =
   /^@antelopejs\/(dms|dms-.+|interface-dms|interface-dms-.+)$/;
 const DMS_RANGE = /^>=\d+\.\d+\.\d+ <\d+\.\d+\.\d+$/;
+
+// The fleet shape is `>=<floor> <1.0.0`: the ceiling is out of reach for a 0.x
+// package, so comparing the release triples against the floor is enough.
+function compareVersions(a, b) {
+  const parts = (version) => version.split("-")[0].split(".").map(Number);
+  const [x, y] = [parts(a), parts(b)];
+  return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+}
+
+function satisfiesFleetRange(version, range) {
+  const floor = /^>=(\d+\.\d+\.\d+) <1\.0\.0$/.exec(range ?? "")?.[1];
+  return floor !== undefined && compareVersions(version, floor) >= 0;
+}
 for (const field of [
   "dependencies",
   "devDependencies",
@@ -96,16 +109,27 @@ for (const field of [
   for (const [dependency, range] of Object.entries(pkg[field] ?? {})) {
     if (!DMS_PACKAGE.test(dependency)) continue;
     check(
-      range === "workspace:*" || DMS_RANGE.test(range),
-      `${field}["${dependency}"] is ${JSON.stringify(range)}: DMS packages are referenced by a ">=<floor> <1.0.0" range (or "workspace:*"), a caret range on 0.0.x breaks interface resolution at startup.`,
+      DMS_RANGE.test(range),
+      `${field}["${dependency}"] is ${JSON.stringify(range)}: DMS packages are referenced by a ">=<floor> <1.0.0" range, a caret range on 0.0.x breaks interface resolution at startup.`,
     );
   }
 }
 
 if (expected.role === "runtime") {
+  // The interface sitting next to the module only has to SATISFY the range the
+  // module publishes. A floor that lags it widens what consumers may install
+  // without ever pulling a second copy, so an interface release must not block
+  // the module's release.
+  const interfaceVersion = JSON.parse(
+    fs.readFileSync(
+      path.join("packages", "interface-dms-automation", "package.json"),
+      "utf8",
+    ),
+  ).version;
+  const interfaceRange = pkg.dependencies?.[INTERFACE_PACKAGE];
   check(
-    pkg.dependencies?.[INTERFACE_PACKAGE] === "workspace:*",
-    `dependencies["${INTERFACE_PACKAGE}"] is ${JSON.stringify(pkg.dependencies?.[INTERFACE_PACKAGE])}: keep it at "workspace:*", pnpm rewrites it to the published version on pack.`,
+    satisfiesFleetRange(interfaceVersion, interfaceRange),
+    `dependencies["${INTERFACE_PACKAGE}"] is ${JSON.stringify(interfaceRange)}: it must be a ">=<floor> <1.0.0" range satisfied by the interface in this tree (${interfaceVersion}).`,
   );
   // Releasing the module must never push the interface: they carry separate
   // versions, separate tags and separate workflows.
