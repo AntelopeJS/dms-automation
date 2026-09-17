@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/interface-dms-automation",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "AntelopeJS interface for the DMS automation module: declare trigger, action and data node types from any module",
   "keywords": [
     "antelopejs",
