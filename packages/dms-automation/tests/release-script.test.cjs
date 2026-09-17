@@ -22,7 +22,7 @@ require("node:fs").appendFileSync(process.env.RELEASE_HARNESS_LOG, "${name} " + 
   chmodSync(filename, 0o755);
 }
 
-test("release runs module checks and verifies the public interface before release-it", () => {
+test("release builds the interface, runs module checks and verifies the public interface before release-it", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "automation-release-"));
   const log = path.join(directory, "calls.log");
   const root = path.resolve(__dirname, "..");
@@ -51,6 +51,7 @@ test("release runs module checks and verifies the public interface before releas
     );
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(readFileSync(log, "utf8").trim().split("\n"), [
+      "pnpm --filter @antelopejs/interface-dms-automation build",
       "pnpm --dir frontend-vue install --frozen-lockfile",
       "pnpm lint",
       "pnpm typecheck",

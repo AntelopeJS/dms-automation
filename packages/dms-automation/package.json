@@ -37,7 +37,7 @@
     "lint:fix": "oxlint --fix --max-warnings=1000000 && oxfmt . && cd frontend-vue && pnpm lint:fix",
     "format": "oxfmt .",
     "frontend:dev": "cd playground && pnpm frontend:dev",
-    "release": "pnpm --dir frontend-vue install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test:frontend-registration && pnpm run verify:interface && release-it",
+    "release": "pnpm --filter @antelopejs/interface-dms-automation build && pnpm --dir frontend-vue install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test:frontend-registration && pnpm run verify:interface && release-it",
     "verify:interface": "node scripts/verify-interface-package.cjs",
     "prepack": "pnpm run build",
     "knip": "knip --dependencies",
