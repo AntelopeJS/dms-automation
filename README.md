@@ -16,8 +16,8 @@ modules use to plug their own nodes into it. Two packages, released separately:
 
 A module that only declares nodes depends on the **interface** package alone —
 never on the implementation. The module depends on the interface through
-`workspace:*`, which pnpm rewrites to the published version on pack, so the
-interface is always released first.
+`>=<interface version> <1.0.0`, which pnpm resolves to the workspace sibling
+during development, so the interface is always released first.
 
 ## Working in this repository
 
@@ -41,4 +41,4 @@ are separate projects with their own lockfiles.
 Each package has its own manually dispatched workflow, and releasing one never
 releases the other: run **Release DMS automation interface** first, then
 **Release DMS automation module**, which refuses to start until the interface
-version wired as `workspace:*` is resolvable on npmjs.
+version its dependency range is floored at is resolvable on npmjs.

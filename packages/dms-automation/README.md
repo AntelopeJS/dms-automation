@@ -40,9 +40,9 @@ project's `antelope.config.ts`.
 The interface package is released before dms-automation because the latter depends on
 it. Both are published to npmjs from their own manually dispatched GitHub workflow:
 run `Release DMS automation interface` first, then `Release DMS automation module`,
-which refuses to run until the interface version wired as `workspace:*` is resolvable
-on npmjs. Published package manifests replace the local `workspace:*` dependency with
-the interface package version. Existing consumers of the old standalone interface must
+which refuses to run until the interface version its dependency range is floored at is
+resolvable on npmjs. Inside the workspace that same range resolves to the sibling
+package, through `link-workspace-packages`. Existing consumers of the old standalone interface must
 move to `@antelopejs/interface-dms-automation` and update their `implements` or
 optional-dependency wiring; no compatibility alias is provided.
 
