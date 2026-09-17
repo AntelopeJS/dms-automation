@@ -25,7 +25,7 @@ import {
 import { registry } from "./runtime/registry";
 import { subscriptions } from "./runtime/subscriptions";
 import { isOriginAttributionWorking } from "./runtime/typeOrigin";
-import { MODULE_NAME, SCHEMA_NAME } from "./types/constants";
+import { FRONTEND_MODULE_NAME, SCHEMA_NAME } from "./types/constants";
 
 export interface Config {
   /** Multi-instance coordination. Omit for standalone (single-instance) behavior. */
@@ -43,7 +43,7 @@ export async function construct(config: Config): Promise<void> {
   );
 
   await AddFrontendModule({
-    name: MODULE_NAME,
+    name: FRONTEND_MODULE_NAME,
     sourcePath: path.join(__dirname, "../frontend-vue"),
     renderer: { name: "vue", version: "3" },
     configKey: "dmsAutomation",

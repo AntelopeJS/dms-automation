@@ -23,7 +23,7 @@ test("registers Vue with the automation configuration and original priority", as
   await exports.construct({ cluster: { driver: "memory" } });
   assert.deepEqual(registrations, [
     {
-      name: "@antelopejs/dms-automation",
+      name: "@antelopejs/dms-automation-frontend-vue",
       sourcePath: path.resolve(__dirname, "../frontend-vue"),
       renderer: { name: "vue", version: "3" },
       configKey: "dmsAutomation",
