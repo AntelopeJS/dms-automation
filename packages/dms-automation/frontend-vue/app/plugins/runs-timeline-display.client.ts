@@ -1,4 +1,4 @@
-import { defineDmsPlugin } from "#dms-inertia/frontend-module";
+import { defineDmsPlugin } from "#dms/frontend-module";
 import RunsTimelineDisplay from "../components/RunsTimelineDisplay.vue";
 
 // Registers the "timeline" TableView display used by the Runs page
