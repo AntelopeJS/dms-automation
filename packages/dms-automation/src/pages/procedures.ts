@@ -43,6 +43,8 @@ export class ProceduresPageController extends PageController(
           urlSlug: "/modules/automation/builder?selected=:id",
           customPage: true,
         },
+        new: { customPage: true },
+        edit: { customPage: true },
       },
     },
     rowActions: {
