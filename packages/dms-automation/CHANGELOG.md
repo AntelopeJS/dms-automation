@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.3
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.1.2...v0.1.3)
+
+### 🩹 Fixes
+
+- Update DMS playground CLI ([#11](https://github.com/AntelopeJS/dms-automation/pull/11))
+- Use DmsClientOnly in automation editor ([#13](https://github.com/AntelopeJS/dms-automation/pull/13))
+
+### 🏡 Chore
+
+- Add orb setup for DMS playground ([#12](https://github.com/AntelopeJS/dms-automation/pull/12))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.1.2
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.1.1...v0.1.2)
