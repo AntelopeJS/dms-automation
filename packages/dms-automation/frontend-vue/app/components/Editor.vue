@@ -2277,7 +2277,7 @@ async function onRun() {
 					@add-template="onPaletteAddTemplate"
 				/>
 				<div class="h-full min-w-0 flex-1">
-					<ClientOnly>
+					<DmsClientOnly>
 						<DmsAutomationGraphCanvas
 							v-if="currentGraph"
 							ref="graphCanvasRef"
@@ -2372,7 +2372,7 @@ async function onRun() {
 						{{ $t('dms_automation.editor.loading') }}
 					</div>
 				</template>
-				</ClientOnly>
+				</DmsClientOnly>
 				</div>
 			</div>
 		</div>
