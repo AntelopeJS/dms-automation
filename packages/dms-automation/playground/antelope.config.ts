@@ -26,6 +26,9 @@ export default defineConfig({
       },
       config: {
         homepage: "/modules/automation/overview",
+        auth: {
+          jwtSecret: "dev",
+        },
         meta: {
           title: "AntelopeJS Automation",
           description: "AntelopeJS DMS automation playground",
