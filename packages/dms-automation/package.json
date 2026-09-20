@@ -31,6 +31,7 @@
     "build": "pnpm --filter @antelopejs/interface-dms-automation build && rimraf dist && tsc -p tsconfig.build.json",
     "test:frontend-registration": "pnpm run build && node --test tests/frontend-registration.test.cjs",
     "test:release-script": "node --test tests/release-script.test.cjs",
+    "test:type-origin": "pnpm run build && node --test tests/type-origin.test.cjs",
     "dev": "ajs project run -w -p playground",
     "lint": "oxlint && oxfmt --check . && cd frontend-vue && pnpm lint",
     "typecheck": "pnpm --filter @antelopejs/interface-dms-automation typecheck && tsc -p tsconfig.json",
