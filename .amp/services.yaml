@@ -3,18 +3,24 @@ services:
     command: pnpm --dir packages/dms-automation/playground dev
     port: 5010
     health: /dms/sitelayout
-    portal:
-      title: DMS Automation Playground API
-      description: DMS backend
 
   dms-auto-play-front:
     command: >-
       until curl -fsS http://127.0.0.1:5010/dms/sitelayout >/dev/null; do sleep 0.5; done;
       PORT=3001
       DMS_API_BASE_URL=http://127.0.0.1:5010
-      DMS_CLIENT_BASE_URL="$DMS_AUTO_PLAY_BACK_URL"
+      DMS_CLIENT_BASE_URL="$DMS_GATEWAY_URL"
       DMS_COOKIE_SECURE=false
       pnpm --dir packages/dms-automation/playground frontend:dev
     port: 3001
     env:
-      DMS_AUTO_PLAY_BACK_URL: ${services.dms-auto-play-back.publicURL}
+      DMS_GATEWAY_URL: ${services.dms-gateway.publicURL}
+      DMS_TRUSTED_PROXY_HOPS: "1"
+
+  dms-gateway:
+    command: node .amp/gateway.mjs
+    port: 3002
+    health: /__gateway_health
+    portal:
+      title: DMS Automation Playground
+      description: DMS frontend
