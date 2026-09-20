@@ -23,6 +23,9 @@ importers:
       '@antelopejs/interface-database-decorators':
         specifier: '>=0.1.6 <1.0.0'
         version: 0.1.6(@antelopejs/interface-api@0.0.13(@antelopejs/interface-core@0.0.13))(@antelopejs/interface-core@0.0.13)(@antelopejs/interface-database@0.1.7(@antelopejs/interface-core@0.0.13))
+      '@antelopejs/interface-dms-automation':
+        specifier: file:../../interface-dms-automation
+        version: file:../../interface-dms-automation(@antelopejs/interface-core@0.0.13)
     devDependencies:
       '@antelopejs/core':
         specifier: 1.8.0
@@ -110,6 +113,11 @@ packages:
     resolution: {integrity: sha512-BS/CX39gO+wvomWxAmDIpH10KR2N4d8OauLJDRi+XTISl3sXCfR+c8HEvFZWOdbBbNDrpz8f5b7PNbKk6DPIWg==}
     peerDependencies:
       '@antelopejs/interface-core': '>=0.0.6 <1.0.0'
+
+  '@antelopejs/interface-dms-automation@file:../../interface-dms-automation':
+    resolution: {directory: ../../interface-dms-automation, type: directory}
+    peerDependencies:
+      '@antelopejs/interface-core': '>=0.0.13 <1.0.0'
 
   '@antelopejs/interface-dms@0.0.2':
     resolution: {integrity: sha512-U2JVQ3Jja1018I8PgjfkKlodkdArU2Zmiu21CqGv2VMTE3TPyleX8j4S/W5sIYnVyqv9YzoVGRvKhskwbm6AHA==}
@@ -1405,6 +1413,10 @@ snapshots:
     dependencies:
       '@antelopejs/interface-core': 0.0.12
     optional: true
+
+  '@antelopejs/interface-dms-automation@file:../../interface-dms-automation(@antelopejs/interface-core@0.0.13)':
+    dependencies:
+      '@antelopejs/interface-core': 0.0.13
 
   '@antelopejs/interface-dms@0.0.2(364dfe1a7f255e9bf2bea701d75f550f)':
     dependencies:

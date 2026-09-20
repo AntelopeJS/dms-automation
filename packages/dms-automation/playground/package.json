@@ -13,7 +13,8 @@
     "@antelopejs/interface-api": "^0.0.13",
     "@antelopejs/interface-core": ">=0.0.13 <1.0.0",
     "@antelopejs/interface-database": "0.1.7",
-    "@antelopejs/interface-database-decorators": ">=0.1.6 <1.0.0"
+    "@antelopejs/interface-database-decorators": ">=0.1.6 <1.0.0",
+    "@antelopejs/interface-dms-automation": "file:../../interface-dms-automation"
   },
   "devDependencies": {
     "@antelopejs/core": "1.8.0",

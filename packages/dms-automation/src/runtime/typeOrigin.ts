@@ -12,18 +12,35 @@ import { internal } from "@antelopejs/interface-dms-automation";
  * when the module unloads) but does not forward it to the register callback,
  * and it replays queued registrations from OUR stack once we attach — so the
  * callback can't recover the true caller. That leaves the proxy's private
- * `registered` map as the only complete source. The cast below is deliberately
- * narrow and the access is fully defensive: if a future
- * @antelopejs/interface-core renames the field, every lookup degrades to "no
- * module" (a flat, ungrouped palette) instead of throwing.
- * `isOriginAttributionWorking` turns that silent degradation into a boot-time
- * warning — see src/index.ts.
+ * `state.registered` map as the only complete source (interface-core keeps
+ * every proxy's bookkeeping in a shared per-identity `state` object since
+ * 0.0.11 — our peer range floors at 0.0.13, so that is the only shape we
+ * target). The cast below is deliberately narrow and the access is fully
+ * defensive: if a future @antelopejs/interface-core moves the field again,
+ * every lookup degrades to "no module" (a flat, ungrouped palette) instead of
+ * throwing. `isOriginAttributionWorking` turns that silent degradation into a
+ * boot-time warning — see src/index.ts.
  */
 interface ProxyRegistryEntry {
   module?: string;
 }
 interface ProxyRegistry {
-  registered?: Map<string, ProxyRegistryEntry>;
+  state?: { registered?: Map<string, ProxyRegistryEntry> };
+}
+
+/**
+ * Reads the proxy's registration bookkeeping for `id`, or undefined when the
+ * internal shape no longer matches.
+ */
+function registryEntry(
+  proxy: RegisteringProxy,
+  id: string,
+): ProxyRegistryEntry | undefined {
+  // Reaching into an AntelopeJS internal: the runtime's registry is
+  // not on the public type, and the source and target do not overlap,
+  // so a single assertion is not expressible.
+  // oxlint-disable-next-line anti-slop/no-chained-type-assertions
+  return (proxy as unknown as ProxyRegistry).state?.registered?.get(id);
 }
 
 /**
@@ -45,13 +62,7 @@ export interface TypeOrigin {
 }
 
 function originOf(proxy: RegisteringProxy, id: string): TypeOrigin {
-  // Reaching into an AntelopeJS internal: the runtime's registry is
-  // not on the public type, and the source and target do not overlap,
-  // so a single assertion is not expressible.
-  // oxlint-disable-next-line anti-slop/no-chained-type-assertions
-  const module = (proxy as unknown as ProxyRegistry).registered?.get(
-    id,
-  )?.module;
+  const module = registryEntry(proxy, id)?.module;
   return module === undefined || module === SELF_MODULE ? {} : { module };
 }
 
@@ -73,10 +84,8 @@ export const dataNodeTypeOrigin = (id: string): TypeOrigin =>
  */
 export function isOriginAttributionWorking(ownTriggerTypeId: string): boolean {
   if (SELF_MODULE === undefined) return false;
-  // Reaching into an AntelopeJS internal: the runtime's registry is
-  // not on the public type, and the source and target do not overlap,
-  // so a single assertion is not expressible.
-  // oxlint-disable-next-line anti-slop/no-chained-type-assertions
-  const registry = internal.RegisterTriggerType as unknown as ProxyRegistry;
-  return registry.registered?.get(ownTriggerTypeId)?.module === SELF_MODULE;
+  return (
+    registryEntry(internal.RegisterTriggerType, ownTriggerTypeId)?.module ===
+    SELF_MODULE
+  );
 }

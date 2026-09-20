@@ -66,5 +66,9 @@ jobs:
       - run: pnpm --dir packages/dms-automation build
       - run: pnpm --dir packages/dms-automation test:frontend-registration
       - run: pnpm --dir packages/dms-automation test:release-script
+      # Contract test on the interface-core internals type attribution reads.
+      # A release that moves the RegisteringProxy bookkeeping again must fail
+      # here rather than silently flatten the builder palette.
+      - run: pnpm --dir packages/dms-automation test:type-origin
       # Frontend build/typecheck run in the consuming generated Inertia
       # workspace, where the host DMS composables and SDK aliases resolve.
