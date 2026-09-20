@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.5
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.1.4...v0.1.5)
+
+### 🩹 Fixes
+
+- Route playground through public gateway ([#16](https://github.com/AntelopeJS/dms-automation/pull/16))
+- **automation:** Read type-origin from the proxy's state registry ([#17](https://github.com/AntelopeJS/dms-automation/pull/17))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.1.4
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.1.3...v0.1.4)
