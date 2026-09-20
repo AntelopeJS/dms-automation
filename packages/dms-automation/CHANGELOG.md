@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.4
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.1.3...v0.1.4)
+
+### 🩹 Fixes
+
+- **automation:** Route procedure pages through builder ([#14](https://github.com/AntelopeJS/dms-automation/pull/14))
+
+### 🏡 Chore
+
+- **playground:** Use dms frontend 0.2.1 ([#15](https://github.com/AntelopeJS/dms-automation/pull/15))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.1.3
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.1.2...v0.1.3)
