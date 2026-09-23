@@ -22,8 +22,7 @@ during development, so the interface is always released first.
 ## Working in this repository
 
 The root holds the shared tooling — `oxlint.config.mts`, `oxfmt.config.mts` and
-the base `tsconfig.json` / `tsconfig.build.json` that both packages extend — and
-nothing publishable.
+the base `tsconfig.json` that both packages extend — and nothing publishable.
 
 ```bash
 pnpm install              # the whole workspace, root included

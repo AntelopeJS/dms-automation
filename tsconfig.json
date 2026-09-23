@@ -5,7 +5,7 @@
   // package configs.
   "compilerOptions": {
     "target": "esnext",
-    "module": "preserve",
+    "module": "commonjs",
     "moduleResolution": "bundler",
     "lib": ["esnext"],
     "strict": true,
@@ -19,7 +19,6 @@
     "declaration": true,
     "sourceMap": true,
     "skipLibCheck": true,
-    "incremental": true,
-    "noEmit": true
+    "incremental": true
   }
 }
