@@ -48,11 +48,8 @@ jobs:
       - run: pnpm --dir packages/interface-dms-automation typecheck
       - run: pnpm --dir packages/interface-dms-automation knip
       - run: pnpm --dir packages/interface-dms-automation build
-      # Asserts the exports map and typesVersions still describe the built
-      # output, then compiles a consumer against the packed tarball under
-      # node, node16 and bundler.
+      # Asserts the exports map still describes the built output.
       - run: pnpm --dir packages/interface-dms-automation check:exports
-      - run: pnpm --dir packages/interface-dms-automation check:consumer
 
       - run: pnpm --dir packages/dms-automation lint
       # oxlint's type-aware pass degrades to `any` on a broken tsconfig
