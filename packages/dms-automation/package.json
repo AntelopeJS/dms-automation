@@ -8,6 +8,7 @@
   },
   "files": [
     "dist",
+    "!dist/.tsbuildinfo",
     "frontend-vue",
     "package.json",
     "README.md",
@@ -28,13 +29,13 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "pnpm --filter @antelopejs/interface-dms-automation build && rimraf dist && tsc -p tsconfig.build.json",
+    "build": "pnpm --filter @antelopejs/interface-dms-automation build && rimraf dist && tsc",
     "test:frontend-registration": "pnpm run build && node --test tests/frontend-registration.test.cjs",
     "test:release-script": "node --test tests/release-script.test.cjs",
     "test:type-origin": "pnpm run build && node --test tests/type-origin.test.cjs",
     "dev": "ajs project run -w -p playground",
     "lint": "oxlint && oxfmt --check . && cd frontend-vue && pnpm lint",
-    "typecheck": "pnpm --filter @antelopejs/interface-dms-automation typecheck && tsc -p tsconfig.json",
+    "typecheck": "pnpm --filter @antelopejs/interface-dms-automation typecheck && tsc --noEmit",
     "lint:fix": "oxlint --fix --max-warnings=1000000 && oxfmt . && cd frontend-vue && pnpm lint:fix",
     "format": "oxfmt .",
     "frontend:dev": "cd playground && pnpm frontend:dev",
@@ -69,7 +70,7 @@
     "release-it": "^19.2.4",
     "release-it-changelogen": "^0.1.0",
     "rimraf": "^6.1.3",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "optionalDependencies": {
     "@antelopejs/interface-redis": "^0.0.8"

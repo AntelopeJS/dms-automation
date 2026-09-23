@@ -10,7 +10,7 @@
     "removeComments": true,
     "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "node_modules/.cache/tsc/lint.tsbuildinfo"
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["./src/**/*.ts"]
 }

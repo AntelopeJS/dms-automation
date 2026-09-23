@@ -206,6 +206,11 @@ async function main() {
               strict: true,
               noEmit: true,
               skipLibCheck: false,
+              // TypeScript 6 no longer loads every @types package by default.
+              types: ["node"],
+              // TypeScript 6 deprecates `moduleResolution: node`, which the
+              // consumers this check stands for still use.
+              ...(moduleResolution === "node" && { ignoreDeprecations: "6.0" }),
             },
             files: ["consumer.ts"],
           },
