@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.1
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.1.0...v0.1.1)
+
+### 🩹 Fixes
+
+- **deps:** Accept @antelopejs/interface-api 0.0.14 and later 0.x ([#25](https://github.com/AntelopeJS/dms-automation/pull/25))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/dms-automation v0.2.0 ([aba9944](https://github.com/AntelopeJS/dms-automation/commit/aba9944))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.1.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.0.2...v0.1.0)
