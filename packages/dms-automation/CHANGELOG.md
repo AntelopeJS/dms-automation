@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.2.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.1.5...v0.2.0)
+
+### 🩹 Fixes
+
+- **deps:** Accept @antelopejs/interface-api 0.0.14 and later 0.x ([#25](https://github.com/AntelopeJS/dms-automation/pull/25))
+
+### 💅 Refactors
+
+- **build:** Merge tsconfig.build.json into tsconfig.json ([#20](https://github.com/AntelopeJS/dms-automation/pull/20))
+- **package:** ⚠️  Drop moduleResolution node support and pack-based checks ([#23](https://github.com/AntelopeJS/dms-automation/pull/23))
+
+### 🏡 Chore
+
+- **agents:** Install Node 24 in setup script ([#18](https://github.com/AntelopeJS/dms-automation/pull/18))
+- **release:** @antelopejs/interface-dms-automation v0.1.0 ([e0e09c6](https://github.com/AntelopeJS/dms-automation/commit/e0e09c6))
+
+### 🤖 CI
+
+- **release:** Release next from a dedicated branch and restore requireCommits ([#21](https://github.com/AntelopeJS/dms-automation/pull/21))
+- **release:** Reference the shared release workflows through v1 ([#22](https://github.com/AntelopeJS/dms-automation/pull/22))
+
+#### ⚠️ Breaking Changes
+
+- **package:** ⚠️  Drop moduleResolution node support and pack-based checks ([#23](https://github.com/AntelopeJS/dms-automation/pull/23))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.1.5
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.1.4...v0.1.5)
