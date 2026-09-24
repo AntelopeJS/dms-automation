@@ -46,7 +46,7 @@
     "knip:all": "knip"
   },
   "dependencies": {
-    "@antelopejs/interface-api": "^0.0.13",
+    "@antelopejs/interface-api": ">=0.0.14 <1.0.0",
     "@antelopejs/interface-api-util": "^0.1.2",
     "@antelopejs/interface-core": ">=0.1.1 <1.0.0",
     "@antelopejs/interface-data-api": "^0.1.9",
@@ -73,7 +73,7 @@
     "typescript": "^6.0.3"
   },
   "optionalDependencies": {
-    "@antelopejs/interface-redis": "^0.0.8"
+    "@antelopejs/interface-redis": ">=0.0.8 <1.0.0"
   },
   "packageManager": "pnpm@10.2.0",
   "antelopeJs": {
