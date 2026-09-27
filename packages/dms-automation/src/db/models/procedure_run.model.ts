@@ -24,6 +24,31 @@ export type StatsRun = Pick<
   "_id" | "procedureId" | "startedAt" | "endedAt" | "status" | "errorMessage"
 >;
 
+/**
+ * List-view shape of a run: everything except the trigger payload and the
+ * execution log, which can be large. The full run is read by id.
+ */
+export type RunSummary = Pick<
+  ProcedureRun,
+  | "_id"
+  | "procedureId"
+  | "startedAt"
+  | "endedAt"
+  | "status"
+  | "errorMessage"
+  | "triggerNodeId"
+>;
+
+const RUN_SUMMARY_FIELDS = [
+  "_id",
+  "procedureId",
+  "startedAt",
+  "endedAt",
+  "status",
+  "errorMessage",
+  "triggerNodeId",
+] as const;
+
 export class ProcedureRunModel extends BasicDataModel(
   ProcedureRun,
   procedureRunsTableName,
@@ -52,12 +77,13 @@ export class ProcedureRunModel extends BasicDataModel(
     // The caller trims the surplus row and uses its presence to decide whether
     // a next page exists.
     peek = false,
-  ): Promise<ProcedureRun[]> {
-    return await this.table
+  ): Promise<RunSummary[]> {
+    return (await this.table
       .filter((doc) => doc.key("procedureId").eq(procedureId))
       .orderBy("startedAt", "desc")
       .slice(page * limit, peek ? limit + 1 : limit)
-      .run();
+      .pluck(...RUN_SUMMARY_FIELDS)
+      .run()) as RunSummary[];
   }
 
   async listAll({
@@ -67,7 +93,7 @@ export class ProcedureRunModel extends BasicDataModel(
     status,
     since,
     peek = false,
-  }: RunListQuery): Promise<ProcedureRun[]> {
+  }: RunListQuery): Promise<RunSummary[]> {
     let base = this.table;
     if (procedureId) {
       base = base.filter((doc) => doc.key("procedureId").eq(procedureId));
@@ -78,9 +104,10 @@ export class ProcedureRunModel extends BasicDataModel(
     if (since) {
       base = base.filter((doc) => doc.key("startedAt").ge(since));
     }
-    return await base
+    return (await base
       .orderBy("startedAt", "desc")
       .slice(page * limit, peek ? limit + 1 : limit)
-      .run();
+      .pluck(...RUN_SUMMARY_FIELDS)
+      .run()) as RunSummary[];
   }
 }
