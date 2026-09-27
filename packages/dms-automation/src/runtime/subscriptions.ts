@@ -15,6 +15,7 @@ import type { Procedure } from "../db/tables/procedure.table";
 import { DATABASE_NAME, FETCH_ALL_LIMIT } from "../types/constants";
 import type { GroupNode, ProcedureGraph } from "../types/graph";
 import type { RunLog } from "../types/runLog";
+import { boundRunLog, serializeTriggerPayload } from "./boundRunLog";
 import { MANUAL_TRIGGER_ID } from "./builtins/triggers/manual";
 import { run as executorRun } from "./executor";
 import { diff } from "./reconcileDiff";
@@ -167,8 +168,8 @@ async function writeRun({
     status,
     errorMessage,
     triggerNodeId,
-    triggerPayload: JSON.stringify(triggerPayload ?? null),
-    logs,
+    triggerPayload: serializeTriggerPayload(triggerPayload),
+    logs: boundRunLog(logs),
   });
   return ids[0] ?? "";
 }

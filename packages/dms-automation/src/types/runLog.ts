@@ -59,4 +59,9 @@ export interface LogEntry {
 export interface RunLog {
   fires: FireNode[];
   entries: LogEntry[];
+  /**
+   * Number of entries dropped to keep the persisted run within its size
+   * budget (see runtime/boundRunLog). Absent when nothing was dropped.
+   */
+  truncated?: number;
 }
