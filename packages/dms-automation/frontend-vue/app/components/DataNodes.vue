@@ -73,7 +73,16 @@ function categoryOf(t: DataNodeTypeItem): string {
 </script>
 
 <template>
-	<div :class="embedded ? 'flex flex-col gap-5' : 'flex flex-col gap-6 p-4 sm:p-6'">
+	<!-- Embedded in the library page, which fills the panel: from `lg` up the
+	     list and the detail share the height and scroll inside; below, where
+	     they stack, the catalog scrolls as a whole. -->
+	<div
+		:class="
+			embedded
+				? 'flex min-h-0 flex-1 flex-col gap-5 max-lg:overflow-y-auto'
+				: 'flex flex-col gap-6 p-4 sm:p-6'
+		"
+	>
 		<section v-if="!embedded" class="flex flex-wrap items-center gap-4">
 			<div
 				class="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring ring-primary/20"
@@ -110,18 +119,22 @@ function categoryOf(t: DataNodeTypeItem): string {
 		/>
 
 		<div
-			class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,340px)_1fr] lg:items-start"
+			class="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(280px,340px)_1fr]"
 		>
 			<DmsAutomationTypeList
 				:types="items"
 				:model-value="selectedId"
 				:group-by="categoryOf"
 				:title="$t('dms_automation.data_nodes.listLabel')"
-				class="lg:max-h-[calc(100vh-12rem)]"
+				class="lg:min-h-0"
 				@update:model-value="selectedId = $event"
 			/>
 
-			<DmsCard v-if="selectedType" :padded="false" class="flex flex-col">
+			<DmsCard
+				v-if="selectedType"
+				:padded="false"
+				class="flex flex-col lg:min-h-0 lg:overflow-y-auto"
+			>
 				<div class="flex items-start gap-3 border-b border-default px-5 py-4 sm:px-6">
 					<div
 						class="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary ring ring-primary/20"

@@ -14,7 +14,7 @@ export class LibraryPageController extends PageController(
     module: "automation",
     order: 3,
   },
-  DefaultLayout({ fullWidth: true }),
+  DefaultLayout({ fullWidth: true, fillHeight: true }),
 ) {
   static list = CustomComponent("dms-automation-library");
 }
