@@ -61,6 +61,8 @@ jobs:
       - run: pnpm --dir packages/dms-automation build
       - run: pnpm --dir packages/dms-automation test:frontend-registration
       - run: pnpm --dir packages/dms-automation test:release-script
+      # Run-storage budgets and the procedure_runs index declarations.
+      - run: pnpm --dir packages/dms-automation test:run-storage
       # Contract test on the interface-core internals type attribution reads.
       # A release that moves the RegisteringProxy bookkeeping again must fail
       # here rather than silently flatten the builder palette.

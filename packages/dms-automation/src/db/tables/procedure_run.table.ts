@@ -13,11 +13,13 @@ export const procedureRunsTableName = "procedure_runs";
 
 @RegisterTable(procedureRunsTableName, SCHEMA_NAME)
 export class ProcedureRun extends Table {
-  @Index()
+  @Index({ group: "procedureId_startedAt" })
   @Field("string")
   @Relation({ to: () => Procedure })
   declare procedureId: string;
 
+  @Index()
+  @Index({ group: "procedureId_startedAt" })
   @Field("date")
   declare startedAt: Date;
 

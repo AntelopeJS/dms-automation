@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/dms-automation",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -32,6 +32,7 @@
     "build": "pnpm --filter @antelopejs/interface-dms-automation build && rimraf dist && tsc",
     "test:frontend-registration": "pnpm run build && node --test tests/frontend-registration.test.cjs",
     "test:release-script": "node --test tests/release-script.test.cjs",
+    "test:run-storage": "pnpm run build && node --test tests/run-storage.test.cjs",
     "test:type-origin": "pnpm run build && node --test tests/type-origin.test.cjs",
     "dev": "ajs project run -w -p playground",
     "lint": "oxlint && oxfmt --check . && cd frontend-vue && pnpm lint",
