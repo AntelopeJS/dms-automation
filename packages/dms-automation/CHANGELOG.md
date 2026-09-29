@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.2
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.1...v0.2.2)
+
+### 🩹 Fixes
+
+- **deps:** Relax @antelopejs/interface-database to >=0.1.7 <1.0.0 ([#30](https://github.com/AntelopeJS/dms-automation/pull/30))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.2.1
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.0...v0.2.1)
