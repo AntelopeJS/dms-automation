@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.2.1
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.0...v0.2.1)
+
+### 🔥 Performance
+
+- **db:** Index procedure run history and bound persisted run logs ([#29](https://github.com/AntelopeJS/dms-automation/pull/29))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/interface-dms-automation v0.1.1 ([4cc3652](https://github.com/AntelopeJS/dms-automation/commit/4cc3652))
+- **playground:** Move to @antelopejs/dms-frontend 0.3.2 ([#27](https://github.com/AntelopeJS/dms-automation/pull/27))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.2.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.1.5...v0.2.0)
