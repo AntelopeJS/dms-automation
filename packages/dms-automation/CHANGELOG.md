@@ -1,5 +1,41 @@
 # Changelog
 
+## v0.2.5
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.4...v0.2.5)
+
+### 💅 Refactors
+
+- **pages:** Let the library and the builder fill the panel ([#34](https://github.com/AntelopeJS/dms-automation/pull/34))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
+## v0.2.4
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.3...v0.2.4)
+
+### 🩹 Fixes
+
+- **deps:** Cap @antelopejs/interface-dms-automation below the next minor and check interface ranges ([#33](https://github.com/AntelopeJS/dms-automation/pull/33))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
+## v0.2.3
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.2...v0.2.3)
+
+### 🩹 Fixes
+
+- **deps:** Accept compatible 0.x versions of the interface packages ([#28](https://github.com/AntelopeJS/dms-automation/pull/28))
+
+### ❤️ Contributors
+
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.2.2
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.1...v0.2.2)

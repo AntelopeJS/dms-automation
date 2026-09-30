@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useElementBounding } from '@vueuse/core'
 import type { BreadcrumbItem } from '@nuxt/ui'
 import type { NodeKindEntry } from '../composables/useAutomationNodeKinds'
 import { type ListEnvelope, newId, unwrapList } from '../utils/automation'
@@ -32,30 +31,6 @@ const props = withDefaults(
 )
 
 const route = useDmsRoute()
-
-// Editor height.
-//
-// The graph canvas must fill the page instead of growing with its content,
-// otherwise the whole page scrolls under a canvas that pans on its own. The
-// dms layout drops page components into plain block containers (UContainer >
-// dms-page-stack), so there is no flex parent whose height we could claim —
-// the height has to come from the viewport.
-//
-// The offset to subtract is measured rather than hardcoded: everything above
-// us (dashboard header, the native page header, the panel's responsive
-// padding) belongs to the dms layer and shifts between its releases and
-// across breakpoints. `100dvh` keeps the viewport half reactive in CSS, so
-// only the offset needs re-measuring. Before the first measurement (SSR,
-// pre-mount) no height is applied and the `min-h-96` floor takes over.
-const editorRoot = ref<HTMLElement | null>(null)
-const { top: editorRootTop } = useElementBounding(editorRoot)
-// Breathing room below the editor, matching the layout panel's bottom padding.
-const EDITOR_BOTTOM_GAP_PX = 24
-const editorHeight = computed(() =>
-	editorRootTop.value > 0
-		? `calc(100dvh - ${Math.round(editorRootTop.value)}px - ${EDITOR_BOTTOM_GAP_PX}px)`
-		: undefined,
-)
 
 const templateQueryId = computed<string | null>(() => {
 	const q = route.query.template
@@ -2115,11 +2090,11 @@ async function onRun() {
 	<!--
 		The page (src/pages/builder.ts) renders the native dms header
 		(icon / title / description), so the editor doesn't repeat one here.
-		Height comes from `editorHeight` (see above); the `min-h-0` / `flex-1`
-		chain below passes it down to the canvas, and `min-h-96` keeps the
-		canvas usable on short viewports at the cost of scrolling there.
+		The page fills the panel (`fillHeight`): the editor takes the height
+		left under that header, and the `min-h-0` / `flex-1` chain below passes
+		it down to the canvas, which pans inside it instead of growing.
 	-->
-	<div ref="editorRoot" class="flex min-h-96 flex-col gap-4" :style="{ height: editorHeight }">
+	<div class="flex min-h-0 flex-1 flex-col gap-4">
 		<UAlert
 			v-if="loadError"
 			color="error"
