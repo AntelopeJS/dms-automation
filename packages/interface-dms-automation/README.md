@@ -27,6 +27,11 @@ pnpm add @antelopejs/interface-dms-automation
   module keeps working. This is the recommended setup for DMS modules that ship
   nodes as a bonus feature.
 
+Use a wide range, `>=<floor> <1.0.0`, so package managers can deduplicate.
+`@antelopejs/dms-automation`, which implements this interface, is the exception:
+it caps its range below the next minor, so a breaking minor of this package never
+reaches an older automation module.
+
 ```json
 // package.json
 {

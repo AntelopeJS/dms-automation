@@ -15,9 +15,11 @@ modules use to plug their own nodes into it. Two packages, released separately:
 | [`@antelopejs/interface-dms-automation`](./packages/interface-dms-automation) | `packages/interface-dms-automation` | the public contract, depended on by modules that declare automation nodes |
 
 A module that only declares nodes depends on the **interface** package alone —
-never on the implementation. The module depends on the interface through
-`>=<interface version> <1.0.0`, which pnpm resolves to the workspace sibling
-during development, so the interface is always released first.
+never on the implementation. The module implements the interface, so it
+depends on it through `>=<interface version> <0.<minor + 1>.0`: a breaking
+interface minor never reaches a module that does not implement it. pnpm resolves
+that range to the workspace sibling during development, so the interface is
+always released first.
 
 ## Working in this repository
 

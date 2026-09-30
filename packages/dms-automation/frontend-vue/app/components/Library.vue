@@ -23,9 +23,11 @@ const tabs = computed<
 <template>
 	<!--
 		Title / icon / description come from the page's native dms header
-		(src/pages/library.ts), so this component starts at its tabs.
+		(src/pages/library.ts), so this component starts at its tabs. The page
+		fills the panel (`fillHeight`): the active catalog takes the height
+		under the tabs.
 	-->
-	<div class="flex flex-col gap-5">
+	<div class="flex min-h-0 flex-1 flex-col gap-5">
 		<!-- Tabs -->
 		<div class="border-b border-default">
 			<div class="flex flex-wrap items-center gap-1">
