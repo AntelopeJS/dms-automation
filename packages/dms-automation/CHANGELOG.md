@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.6
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.5...v0.2.6)
+
+### 🚀 Enhancements
+
+- **frontend-vue:** Declare the @antelopejs/dms-frontend releases the layer supports ([#31](https://github.com/AntelopeJS/dms-automation/pull/31))
+
+### ❤️ Contributors
+
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.2.5
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.4...v0.2.5)
