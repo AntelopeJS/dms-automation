@@ -14,7 +14,7 @@ export class BuilderPageController extends PageController(
     module: "automation",
     order: 2,
   },
-  DefaultLayout({ fullWidth: true }),
+  DefaultLayout({ fullWidth: true, fillHeight: true }),
 ) {
   static list = CustomComponent("dms-automation-editor");
 }

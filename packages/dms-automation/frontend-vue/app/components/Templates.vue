@@ -291,7 +291,16 @@ function schemaTypeOf(p: TemplatePort): string {
 </script>
 
 <template>
-	<div :class="embedded ? 'flex flex-col gap-5' : 'flex flex-col gap-6 p-4 sm:p-6'">
+	<!-- Embedded in the library page, which fills the panel: from `lg` up the
+	     list and the detail share the height and scroll inside; below, where
+	     they stack, the catalog scrolls as a whole. -->
+	<div
+		:class="
+			embedded
+				? 'flex min-h-0 flex-1 flex-col gap-5 max-lg:overflow-y-auto'
+				: 'flex flex-col gap-6 p-4 sm:p-6'
+		"
+	>
 		<section v-if="!embedded" class="flex flex-wrap items-center gap-4">
 			<div
 				class="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring ring-primary/20"
@@ -328,9 +337,9 @@ function schemaTypeOf(p: TemplatePort): string {
 		/>
 
 		<div
-			class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(280px,360px)_1fr] lg:items-start"
+			class="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(280px,360px)_1fr]"
 		>
-			<div class="flex flex-col gap-3">
+			<div class="flex flex-col gap-3 lg:min-h-0">
 				<UInput
 					v-model="search"
 					icon="i-ph-magnifying-glass"
@@ -338,7 +347,7 @@ function schemaTypeOf(p: TemplatePort): string {
 				/>
 				<DmsCard
 					:padded="false"
-					class="flex flex-col overflow-hidden lg:max-h-[calc(100vh-16rem)]"
+					class="flex flex-col overflow-hidden lg:min-h-0 lg:flex-1"
 				>
 					<div
 						v-if="items.length === 0"
@@ -388,7 +397,11 @@ function schemaTypeOf(p: TemplatePort): string {
 				</DmsCard>
 			</div>
 
-			<DmsCard v-if="selected" :padded="false" class="flex flex-col">
+			<DmsCard
+				v-if="selected"
+				:padded="false"
+				class="flex flex-col lg:min-h-0 lg:overflow-y-auto"
+			>
 				<div class="flex items-start gap-3 border-b border-default px-5 py-4 sm:px-6">
 					<div
 						class="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary ring ring-primary/20"
