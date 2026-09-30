@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.3
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.2...v0.2.3)
+
+### 🩹 Fixes
+
+- **deps:** Accept compatible 0.x versions of the interface packages ([#28](https://github.com/AntelopeJS/dms-automation/pull/28))
+
+### ❤️ Contributors
+
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.2.2
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.1...v0.2.2)
