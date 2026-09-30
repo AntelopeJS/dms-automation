@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.5
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.4...v0.2.5)
+
+### 💅 Refactors
+
+- **pages:** Let the library and the builder fill the panel ([#34](https://github.com/AntelopeJS/dms-automation/pull/34))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.2.4
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.3...v0.2.4)
