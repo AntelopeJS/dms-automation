@@ -53,7 +53,7 @@
   },
   "devDependencies": {
     "@antelopejs/interface-core": ">=0.1.1 <1.0.0",
-    "@antelopejs/tooling-configs": ">=0.0.6 <1.0.0",
+    "@antelopejs/tooling-configs": ">=0.0.7 <1.0.0",
     "@types/node": "^24.0.0",
     "knip": "^6.34.0",
     "oxfmt": "^0.66.0",
