@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.2.7
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.6...v0.2.7)
+
+### 🚀 Enhancements
+
+- **frontend-vue:** Resolve i18n keys in automation type names ([#37](https://github.com/AntelopeJS/dms-automation/pull/37))
+
+### 🏡 Chore
+
+- **playground:** Run api ^1.3.1 and open module source ranges ([#35](https://github.com/AntelopeJS/dms-automation/pull/35))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.2.6
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.5...v0.2.6)
