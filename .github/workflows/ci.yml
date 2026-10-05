@@ -63,6 +63,9 @@ jobs:
       - run: pnpm --dir packages/dms-automation test:release-script
       # Run-storage budgets and the procedure_runs index declarations.
       - run: pnpm --dir packages/dms-automation test:run-storage
+      # The Runs page and the frontend plugin agree on the namespaced
+      # `automation:timeline` display id, and the plugin is universal.
+      - run: pnpm --dir packages/dms-automation test:runs-display
       # Contract test on the interface-core internals type attribution reads.
       # A release that moves the RegisteringProxy bookkeeping again must fail
       # here rather than silently flatten the builder palette.
