@@ -25,6 +25,9 @@ interface PortRow {
 defineProps<{ embedded?: boolean }>()
 
 const { $authFetch } = useAuthFetch()
+// A type's `name` / `description` may be a `$`-prefixed DMS i18n key shipped
+// in the declaring module's locales; plain text is shown as written.
+const { processI18n } = useTranslation()
 
 const items = ref<DataNodeTypeItem[]>([])
 const loading = ref(false)
@@ -143,7 +146,7 @@ function categoryOf(t: DataNodeTypeItem): string {
 					</div>
 					<div class="min-w-0 flex-1">
 						<h2 class="truncate text-lg font-semibold text-highlighted">
-							{{ selectedType.name }}
+							{{ processI18n(selectedType.name) }}
 						</h2>
 						<p class="mt-1 font-mono text-xs text-dimmed">{{ selectedType.id }}</p>
 					</div>
@@ -159,7 +162,7 @@ function categoryOf(t: DataNodeTypeItem): string {
 
 				<div class="flex flex-col gap-6 px-5 py-4 sm:px-6">
 					<p v-if="selectedType.description" class="text-sm text-toned">
-						{{ selectedType.description }}
+						{{ processI18n(selectedType.description) }}
 					</p>
 
 					<div class="flex flex-col gap-2">

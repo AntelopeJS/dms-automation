@@ -67,5 +67,8 @@ jobs:
       # A release that moves the RegisteringProxy bookkeeping again must fail
       # here rather than silently flatten the builder palette.
       - run: pnpm --dir packages/dms-automation test:type-origin
+      # Type names and descriptions declared as `$` i18n keys render translated
+      # in the catalog, palette and inspector; plain strings render unchanged.
+      - run: pnpm --dir packages/dms-automation test:type-display
       # Frontend build/typecheck run in the consuming generated Inertia
       # workspace, where the host DMS composables and SDK aliases resolve.

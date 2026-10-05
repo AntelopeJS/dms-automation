@@ -33,6 +33,10 @@ const emit = defineEmits<{
 	(e: 'update:modelValue', value: string): void
 }>()
 
+// A type's `name` / `description` may be a `$`-prefixed DMS i18n key shipped
+// in the declaring module's locales; plain text is shown as written.
+const { processI18n } = useTranslation()
+
 function select(id: string) {
 	emit('update:modelValue', id)
 }
@@ -43,7 +47,8 @@ const isSelected = (id: string) => props.modelValue === id
 const searchEnabled = computed(() => props.searchable !== false)
 const query = ref('')
 
-// Case-insensitive substring filter over name / description / id. Catalogs hold
+// Case-insensitive substring filter over the displayed (translated) name /
+// description and the id. Catalogs hold
 // at most a few hundred registered types, so a per-keystroke scan is cheap and
 // avoids pulling in a fuzzy-match dependency.
 const visibleTypes = computed<T[]>(() => {
@@ -51,8 +56,8 @@ const visibleTypes = computed<T[]>(() => {
 	if (!searchEnabled.value || !q) return props.types
 	return props.types.filter(
 		(t) =>
-			t.name?.toLowerCase().includes(q) ||
-			t.description?.toLowerCase().includes(q) ||
+			processI18n(t.name).toLowerCase().includes(q) ||
+			(t.description && processI18n(t.description).toLowerCase().includes(q)) ||
 			t.id?.toLowerCase().includes(q),
 	)
 })
@@ -153,10 +158,10 @@ const itemClass = (id: string) =>
 										class="truncate text-sm font-medium"
 										:class="isSelected(t.id) ? 'text-primary' : 'text-highlighted'"
 									>
-										{{ t.name }}
+										{{ processI18n(t.name) }}
 									</div>
 									<div v-if="t.description" class="truncate text-xs text-muted">
-										{{ t.description }}
+										{{ processI18n(t.description) }}
 									</div>
 								</div>
 							</button>
@@ -184,10 +189,10 @@ const itemClass = (id: string) =>
 								class="truncate text-sm font-medium"
 								:class="isSelected(t.id) ? 'text-primary' : 'text-highlighted'"
 							>
-								{{ t.name }}
+								{{ processI18n(t.name) }}
 							</div>
 							<div v-if="t.description" class="truncate text-xs text-muted">
-								{{ t.description }}
+								{{ processI18n(t.description) }}
 							</div>
 						</div>
 					</button>
