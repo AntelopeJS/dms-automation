@@ -141,12 +141,18 @@ const fields = computed<
 	}))
 })
 
+// Type names may be `$`-prefixed DMS i18n keys shipped in the declaring
+// module's locales; plain text is shown as written.
+const { processI18n } = useTranslation()
+const typeName = (type: { name: string } | null | undefined) =>
+	type ? processI18n(type.name) : undefined
+
 const nodeTypeLabel = computed<string>(() => {
 	const n = props.node
 	if (!n) return ''
-	if (n.kind === 'trigger') return props.triggerType?.name ?? n.typeId ?? 'Trigger'
-	if (n.kind === 'action') return props.actionType?.name ?? n.typeId ?? 'Action'
-	if (n.kind === 'data') return dataNodeType.value?.name ?? n.typeId ?? 'Data'
+	if (n.kind === 'trigger') return typeName(props.triggerType) ?? n.typeId ?? 'Trigger'
+	if (n.kind === 'action') return typeName(props.actionType) ?? n.typeId ?? 'Action'
+	if (n.kind === 'data') return typeName(dataNodeType.value) ?? n.typeId ?? 'Data'
 	return n.kind
 })
 

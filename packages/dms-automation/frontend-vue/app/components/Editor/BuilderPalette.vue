@@ -31,6 +31,11 @@ const emit = defineEmits<{
 
 const search = ref('')
 
+// Registered type names may be `$`-prefixed DMS i18n keys shipped in the
+// declaring module's locales; plain text is shown as written. Search matches
+// the translated label.
+const { processI18n } = useTranslation()
+
 interface PaletteItem {
 	key: string
 	label: string
@@ -106,16 +111,16 @@ const groups = computed<PaletteGroup[]>(() => {
 			const reg = ui.typeRegistry
 			if (reg === 'triggers') {
 				for (const t of props.triggerTypes ?? []) {
-					push(t.module ?? BUILTIN_BUCKET, { key: `${k.kind}:${t.id}`, label: t.name, icon: t.icon ?? groupIcon, kind: k.kind, typeId: t.id })
+					push(t.module ?? BUILTIN_BUCKET, { key: `${k.kind}:${t.id}`, label: processI18n(t.name), icon: t.icon ?? groupIcon, kind: k.kind, typeId: t.id })
 				}
 			} else if (reg === 'actions') {
 				for (const a of props.actionTypes ?? []) {
-					push(a.module ?? BUILTIN_BUCKET, { key: `${k.kind}:${a.id}`, label: a.name, icon: a.icon ?? groupIcon, kind: k.kind, typeId: a.id })
+					push(a.module ?? BUILTIN_BUCKET, { key: `${k.kind}:${a.id}`, label: processI18n(a.name), icon: a.icon ?? groupIcon, kind: k.kind, typeId: a.id })
 				}
 			} else if (reg === 'dataNodes') {
 				// Flatten data-node sub-categories into the single "Data" group.
 				for (const d of props.dataNodeTypes ?? []) {
-					push(d.module ?? BUILTIN_BUCKET, { key: `${k.kind}:${d.id}`, label: d.name, icon: d.icon ?? groupIcon, kind: k.kind, typeId: d.id })
+					push(d.module ?? BUILTIN_BUCKET, { key: `${k.kind}:${d.id}`, label: processI18n(d.name), icon: d.icon ?? groupIcon, kind: k.kind, typeId: d.id })
 				}
 			} else {
 				// Plain node kinds (flow / helpers) are built into this module.

@@ -34,6 +34,7 @@
     "test:release-script": "node --test tests/release-script.test.cjs",
     "test:run-storage": "pnpm run build && node --test tests/run-storage.test.cjs",
     "test:type-origin": "pnpm run build && node --test tests/type-origin.test.cjs",
+    "test:type-display": "node --test tests/type-display.test.cjs",
     "dev": "ajs project run -w -p playground",
     "lint": "oxlint && oxfmt --check . && cd frontend-vue && pnpm lint && antelopejs-check-interface-ranges",
     "typecheck": "pnpm --filter @antelopejs/interface-dms-automation typecheck && tsc --noEmit",

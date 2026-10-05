@@ -23,6 +23,10 @@ const emit = defineEmits<{
 	(e: 'save', payload: { enabled: boolean; config: string }): void
 }>()
 
+// A type's `name` / `description` may be a `$`-prefixed DMS i18n key shipped
+// in the declaring module's locales; plain text is shown as written.
+const { processI18n } = useTranslation()
+
 const enabled = ref<boolean>(props.savedEnabled)
 const configText = ref<string>(props.savedConfig ?? '{}')
 const parseError = ref<string | null>(null)
@@ -98,10 +102,10 @@ function onSave() {
 			</div>
 			<div class="min-w-0 flex-1">
 				<h2 class="truncate text-lg font-semibold text-highlighted">
-					{{ type.name }}
+					{{ processI18n(type.name) }}
 				</h2>
 				<p v-if="type.description" class="text-sm text-muted">
-					{{ type.description }}
+					{{ processI18n(type.description) }}
 				</p>
 				<p class="mt-1 font-mono text-xs text-dimmed">{{ type.id }}</p>
 			</div>

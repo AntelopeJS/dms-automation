@@ -109,6 +109,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const { processI18n } = useTranslation()
 
 const nodeTypes = markRaw({
 	genericNode: GenericNode,
@@ -187,7 +188,9 @@ function dataFor(node: AppGraphNode) {
 			  }
 			| null
 		if (type) {
-			if (spec.labelFromType) label = type.name ?? label
+			// Type names may be `$`-prefixed DMS i18n keys; plain text passes through.
+			if (spec.labelFromType && type.name !== undefined)
+				label = processI18n(type.name)
 			if (spec.iconFromType) icon = type.icon ?? icon
 			if (spec.categoryFromType) category = type.category
 			if (spec.dataInsFromTypeSchema)
