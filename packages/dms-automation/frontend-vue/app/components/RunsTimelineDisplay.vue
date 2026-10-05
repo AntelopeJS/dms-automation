@@ -4,7 +4,7 @@ import type { ProcedureRef, RunSummary } from '../composables/useAutomationRuns'
 import { formatDuration } from '../utils/automation'
 import RunTraceDrawer from './RunTraceDrawer.vue'
 
-// Custom TableView display (registered in plugins/runs-timeline-display.client.ts):
+// Custom TableView display (registered in plugins/runs-timeline-display.ts):
 // renders the run history as a timeline instead of a grid. It is ONLY the list —
 // status tabs, the (native RelationType filter-only) procedure filter, search,
 // export and the KPI header are owned by the TableView chrome / the page-level

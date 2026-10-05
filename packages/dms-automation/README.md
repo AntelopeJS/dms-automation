@@ -10,7 +10,7 @@ AntelopeJS DMS module that provides a visual automation builder under `/module/a
 
 ## Vue frontend
 
-The module registers `frontend-vue` through `AddFrontendModule` with the Vue 3 renderer. `dms.frontend.ts` registers the Automation components and the client-only timeline display plugin. The generated Inertia application discovers the English and French locale files, while the host DMS provides shared composables and UI components.
+The module registers `frontend-vue` through `AddFrontendModule` with the Vue 3 renderer. `dms.frontend.ts` registers the Automation components and the `automation:timeline` TableView display plugin (universal, so it renders on the server too). The generated Inertia application discovers the English and French locale files, while the host DMS provides shared composables and UI components.
 
 The playground uses the published DMS and Inertia frontend packages. To build or typecheck the module frontend directly, first generate an Inertia workspace, set `DMS_FRONTEND_WORKSPACE` to its absolute path, then run:
 

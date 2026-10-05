@@ -1,6 +1,6 @@
 import { defineAsyncComponent, type Component } from "vue";
 import type { DmsFrontendModule } from "#dms/frontend-module";
-import timelinePlugin from "./app/plugins/runs-timeline-display.client";
+import timelinePlugin from "./app/plugins/runs-timeline-display";
 
 interface VueModule {
   default: Component;
@@ -19,7 +19,7 @@ const frontendModule: DmsFrontendModule = {
           .replace(/\.vue$/, "")}`;
         sdk.registerComponent(name, defineAsyncComponent(loader));
       });
-    sdk.registerPlugin(timelinePlugin, { clientOnly: true });
+    sdk.registerPlugin(timelinePlugin);
   },
 };
 
