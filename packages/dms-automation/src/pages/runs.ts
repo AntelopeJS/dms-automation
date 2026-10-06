@@ -47,10 +47,10 @@ export class RunsPageController extends PageController(
     ],
     rowActions: {
       // Run history is read-only. Trace/Replay are NOT declared as native row
-      // actions: the page only offers the custom "timeline" display, which never
-      // surfaces the grid's per-row menu and instead renders its own Trace
-      // (drawer) and Replay buttons — the latter refreshing the list after the
-      // POST.
+      // actions: the page only offers the custom "automation:timeline" display,
+      // which never surfaces the grid's per-row menu and instead renders its own
+      // Trace (drawer) and Replay buttons — the latter refreshing the list after
+      // the POST.
       add: false,
       edit: false,
       duplicate: false,
@@ -59,12 +59,13 @@ export class RunsPageController extends PageController(
       delete: false,
       hasSelection: false,
     },
-    // The list itself is rendered by the custom "timeline" display (registered
-    // client-side); the TableView owns tabs/filters/search/export/pagination.
+    // The list itself is rendered by the custom "automation:timeline" display
+    // (registered by the frontend plugin); the TableView owns
+    // tabs/filters/search/export/pagination.
     // The native funnel filter is enabled: procedureId is a filter-only
     // RelationType (dms 0.1.1), so its filter is the dynamic relation picker while
     // the row keeps the raw ids the timeline needs.
-    displays: [{ id: "timeline" }],
-    defaultDisplay: "timeline",
+    displays: [{ id: "automation:timeline" }],
+    defaultDisplay: "automation:timeline",
   });
 }
