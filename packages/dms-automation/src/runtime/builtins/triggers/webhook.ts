@@ -27,9 +27,8 @@ interface WebhookHandle {
 
 export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
   id: "webhook",
-  name: "Webhook",
-  description:
-    "Registers an HTTP endpoint that fires the procedure on each request",
+  name: "$dms_automation.types.webhook.name",
+  description: "$dms_automation.types.webhook.description",
   icon: "i-ph-webhooks-logo",
   cluster: "replicated",
   configSchema: {

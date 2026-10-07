@@ -64,11 +64,11 @@ interface PaletteGroup {
 // reproduced here as a grouped, searchable left sidebar per autov2-builder.
 const CATEGORY_ORDER = ['trigger', 'action', 'flow', 'helper', 'data'] as const
 const CATEGORY_LABEL: Record<string, string> = {
-	trigger: 'Triggers',
-	action: 'Actions',
-	flow: 'Flow',
-	helper: 'Helpers',
-	data: 'Data',
+	trigger: '$dms_automation.builder.palette.groups.trigger',
+	action: '$dms_automation.builder.palette.groups.action',
+	flow: '$dms_automation.builder.palette.groups.flow',
+	helper: '$dms_automation.builder.palette.groups.helper',
+	data: '$dms_automation.builder.palette.groups.data',
 }
 const CATEGORY_ICON: Record<string, string> = {
 	trigger: 'i-ph-lightning',
@@ -140,13 +140,13 @@ const groups = computed<PaletteGroup[]>(() => {
 			sections.push({ label: mod, items: byModule.get(mod)! })
 		}
 
-		if (sections.length > 0) out.push({ key: cat, label: CATEGORY_LABEL[cat] ?? cat, icon: groupIcon, sections })
+		if (sections.length > 0) out.push({ key: cat, label: processI18n(CATEGORY_LABEL[cat] ?? cat), icon: groupIcon, sections })
 	}
 
 	if (props.templates && props.templates.length > 0) {
 		out.push({
 			key: 'templates',
-			label: 'Templates',
+			label: processI18n('$dms_automation.builder.palette.groups.templates'),
 			icon: 'i-ph-package',
 			sections: [
 				{
@@ -185,7 +185,7 @@ function onItem(item: PaletteItem) {
 
 <template>
 	<div
-		class="flex h-full flex-col overflow-hidden rounded-lg border border-default bg-elevated/40"
+		class="flex h-full flex-col overflow-hidden bg-elevated/40"
 	>
 		<div class="border-b border-default p-2.5">
 			<UInput
@@ -202,6 +202,7 @@ function onItem(item: PaletteItem) {
 					class="px-2 pb-1 pt-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-dimmed"
 				>
 					{{ group.label }}
+					<span class="ml-1 text-dimmed/70">{{ group.sections.reduce((n, s) => n + s.items.length, 0) }}</span>
 				</div>
 				<template v-for="section in group.sections" :key="section.label ?? ''">
 					<div
@@ -235,5 +236,8 @@ function onItem(item: PaletteItem) {
 				{{ $t('dms_automation.builder.palette.empty') }}
 			</div>
 		</div>
+		<p class="border-t border-default px-3 py-2 text-[11px] text-dimmed">
+			{{ $t('dms_automation.builder.palette.hint') }}
+		</p>
 	</div>
 </template>

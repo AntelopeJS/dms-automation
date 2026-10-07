@@ -1,9 +1,42 @@
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
+import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
+import { KpiCard } from "@antelopejs/interface-dms/base/kpi-card";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
 import { TableView } from "@antelopejs/interface-dms/base/table-view";
 import { RunsTableAPI } from "../data/runs-table";
+import { API_URL, BUILDER_URL, periodSwitch, TRACE_URL } from "./shared";
 import "./category";
+
+const SCOPE = "automation-runs";
+const KPI_URL = `${API_URL}/runs/kpi`;
+
+function kpi(metric: string, icon: string, invert = false) {
+  return KpiCard({
+    title: `$dms_automation.kpi.${metric}`,
+    variant: "stat",
+    icon,
+    fetchUrl: `${KPI_URL}/${metric}`,
+    periodScope: SCOPE,
+    showDelta: true,
+    invert,
+    compareLabel: "$dms_automation.kpi.vsPrevious",
+    valueFormat: metric === "success-rate" ? "percent" : "number",
+    valuePrecision: metric === "duration-p95" ? 1 : undefined,
+  });
+}
+
+/**
+ * The quick look at a run, opened by a click on its row: what failed and
+ * where, the payload, the log, and the next actions.
+ */
+const runPeek = CustomComponent("dms-automation-run-peek")
+  .options({ apiUrl: API_URL, traceUrl: TRACE_URL, builderUrl: BUILDER_URL })
+  .meta({
+    name: "$dms_automation.permissions.runPeek.name",
+    description: "$dms_automation.permissions.runPeek.description",
+    icon: "i-ph-sidebar-simple",
+  });
 
 @RegisterPage()
 export class RunsPageController extends PageController(
@@ -14,43 +47,67 @@ export class RunsPageController extends PageController(
     description: "$dms_automation.runs.description",
     icon: "i-ph-list-bullets",
     module: "automation",
-    order: 4,
+    order: 1,
   },
-  DefaultLayout({ fullWidth: true }),
+  DefaultLayout(),
 ) {
-  // Header + KPI stat cards live OUTSIDE the TableView as their own page
-  // component (rendered above it). The TableView below is purely the run list.
-  static stats = CustomComponent("dms-automation-runs-stats");
+  static period = periodSwitch(SCOPE);
+
+  static kpis = Grid({ gap: "1rem", minColumnWidth: "220px" }).child(
+    "row",
+    GridRow()
+      .child("runs", kpi("runs", "i-ph-play-circle"))
+      .child("successRate", kpi("success-rate", "i-ph-check-circle"))
+      .child("failed", kpi("failed", "i-ph-x-circle", true))
+      .child("durationP95", kpi("duration-p95", "i-ph-timer", true)),
+  );
 
   static table = TableView(RunsTableAPI, {
-    // Section title shown in the TableView header (left of the toolbar icons).
     caption: "$dms_automation.runs.listTitle",
-    labelKey: "procedureId",
+    labelKey: "_id",
     rowIdKey: "_id",
     defaultSort: { field: "startedAt", desc: true },
-    // Native status tabs (dms prepends its own translated "All"). Labels go
-    // through dms i18n; these plain (non-`$`-prefixed) strings pass through
-    // unchanged.
+    searchPlaceholder: "$dms_automation.runs.search",
     tabs: [
       {
-        id: "ok",
-        label: "Success",
-        icon: "i-ph-check-circle",
-        filters: [{ accessorKey: "status", value: "ok", mode: "is" }],
+        id: "failed",
+        label: "$dms_automation.runs.tabs.failed",
+        icon: "i-ph-x-circle",
+        filter: { accessorKey: "status", value: "failed", mode: "is" },
       },
       {
-        id: "failed",
-        label: "Failed",
-        icon: "i-ph-x-circle",
-        filters: [{ accessorKey: "status", value: "failed", mode: "is" }],
+        id: "ok",
+        label: "$dms_automation.runs.tabs.succeeded",
+        icon: "i-ph-check-circle",
+        filter: { accessorKey: "status", value: "ok", mode: "is" },
+      },
+      {
+        id: "tests",
+        label: "$dms_automation.runs.tabs.tests",
+        icon: "i-ph-flask",
+        filter: { accessorKey: "kind", value: "test", mode: "is" },
       },
     ],
+    quickFilters: [
+      {
+        field: "procedureId",
+        label: "$dms_automation.runs.cols.procedure",
+        icon: "i-ph-flow-arrow",
+      },
+    ],
+    grouped: { groupByField: "startedAt", by: "day", count: true },
+    defaultDisplay: "grouped",
+    pagination: "pages",
+    pageSize: 25,
+    footer: { hint: "$dms_automation.runs.retentionHint" },
+    emptyStates: {
+      firstRun: {
+        title: "$dms_automation.runs.empty",
+        description: "$dms_automation.runs.emptyHint",
+        icon: "i-ph-list-bullets",
+      },
+    },
     rowActions: {
-      // Run history is read-only. Trace/Replay are NOT declared as native row
-      // actions: the page only offers the custom "automation:timeline" display,
-      // which never surfaces the grid's per-row menu and instead renders its own
-      // Trace (drawer) and Replay buttons — the latter refreshing the list after
-      // the POST.
       add: false,
       edit: false,
       duplicate: false,
@@ -58,14 +115,43 @@ export class RunsPageController extends PageController(
       details: false,
       delete: false,
       hasSelection: false,
+      custom: [
+        {
+          label: "$dms_automation.runs.peek",
+          icon: "i-ph-sidebar-simple",
+          isDefault: true,
+          deepLink: true,
+          target: {
+            type: "drawer",
+            title: "$dms_automation.runs.peekTitle",
+            component: runPeek,
+          },
+        },
+        {
+          label: "$dms_automation.runs.rerun",
+          icon: "i-ph-arrow-clockwise",
+          isVisible: true,
+          target: {
+            type: "api",
+            url: `${API_URL}/runs/{_id}/rerun`,
+            method: "POST",
+            successMessage: "$dms_automation.runs.rerunStarted",
+          },
+          confirm: {
+            title: "$dms_automation.runs.rerunConfirmTitle",
+            description: "$dms_automation.runs.rerunConfirmDescription",
+            icon: "i-ph-arrow-clockwise",
+            color: "warning",
+            confirmLabel: "$dms_automation.runs.rerun",
+          },
+        },
+        {
+          label: "$dms_automation.runs.trace",
+          icon: "i-ph-path",
+          isVisible: true,
+          target: { type: "page", url: `${TRACE_URL}?run={_id}` },
+        },
+      ],
     },
-    // The list itself is rendered by the custom "automation:timeline" display
-    // (registered by the frontend plugin); the TableView owns
-    // tabs/filters/search/export/pagination.
-    // The native funnel filter is enabled: procedureId is a filter-only
-    // RelationType (dms 0.1.1), so its filter is the dynamic relation picker while
-    // the row keeps the raw ids the timeline needs.
-    displays: [{ id: "automation:timeline" }],
-    defaultDisplay: "automation:timeline",
   });
 }

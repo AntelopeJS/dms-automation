@@ -39,6 +39,17 @@ interface RunCtx {
   currentFireId: string;
   cache: DataCache;
   signal: AbortSignal;
+  /**
+   * The error that is ending the run and the node it was thrown at. Shared by
+   * every nested context: a rethrow keeps the innermost node, and an error a
+   * try/catch swallowed is replaced by the next one thrown.
+   */
+  failure: FailureState;
+}
+
+interface FailureState {
+  error?: unknown;
+  nodeId?: string;
 }
 
 function nowOffset(start: number): number {
@@ -142,6 +153,7 @@ export async function run(
     currentFireId: "",
     cache,
     signal,
+    failure: {},
   };
 
   // Open a synthetic "run" fire so the initial "run started" entry has
@@ -196,11 +208,15 @@ export async function run(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     closeFire(runCtx, rootFire);
-    return {
+    const result: ExecutionResult = {
       status: "failed",
       errorMessage: message,
       logs: toRunLog(runCtx),
     };
+    if (runCtx.failure.error === err && runCtx.failure.nodeId) {
+      result.failedNodeId = runCtx.failure.nodeId;
+    }
+    return result;
   }
 
   appendEntry(runCtx, { source: "exec", level: "info", message: "run ok" });
@@ -261,6 +277,7 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
     });
 
     const inputs = resolveNodeInputs(node);
+    const nodeStart = Date.now();
 
     try {
       const entry = nodeKinds.get(node.kind);
@@ -295,14 +312,33 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      if (runCtx.failure.error !== err) {
+        runCtx.failure.error = err;
+        runCtx.failure.nodeId = nodeId;
+      }
       appendEntry(runCtx, {
         source: "exec",
         level: "error",
         message,
         node: { id: nodeId, kind: node.kind },
+        value: {
+          durationMs: Date.now() - nodeStart,
+          inputs: describeRecord(inputs),
+        },
       });
       throw err;
     }
+    appendEntry(runCtx, {
+      source: "exec",
+      level: "info",
+      message: "executed",
+      node: { id: nodeId, kind: node.kind },
+      value: {
+        durationMs: Date.now() - nodeStart,
+        inputs: describeRecord(inputs),
+        output: describeValue(runCtx.cache.getOutput(nodeId)),
+      },
+    });
     subwalk.markExecuted(nodeId);
   }
 }

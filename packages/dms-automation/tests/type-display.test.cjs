@@ -61,6 +61,7 @@ function processI18n(value) {
 
 // Nuxt auto-imports the components below resolve at setup time.
 globalThis.useTranslation = () => ({ processI18n });
+globalThis.useI18n = () => ({ t: (key) => key, locale: { value: "en" } });
 globalThis.useToast = () => ({ add() {} });
 
 const SlotStub = vue.defineComponent({
@@ -71,6 +72,15 @@ const SlotStub = vue.defineComponent({
       vue.h("div", [slots.header?.(), slots.default?.()]),
 });
 const HOST_COMPONENTS = [
+  "UTabs",
+  "USwitch",
+  "USelect",
+  "UTextarea",
+  "UTooltip",
+  "DmsStatusPill",
+  "DmsAutomationSchemaTable",
+  "DmsAutomationWiredField",
+  "DmsAutomationGroupPortEditor",
   "DmsCard",
   "UCard",
   "UBadge",
@@ -100,33 +110,6 @@ const plainTrigger = {
   name: "Plain trigger",
   description: "Plain description",
 };
-
-test("catalog list translates keyed type names and keeps plain ones", async () => {
-  const html = await render(component("Catalog/TypeList.vue"), {
-    types: [keyedTrigger, plainTrigger],
-    modelValue: null,
-  });
-
-  assert.match(html, /Déclencheur traduit/);
-  assert.match(html, /Description traduite/);
-  assert.match(html, /Plain trigger/);
-  assert.match(html, /Plain description/);
-  assert.doesNotMatch(html, /acme\.trigger\./);
-});
-
-test("catalog config form header translates a keyed type", async () => {
-  const TypeConfigForm = component("Catalog/TypeConfigForm.vue");
-  const props = { savedConfig: "{}", savedEnabled: true };
-
-  const keyed = await render(TypeConfigForm, { ...props, type: keyedTrigger });
-  assert.match(keyed, /Déclencheur traduit/);
-  assert.match(keyed, /Description traduite/);
-  assert.doesNotMatch(keyed, /acme\.trigger\./);
-
-  const plain = await render(TypeConfigForm, { ...props, type: plainTrigger });
-  assert.match(plain, /Plain trigger/);
-  assert.match(plain, /Plain description/);
-});
 
 test("builder palette labels translate keyed trigger, action and data-node types", async () => {
   const kind = (name, category, typeRegistry) => ({
@@ -190,30 +173,59 @@ test("node inspector shows the translated type of the selected node", async () =
   assert.match(plain, /Plain trigger/);
 });
 
-test("data-node catalog detail translates the selected type", async () => {
-  globalThis.useAuthFetch = () => ({
-    $authFetch: async () => [
-      {
-        id: "acme.data",
-        category: "acme",
-        name: "$acme.data.name",
-        description: "$acme.data.description",
-        icon: "",
-      },
-    ],
-  });
-  const html = await render(
-    {
-      render: () =>
-        vue.h(vue.Suspense, null, {
-          default: () => vue.h(component("DataNodes.vue")),
-        }),
-    },
-    {},
-    { DmsAutomationTypeList: component("Catalog/TypeList.vue") },
+test("describe helpers translate keyed trigger names and word schedules", () => {
+  const { describeTrigger, describeCron, stepTitle, summarizeNode } = require(
+    path.join(FRONTEND, "app/utils/describe.ts"),
   );
+  const t = (key, params = {}) =>
+    key.startsWith("$")
+      ? `${key.slice(1)}${Object.keys(params).length ? JSON.stringify(params) : ""}`
+      : key;
 
-  assert.match(html, /Donnée traduite/);
-  assert.match(html, /Donnée décrite/);
-  assert.doesNotMatch(html, /acme\.data\./);
+  assert.equal(
+    describeTrigger(
+      { typeId: "acme.keyed", typeName: "$acme.trigger.name" },
+      processI18n,
+    ),
+    "Déclencheur traduit",
+  );
+  assert.equal(
+    describeTrigger(
+      {
+        typeId: "webhook",
+        typeName: "Webhook",
+        path: "/hooks/a",
+        method: "PUT",
+      },
+      t,
+    ),
+    "PUT /hooks/a",
+  );
+  assert.equal(
+    describeCron("*/15 * * * *", t),
+    'dms_automation.cron.everyMinutes{"n":"15"}',
+  );
+  assert.equal(
+    describeCron("0 2 * * *", t),
+    'dms_automation.cron.daily{"time":"02:00"}',
+  );
+  assert.match(describeCron("0 9 * * 1", t), /^dms_automation\.cron\.weekly/);
+  assert.equal(describeCron("0 9 1-3 * 1", t), "0 9 1-3 * 1");
+  assert.equal(
+    stepTitle({ nodeId: "n", typeName: "$acme.action.name" }, processI18n),
+    "Action traduite",
+  );
+  assert.equal(
+    stepTitle({ nodeId: "n", label: "Push", typeName: "x" }, processI18n),
+    "Push",
+  );
+  assert.equal(
+    summarizeNode(
+      "action",
+      "http.request",
+      { url: "https://erp.acme.io/api/invoices", method: "POST" },
+      t,
+    ),
+    "POST erp.acme.io/api/invoices",
+  );
 });

@@ -1,6 +1,7 @@
 import type { GraphNode } from "../../../types/graph";
 import { type NodeCtx, nodeKinds } from "../../nodeKinds";
 import { registry } from "../../registry";
+import { isActionTypeDisabled } from "../../typeSwitches";
 
 async function execute(
   node: GraphNode,
@@ -16,6 +17,9 @@ async function execute(
     throw new Error(
       `action node "${node.id}" references unknown type "${typeId}"`,
     );
+  }
+  if (isActionTypeDisabled(typeId)) {
+    throw new Error(`action type "${typeId}" is disabled in the library`);
   }
   const output = (await actionType.execute(inputs, ctx)) as
     | Record<string, unknown>

@@ -65,3 +65,22 @@ export interface RunLog {
    */
   truncated?: number;
 }
+
+/**
+ * What started a run: a trigger or Run now (`run`), Re-run with this payload
+ * (`rerun`), or a Test run of a draft from the builder (`test`). Runs stored
+ * before kinds existed have none and read as `run`. Test runs never count in
+ * the health figures.
+ */
+export type RunKind = "run" | "rerun" | "test";
+
+/** Kinds that count in health figures, KPIs and procedure states. */
+const PRODUCTION_RUN_KINDS: readonly RunKind[] = ["run", "rerun"];
+
+export function isProductionRun(kind: string | undefined): boolean {
+  return (
+    kind === undefined ||
+    kind === null ||
+    PRODUCTION_RUN_KINDS.includes(kind as RunKind)
+  );
+}

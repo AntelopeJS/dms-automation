@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, markRaw, nextTick, ref, watch } from 'vue'
 import { newId } from '../../utils/automation'
+import { roleOf, summarizeNode } from '../../utils/describe'
+import type { NodeRunState } from './nodes/GenericNode.vue'
 // The canvas chrome (dotted DMS background, zoom controls, themed
 // node/handle/edge styling, pan/zoom + fit-view) now comes from the shared
 // DmsFlowCanvas wrapper (dms ≥0.0.25). We only keep the @vue-flow/core bits
@@ -74,8 +76,6 @@ const props = defineProps<{
 	nodeKinds: NodeKindEntry[]
 	canUndo?: boolean
 	canRedo?: boolean
-	isDirty?: boolean
-	applying?: boolean
 	// When the canvas is showing a group's inner subgraph, these are the
 	// parent group's declared ports — the sentinel nodes (groupInput /
 	// groupOutput) render handles derived from this list rather than
@@ -88,7 +88,16 @@ const props = defineProps<{
 	// User can still pan / zoom / select / inspect, just not connect,
 	// move, delete, or edit. The "Apply / Cancel" buttons are hidden too.
 	readOnly?: boolean
+	/** Outcome of each node in the run shown over the canvas (a test run, a debugged run). */
+	runStates?: Record<string, NodeRunState>
+	/** The problem of each node the validator named. */
+	issues?: Record<string, NodeIssue>
 }>()
+
+interface NodeIssue {
+	severity: 'error' | 'warning'
+	message: string
+}
 
 const emit = defineEmits<{
 	(e: 'update:graph', g: ProcedureGraph): void
@@ -100,8 +109,6 @@ const emit = defineEmits<{
 	(e: 'selection-change', payload: { ids: string[] }): void
 	(e: 'undo'): void
 	(e: 'redo'): void
-	(e: 'cancel'): void
-	(e: 'apply'): void
 	// Bubbles up GroupNode's @dblclick — Editor.vue uses this to push the
 	// group onto the subgraph navigation path. Filtered by kind here so
 	// the parent doesn't need to look the node up itself.
@@ -206,8 +213,16 @@ function dataFor(node: AppGraphNode) {
 			: []
 		const triggerOuts = [...dynPorts, ...spec.staticTriggerOuts]
 
+		const own = (node as AppGraphNode & { label?: string }).label
+		const module = (type as { module?: string } | null)?.module
 		return {
-			label,
+			label: own || label,
+			typeName: label,
+			role: roleOf(node.kind, spec.category),
+			module,
+			summary: summarizeNode(node.kind, node.typeId, node.config, processI18n),
+			run: props.runStates?.[node.id] ?? null,
+			issue: props.issues?.[node.id] ?? null,
 			icon,
 			category,
 			typeId: node.typeId,
@@ -232,6 +247,8 @@ function dataFor(node: AppGraphNode) {
 		}
 		return {
 			label: node.config?.name ?? 'Group',
+			run: props.runStates?.[node.id] ?? null,
+			issue: props.issues?.[node.id] ?? null,
 			ports: Array.isArray(g.ports) ? g.ports : [],
 			templateId: g.templateId,
 			subgraph: g.subgraph,
@@ -320,6 +337,17 @@ function dataTargetHandle(e: DataEdge, targetKind: NodeKind | undefined): string
 	return `data-in-${e.to.field}`
 }
 
+// After a run, the edges it took are drawn solid and the one into the failing
+// step red; the others fade.
+function edgeClass(from: string, to: string): string {
+	const runs = props.runStates
+	if (!runs) return 'edge-trigger'
+	const target = runs[to]?.status
+	const taken = runs[from] && target && target !== 'skipped'
+	if (taken && target === 'failed') return 'edge-trigger edge-failed'
+	return taken ? 'edge-trigger edge-taken' : 'edge-trigger edge-idle'
+}
+
 // Edge styling lives in <style> (.edge-trigger / .edge-data) so the
 // `.selected` highlight can win without `!important`. Inline `style`
 // on a vue-flow edge defeats the .selected rule — documented gotcha.
@@ -332,7 +360,7 @@ const vfEdges = computed(() => {
 		sourceHandle: triggerSourceHandle(e, kinds.get(e.from.node)),
 		targetHandle: triggerTargetHandle(e, kinds.get(e.to.node)),
 		data: { kind: 'trigger' as const },
-		class: 'edge-trigger',
+		class: edgeClass(e.from.node, e.to.node),
 	}))
 	const dataEdges = props.graph.dataEdges.map((e) => ({
 		id: e.id,
@@ -634,10 +662,13 @@ function onNodesChange(changes: NodeChange[]) {
 		// can show node details; suppress position drag and delete.
 		if (props.readOnly && c.type !== 'select') continue
 		if (c.type === 'position' && c.position) {
-			const pos = c.position
-			nextNodes = nextNodes.map((n) =>
-				n.id === c.id ? { ...n, position: { x: pos.x, y: pos.y } } : n,
-			)
+			// Positions are stored as whole pixels, and a click that moves a
+			// node by less than one (a select, not a drag) changes nothing:
+			// otherwise selecting a node would count as an unsaved change.
+			const pos = { x: Math.round(c.position.x), y: Math.round(c.position.y) }
+			const current = nextNodes.find((n) => n.id === c.id)
+			if (current && current.position.x === pos.x && current.position.y === pos.y) continue
+			nextNodes = nextNodes.map((n) => (n.id === c.id ? { ...n, position: pos } : n))
 			changed = true
 		} else if (c.type === 'remove') {
 			// Sentinel nodes (groupInput / groupOutput) are auto-managed by
@@ -832,6 +863,7 @@ function onEdgeUpdateEnd(payload: { event: MouseEvent; edge: VfEdge }) {
 			:elements-selectable="true"
 			:edges-updatable="!readOnly"
 			:deletable-nodes="!readOnly"
+			:max-zoom="1.5"
 			@connect="onConnect"
 			@nodes-change="onNodesChange"
 			@delete-nodes="onDeleteNodes"
@@ -841,10 +873,10 @@ function onEdgeUpdateEnd(payload: { event: MouseEvent; edge: VfEdge }) {
 			@edge-update-end="onEdgeUpdateEnd"
 			@node-double-click="onNodeDoubleClick"
 		>
-			<!-- Toolbar. While editable: Add Node / Undo / Redo / group
-			     actions / Cancel / Apply. Read-only template-instance view:
-			     only the group actions (Fork) survive, in a bare card. The two
-			     branches share DmsFlowCanvas's single `top-right` Panel slot. -->
+			<!-- Toolbar. While editable: Undo / Redo and the selection's group
+			     actions (saving lives in the editor's bar). Read-only
+			     template-instance view: only the group actions (Fork) survive.
+			     The two branches share DmsFlowCanvas's single `top-right` slot. -->
 			<template v-if="!readOnly || $slots.groupActions" #top-right>
 				<div
 					v-if="!readOnly"
@@ -876,23 +908,6 @@ function onEdgeUpdateEnd(payload: { event: MouseEvent; edge: VfEdge }) {
 						<div class="w-px h-5 bg-default mx-1" />
 						<slot name="groupActions" />
 					</template>
-					<div class="mx-1 h-5 w-px bg-default" />
-					<UButton
-						size="sm"
-						variant="ghost"
-						color="neutral"
-						:label="$t('dms_automation.editor.canvas.cancel')"
-						:disabled="!isDirty || applying"
-						@click="emit('cancel')"
-					/>
-					<UButton
-						size="sm"
-						color="primary"
-						:label="$t('dms_automation.editor.canvas.apply')"
-						:disabled="!isDirty"
-						:loading="applying"
-						@click="emit('apply')"
-					/>
 				</div>
 				<!-- Read-only fallback: Fork stays reachable from the
 				     template-instance inner-subgraph view. -->
@@ -904,21 +919,10 @@ function onEdgeUpdateEnd(payload: { event: MouseEvent; edge: VfEdge }) {
 				</div>
 			</template>
 
-			<!-- The #top-left slot is provided UNCONDITIONALLY (inner v-if gates
-			     the content). DmsFlowCanvas computes its active panel positions
-			     once from a non-reactive useSlots() snapshot, so a panel slot
-			     added later (e.g. when a node is first selected) would never
-			     render. Providing it from first render keeps the inspector panel
-			     alive; it just shows nothing until a node is selected. The real
-			     fix belongs upstream in DmsFlowCanvas (make panel detection
-			     reactive); this is a consumer workaround. -->
+			<!-- Provided unconditionally: DmsFlowCanvas reads its panel slots once,
+			     so a slot added later would never render. -->
 			<template #top-left>
-				<div
-					v-if="$slots.inspector"
-					class="w-[320px] max-h-[calc(100vh-16rem)] overflow-y-auto shadow-md rounded-lg"
-				>
-					<slot name="inspector" />
-				</div>
+				<slot name="breadcrumb" />
 			</template>
 
 			<template #bottom-center>
@@ -965,33 +969,44 @@ function onEdgeUpdateEnd(payload: { event: MouseEvent; edge: VfEdge }) {
 </template>
 
 <style>
-/* DmsFlowCanvas imports the @vue-flow core/theme/controls/minimap CSS itself,
-   so we only ship the editor's business edge palette here: trigger edges
-   (control flow) read cyan, data edges (data flow) read green-dashed. The
-   `.edge-*` class out-specifies DmsFlowCanvas's generic `.vue-flow__edge-path`
-   rule, so these win without `!important`. */
+/* Trigger edges (control flow) take the info role, data edges the success
+   role, dashed; theme tokens only (AU-15). The `.edge-*` class out-specifies
+   DmsFlowCanvas's generic `.vue-flow__edge-path` rule. */
 .vue-flow__edge.edge-trigger .vue-flow__edge-path {
-	stroke: #2dc1cf;
+	stroke: var(--ui-info);
 	stroke-width: 2;
 }
 
 .vue-flow__edge.edge-data .vue-flow__edge-path {
-	stroke: #10b981;
+	stroke: var(--ui-success);
 	stroke-width: 2;
 	stroke-dasharray: 4 4;
 }
 
-/* Selected / focused edge highlight (amber). The doubled `.edge-*` class lifts
-   specificity above DmsFlowCanvas's own `.dms-flow-canvas .vue-flow__edge.selected`
-   rule, which would otherwise repaint the edge in the DMS accent and erase the
-   trigger-vs-data distinction. */
+.vue-flow__edge.edge-trigger.edge-taken .vue-flow__edge-path {
+	stroke: var(--ui-success);
+	stroke-width: 2.5;
+}
+
+.vue-flow__edge.edge-trigger.edge-failed .vue-flow__edge-path {
+	stroke: var(--ui-error);
+	stroke-width: 2.5;
+}
+
+.vue-flow__edge.edge-trigger.edge-idle .vue-flow__edge-path {
+	opacity: 0.35;
+}
+
+/* Selected / focused edge highlight. The doubled `.edge-*` class lifts
+   specificity above DmsFlowCanvas's own selected rule, which would repaint the
+   edge in the accent and erase the trigger-vs-data distinction. */
 .vue-flow__edge.edge-trigger.selected .vue-flow__edge-path,
 .vue-flow__edge.edge-data.selected .vue-flow__edge-path,
 .vue-flow__edge.edge-trigger:focus .vue-flow__edge-path,
 .vue-flow__edge.edge-data:focus .vue-flow__edge-path,
 .vue-flow__edge.edge-trigger:focus-visible .vue-flow__edge-path,
 .vue-flow__edge.edge-data:focus-visible .vue-flow__edge-path {
-	stroke: #f59e0b;
+	stroke: var(--ui-warning);
 	stroke-width: 3;
 }
 </style>

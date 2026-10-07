@@ -93,3 +93,28 @@ export function serializeTriggerPayload(payload: unknown): string {
     preview: json.slice(0, TRIGGER_PAYLOAD_PREVIEW_CHARS),
   });
 }
+
+/** A stored trigger payload, read back: the payload, or the marker of one too large to keep. */
+export type StoredPayload =
+  | { kept: true; payload: unknown }
+  | { kept: false; originalBytes: number };
+
+/** Read a payload stored by {@link serializeTriggerPayload}. */
+export function readTriggerPayload(stored: string | undefined): StoredPayload {
+  let parsed: unknown = null;
+  try {
+    parsed = stored ? JSON.parse(stored) : null;
+  } catch {
+    return { kept: true, payload: stored };
+  }
+  const marker = parsed as { truncated?: unknown; originalBytes?: unknown };
+  if (
+    marker &&
+    typeof marker === "object" &&
+    marker.truncated === true &&
+    typeof marker.originalBytes === "number"
+  ) {
+    return { kept: false, originalBytes: marker.originalBytes };
+  }
+  return { kept: true, payload: parsed };
+}

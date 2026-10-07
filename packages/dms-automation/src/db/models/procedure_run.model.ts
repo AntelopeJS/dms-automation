@@ -21,8 +21,28 @@ export interface RunListQuery {
 
 export type StatsRun = Pick<
   ProcedureRun,
-  "_id" | "procedureId" | "startedAt" | "endedAt" | "status" | "errorMessage"
+  | "_id"
+  | "procedureId"
+  | "startedAt"
+  | "endedAt"
+  | "status"
+  | "errorMessage"
+  | "kind"
+  | "failedNodeId"
+  | "triggerNodeId"
 >;
+
+const STATS_FIELDS = [
+  "_id",
+  "procedureId",
+  "startedAt",
+  "endedAt",
+  "status",
+  "errorMessage",
+  "kind",
+  "failedNodeId",
+  "triggerNodeId",
+] as const;
 
 /**
  * List-view shape of a run: everything except the trigger payload and the
@@ -37,6 +57,9 @@ export type RunSummary = Pick<
   | "status"
   | "errorMessage"
   | "triggerNodeId"
+  | "kind"
+  | "failedNodeId"
+  | "rerunOf"
 >;
 
 const RUN_SUMMARY_FIELDS = [
@@ -47,26 +70,49 @@ const RUN_SUMMARY_FIELDS = [
   "status",
   "errorMessage",
   "triggerNodeId",
+  "kind",
+  "failedNodeId",
+  "rerunOf",
 ] as const;
 
 export class ProcedureRunModel extends BasicDataModel(
   ProcedureRun,
   procedureRunsTableName,
 ) {
-  /** Reads the complete window without payloads or execution logs. */
+  /**
+   * Reads the complete window without payloads or execution logs, test runs
+   * included: callers keep the production runs (`isProductionRun`).
+   */
   async listForStats(since: Date): Promise<StatsRun[]> {
     return this.table
       .filter((row) => row.key("startedAt").ge(since))
       .orderBy("startedAt", "desc")
-      .pluck(
-        "_id",
-        "procedureId",
-        "startedAt",
-        "endedAt",
-        "status",
-        "errorMessage",
-      )
+      .pluck(...STATS_FIELDS)
       .run() as Promise<StatsRun[]>;
+  }
+
+  /** The newest runs of one procedure, any kind, without payloads or logs. */
+  async latestOfProcedure(
+    procedureId: string,
+    limit: number,
+  ): Promise<RunSummary[]> {
+    return this.listByProcedure(procedureId, 0, limit);
+  }
+
+  /** Write a procedure's current name on all its runs. */
+  async renameProcedure(procedureId: string, name: string): Promise<number> {
+    return await this.table
+      .filter((row) => row.key("procedureId").eq(procedureId))
+      .update({ procedureName: name })
+      .run();
+  }
+
+  /** Delete the runs started before `before`; returns how many went. */
+  async purgeBefore(before: Date): Promise<number> {
+    return await this.table
+      .filter((row) => row.key("startedAt").lt(before))
+      .delete()
+      .run();
   }
 
   async listByProcedure(

@@ -1,368 +1,674 @@
 {
   "dms_automation": {
-    "module": {
-      "title": "Automation",
-      "description": "Procedures, triggers, and actions"
+    "attention": {
+      "allProcedures": "All procedures",
+      "degraded": "{failed} of {runs} runs failed in 7 days · last at {when} · recovered since",
+      "dismiss": "Dismiss",
+      "dismissed": "{name} dismissed until its next failure",
+      "edit": "Edit in the builder",
+      "empty": "Nothing needs attention",
+      "emptyHint": "No procedure is failing, degraded or paused.",
+      "failing": "Last run failed | Last {count} runs failed",
+      "failingAt": "Last run failed at {step} · {error} | Last {count} runs failed at {step} · {error}",
+      "loadError": "Couldn’t load the procedures to check",
+      "openTrace": "Open trace",
+      "paused": "Paused: its triggers don’t fire",
+      "pausedAt": "Paused {ago}",
+      "pausedBy": "Paused by {name} {ago}",
+      "resume": "Resume",
+      "resumed": "{name} resumed",
+      "title": "Needs attention"
     },
     "builder": {
-      "title": "Builder",
-      "description": "Visual builder — drag blocks from the palette and wire them together.",
+      "description": "Build a procedure: drop blocks from the palette, wire them, test the draft.",
       "palette": {
-        "search": "Search blocks…",
-        "empty": "No blocks match"
-      }
-    },
-    "procedures": {
-      "title": "Procedures",
-      "description": "Every automation procedure — status, triggers and recent health.",
-      "newProcedure": "New procedure",
-      "newProcedureName": "New procedure",
-      "search": "Search procedures…",
-      "pagination": "{shown} of {total}",
-      "filters": {
-        "all": "All",
-        "active": "Active",
-        "paused": "Paused",
-        "failing": "Failing"
+        "empty": "No blocks match",
+        "groups": {
+          "action": "Actions",
+          "data": "Data",
+          "flow": "Flow",
+          "helper": "Helpers",
+          "templates": "Templates",
+          "trigger": "Triggers"
+        },
+        "hint": "Click a block to add it to the canvas.",
+        "search": "Search blocks…"
       },
-      "cols": {
-        "procedure": "Procedure",
-        "trigger": "Trigger",
-        "status": "Status",
-        "lastRun": "Last run",
-        "success": "Success",
-        "avg": "Avg",
-        "runs": "Runs"
-      },
-      "status": {
-        "active": "Active",
-        "paused": "Paused",
-        "failing": "Failing"
-      },
-      "trigger": {
-        "none": "No trigger",
-        "manual": "Manual"
-      },
-      "lastRunAgo": "{ago} ago",
-      "runNow": "Run now",
-      "runStarted": "Run started",
-      "edit": "Edit",
-      "runQueued": "Run queued · {name}",
-      "runFailed": "Run failed",
-      "never": "Never",
-      "empty": "No procedures",
-      "emptyHint": "Create your first procedure to get started.",
-      "loadError": "Failed to load procedures",
-      "createError": "Failed to create procedure"
-    },
-    "library": {
-      "title": "Library",
-      "description": "Every building block in one place — triggers, actions, data nodes and reusable templates.",
-      "tabs": {
-        "triggers": "Triggers",
-        "actions": "Actions",
-        "dataNodes": "Data Nodes",
-        "templates": "Templates"
-      }
-    },
-    "editor": {
-      "title": "Editor",
-      "description": "Design procedures",
-      "loadProceduresError": "Failed to load procedures",
-      "loadTemplateError": "Failed to load template",
-      "procedures": "Procedures",
-      "procedureName": "Procedure name",
-      "templateName": "Template name",
-      "enabled": "Enabled",
-      "runNow": "Run now",
-      "noProcedure": "No procedure selected. Open the Procedures drawer to pick or create one.",
-      "templateNotLoaded": "Template not loaded.",
-      "disabledTitle": "This procedure is disabled",
-      "disabledDescription": "Triggers (webhook, cron, …) will not fire until you enable it and save. Manual triggers still work via Run now.",
-      "enableAndSave": "Enable and save",
-      "exitSubgraph": "Exit subgraph",
-      "linkedTitle": "Linked to a template — read-only",
-      "linkedDescription": "This subgraph is provided by a template and updates live whenever the template changes. Fork to a local group to edit a private copy.",
-      "forkToEdit": "Fork to edit",
-      "enterGroup": "Enter group",
-      "groupSelection": "Group selection ({n})",
-      "saveAsTemplate": "Save as template",
-      "forkToLocal": "Fork to local group",
-      "loading": "Loading editor…",
-      "saveTemplateModal": {
-        "title": "Save as template",
-        "name": "Name",
-        "namePlaceholder": "Template name",
-        "description": "Description",
-        "descriptionPlaceholder": "What does this template do?",
-        "icon": "Icon",
-        "iconHelp": "Iconify name, e.g. i-ph-package",
-        "error": "Could not save template",
-        "cancel": "Cancel",
-        "submit": "Save template"
-      },
-      "forkModal": {
-        "title": "Fork to local group",
-        "body": "This template instance will become a local group. Subsequent edits to the original template will no longer affect this copy.",
-        "error": "Could not fork template instance",
-        "cancel": "Cancel",
-        "submit": "Fork to local group"
-      },
-      "canvas": {
-        "addNode": "Add node",
-        "undo": "Undo",
-        "redo": "Redo",
-        "cancel": "Cancel",
-        "apply": "Apply",
-        "zoomOut": "Zoom out",
-        "resetZoom": "Reset zoom",
-        "zoomIn": "Zoom in",
-        "fitView": "Fit view"
-      },
-      "procedureList": {
-        "title": "Procedures",
-        "new": "New",
-        "empty": "No procedures yet. Click \"New\" to create one.",
-        "enabled": "Enabled",
-        "disabled": "Disabled",
-        "deleteAria": "Delete procedure",
-        "deleteTitle": "Delete procedure",
-        "deleteConfirm": "Are you sure you want to delete {name}? This cannot be undone.",
-        "cancel": "Cancel",
-        "delete": "Delete"
-      },
-      "inspector": {
-        "title": "Inspector",
-        "empty": "Select a node to edit.",
-        "enterSubgraph": "Enter subgraph",
-        "type": "Type",
-        "nodeId": "Node id",
-        "noFields": "This node has no configurable fields.",
-        "arrayPlaceholder": "One item per line",
-        "deleteNode": "Delete node"
-      },
-      "groupPorts": {
-        "title": "Group ports",
-        "duplicate": "Duplicate port name: {name}",
-        "duplicateHelp": "Each port within an inputs or outputs list must have a unique name.",
-        "remove": "Delete port"
-      },
-      "wiredField": {
-        "wiredFrom": "wired from",
-        "unwire": "Unwire"
-      },
-      "runsDrawer": {
-        "title": "Runs",
-        "loading": "Runs (loading…)",
-        "count": "Runs ({n})",
-        "selectProcedure": "Select a procedure to view runs.",
-        "loadingShort": "Loading…",
-        "runCount": "{n} run(s)",
-        "refresh": "Refresh",
-        "empty": "No runs yet.",
-        "cols": {
-          "status": "Status",
-          "started": "Started",
-          "duration": "Duration",
-          "error": "Error"
-        }
-      }
+      "title": "Builder"
     },
     "common": {
-      "refresh": "Refresh",
+      "actionFailed": "Something went wrong",
+      "cancel": "Cancel",
+      "next": "Next",
       "previous": "Previous",
-      "next": "Next"
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "save": "Save"
     },
-    "catalog": {
-      "empty": "No types registered.",
-      "search": "Search types…",
-      "noResults": "No matches.",
-      "selectPrompt": "Select a type on the left to view its configuration.",
+    "cron": {
+      "daily": "Every day at {time}",
+      "days": {
+        "fri": "Fridays",
+        "mon": "Mondays",
+        "sat": "Saturdays",
+        "sun": "Sundays",
+        "thu": "Thursdays",
+        "tue": "Tuesdays",
+        "wed": "Wednesdays"
+      },
+      "everyHours": "Every {n} hours",
+      "everyMinute": "Every minute",
+      "everyMinutes": "Every {n} minutes",
+      "hourly": "Every hour at :{minute}",
+      "weekdays": "Weekdays at {time}",
+      "weekly": "{day} at {time}"
+    },
+    "editor": {
+      "canvas": {
+        "fitView": "Fit view",
+        "redo": "Redo",
+        "resetZoom": "Reset zoom",
+        "undo": "Undo",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out"
+      },
+      "debug": {
+        "again": "Run again",
+        "exit": "Exit debug",
+        "failed": "Failed · {duration}",
+        "failedAt": "Failed at {step} · {duration}",
+        "passed": "Completed · {duration}",
+        "runLabel": "Run …{run} · {when}",
+        "testLabel": "Test run · {when}"
+      },
+      "delete": "Delete procedure",
+      "deleteDisabled": "The graph is deleted; its run history stays until retention removes it.",
+      "deleteEnabled": "It is enabled: its triggers stop at once. Type its name to confirm.",
+      "deleteTitle": "Delete “{name}”?",
+      "deleted": "{name} deleted",
+      "disabled": "Disabled",
+      "discard": "Discard",
+      "dock": {
+        "allRuns": "All runs of this procedure",
+        "failedCount": "{count} failed",
+        "invalidJson": "The test payload is not valid JSON",
+        "noProblems": "No problem on the graph.",
+        "noRuns": "This procedure has not run yet.",
+        "payload": "Test payload",
+        "payloadFrom": "Prefilled from the last real call (run …{run}).",
+        "payloadHint": "Sent to the trigger by Test run.",
+        "problems": "Problems",
+        "recentRuns": "Recent runs",
+        "selectNode": "Select node",
+        "sideEffects": "Side effects are real: point HTTP steps at a sandbox to dry-run.",
+        "testRun": "Test run",
+        "toggle": "Show or hide the dock"
+      },
       "enabled": "Enabled",
-      "enabledHelp": "Allow this type to be used by procedures.",
-      "configSchema": "Config schema (read-only)",
-      "globalConfig": "Global config (JSON)",
-      "save": "Save",
-      "invalidJson": "Invalid JSON"
-    },
-    "triggers": {
-      "title": "Triggers",
-      "description": "Registered triggers",
-      "listLabel": "Trigger types",
-      "loadError": "Failed to load trigger types"
-    },
-    "actions": {
-      "title": "Actions",
-      "description": "Registered actions",
-      "listLabel": "Action types",
-      "loadError": "Failed to load action types"
-    },
-    "runs": {
-      "title": "Runs",
-      "description": "Execution history across all procedures — inspect, replay and debug.",
-      "pageLabel": "Page {n}",
-      "empty": "No runs",
-      "emptyHint": "No runs match this filter.",
-      "kpis": {
-        "today": "Runs today",
-        "success": "Success",
-        "failed": "Failed",
-        "avgDuration": "Avg duration"
+      "enterGroup": "Enter group",
+      "exitSubgraph": "Back to parent",
+      "exportJson": "Export JSON",
+      "forkModal": {
+        "body": "This template instance becomes a local group: later edits of the template no longer change this copy.",
+        "cancel": "Cancel",
+        "error": "Couldn’t fork the template instance",
+        "submit": "Fork to local group",
+        "title": "Fork to local group"
       },
-      "badge": {
-        "success": "Success",
-        "failed": "Failed"
+      "forkToEdit": "Fork to edit",
+      "forkToLocal": "Fork to local group",
+      "forked": "{name} is now a local group",
+      "groupPorts": {
+        "duplicate": "Duplicate port name: {name}",
+        "duplicateHelp": "Each port within an inputs or outputs list must have a unique name.",
+        "remove": "Delete port",
+        "title": "Group ports"
       },
-      "cols": {
-        "procedure": "Procedure",
-        "status": "Status",
-        "startedAt": "Started",
-        "endedAt": "Ended",
-        "trigger": "Trigger",
-        "error": "Error"
+      "groupSelection": "Group ({n})",
+      "inspector": {
+        "arrayPlaceholder": "One item per line",
+        "credentialsHint": "Don’t type credentials into the graph: every builder user and template sees them.",
+        "deleteNode": "Delete",
+        "docs": "Docs",
+        "duplicate": "Duplicate",
+        "empty": "Select a node to edit it.",
+        "enterSubgraph": "Enter group",
+        "ifItFails": "If it fails",
+        "ifItFailsHint": "The run stops here and downstream steps are skipped.",
+        "lastRun": "Last run",
+        "noDocs": "This block has no description.",
+        "noFields": "This node has no settings.",
+        "runFailed": "This run failed",
+        "settings": "Settings",
+        "stepName": "Step name",
+        "wrapInRetry": "Wrap in Retry"
       },
-      "status": {
-        "ok": "Success",
-        "failed": "Failed"
+      "leave": {
+        "description": "{count} unsaved change will be lost otherwise. | {count} unsaved changes will be lost otherwise.",
+        "keep": "Keep editing",
+        "save": "Save and switch",
+        "title": "Save changes to “{name}”?"
       },
-      "display": {
-        "timeline": "Timeline"
+      "linkedDescription": "Edit the template to change every procedure using it, or fork a private copy for this one.",
+      "linkedTitle": "Linked to a template — read-only here",
+      "loadProceduresError": "Couldn’t load the procedures",
+      "loadTemplateError": "Couldn’t load the template",
+      "loading": "Loading the editor…",
+      "more": "More actions",
+      "noProcedure": "Create a procedure to start building.",
+      "noProcedureTitle": "No procedure yet",
+      "paused": {
+        "draftTitle": "{name} is a draft",
+        "enable": "Enable",
+        "other": "{what} won’t fire until you enable it. Run now still works for tests.",
+        "schedule": "{what} won’t fire (next would be {next}). Run now still works for tests.",
+        "title": "{name} is paused"
       },
-      "listTitle": "Run history",
-      "timeline": {
-        "trace": "Trace",
-        "replay": "Replay",
-        "completed": "Completed successfully",
-        "failed": "Failed",
-        "replayQueued": "Replay queued",
-        "replayFailed": "Replay failed"
+      "problems": {
+        "description": "Fix them, or save as a disabled draft: nothing fires until they are resolved.",
+        "first": "Go to first problem",
+        "saveDraft": "Save as draft",
+        "title": "{count} problem blocks enabling | {count} problems block enabling"
       },
-      "detail": {
-        "error": "Error",
-        "triggerPayload": "Trigger payload",
-        "logs": "Logs",
-        "noLogs": "No log entries.",
-        "none": "No additional details for this run.",
-        "runId": "run id",
-        "trigger": "trigger"
-      }
-    },
-    "data_nodes": {
-      "title": "Data Nodes",
-      "description": "Pure functions you can wire into a procedure's data flow",
-      "listLabel": "Data nodes",
-      "loadError": "Failed to load data node types",
-      "refresh": "Refresh",
-      "category": "Category",
-      "inputs": "Inputs",
-      "outputs": "Outputs",
-      "empty": "Select a data node to see its details",
-      "noPorts": "No ports declared",
-      "col": {
-        "name": "Name",
-        "type": "Type",
-        "description": "Description"
-      }
-    },
-    "templates": {
-      "title": "Templates",
-      "description": "Reusable groups shared across procedures",
-      "loadError": "Failed to load templates",
-      "saveError": "Failed to save",
-      "usagesError": "Failed to load usages",
-      "deleteError": "Failed to delete",
-      "refresh": "Refresh",
-      "search": "Search templates…",
-      "empty": "No templates yet — create one by selecting a group in the editor and choosing \"Save as template\".",
-      "save": "Save",
-      "editSubgraph": "Edit subgraph",
-      "delete": "Delete",
-      "forceDelete": "Delete and fork usages",
-      "usedInN": "Used in {n}",
-      "form": {
-        "name": "Name",
+      "procedureName": "Procedure name",
+      "runNow": {
+        "description": "Runs the saved version with this payload.",
+        "invalidJson": "The payload is not valid JSON: {error}",
+        "noPastPayload": "No past call: edit the payload by hand.",
+        "payload": "Payload",
+        "sideEffects": "Side effects are real: the services it calls receive the data.",
+        "submit": "Run and follow",
+        "title": "Run “{name}” now",
+        "trigger": "From trigger"
+      },
+      "runNowButton": "Run now",
+      "runSaved": {
+        "description": "Run now runs what is saved: your {count} unsaved change won’t be included. Test run tries the draft without saving it. | Run now runs what is saved: your {count} unsaved changes won’t be included. Test run tries the draft without saving it.",
+        "runSaved": "Run saved version",
+        "testDraft": "Test run the draft",
+        "title": "Run the saved version?"
+      },
+      "runStarted": "{name} ran",
+      "saveAsTemplate": "Save as template",
+      "saveError": "Couldn’t save the procedure",
+      "saveTemplateModal": {
+        "cancel": "Cancel",
         "description": "Description",
+        "descriptionPlaceholder": "What does it do?",
+        "error": "Couldn’t save the template",
         "icon": "Icon",
-        "iconHelp": "Iconify name, e.g. i-ph-package"
+        "name": "Name",
+        "namePlaceholder": "Template name",
+        "ports": "Ports inferred from the wires crossing the group",
+        "submit": "Save template",
+        "title": "Save as template"
       },
-      "ports": {
-        "title": "Ports",
-        "editHint": "To edit ports, open the subgraph.",
-        "empty": "No ports declared.",
-        "col": {
-          "kind": "Kind",
-          "direction": "Direction",
-          "name": "Name",
-          "type": "Type"
-        }
+      "saved": "Saved",
+      "savedToast": "{name} saved",
+      "savedWithProblems": "Saved as a draft with {count} problem. | Saved as a draft with {count} problems.",
+      "saving": "Saving…",
+      "selected": "{count} selected",
+      "switcher": {
+        "all": "All procedures ({count})",
+        "current": "current",
+        "none": "No procedure matches.",
+        "search": "Go to a procedure…",
+        "title": "Procedures"
       },
-      "usages": {
-        "title": "Used in",
-        "empty": "Not used by any procedure."
+      "templateBadge": "Template",
+      "templateName": "Template name",
+      "testRun": "Test run",
+      "testRunError": "Couldn’t test the draft",
+      "unsaved": "{count} unsaved change | {count} unsaved changes",
+      "viewRuns": "View all runs",
+      "wiredField": {
+        "from": "From",
+        "unwire": "Unwire"
+      }
+    },
+    "feed": {
+      "completed": "Completed",
+      "completedPlain": "Completed",
+      "deletedProcedure": "Deleted procedure",
+      "duration": "{duration}",
+      "failed": "Failed · {error}",
+      "failedAt": "{error} at {step}"
+    },
+    "firstRun": {
+      "description": "A procedure listens for a trigger — a webhook, a schedule or a click — then runs actions like HTTP calls, emails or data updates. Start from a recipe: it opens the builder with the trigger in place.",
+      "otherModules": "Other modules add their own blocks to the palette.",
+      "title": "Automate your first workflow"
+    },
+    "health": {
+      "degraded": "{count} procedure degraded | {count} procedures degraded",
+      "eyebrow": "Execution health · {window}",
+      "failing": "{count} procedure failing | {count} procedures failing",
+      "failingSince": "{name} · failing since {since}",
+      "healthy": "Every procedure is healthy",
+      "idle": "Nothing ran in this window",
+      "inspectLastFailure": "Inspect last failure",
+      "lastFailureAt": "{error} at {step}",
+      "live": "Live · updated {ago}",
+      "loadError": "Couldn’t load automation health",
+      "showFailedRuns": "Show failed runs",
+      "staleData": "Couldn’t refresh: showing data from {time}. Retrying every 30 s.",
+      "summary": "{runs} runs, {failed} failed · {enabled} of {total} procedures enabled"
+    },
+    "iconPicker": {
+      "label": "Icons",
+      "more": "More…",
+      "search": "Search icons…"
+    },
+    "importProcedure": {
+      "json": "Procedure JSON",
+      "jsonHint": "The file “Export JSON” downloads: name, description and graph.",
+      "notJson": "This is not valid JSON.",
+      "notProcedure": "This JSON is not an exported procedure: it needs a name and a graph.",
+      "submit": "Import and open the builder",
+      "subtitle": "Paste a procedure exported from a builder. It is imported as a disabled draft.",
+      "title": "Import JSON"
+    },
+    "kpi": {
+      "duration-p95": "p95 (seconds)",
+      "failed": "Failed",
+      "runs": "Runs",
+      "success-rate": "Success rate",
+      "vsPrevious": "vs previous period"
+    },
+    "library": {
+      "advanced": "Advanced · global config (JSON)",
+      "advancedHint": "Applies to every procedure using this type.",
+      "builtIn": "Built-in",
+      "cluster": {
+        "replicated": "Replicated across instances",
+        "replicatedHint": "Every automation instance listens; each call is handled by exactly one of them.",
+        "singleton": "Runs on one instance",
+        "singletonHint": "Only the leader instance runs it, so it fires once however many instances run."
       },
-      "deleteConfirm": {
-        "title": "Delete template?",
-        "message": "Delete \"{name}\"? This cannot be undone.",
-        "usageWarningTitle": "Template is in use",
-        "usageWarning": "{n} procedure(s) reference this template. Deleting will fork each usage into a local group so they keep working.",
-        "cancel": "Cancel"
+      "description": "Every building block in one place — triggers, actions, data nodes and templates, with where each one is used.",
+      "disable": "Disable",
+      "disableImpact": "Disabling it stops {count} enabled procedure that uses it. | Disabling it stops the {count} enabled procedures that use it.",
+      "disableTitle": "Disable {name}?",
+      "disabledToast": "{name} disabled",
+      "enabled": "Enabled",
+      "enabledToast": "{name} enabled",
+      "inputs": "Inputs",
+      "loadError": "Couldn’t load the catalog",
+      "noMatch": "Nothing matches.",
+      "nothingSelected": "Pick a block",
+      "nothingSelectedHint": "Its detail shows here: where it is used, its settings and its outputs.",
+      "off": "Off",
+      "open": "Open",
+      "other": "Other",
+      "outputs": "Outputs",
+      "schema": {
+        "description": "Description",
+        "name": "Name",
+        "none": "None.",
+        "required": "required",
+        "type": "Type"
+      },
+      "search": "Search…",
+      "settings": "Settings on each node",
+      "settingsHint": "Set in the builder, on each node that places this block.",
+      "tabs": {
+        "actions": "Actions",
+        "dataNodes": "Data nodes",
+        "templates": "Templates",
+        "triggers": "Triggers"
+      },
+      "title": "Library",
+      "unused": "No procedure uses this block yet.",
+      "usedBy": "Used by",
+      "uses": "{count} use | {count} uses"
+    },
+    "module": {
+      "description": "Procedures, triggers and actions",
+      "title": "Automation"
+    },
+    "newProcedure": {
+      "description": "Description",
+      "failed": "Couldn’t create the procedure",
+      "name": "Name",
+      "namePlaceholder": "Sync paid invoices to the ERP",
+      "nameRequired": "Give the procedure a name.",
+      "starts": {
+        "manual": "I run it",
+        "manualHint": "With Run now, or from the API",
+        "schedule": "On a schedule",
+        "scheduleHint": "Every hour, every Monday at 09:00…",
+        "webhook": "A webhook is called",
+        "webhookHint": "An HTTP call from Stripe, Shopify or any service"
+      },
+      "startsWhen": "Starts when",
+      "startsWhenHint": "It starts as a disabled draft: nothing fires until you enable it.",
+      "submit": "Create and open the builder",
+      "subtitle": "Name it and pick what starts it. The builder opens with the trigger in place.",
+      "title": "New procedure"
+    },
+    "nodes": {
+      "attempts": "{n} attempts",
+      "role": {
+        "action": "Action",
+        "data": "Data",
+        "flow": "Flow",
+        "group": "Group",
+        "helper": "Helper",
+        "trigger": "Trigger"
       }
     },
     "overview": {
-      "title": "Overview",
-      "description": "Automation health, recent runs and the procedures that need attention.",
-      "loadError": "Failed to load stats",
-      "refresh": "Refresh",
-      "autoPoll": "Auto-poll (30s)",
-      "head": {
-        "procedures": "Procedures",
-        "newProcedure": "New procedure"
+      "allRuns": "Run history",
+      "byTrigger": "By trigger",
+      "byTriggerHint": "How many procedures each trigger starts",
+      "counts": {
+        "draft": "Draft",
+        "enabled": "Enabled",
+        "failing": "Failing",
+        "paused": "Paused",
+        "total": "Total"
       },
-      "stats": {
-        "procedures": "Procedures",
-        "active": "Active",
-        "runsToday": "Runs today",
-        "successRate": "Success rate"
+      "description": "How automation is doing, what needs attention and the latest runs.",
+      "failedRuns": "Failed",
+      "noRuns": "No runs yet",
+      "noRunsHint": "Runs show up here as soon as a procedure fires.",
+      "noTriggers": "No trigger placed yet",
+      "procedures": "Procedures",
+      "recentRuns": "Recent runs",
+      "runsPerDay": "Runs",
+      "succeeded": "Succeeded",
+      "title": "Overview"
+    },
+    "period": {
+      "last24h": "24 h",
+      "last30d": "30 days",
+      "last7d": "7 days"
+    },
+    "permissions": {
+      "attention": {
+        "description": "Failing, degraded and paused procedures, with resume and dismiss",
+        "name": "Needs attention"
       },
-      "runs7d": {
-        "title": "Runs (7 days)"
+      "catalog": {
+        "actions": "Action catalog",
+        "actionsDescription": "Action types, where they are used, enable or disable them",
+        "dataNodes": "Data node catalog",
+        "dataNodesDescription": "Data node types and where they are used",
+        "triggers": "Trigger catalog",
+        "triggersDescription": "Trigger types, where they are used, enable or disable them"
       },
-      "chart": {
-        "legendOk": "Success",
-        "legendFailed": "Failed",
-        "empty": "No runs in the last 7 days"
+      "editor": {
+        "description": "Edit, test, run, import, export and delete procedures",
+        "name": "Procedure builder"
       },
-      "execHealth": {
-        "title": "Execution health",
-        "operational": "Operational",
-        "needsAttention": "Needs attention",
-        "avgDuration": "Avg duration",
-        "p95Duration": "p95 duration",
-        "failed24h": "Failed (24h)",
-        "total24h": "Runs (24h)",
-        "successRate": "Success rate"
+      "health": {
+        "description": "How automation is doing, with the last failure and the first-run recipes",
+        "name": "Execution health"
       },
-      "needsAttention": {
-        "title": "Needs attention",
-        "subtitle": "Failing or paused procedures",
-        "all": "All procedures",
-        "empty": "Nothing needs attention",
-        "failingDetail": "{n} failed runs",
-        "pausedDetail": "Paused",
-        "lastRun": "last run {ago} ago",
-        "open": "Open"
+      "importProcedure": {
+        "description": "Creates a draft from an exported procedure",
+        "name": "Import JSON dialog"
       },
-      "recentRuns": {
-        "title": "Recent runs",
-        "viewAll": "View all",
-        "empty": "No runs yet",
-        "ago": "{ago} ago"
+      "newProcedure": {
+        "description": "Creates a draft procedure with its trigger",
+        "name": "New procedure dialog"
       },
-      "timeAgo": {
-        "now": "just now",
-        "min": "{n} min",
-        "hour": "{n}h",
-        "day": "{n}d"
+      "period": {
+        "description": "The 24 h / 7 d / 30 d window of the figures",
+        "name": "Period switch"
+      },
+      "runPeek": {
+        "description": "The drawer of a run: failure, path, payload and log, with Re-run",
+        "name": "Run quick look"
+      },
+      "templates": {
+        "description": "Edit and delete the reusable templates",
+        "name": "Templates"
+      },
+      "trace": {
+        "description": "One run step by step, with Re-run and Debug in builder",
+        "name": "Run trace"
+      }
+    },
+    "procedures": {
+      "cols": {
+        "avg": "Avg",
+        "description": "Description",
+        "enabled": "Enabled",
+        "lastRun": "Last run",
+        "lastRuns": "Last 12 runs",
+        "procedure": "Procedure",
+        "status": "Status",
+        "statusDetail": "Last error",
+        "success": "Success 7 d",
+        "trigger": "Starts when"
+      },
+      "deleteConfirm": "Delete procedure",
+      "deleteDescription": "The graph is deleted. Its run history stays until retention removes it.",
+      "deleteEnabledDescription": "This procedure is enabled and ran {count} times this week. Only need it to stop? Pause it instead: that keeps the graph and can be undone.",
+      "deleteImpact": {
+        "schedule": "Schedule stops",
+        "webhook": "Stops answering"
+      },
+      "deleteTitle": "Delete “{name}”?",
+      "description": "Every procedure, what starts it, and how it ran over the last 7 days.",
+      "empty": "No procedures yet",
+      "emptyFiltered": "Nothing here",
+      "emptyFilteredHint": "No procedure matches this tab or this search.",
+      "emptyHint": "Procedures run actions when something happens — a webhook, a schedule or a click.",
+      "footerHint": "Double-click a row to open it in the builder",
+      "listTitle": "All procedures",
+      "never": "Never",
+      "pause": "Pause",
+      "paused": "Paused",
+      "resume": "Resume",
+      "resumed": "Resumed",
+      "runNow": "Run now",
+      "runNowConfirmDescription": "Runs the saved version with the payload of its last real call. Side effects are real.",
+      "runNowConfirmTitle": "Run “{name}” now?",
+      "runStarted": "Run finished",
+      "search": "Search procedures…",
+      "status": {
+        "degraded": "Degraded",
+        "draft": "Draft",
+        "failing": "Failing",
+        "healthy": "Healthy",
+        "paused": "Paused"
+      },
+      "title": "Procedures",
+      "viewRuns": "View runs"
+    },
+    "recipes": {
+      "digest": {
+        "description": "Runs every Monday at 09:00.",
+        "hint": "Every Monday at 09:00, send a summary of last week.",
+        "name": "Weekly digest",
+        "title": "Send a scheduled digest"
+      },
+      "manual": {
+        "description": "Started with Run now.",
+        "hint": "A procedure you start yourself, with Run now or from the API.",
+        "name": "On-demand procedure",
+        "title": "Run it on demand"
+      },
+      "webhook": {
+        "description": "Receives a webhook and forwards it.",
+        "hint": "Receive events from Stripe or Shopify and push them to another system.",
+        "name": "Forward incoming webhook",
+        "title": "Forward a webhook"
+      }
+    },
+    "runs": {
+      "cols": {
+        "duration": "Duration",
+        "endedAt": "Ended",
+        "error": "Error",
+        "failedStep": "Failed at",
+        "id": "Run id",
+        "kind": "Kind",
+        "procedure": "Procedure",
+        "procedureFilter": "Procedure",
+        "rerunOf": "Re-run of",
+        "startedAt": "Started",
+        "status": "Outcome",
+        "trigger": "Trigger",
+        "triggerType": "Trigger type"
+      },
+      "description": "Every run of every procedure: inspect, re-run and debug.",
+      "empty": "No runs yet",
+      "emptyHint": "Runs show up here as soon as a procedure fires, or when you test one in the builder.",
+      "justNow": "Just now",
+      "kind": {
+        "rerun": "Re-run",
+        "run": "Run",
+        "test": "Test"
+      },
+      "listTitle": "Runs",
+      "peek": "Quick look",
+      "peekTitle": "Run",
+      "rerun": "Re-run",
+      "rerunConfirmDescription": "Runs the saved version of the procedure again, from the same trigger, with the payload this run received. Side effects are real.",
+      "rerunConfirmTitle": "Re-run with the same payload?",
+      "rerunDone": "{name} re-ran",
+      "rerunStarted": "Re-run finished",
+      "rerunWithPayload": "Re-run with this payload",
+      "retentionHint": "Runs are kept 30 days",
+      "search": "Search errors…",
+      "status": {
+        "failed": "Failed",
+        "ok": "Completed"
+      },
+      "tabs": {
+        "failed": "Failed",
+        "succeeded": "Succeeded",
+        "tests": "Tests"
+      },
+      "title": "Run history",
+      "trace": "Trace"
+    },
+    "templates": {
+      "delete": "Delete template",
+      "deleteForks": "It is used once: that usage becomes a local group. | It is used {count} times: each usage becomes a local group.",
+      "deleteHint": "Deleting forks each usage into a local group, so the procedures keep working.",
+      "deleteTitle": "Delete “{name}”?",
+      "deleteUnused": "No procedure uses it.",
+      "deleted": "{name} deleted",
+      "details": "Details",
+      "editGraph": "Edit graph",
+      "empty": "No templates yet",
+      "emptyHint": "Select a group in the builder and save it as a template.",
+      "form": {
+        "description": "Description",
+        "icon": "Icon",
+        "name": "Name"
+      },
+      "loadError": "Couldn’t load the templates",
+      "ports": {
+        "col": {
+          "direction": "Direction",
+          "kind": "Kind",
+          "name": "Name",
+          "type": "Type"
+        },
+        "direction": {
+          "in": "in",
+          "out": "out"
+        },
+        "editHint": "Edit them inside the graph.",
+        "empty": "This template declares no ports.",
+        "kind": {
+          "data": "data",
+          "trigger": "trigger"
+        },
+        "title": "Ports"
+      },
+      "saveError": "Couldn’t save the template",
+      "saved": "{name} saved",
+      "search": "Search templates…",
+      "usages": {
+        "empty": "No procedure uses this template yet."
+      },
+      "usedIn": "Used in",
+      "usedInHint": "Changes apply live to every procedure below."
+    },
+    "trace": {
+      "atStep": "at step {index} of {total}",
+      "compared": "Compared with the last success",
+      "currentVersion": "current",
+      "debugInBuilder": "Debug in builder",
+      "description": "One run, step by step.",
+      "duration": "Duration",
+      "error": "Error",
+      "failed": "The run failed",
+      "failedAfter": "After {duration}. Downstream steps were skipped.",
+      "failedAt": "{step} failed",
+      "failuresInRow": "Failure {count} in a row.",
+      "fasterThanUsual": "−{delta} vs usual",
+      "input": "Input",
+      "instance": "Instance",
+      "lastSuccess": "Last success: run …{run} at {time}.",
+      "loadError": "Couldn’t load the run",
+      "logComplete": "{count} entries",
+      "logTruncated": "{count} entries dropped to keep the run small",
+      "noGraph": "The procedure was deleted.",
+      "noRun": "No run given.",
+      "noSteps": "No step ran.",
+      "noSuccessYet": "No successful run to compare with yet.",
+      "notOnPath": "not on this path",
+      "now": "Now",
+      "olderVersion": "This run used v{version} of the procedure",
+      "olderVersionHint": "The graph has changed since: the builder shows v{current}.",
+      "olderVersionShort": "now v{version}",
+      "openFull": "Open full trace",
+      "openInBuilder": "Open in builder",
+      "openOriginal": "Open the original run",
+      "openStep": "Open this step",
+      "output": "Output",
+      "pathOnly": "Path only",
+      "pathTaken": "Path taken",
+      "payloadTooLarge": "The payload was too large to keep",
+      "payloadTooLargeHint": "Only a preview is stored, so this run can’t be re-run with it.",
+      "rerunOf": "This run is a re-run",
+      "skipped": "skipped",
+      "slowerThanUsual": "+{delta} vs usual",
+      "startedBy": "started {time} by {trigger}",
+      "status": "Status",
+      "step": "Step",
+      "stepsRan": "{count} step ran | {count} steps ran",
+      "tabs": {
+        "logs": "Logs",
+        "payload": "Payload",
+        "steps": "Steps",
+        "summary": "Summary"
+      },
+      "time": "Time",
+      "title": "Run trace",
+      "trigger": "Trigger",
+      "version": "Procedure version"
+    },
+    "trigger": {
+      "none": "No trigger yet"
+    },
+    "types": {
+      "cron": {
+        "description": "Fires on a cron schedule",
+        "name": "Schedule (cron)"
+      },
+      "http": {
+        "description": "Makes an HTTP request. Fails when the status is outside 200–299: wrap it in Retry or Try / catch for flaky endpoints.",
+        "name": "HTTP request"
+      },
+      "log": {
+        "description": "Writes a message (and an optional value) to the run log",
+        "name": "Log"
+      },
+      "manual": {
+        "description": "Started with Run now or from the API",
+        "name": "Manual"
+      },
+      "webhook": {
+        "description": "Registers an HTTP endpoint that fires the procedure on each request",
+        "name": "Webhook"
       }
     }
   }

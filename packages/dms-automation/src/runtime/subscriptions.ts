@@ -10,17 +10,21 @@ import {
   type AutomationTemplateRow,
 } from "../db/models/automation_template.model";
 import { ProcedureModel } from "../db/models/procedure.model";
-import { ProcedureRunModel } from "../db/models/procedure_run.model";
 import type { Procedure } from "../db/tables/procedure.table";
 import { DATABASE_NAME, FETCH_ALL_LIMIT } from "../types/constants";
 import type { GroupNode, ProcedureGraph } from "../types/graph";
-import type { RunLog } from "../types/runLog";
-import { boundRunLog, serializeTriggerPayload } from "./boundRunLog";
 import { MANUAL_TRIGGER_ID } from "./builtins/triggers/manual";
-import { run as executorRun } from "./executor";
+import {
+  executeProcedure,
+  findTriggerNode,
+  loadProcedure,
+  parseStoredGraph,
+  syncRunNames,
+} from "./runProcedure";
 import { diff } from "./reconcileDiff";
 import { registry } from "./registry";
 import { validateGraph } from "./validate";
+import { isTriggerTypeDisabled, refreshTypeSwitches } from "./typeSwitches";
 
 interface HandleEntry {
   handle: unknown;
@@ -52,6 +56,8 @@ const templateCache = new Map<string, AutomationTemplateRow>();
 function getTemplate(id: string): AutomationTemplateRow | undefined {
   return templateCache.get(id);
 }
+
+const templates = { get: getTemplate };
 
 // Leadership gate, read LIVE so there is a single source of truth. start()
 // sets it (via useLeadershipSource) on every boot: memory/standalone injects
@@ -139,66 +145,6 @@ function configHashOf(config: unknown): string {
   return JSON.stringify(config ?? {});
 }
 
-interface RunRecord {
-  procedureId: string;
-  triggerNodeId: string;
-  triggerPayload: unknown;
-  startedAt: Date;
-  endedAt: Date;
-  status: "ok" | "failed";
-  logs: RunLog;
-  errorMessage?: string;
-}
-
-async function writeRun({
-  procedureId,
-  triggerNodeId,
-  triggerPayload,
-  startedAt,
-  endedAt,
-  status,
-  logs,
-  errorMessage,
-}: RunRecord): Promise<string> {
-  const runModel = GetModel(ProcedureRunModel, DATABASE_NAME);
-  const ids = await runModel.insert({
-    procedureId,
-    startedAt,
-    endedAt,
-    status,
-    errorMessage,
-    triggerNodeId,
-    triggerPayload: serializeTriggerPayload(triggerPayload),
-    logs: boundRunLog(logs),
-  });
-  return ids[0] ?? "";
-}
-
-async function executeProcedure(
-  procedure: Procedure,
-  graph: ProcedureGraph,
-  triggerNodeId: string,
-  payload: unknown,
-): Promise<string> {
-  const procedureId = procedure._id;
-  const startedAt = new Date();
-  const result = await executorRun(graph, triggerNodeId, payload, {
-    procedureId,
-    templateCache: { get: getTemplate },
-  });
-  const endedAt = new Date();
-  return await writeRun({
-    procedureId,
-    triggerNodeId,
-    triggerPayload: payload,
-    startedAt,
-    endedAt,
-    status: result.status,
-    logs: result.logs,
-    errorMessage: result.errorMessage,
-  });
-}
-
 interface DesiredTrigger {
   typeId: string;
   configHash: string;
@@ -245,7 +191,7 @@ function computeDesiredTriggers(
     for (const node of graph.nodes) {
       if (node.kind !== "trigger") continue;
       const typeId = node.typeId;
-      if (!typeId) continue;
+      if (!typeId || isTriggerTypeDisabled(typeId)) continue;
       const triggerType = registry.getTrigger(typeId);
       if (triggerType && triggerType.cluster !== "replicated" && !leader)
         continue;
@@ -337,6 +283,7 @@ function refreshLiveMeta(desiredMeta: Map<string, DesiredMeta>): void {
 }
 
 async function reconcile(): Promise<void> {
+  await refreshTypeSwitches();
   const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
   const enabled = await procedureModel.listEnabled();
   // Snapshot leadership ONCE for the whole pass. Reading it per-node would let a
@@ -382,6 +329,7 @@ async function activateTrigger(
         meta.graph,
         meta.nodeId,
         payload,
+        templates,
       ).catch((err) => {
         Logging.Error("[dms-automation] procedure execution failed:", err);
       });
@@ -507,6 +455,7 @@ export const subscriptions = {
    */
   async hydrate(): Promise<void> {
     await hydrateTemplates();
+    void syncRunNames();
     // Through the chain so a bus replay arriving during boot (the subscriber is
     // live before hydrate in redis mode) can't race this initial reconcile.
     await queueReconcile();
@@ -619,21 +568,8 @@ export const subscriptions = {
     }
   },
   async invokeManual(procedureId: string, payload?: unknown): Promise<string> {
-    const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
-    const procedure = await procedureModel.get(procedureId);
-    if (!procedure) {
-      throw new HTTPResult(404, {
-        error: `procedure "${procedureId}" not found`,
-      });
-    }
-    let graph: ProcedureGraph;
-    try {
-      graph = parseGraph(procedure.graph);
-    } catch {
-      throw new HTTPResult(400, {
-        error: `procedure "${procedureId}" has an invalid graph`,
-      });
-    }
+    const procedure = await loadProcedure(procedureId);
+    const graph = parseStoredGraph(procedure);
     const manualNode = graph.nodes.find(
       (n) => n.kind === "trigger" && n.typeId === MANUAL_TRIGGER_ID,
     );
@@ -642,7 +578,89 @@ export const subscriptions = {
         error: `procedure "${procedureId}" has no manual trigger node`,
       });
     }
-    return await executeProcedure(procedure, graph, manualNode.id, payload);
+    return await executeProcedure(
+      procedure,
+      graph,
+      manualNode.id,
+      payload,
+      templates,
+    );
+  },
+  /**
+   * Run the saved graph from any of its triggers (the manual one first, then
+   * the first trigger) with a caller-given payload: "Run now" from the
+   * builder, whatever starts the procedure.
+   */
+  async runNow(
+    procedureId: string,
+    payload: unknown,
+    triggerNodeId?: string,
+  ): Promise<string> {
+    const procedure = await loadProcedure(procedureId);
+    const graph = parseStoredGraph(procedure);
+    const trigger = findTriggerNode(graph, triggerNodeId);
+    if (!trigger) {
+      throw new HTTPResult(400, {
+        error: `procedure "${procedureId}" has no trigger to run from`,
+      });
+    }
+    return await executeProcedure(
+      procedure,
+      graph,
+      trigger.id,
+      payload,
+      templates,
+    );
+  },
+  /**
+   * Run the procedure's saved graph again from the trigger and with the
+   * payload of a stored run.
+   */
+  async rerun(
+    procedureId: string,
+    run: { _id: string; triggerNodeId: string; triggerPayload: unknown },
+  ): Promise<string> {
+    const procedure = await loadProcedure(procedureId);
+    const graph = parseStoredGraph(procedure);
+    if (!findTriggerNode(graph, run.triggerNodeId)) {
+      throw new HTTPResult(409, {
+        error: "the trigger of this run is no longer in the procedure",
+      });
+    }
+    return await executeProcedure(
+      procedure,
+      graph,
+      run.triggerNodeId,
+      run.triggerPayload,
+      templates,
+      { kind: "rerun", rerunOf: run._id },
+    );
+  },
+  /**
+   * Run a draft graph that is not saved. The run is stored as a `test` run so
+   * it has a trace, and never counts in the health figures.
+   */
+  async testRun(
+    procedureId: string,
+    graph: ProcedureGraph,
+    payload: unknown,
+    triggerNodeId?: string,
+  ): Promise<string> {
+    const procedure = await loadProcedure(procedureId);
+    const trigger = findTriggerNode(graph, triggerNodeId);
+    if (!trigger) {
+      throw new HTTPResult(400, {
+        error: "the draft has no trigger to run from",
+      });
+    }
+    return await executeProcedure(
+      procedure,
+      graph,
+      trigger.id,
+      payload,
+      templates,
+      { kind: "test" },
+    );
   },
   /** @internal exposed for destroy() in src/index.ts */
   async _deactivateAll(): Promise<void> {

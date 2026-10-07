@@ -25,8 +25,9 @@ function onUnwire() {
 	>
 		<UIcon name="i-ph-plugs-connected" class="size-4 text-success" />
 		<span class="min-w-0 flex-1 truncate text-xs text-toned">
-			{{ $t('dms_automation.editor.wiredField.wiredFrom') }}
-			<span class="font-mono font-medium text-highlighted">{{ sourceLabel ?? source.node }}.{{ source.port }}</span>
+			{{ $t('dms_automation.editor.wiredField.from') }}
+			<span class="font-medium text-highlighted">{{ sourceLabel ?? source.node }}</span>
+			<span class="font-mono text-muted"> · {{ source.port }}</span>
 		</span>
 		<UButton
 			size="xs"
