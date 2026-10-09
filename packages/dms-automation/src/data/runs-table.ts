@@ -93,6 +93,8 @@ export class RunsTableAPI extends DataController(
       nowWithinMs: 60_000,
       nowLabel: "$dms_automation.runs.justNow",
     }),
+    // The grouped display counts each day with a date-range filter on it.
+    filterable: true,
     order: 1,
   })
   @Access(AccessMode.ReadOnly)
