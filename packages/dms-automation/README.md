@@ -34,7 +34,7 @@ A procedure is **failing** when its last run failed, **degraded** when runs fail
 
 ## Vue frontend
 
-The module registers `frontend-vue` through `AddFrontendModule` with the Vue 3 renderer. `dms.frontend.ts` declares the `DmsAutomation` component prefix, registers the Automation components, and a universal plugin registering the `automation:last-runs`, `automation:trigger` and `automation:step` cell displays the procedures and runs tables use. `dms.frontend.build.ts` lists the folders the layer auto-imports (`app/composables`, `app/utils`). The generated Inertia application discovers the English and French locale files, while the host DMS provides shared composables and UI components.
+The module registers `frontend-vue` through `AddFrontendModule` with the Vue 3 renderer. `dms.frontend.ts` declares the `DmsAutomation` component prefix, registers the Automation components, and a universal plugin registering the `automation:last-runs` cell display of the procedures table. The trigger and failed-step cells use the DMS `two_line` display over texts the server composes (`src/runtime/wording.ts`). `dms.frontend.build.ts` lists the folders the layer auto-imports (`app/composables`, `app/utils`). The generated Inertia application discovers the English and French locale files, while the host DMS provides shared composables and UI components.
 
 The playground uses the published DMS and Inertia frontend packages. To build or typecheck the module frontend directly, first generate an Inertia workspace, set `DMS_FRONTEND_WORKSPACE` to its absolute path, then run:
 

@@ -27,7 +27,7 @@ test("a run opens in a drawer, deep linked, and re-runs with its payload", () =>
   assert.equal(trace.target.url, "/modules/automation/trace?run={_id}");
 });
 
-test("the frontend registers the module's cell displays from a universal plugin", () => {
+test("the frontend registers the run strip from a universal plugin", () => {
   const entry = fs.readFileSync(
     path.resolve(__dirname, "../frontend-vue/dms.frontend.ts"),
     "utf8",
@@ -38,17 +38,29 @@ test("the frontend registers the module's cell displays from a universal plugin"
     path.resolve(__dirname, "../frontend-vue/app/plugins/cell-displays.ts"),
     "utf8",
   );
-  for (const id of [
-    "automation:last-runs",
-    "automation:trigger",
-    "automation:step",
-  ]) {
-    assert.match(plugin, new RegExp(`id: "${id}"`));
-  }
-  const {
-    LastRunsDisplay,
-    TriggerDisplay,
-    StepDisplay,
-  } = require("../dist/displays/index.js");
-  assert.ok(LastRunsDisplay && TriggerDisplay && StepDisplay);
+  assert.match(plugin, /id: "automation:last-runs"/);
+  assert.doesNotMatch(plugin, /id: "automation:(trigger|step)"/);
+  const displays = require("../dist/displays/index.js");
+  assert.deepEqual(Object.keys(displays), ["LastRunsDisplay"]);
+});
+
+test("the trigger and failed-step cells are the DMS two_line display", () => {
+  const { RunsTableAPI } = require("../dist/data/runs-table.js");
+  const run = Object.create(RunsTableAPI.prototype, {
+    triggerSummary: {
+      value: {
+        nodeId: "t1",
+        typeId: "webhook",
+        typeName: "$dms_automation.types.webhook.name",
+        method: "POST",
+        path: "/webhooks/stripe",
+      },
+    },
+    failedStep: {
+      value: { nodeId: "a1", typeName: "$dms_automation.types.http.name" },
+    },
+  });
+  assert.equal(run.triggerText, "POST /webhooks/stripe");
+  assert.equal(run.triggerTypeText, "$dms_automation.types.webhook.name");
+  assert.equal(run.failedStepText, "$dms_automation.types.http.name");
 });

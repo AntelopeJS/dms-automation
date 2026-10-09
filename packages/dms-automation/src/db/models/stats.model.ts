@@ -1,4 +1,5 @@
 import { GetModel } from "@antelopejs/interface-database-decorators";
+import type { BlockText } from "@antelopejs/interface-dms/base/types";
 import { hasTrigger } from "../../runtime/graphIssues";
 import {
   parseGraphSafe,
@@ -7,6 +8,7 @@ import {
   type TriggerSummary,
   triggersOf,
 } from "../../runtime/describe";
+import { triggerText, triggerTypeText } from "../../runtime/wording";
 import {
   byProcedure,
   type HealthProcedure,
@@ -186,8 +188,12 @@ export interface ProcedureSummaryRow {
   enabled: boolean;
   /** Type id of the first trigger, `null` for a draft. */
   trigger: string | null;
-  /** The first trigger, structured for the `automation:trigger` display. */
+  /** The first trigger, structured. */
   triggerSummary: TriggerSummary | null;
+  /** The first trigger in words, the first line of its cell. */
+  triggerText: BlockText;
+  /** The first trigger's type, under its settings; `null` when the text names it. */
+  triggerTypeText: BlockText | null;
   /** How many triggers the graph has. */
   triggerCount: number;
   status: ProcedureState;
@@ -232,6 +238,8 @@ function summaryRow(
     enabled: procedure.enabled,
     trigger: triggers[0]?.typeId ?? null,
     triggerSummary: triggers[0] ?? null,
+    triggerText: triggerText(triggers[0]),
+    triggerTypeText: triggerTypeText(triggers[0]),
     triggerCount: triggers.length,
     status: health.state,
     statusDetail: statusDetailOf(health, lastFailed),

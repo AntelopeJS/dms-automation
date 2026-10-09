@@ -12,6 +12,7 @@ import {
 } from "@antelopejs/interface-data-api/metadata";
 import { Model } from "@antelopejs/interface-database-decorators";
 import { DefaultDataTypes } from "@antelopejs/interface-dms/base/data-types";
+import type { BlockText } from "@antelopejs/interface-dms/base/types";
 import { Searchable } from "@antelopejs/interface-dms/base/searchable";
 import {
   Column,
@@ -21,8 +22,8 @@ import {
 } from "@antelopejs/interface-dms/base/table-view";
 import { ProcedureRunModel } from "../db/models/procedure_run.model";
 import { ProcedureRun } from "../db/tables/procedure_run.table";
-import { StepDisplay, TriggerDisplay } from "../displays";
 import type { StepName, TriggerSummary } from "../runtime/describe";
+import { stepText, triggerText, triggerTypeText } from "../runtime/wording";
 import { DATABASE_NAME } from "../types/constants";
 import { ProceduresTableAPI } from "./procedures-table";
 
@@ -138,11 +139,28 @@ export class RunsTableAPI extends DataController(
     name: "$dms_automation.runs.cols.trigger",
     size: 220,
     type: new DefaultDataTypes.StringType(),
-    display: new TriggerDisplay(),
+    display: new DefaultDisplays.TwoLineDisplay({
+      primaryField: "triggerText",
+      subField: "triggerTypeText",
+    }),
     order: 3,
   })
   @Access(AccessMode.ReadOnly)
   declare triggerSummary: TriggerSummary;
+
+  /** The trigger in words: the first line of the trigger cell. */
+  @Listable(["triggerSummary"])
+  @Access(AccessMode.ReadOnly)
+  get triggerText(): BlockText {
+    return triggerText(this.triggerSummary);
+  }
+
+  /** The trigger's type under its settings, when the first line does not name it. */
+  @Listable(["triggerSummary"])
+  @Access(AccessMode.ReadOnly)
+  get triggerTypeText(): BlockText | null {
+    return triggerTypeText(this.triggerSummary);
+  }
 
   @Listable()
   @Exported()
@@ -164,11 +182,20 @@ export class RunsTableAPI extends DataController(
   @Column({
     name: "$dms_automation.runs.cols.failedStep",
     type: new DefaultDataTypes.StringType(),
-    display: new StepDisplay(),
+    display: new DefaultDisplays.TwoLineDisplay({
+      primaryField: "failedStepText",
+    }),
     order: 5,
   })
   @Access(AccessMode.ReadOnly)
   declare failedStep: StepName;
+
+  /** The step the run failed at, by its label or its type's name. */
+  @Listable(["failedStep"])
+  @Access(AccessMode.ReadOnly)
+  get failedStepText(): BlockText | null {
+    return stepText(this.failedStep);
+  }
 
   @Listable()
   @Sortable({ noIndex: true })

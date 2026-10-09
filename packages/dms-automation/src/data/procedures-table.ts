@@ -20,6 +20,7 @@ import { GetModel, Model } from "@antelopejs/interface-database-decorators";
 import { AuthOwnerOnly } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
 import { DefaultDataTypes } from "@antelopejs/interface-dms/base/data-types";
+import type { BlockText } from "@antelopejs/interface-dms/base/types";
 import { Searchable } from "@antelopejs/interface-dms/base/searchable";
 import {
   Column,
@@ -32,7 +33,7 @@ import {
   type ProcedureSummaryRow,
 } from "../db/models/stats.model";
 import { Procedure } from "../db/tables/procedure.table";
-import { LastRunsDisplay, TriggerDisplay } from "../displays";
+import { LastRunsDisplay } from "../displays";
 import { stateRank } from "../stats/health";
 import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
@@ -352,11 +353,24 @@ export class ProceduresTableAPI extends DataController(
     name: "$dms_automation.procedures.cols.trigger",
     size: 200,
     type: new DefaultDataTypes.StringType(),
-    display: new TriggerDisplay(),
+    display: new DefaultDisplays.TwoLineDisplay({
+      primaryField: "triggerText",
+      subField: "triggerTypeText",
+    }),
     order: 2,
   })
   @Access(AccessMode.ReadOnly)
   declare triggerSummary: string;
+
+  /** The trigger in words: the first line of the "Starts when" cell. */
+  @Listable()
+  @Access(AccessMode.ReadOnly)
+  declare triggerText: BlockText;
+
+  /** The trigger's type under its settings, when the first line does not name it. */
+  @Listable()
+  @Access(AccessMode.ReadOnly)
+  declare triggerTypeText: BlockText | null;
 
   @Listable()
   @Sortable({ noIndex: true })
