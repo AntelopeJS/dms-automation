@@ -11,8 +11,8 @@ interface CronOutput {
 
 export const cronTrigger: TriggerType<CronConfig, CronOutput> = {
   id: "schedule.cron",
-  name: "Schedule (cron)",
-  description: "Fires on a cron schedule",
+  name: "$dms_automation.types.cron.name",
+  description: "$dms_automation.types.cron.description",
   icon: "i-ph-clock",
   cluster: "singleton",
   configSchema: {

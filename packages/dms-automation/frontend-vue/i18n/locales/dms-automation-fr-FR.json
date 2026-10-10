@@ -1,368 +1,661 @@
 {
   "dms_automation": {
-    "module": {
-      "title": "Automatisation",
-      "description": "Procédures, déclencheurs et actions"
+    "attention": {
+      "allProcedures": "Toutes les procédures",
+      "degraded": "{failed} exécution sur {runs} en échec en 7 jours · dernière à {when} · rétablie depuis | {failed} exécutions sur {runs} en échec en 7 jours · dernière à {when} · rétablie depuis",
+      "dismiss": "Ignorer",
+      "dismissed": "{name} ignorée jusqu’à son prochain échec",
+      "edit": "Modifier dans l’éditeur",
+      "empty": "Rien à traiter",
+      "emptyHint": "Aucune procédure en échec, dégradée ou en pause.",
+      "failing": "Dernière exécution en échec | {count} dernières exécutions en échec",
+      "failingAt": "Dernière exécution en échec à {step} · {error} | {count} dernières exécutions en échec à {step} · {error}",
+      "loadError": "Impossible de charger les procédures à vérifier",
+      "openTrace": "Ouvrir la trace",
+      "paused": "En pause : ses déclencheurs ne partent pas",
+      "pausedAt": "En pause {ago}",
+      "pausedBy": "Mise en pause par {name} {ago}",
+      "resume": "Reprendre",
+      "resumed": "{name} reprise",
+      "title": "À traiter"
     },
     "builder": {
-      "title": "Constructeur",
-      "description": "Constructeur visuel — glissez des blocs depuis la palette et reliez-les entre eux.",
+      "description": "Construisez une procédure : déposez des blocs, reliez-les, testez le brouillon.",
       "palette": {
-        "search": "Rechercher des blocs…",
-        "empty": "Aucun bloc correspondant"
-      }
-    },
-    "procedures": {
-      "title": "Procédures",
-      "description": "Toutes les procédures d'automatisation — statut, déclencheurs et état récent.",
-      "newProcedure": "Nouvelle procédure",
-      "newProcedureName": "Nouvelle procédure",
-      "search": "Rechercher des procédures…",
-      "pagination": "{shown} sur {total}",
-      "filters": {
-        "all": "Toutes",
-        "active": "Actives",
-        "paused": "En pause",
-        "failing": "En échec"
+        "empty": "Aucun bloc ne correspond",
+        "groups": {
+          "action": "Actions",
+          "data": "Données",
+          "flow": "Flux",
+          "helper": "Utilitaires",
+          "templates": "Modèles",
+          "trigger": "Déclencheurs"
+        },
+        "hint": "Cliquez sur un bloc pour l’ajouter au canevas.",
+        "search": "Rechercher un bloc…"
       },
-      "cols": {
-        "procedure": "Procédure",
-        "trigger": "Déclencheur",
-        "status": "Statut",
-        "lastRun": "Dernière exécution",
-        "success": "Réussite",
-        "avg": "Moy.",
-        "runs": "Exécutions"
-      },
-      "status": {
-        "active": "Active",
-        "paused": "En pause",
-        "failing": "En échec"
-      },
-      "trigger": {
-        "none": "Aucun déclencheur",
-        "manual": "Manuel"
-      },
-      "lastRunAgo": "il y a {ago}",
-      "runNow": "Exécuter maintenant",
-      "runStarted": "Exécution démarrée",
-      "edit": "Modifier",
-      "runQueued": "Exécution en file d'attente · {name}",
-      "runFailed": "Échec de l'exécution",
-      "never": "Jamais",
-      "empty": "Aucune procédure",
-      "emptyHint": "Créez votre première procédure pour commencer.",
-      "loadError": "Échec du chargement des procédures",
-      "createError": "Échec de la création de la procédure"
-    },
-    "library": {
-      "title": "Bibliothèque",
-      "description": "Tous les blocs de construction au même endroit — déclencheurs, actions, nœuds de données et modèles réutilisables.",
-      "tabs": {
-        "triggers": "Déclencheurs",
-        "actions": "Actions",
-        "dataNodes": "Nœuds de données",
-        "templates": "Modèles"
-      }
-    },
-    "editor": {
-      "title": "Éditeur",
-      "description": "Concevoir des procédures",
-      "loadProceduresError": "Échec du chargement des procédures",
-      "loadTemplateError": "Échec du chargement du modèle",
-      "procedures": "Procédures",
-      "procedureName": "Nom de la procédure",
-      "templateName": "Nom du modèle",
-      "enabled": "Activée",
-      "runNow": "Exécuter maintenant",
-      "noProcedure": "Aucune procédure sélectionnée. Ouvrez le panneau Procédures pour en choisir ou en créer une.",
-      "templateNotLoaded": "Modèle non chargé.",
-      "disabledTitle": "Cette procédure est désactivée",
-      "disabledDescription": "Les déclencheurs (webhook, cron, …) ne se déclencheront pas tant que vous ne l'aurez pas activée et enregistrée. Les déclencheurs manuels fonctionnent toujours via Exécuter maintenant.",
-      "enableAndSave": "Activer et enregistrer",
-      "exitSubgraph": "Quitter le sous-graphe",
-      "linkedTitle": "Lié à un modèle — lecture seule",
-      "linkedDescription": "Ce sous-graphe est fourni par un modèle et se met à jour en direct à chaque modification du modèle. Dupliquez-le en groupe local pour modifier une copie privée.",
-      "forkToEdit": "Dupliquer pour modifier",
-      "enterGroup": "Entrer dans le groupe",
-      "groupSelection": "Sélection de groupe ({n})",
-      "saveAsTemplate": "Enregistrer comme modèle",
-      "forkToLocal": "Dupliquer en groupe local",
-      "loading": "Chargement de l'éditeur…",
-      "saveTemplateModal": {
-        "title": "Enregistrer comme modèle",
-        "name": "Nom",
-        "namePlaceholder": "Nom du modèle",
-        "description": "Description",
-        "descriptionPlaceholder": "Que fait ce modèle ?",
-        "icon": "Icône",
-        "iconHelp": "Nom Iconify, ex. i-ph-package",
-        "error": "Impossible d'enregistrer le modèle",
-        "cancel": "Annuler",
-        "submit": "Enregistrer le modèle"
-      },
-      "forkModal": {
-        "title": "Dupliquer en groupe local",
-        "body": "Cette instance de modèle deviendra un groupe local. Les modifications ultérieures du modèle d'origine n'affecteront plus cette copie.",
-        "error": "Impossible de dupliquer l'instance du modèle",
-        "cancel": "Annuler",
-        "submit": "Dupliquer en groupe local"
-      },
-      "canvas": {
-        "addNode": "Ajouter un nœud",
-        "undo": "Annuler",
-        "redo": "Rétablir",
-        "cancel": "Annuler",
-        "apply": "Appliquer",
-        "zoomOut": "Zoom arrière",
-        "resetZoom": "Réinitialiser le zoom",
-        "zoomIn": "Zoom avant",
-        "fitView": "Ajuster à la vue"
-      },
-      "procedureList": {
-        "title": "Procédures",
-        "new": "Nouvelle",
-        "empty": "Aucune procédure pour l'instant. Cliquez sur « Nouvelle » pour en créer une.",
-        "enabled": "Activée",
-        "disabled": "Désactivée",
-        "deleteAria": "Supprimer la procédure",
-        "deleteTitle": "Supprimer la procédure",
-        "deleteConfirm": "Êtes-vous sûr de vouloir supprimer {name} ? Cette action est irréversible.",
-        "cancel": "Annuler",
-        "delete": "Supprimer"
-      },
-      "inspector": {
-        "title": "Inspecteur",
-        "empty": "Sélectionnez un nœud à modifier.",
-        "enterSubgraph": "Entrer dans le sous-graphe",
-        "type": "Type",
-        "nodeId": "Identifiant du nœud",
-        "noFields": "Ce nœud n'a aucun champ configurable.",
-        "arrayPlaceholder": "Un élément par ligne",
-        "deleteNode": "Supprimer le nœud"
-      },
-      "groupPorts": {
-        "title": "Ports du groupe",
-        "duplicate": "Nom de port en double : {name}",
-        "duplicateHelp": "Chaque port d'une liste d'entrées ou de sorties doit avoir un nom unique.",
-        "remove": "Supprimer le port"
-      },
-      "wiredField": {
-        "wiredFrom": "relié depuis",
-        "unwire": "Délier"
-      },
-      "runsDrawer": {
-        "title": "Exécutions",
-        "loading": "Exécutions (chargement…)",
-        "count": "Exécutions ({n})",
-        "selectProcedure": "Sélectionnez une procédure pour voir les exécutions.",
-        "loadingShort": "Chargement…",
-        "runCount": "{n} exécution(s)",
-        "refresh": "Actualiser",
-        "empty": "Aucune exécution pour l'instant.",
-        "cols": {
-          "status": "Statut",
-          "started": "Démarrée",
-          "duration": "Durée",
-          "error": "Erreur"
-        }
-      }
+      "title": "Éditeur"
     },
     "common": {
-      "refresh": "Actualiser",
+      "actionFailed": "Une erreur est survenue",
+      "cancel": "Annuler",
+      "next": "Suivant",
       "previous": "Précédent",
-      "next": "Suivant"
+      "retry": "Réessayer",
+      "save": "Enregistrer"
     },
-    "catalog": {
-      "empty": "Aucun type enregistré.",
-      "search": "Rechercher des types…",
-      "noResults": "Aucun résultat.",
-      "selectPrompt": "Sélectionnez un type à gauche pour voir sa configuration.",
-      "enabled": "Activé",
-      "enabledHelp": "Autoriser l'utilisation de ce type par les procédures.",
-      "configSchema": "Schéma de configuration (lecture seule)",
-      "globalConfig": "Configuration globale (JSON)",
-      "save": "Enregistrer",
-      "invalidJson": "JSON invalide"
+    "cron": {
+      "daily": "Chaque jour à {time}",
+      "days": {
+        "fri": "vendredi",
+        "mon": "lundi",
+        "sat": "samedi",
+        "sun": "dimanche",
+        "thu": "jeudi",
+        "tue": "mardi",
+        "wed": "mercredi"
+      },
+      "everyHours": "Toutes les {n} heures",
+      "everyMinute": "Chaque minute",
+      "everyMinutes": "Toutes les {n} minutes",
+      "hourly": "Toutes les heures à :{minute}",
+      "weekdays": "En semaine à {time}",
+      "weekly": "Le {day} à {time}"
     },
-    "triggers": {
-      "title": "Déclencheurs",
-      "description": "Déclencheurs enregistrés",
-      "listLabel": "Types de déclencheurs",
-      "loadError": "Échec du chargement des types de déclencheurs"
-    },
-    "actions": {
-      "title": "Actions",
-      "description": "Actions enregistrées",
-      "listLabel": "Types d'actions",
-      "loadError": "Échec du chargement des types d'actions"
-    },
-    "runs": {
-      "title": "Exécutions",
-      "description": "Historique d'exécution de toutes les procédures — inspecter, rejouer et déboguer.",
-      "pageLabel": "Page {n}",
-      "empty": "Aucune exécution",
-      "emptyHint": "Aucune exécution ne correspond à ce filtre.",
-      "kpis": {
-        "today": "Exécutions aujourd'hui",
-        "success": "Réussites",
-        "failed": "Échecs",
-        "avgDuration": "Durée moyenne"
+    "editor": {
+      "canvas": {
+        "fitView": "Ajuster la vue",
+        "redo": "Rétablir",
+        "resetZoom": "Réinitialiser le zoom",
+        "undo": "Annuler",
+        "zoomIn": "Zoomer",
+        "zoomOut": "Dézoomer"
       },
-      "badge": {
-        "success": "Réussite",
-        "failed": "Échec"
+      "debug": {
+        "again": "Relancer",
+        "exit": "Quitter le débogage",
+        "failed": "Échec · {duration}",
+        "failedAt": "Échec à {step} · {duration}",
+        "passed": "Terminée · {duration}",
+        "runLabel": "Exécution …{run} · {when}",
+        "testLabel": "Test · {when}"
       },
-      "cols": {
-        "procedure": "Procédure",
-        "status": "Statut",
-        "startedAt": "Démarrée",
-        "endedAt": "Terminée",
-        "trigger": "Déclencheur",
-        "error": "Erreur"
+      "delete": "Supprimer la procédure",
+      "deleteDisabled": "Le graphe est supprimé ; son historique reste jusqu’à ce que la rétention l’efface.",
+      "deleteEnabled": "Elle est active : ses déclencheurs s’arrêtent aussitôt. Saisissez son nom pour confirmer.",
+      "deleteTitle": "Supprimer « {name} » ?",
+      "deleted": "{name} supprimée",
+      "disabled": "Désactivée",
+      "discard": "Annuler les modifications",
+      "dock": {
+        "allRuns": "Toutes les exécutions de cette procédure",
+        "failedCount": "{count} en échec",
+        "invalidJson": "La charge de test n’est pas un JSON valide",
+        "noProblems": "Aucun problème sur le graphe.",
+        "noRuns": "Cette procédure n’a pas encore tourné.",
+        "payload": "Charge de test",
+        "payloadFrom": "Préremplie depuis le dernier vrai appel (exécution …{run}).",
+        "payloadHint": "Envoyée au déclencheur par « Tester ».",
+        "problems": "Problèmes",
+        "recentRuns": "Exécutions récentes",
+        "selectNode": "Sélectionner le nœud",
+        "sideEffects": "Les effets sont réels : pointez les étapes HTTP vers un bac à sable pour un essai à blanc.",
+        "testRun": "Test",
+        "toggle": "Afficher ou masquer le panneau"
       },
-      "status": {
-        "ok": "Réussite",
-        "failed": "Échec"
+      "enabled": "Active",
+      "enterGroup": "Entrer dans le groupe",
+      "exitSubgraph": "Retour au parent",
+      "exportJson": "Exporter en JSON",
+      "forkModal": {
+        "body": "Cette instance devient un groupe local : les modifications futures du modèle ne changeront plus cette copie.",
+        "cancel": "Annuler",
+        "error": "Impossible de copier l’instance du modèle",
+        "submit": "Copier en groupe local",
+        "title": "Copier en groupe local"
       },
-      "display": {
-        "timeline": "Chronologie"
+      "forkToEdit": "Copier pour modifier",
+      "forkToLocal": "Copier en groupe local",
+      "forked": "{name} est maintenant un groupe local",
+      "groupPorts": {
+        "duplicate": "Nom de port en double : {name}",
+        "duplicateHelp": "Chaque port d'une liste d'entrées ou de sorties doit avoir un nom unique.",
+        "remove": "Supprimer le port",
+        "title": "Ports du groupe"
       },
-      "listTitle": "Historique des exécutions",
-      "timeline": {
-        "trace": "Trace",
-        "replay": "Rejouer",
-        "completed": "Terminée avec succès",
-        "failed": "Échec",
-        "replayQueued": "Relecture en file d'attente",
-        "replayFailed": "Échec de la relecture"
+      "groupSelection": "Grouper ({n})",
+      "inspector": {
+        "arrayPlaceholder": "Un élément par ligne",
+        "credentialsHint": "Ne saisissez pas d’identifiants dans le graphe : tous les utilisateurs de l’éditeur et les modèles les voient.",
+        "deleteNode": "Supprimer",
+        "docs": "Doc",
+        "duplicate": "Dupliquer",
+        "empty": "Sélectionnez un nœud pour le modifier.",
+        "enterSubgraph": "Entrer dans le groupe",
+        "ifItFails": "En cas d’échec",
+        "ifItFailsHint": "L’exécution s’arrête ici et les étapes suivantes sont ignorées.",
+        "jsonPlaceholder": "Texte, nombre, true/false, null ou JSON",
+        "lastRun": "Dernière exécution",
+        "noDocs": "Ce bloc n’a pas de description.",
+        "noFields": "Ce nœud n’a pas de réglages.",
+        "runFailed": "Cette exécution a échoué",
+        "settings": "Réglages",
+        "stepName": "Nom de l’étape",
+        "wrapInRetry": "Envelopper dans Retry"
       },
-      "detail": {
-        "error": "Erreur",
-        "triggerPayload": "Charge utile du déclencheur",
-        "logs": "Journaux",
-        "noLogs": "Aucune entrée de journal.",
-        "none": "Aucun détail supplémentaire pour cette exécution.",
-        "runId": "id d'exécution",
-        "trigger": "déclencheur"
-      }
-    },
-    "data_nodes": {
-      "title": "Nœuds de données",
-      "description": "Fonctions pures que vous pouvez relier au flux de données d'une procédure",
-      "listLabel": "Nœuds de données",
-      "loadError": "Échec du chargement des types de nœuds de données",
-      "refresh": "Actualiser",
-      "category": "Catégorie",
-      "inputs": "Entrées",
-      "outputs": "Sorties",
-      "empty": "Sélectionnez un nœud de données pour voir ses détails",
-      "noPorts": "Aucun port déclaré",
-      "col": {
-        "name": "Nom",
-        "type": "Type",
-        "description": "Description"
-      }
-    },
-    "templates": {
-      "title": "Modèles",
-      "description": "Groupes réutilisables partagés entre les procédures",
-      "loadError": "Échec du chargement des modèles",
-      "saveError": "Échec de l'enregistrement",
-      "usagesError": "Échec du chargement des utilisations",
-      "deleteError": "Échec de la suppression",
-      "refresh": "Actualiser",
-      "search": "Rechercher des modèles…",
-      "empty": "Aucun modèle pour l'instant — créez-en un en sélectionnant un groupe dans l'éditeur et en choisissant « Enregistrer comme modèle ».",
-      "save": "Enregistrer",
-      "editSubgraph": "Modifier le sous-graphe",
-      "delete": "Supprimer",
-      "forceDelete": "Supprimer et dupliquer les utilisations",
-      "usedInN": "Utilisé dans {n}",
-      "form": {
-        "name": "Nom",
+      "leave": {
+        "description": "Sinon, {count} modification non enregistrée sera perdue. | Sinon, {count} modifications non enregistrées seront perdues.",
+        "keep": "Continuer",
+        "save": "Enregistrer et changer",
+        "title": "Enregistrer les modifications de « {name} » ?"
+      },
+      "linkedDescription": "Modifiez le modèle pour changer toutes les procédures qui l’utilisent, ou copiez-le en version privée pour celle-ci.",
+      "linkedTitle": "Lié à un modèle — en lecture seule ici",
+      "loadProceduresError": "Impossible de charger les procédures",
+      "loadTemplateError": "Impossible de charger le modèle",
+      "loading": "Chargement de l’éditeur…",
+      "more": "Plus d’actions",
+      "noProcedure": "Créez une procédure pour commencer.",
+      "noProcedureTitle": "Aucune procédure",
+      "paused": {
+        "draftTitle": "{name} est un brouillon",
+        "enable": "Activer",
+        "other": "{what} ne se déclenchera pas tant qu’elle n’est pas activée. « Exécuter » marche toujours pour tester.",
+        "schedule": "{what} ne se déclenchera pas (prochaine fois : {next}). « Exécuter » marche toujours pour tester.",
+        "title": "{name} est en pause"
+      },
+      "problems": {
+        "description": "Corrigez-les, ou enregistrez en brouillon désactivé : rien ne se déclenche tant qu’ils ne sont pas résolus.",
+        "first": "Aller au premier problème",
+        "saveDraft": "Enregistrer en brouillon",
+        "title": "{count} problème empêche l’activation | {count} problèmes empêchent l’activation"
+      },
+      "procedureName": "Nom de la procédure",
+      "runNow": {
+        "description": "Exécute la version enregistrée avec cette charge utile.",
+        "invalidJson": "La charge utile n’est pas un JSON valide : {error}",
+        "noPastPayload": "Aucun appel passé : saisissez la charge utile.",
+        "payload": "Charge utile",
+        "sideEffects": "Les effets sont réels : les services appelés reçoivent les données.",
+        "submit": "Exécuter et suivre",
+        "title": "Exécuter « {name} » maintenant",
+        "trigger": "Depuis le déclencheur"
+      },
+      "runNowButton": "Exécuter",
+      "runSaved": {
+        "description": "« Exécuter » lance ce qui est enregistré : votre modification non enregistrée n’en fera pas partie. « Tester » essaie le brouillon sans l’enregistrer. | « Exécuter » lance ce qui est enregistré : vos {count} modifications non enregistrées n’en feront pas partie. « Tester » essaie le brouillon sans l’enregistrer.",
+        "runSaved": "Exécuter la version enregistrée",
+        "testDraft": "Tester le brouillon",
+        "title": "Exécuter la version enregistrée ?"
+      },
+      "runStarted": "{name} exécutée",
+      "saveAsTemplate": "Enregistrer comme modèle",
+      "saveError": "Impossible d’enregistrer la procédure",
+      "saveTemplateModal": {
+        "cancel": "Annuler",
         "description": "Description",
+        "descriptionPlaceholder": "Que fait-il ?",
+        "error": "Impossible d’enregistrer le modèle",
         "icon": "Icône",
-        "iconHelp": "Nom Iconify, ex. i-ph-package"
+        "name": "Nom",
+        "namePlaceholder": "Nom du modèle",
+        "nameRequired": "Donnez un nom au template.",
+        "noSubgraph": "Ce groupe n’a aucune étape à enregistrer.",
+        "ports": "Ports déduits des liens qui traversent le groupe",
+        "submit": "Enregistrer le modèle",
+        "title": "Enregistrer comme modèle"
       },
-      "ports": {
-        "title": "Ports",
-        "editHint": "Pour modifier les ports, ouvrez le sous-graphe.",
-        "empty": "Aucun port déclaré.",
-        "col": {
-          "kind": "Genre",
-          "direction": "Direction",
-          "name": "Nom",
-          "type": "Type"
-        }
+      "saved": "Enregistrée",
+      "savedToast": "{name} enregistrée",
+      "savedWithProblems": "Enregistrée en brouillon avec {count} problème. | Enregistrée en brouillon avec {count} problèmes.",
+      "saving": "Enregistrement…",
+      "selected": "{count} sélectionnés",
+      "switcher": {
+        "all": "Toutes les procédures ({count})",
+        "current": "ouverte",
+        "none": "Aucune procédure ne correspond.",
+        "search": "Aller à une procédure…",
+        "title": "Procédures"
       },
-      "usages": {
-        "title": "Utilisé dans",
-        "empty": "Utilisé par aucune procédure."
+      "templateBadge": "Modèle",
+      "templateName": "Nom du modèle",
+      "testRun": "Tester",
+      "testRunError": "Impossible de tester le brouillon",
+      "unsaved": "{count} modification non enregistrée | {count} modifications non enregistrées",
+      "viewRuns": "Voir toutes les exécutions",
+      "wiredField": {
+        "from": "Depuis",
+        "unwire": "Débrancher"
+      }
+    },
+    "feed": {
+      "completed": "Terminée",
+      "completedPlain": "Terminée",
+      "deletedProcedure": "Procédure supprimée",
+      "duration": "{duration}",
+      "failed": "En échec · {error}",
+      "failedAt": "{error} à l’étape {step}"
+    },
+    "firstRun": {
+      "description": "Une procédure attend un déclencheur — un webhook, un horaire ou un clic — puis exécute des actions : appels HTTP, e-mails, mises à jour de données. Partez d’une recette : nommez-la, et l’éditeur s’ouvre avec le déclencheur en place.",
+      "title": "Automatisez votre premier flux"
+    },
+    "health": {
+      "degraded": "{count} procédure dégradée | {count} procédures dégradées",
+      "failing": "{count} procédure en échec | {count} procédures en échec",
+      "failingDetail": "{name} · en échec depuis {since} · {cause}",
+      "failingSince": "{name} · en échec depuis {since}",
+      "healthy": "Toutes les procédures sont en bonne santé",
+      "idle": "Rien n’a tourné sur cette période",
+      "inspectLastFailure": "Inspecter le dernier échec",
+      "lastFailureAt": "{error} à l’étape {step}",
+      "showFailedRuns": "Voir les échecs",
+      "summary": "{runs} exécutions, {failed} en échec · {enabled} procédures actives sur {total}"
+    },
+    "iconPicker": {
+      "label": "Icônes",
+      "more": "Autre…",
+      "search": "Rechercher une icône…"
+    },
+    "importProcedure": {
+      "json": "JSON de la procédure",
+      "jsonHint": "Le fichier téléchargé par « Exporter en JSON » : nom, description et graphe.",
+      "notJson": "Ce n’est pas un JSON valide.",
+      "notProcedure": "Ce JSON n’est pas une procédure exportée : il faut un nom et un graphe.",
+      "submit": "Importer et ouvrir l’éditeur",
+      "subtitle": "Collez une procédure exportée depuis un éditeur. Elle est importée en brouillon désactivé.",
+      "title": "Importer un JSON"
+    },
+    "kpi": {
+      "duration-p95": "p95 (s)",
+      "failed": "Échecs",
+      "runs": "Exécutions",
+      "success-rate": "Succès",
+      "vsPrevious": "vs période précédente"
+    },
+    "library": {
+      "advanced": "Avancé · configuration globale (JSON)",
+      "advancedHint": "S’applique à toutes les procédures qui utilisent ce type.",
+      "builtIn": "Intégré",
+      "cluster": {
+        "replicated": "Répliqué sur les instances",
+        "replicatedHint": "Chaque instance écoute ; chaque appel est traité par une seule d’entre elles.",
+        "singleton": "Tourne sur une seule instance",
+        "singletonHint": "Seule l’instance leader l’exécute : il se déclenche une fois, quel que soit le nombre d’instances."
       },
-      "deleteConfirm": {
-        "title": "Supprimer le modèle ?",
-        "message": "Supprimer « {name} » ? Cette action est irréversible.",
-        "usageWarningTitle": "Le modèle est utilisé",
-        "usageWarning": "{n} procédure(s) référencent ce modèle. La suppression dupliquera chaque utilisation en groupe local afin qu'elles continuent de fonctionner.",
-        "cancel": "Annuler"
+      "description": "Tous les blocs au même endroit — déclencheurs, actions, nœuds de données et modèles, avec leurs utilisations.",
+      "disable": "Désactiver",
+      "disableImpact": "Le désactiver arrête {count} procédure active qui l’utilise. | Le désactiver arrête les {count} procédures actives qui l’utilisent.",
+      "disableTitle": "Désactiver {name} ?",
+      "disabledToast": "{name} désactivé",
+      "enabled": "Activé",
+      "enabledToast": "{name} activé",
+      "inputs": "Entrées",
+      "loadError": "Impossible de charger le catalogue",
+      "noMatch": "Aucun résultat.",
+      "nothingSelected": "Choisissez un bloc",
+      "nothingSelectedHint": "Son détail s’affiche ici : ses utilisations, ses réglages et ses sorties.",
+      "off": "Désactivé",
+      "open": "Ouvrir",
+      "other": "Autres",
+      "outputs": "Sorties",
+      "schema": {
+        "description": "Description",
+        "name": "Nom",
+        "none": "Aucun.",
+        "required": "obligatoire",
+        "type": "Type"
+      },
+      "search": "Rechercher…",
+      "settings": "Réglages de chaque nœud",
+      "settingsHint": "Réglés dans l’éditeur, sur chaque nœud qui utilise ce bloc.",
+      "tabs": {
+        "actions": "Actions",
+        "dataNodes": "Nœuds de données",
+        "templates": "Modèles",
+        "triggers": "Déclencheurs"
+      },
+      "title": "Bibliothèque",
+      "unused": "Aucune procédure n’utilise ce bloc.",
+      "usedBy": "Utilisé par",
+      "uses": "{count} util. | {count} util."
+    },
+    "module": {
+      "description": "Procédures, déclencheurs et actions",
+      "title": "Automatisation"
+    },
+    "newProcedure": {
+      "description": "Description",
+      "name": "Nom",
+      "namePlaceholder": "Synchroniser les factures payées vers l’ERP",
+      "nameRequired": "Donnez un nom à la procédure.",
+      "starts": {
+        "manual": "Je la lance",
+        "manualHint": "Avec « Exécuter », ou depuis l’API",
+        "schedule": "Selon un horaire",
+        "scheduleHint": "Toutes les heures, chaque lundi à 09:00…",
+        "webhook": "Un webhook est appelé",
+        "webhookHint": "Un appel HTTP de Stripe, Shopify ou tout autre service"
+      },
+      "startsWhen": "Se déclenche quand",
+      "startsWhenHint": "Elle démarre en brouillon désactivé : rien ne se déclenche avant que vous l’activiez.",
+      "submit": "Créer et ouvrir l’éditeur",
+      "subtitle": "Nommez-la et choisissez ce qui la déclenche. L’éditeur s’ouvre avec le déclencheur en place.",
+      "title": "Nouvelle procédure"
+    },
+    "nodes": {
+      "attempts": "{n} tentatives",
+      "role": {
+        "action": "Action",
+        "data": "Donnée",
+        "flow": "Flux",
+        "group": "Groupe",
+        "helper": "Utilitaire",
+        "trigger": "Déclencheur"
       }
     },
     "overview": {
-      "title": "Vue d'ensemble",
-      "description": "État de l'automatisation, exécutions récentes et procédures nécessitant une attention.",
-      "loadError": "Échec du chargement des statistiques",
-      "refresh": "Actualiser",
-      "autoPoll": "Actualisation auto (30 s)",
-      "head": {
-        "procedures": "Procédures",
-        "newProcedure": "Nouvelle procédure"
+      "allRuns": "Historique",
+      "byTrigger": "Par déclencheur",
+      "byTriggerHint": "Nombre de procédures lancées par chaque déclencheur",
+      "counts": {
+        "draft": "Brouillons",
+        "enabled": "Actives",
+        "failing": "En échec",
+        "paused": "En pause",
+        "total": "Total"
       },
-      "stats": {
-        "procedures": "Procédures",
-        "active": "Actives",
-        "runsToday": "Exécutions aujourd'hui",
-        "successRate": "Taux de réussite"
+      "description": "L’état de l’automatisation, ce qui demande votre attention et les dernières exécutions.",
+      "failedRuns": "En échec",
+      "noRuns": "Aucune exécution",
+      "noRunsHint": "Les exécutions apparaissent ici dès qu’une procédure se déclenche.",
+      "noTriggers": "Aucun déclencheur placé",
+      "procedures": "Procédures",
+      "recentRuns": "Exécutions récentes",
+      "runsPerDay": "Exécutions",
+      "succeeded": "Réussies",
+      "title": "Vue d’ensemble"
+    },
+    "permissions": {
+      "attention": {
+        "description": "Procédures en échec, dégradées ou en pause, avec reprise et masquage",
+        "name": "À traiter"
       },
-      "runs7d": {
-        "title": "Exécutions (7 jours)"
+      "catalog": {
+        "actions": "Catalogue des actions",
+        "actionsDescription": "Types d’actions, leurs utilisations, activation",
+        "dataNodes": "Catalogue des nœuds de données",
+        "dataNodesDescription": "Types de nœuds de données et leurs utilisations",
+        "triggers": "Catalogue des déclencheurs",
+        "triggersDescription": "Types de déclencheurs, leurs utilisations, activation"
       },
-      "chart": {
-        "legendOk": "Réussites",
-        "legendFailed": "Échecs",
-        "empty": "Aucune exécution sur les 7 derniers jours"
+      "editor": {
+        "description": "Modifier, tester, exécuter, importer, exporter et supprimer des procédures",
+        "name": "Éditeur de procédures"
       },
-      "execHealth": {
-        "title": "État d'exécution",
-        "operational": "Opérationnel",
-        "needsAttention": "Nécessite une attention",
-        "avgDuration": "Durée moyenne",
-        "p95Duration": "Durée p95",
-        "failed24h": "Échecs (24 h)",
-        "total24h": "Exécutions (24 h)",
-        "successRate": "Taux de réussite"
+      "health": {
+        "description": "L’état de l’automatisation, le dernier échec et les recettes de démarrage",
+        "name": "Santé des exécutions"
       },
-      "needsAttention": {
-        "title": "Nécessite une attention",
-        "subtitle": "Procédures en échec ou en pause",
-        "all": "Toutes les procédures",
-        "empty": "Rien ne nécessite d'attention",
-        "failingDetail": "{n} exécutions en échec",
-        "pausedDetail": "En pause",
-        "lastRun": "dernière exécution il y a {ago}",
-        "open": "Ouvrir"
+      "importProcedure": {
+        "description": "Crée un brouillon depuis une procédure exportée",
+        "name": "Fenêtre « Importer un JSON »"
       },
-      "recentRuns": {
-        "title": "Exécutions récentes",
-        "viewAll": "Tout voir",
-        "empty": "Aucune exécution pour l'instant",
-        "ago": "il y a {ago}"
+      "newProcedure": {
+        "description": "Crée une procédure brouillon avec son déclencheur",
+        "name": "Fenêtre « Nouvelle procédure »"
       },
-      "timeAgo": {
-        "now": "à l'instant",
-        "min": "{n} min",
-        "hour": "{n} h",
-        "day": "{n} j"
+      "period": {
+        "description": "La période (24 h / 7 j / 30 j) des indicateurs",
+        "name": "Sélecteur de période"
+      },
+      "runPeek": {
+        "description": "Le tiroir d’une exécution : échec, chemin, charge utile et journal, avec Relancer",
+        "name": "Aperçu d’exécution"
+      },
+      "templates": {
+        "description": "Modifier et supprimer les modèles réutilisables",
+        "name": "Modèles"
+      },
+      "trace": {
+        "description": "Une exécution étape par étape, avec Relancer et Déboguer",
+        "name": "Trace d’exécution"
+      }
+    },
+    "procedures": {
+      "cols": {
+        "avg": "Moy.",
+        "description": "Description",
+        "enabled": "Active",
+        "lastRun": "Dernière exécution",
+        "lastRuns": "12 dernières exécutions",
+        "procedure": "Procédure",
+        "status": "État",
+        "statusDetail": "Dernière erreur",
+        "success": "Succès 7 j",
+        "trigger": "Se déclenche"
+      },
+      "deleteConfirm": "Supprimer la procédure",
+      "deleteDescription": "Le graphe est supprimé. Son historique reste jusqu’à ce que la rétention l’efface.",
+      "deleteEnabledDescription": "Cette procédure est active et a tourné {count} fois cette semaine. Il suffit de l’arrêter ? Mettez-la plutôt en pause : le graphe est conservé et c’est réversible.",
+      "deleteImpact": {
+        "schedule": "L’horaire s’arrête",
+        "webhook": "Ne répondra plus"
+      },
+      "deleteTitle": "Supprimer « {name} » ?",
+      "description": "Toutes les procédures, ce qui les déclenche et comment elles ont tourné ces 7 derniers jours.",
+      "empty": "Aucune procédure",
+      "emptyFiltered": "Rien ici",
+      "emptyFilteredHint": "Aucune procédure ne correspond à cet onglet ou à cette recherche.",
+      "emptyHint": "Les procédures exécutent des actions quand quelque chose arrive — un webhook, un horaire ou un clic.",
+      "footerHint": "Double-cliquez sur une ligne pour l’ouvrir dans l’éditeur",
+      "listTitle": "Toutes les procédures",
+      "never": "Jamais",
+      "pause": "Mettre en pause",
+      "paused": "Mise en pause",
+      "resume": "Reprendre",
+      "resumed": "Reprise",
+      "runNow": "Exécuter",
+      "runNowConfirmDescription": "Exécute la version enregistrée avec la charge utile de son dernier vrai appel. Les effets sont réels.",
+      "runNowConfirmTitle": "Exécuter « {name} » maintenant ?",
+      "runStarted": "Exécution terminée",
+      "search": "Rechercher une procédure…",
+      "status": {
+        "degraded": "Dégradée",
+        "draft": "Brouillon",
+        "failing": "En échec",
+        "healthy": "Saine",
+        "paused": "En pause"
+      },
+      "title": "Procédures",
+      "viewRuns": "Voir les exécutions"
+    },
+    "recipes": {
+      "digest": {
+        "hint": "Chaque lundi à 09:00, envoyez un résumé de la semaine passée.",
+        "title": "Envoyer un récapitulatif planifié"
+      },
+      "manual": {
+        "hint": "Une procédure que vous lancez vous-même, avec « Exécuter » ou depuis l’API.",
+        "title": "Lancer à la demande"
+      },
+      "webhook": {
+        "hint": "Recevez les événements de Stripe ou Shopify et transmettez-les à un autre système.",
+        "title": "Relayer un webhook"
+      }
+    },
+    "runs": {
+      "cols": {
+        "duration": "Durée",
+        "endedAt": "Fin",
+        "error": "Erreur",
+        "failedStep": "Échec à",
+        "id": "Identifiant",
+        "kind": "Type",
+        "procedure": "Procédure",
+        "procedureFilter": "Procédure",
+        "rerunOf": "Relance de",
+        "startedAt": "Début",
+        "status": "Résultat",
+        "trigger": "Déclencheur",
+        "triggerType": "Type de déclencheur"
+      },
+      "description": "Chaque exécution de chaque procédure : inspecter, relancer et déboguer.",
+      "empty": "Aucune exécution",
+      "emptyHint": "Les exécutions apparaissent dès qu’une procédure se déclenche, ou quand vous en testez une dans l’éditeur.",
+      "justNow": "À l’instant",
+      "kind": {
+        "rerun": "Relance",
+        "run": "Exécution",
+        "test": "Test"
+      },
+      "listTitle": "Exécutions",
+      "peek": "Aperçu",
+      "peekTitle": "Exécution",
+      "rerun": "Relancer",
+      "rerunConfirmDescription": "Exécute à nouveau la version enregistrée de la procédure, depuis le même déclencheur, avec la charge utile reçue. Les effets sont réels.",
+      "rerunConfirmTitle": "Relancer avec la même charge utile ?",
+      "rerunDone": "{name} relancée",
+      "rerunStarted": "Relance terminée",
+      "rerunWithPayload": "Relancer avec cette charge utile",
+      "retentionHint": "Les exécutions sont conservées 30 jours",
+      "search": "Rechercher une erreur…",
+      "status": {
+        "failed": "En échec",
+        "ok": "Terminée"
+      },
+      "tabs": {
+        "failed": "En échec",
+        "succeeded": "Réussies",
+        "tests": "Tests"
+      },
+      "title": "Historique des exécutions",
+      "trace": "Trace"
+    },
+    "templates": {
+      "delete": "Supprimer le modèle",
+      "deleteForks": "Il est utilisé une fois : cette utilisation devient un groupe local. | Il est utilisé {count} fois : chaque utilisation devient un groupe local.",
+      "deleteHint": "La suppression transforme chaque utilisation en groupe local : les procédures continuent de fonctionner.",
+      "deleteTitle": "Supprimer « {name} » ?",
+      "deleteUnused": "Aucune procédure ne l’utilise.",
+      "deleted": "{name} supprimé",
+      "details": "Détails",
+      "editGraph": "Modifier le graphe",
+      "empty": "Aucun modèle",
+      "emptyHint": "Sélectionnez un groupe dans l’éditeur et enregistrez-le comme modèle.",
+      "form": {
+        "description": "Description",
+        "icon": "Icône",
+        "name": "Nom",
+        "nameRequired": "Donnez un nom au template."
+      },
+      "loadError": "Impossible de charger les modèles",
+      "ports": {
+        "col": {
+          "direction": "Sens",
+          "kind": "Nature",
+          "name": "Nom",
+          "type": "Type"
+        },
+        "direction": {
+          "in": "entrée",
+          "out": "sortie"
+        },
+        "editHint": "Modifiez-les dans le graphe.",
+        "empty": "Ce modèle ne déclare aucun port.",
+        "kind": {
+          "data": "donnée",
+          "trigger": "déclencheur"
+        },
+        "title": "Ports"
+      },
+      "saveError": "Impossible d’enregistrer le modèle",
+      "saved": "{name} enregistré",
+      "search": "Rechercher un modèle…",
+      "usages": {
+        "empty": "Aucune procédure n’utilise ce modèle."
+      },
+      "usedIn": "Utilisé dans",
+      "usedInHint": "Les modifications s’appliquent aussitôt à toutes les procédures ci-dessous."
+    },
+    "trace": {
+      "atStep": "à l’étape {index} sur {total}",
+      "compared": "Comparée au dernier succès",
+      "currentVersion": "actuelle",
+      "debugInBuilder": "Déboguer dans l’éditeur",
+      "description": "Une exécution, étape par étape.",
+      "duration": "Durée",
+      "error": "Erreur",
+      "failed": "L’exécution a échoué",
+      "failedAfter": "Après {duration}. Les étapes suivantes ont été ignorées.",
+      "failedAt": "{step} a échoué",
+      "failuresInRow": "{count}ᵉ échec d’affilée.",
+      "fasterThanUsual": "−{delta} vs d’habitude",
+      "input": "Entrée",
+      "instance": "Instance",
+      "lastSuccess": "Dernier succès : exécution …{run} à {time}.",
+      "loadError": "Impossible de charger l’exécution",
+      "logComplete": "{count} entrées",
+      "logTruncated": "{count} entrées retirées pour limiter la taille",
+      "noGraph": "La procédure a été supprimée.",
+      "noRun": "Aucune exécution indiquée.",
+      "noSteps": "Aucune étape n’a tourné.",
+      "noSuccessYet": "Aucune exécution réussie à comparer.",
+      "notOnPath": "hors de ce chemin",
+      "now": "Ici",
+      "olderVersion": "Cette exécution a utilisé la v{version} de la procédure",
+      "olderVersionHint": "Le graphe a changé depuis : l’éditeur affiche la v{current}.",
+      "olderVersionShort": "actuellement v{version}",
+      "openFull": "Ouvrir la trace complète",
+      "openInBuilder": "Ouvrir dans l’éditeur",
+      "openOriginal": "Ouvrir l’exécution d’origine",
+      "openStep": "Ouvrir cette étape",
+      "output": "Sortie",
+      "pathOnly": "Chemin seul",
+      "pathTaken": "Chemin parcouru",
+      "payloadTooLarge": "La charge utile était trop volumineuse pour être conservée",
+      "payloadTooLargeHint": "Seul un aperçu est stocké : cette exécution ne peut pas être relancée avec.",
+      "rerunOf": "Cette exécution est une relance",
+      "skipped": "ignorée",
+      "slowerThanUsual": "+{delta} vs d’habitude",
+      "startedBy": "lancée le {time} par {trigger}",
+      "status": "État",
+      "step": "Étape",
+      "stepsRan": "{count} étape exécutée | {count} étapes exécutées",
+      "tabs": {
+        "logs": "Journal",
+        "payload": "Charge utile",
+        "steps": "Étapes",
+        "summary": "Résumé"
+      },
+      "time": "Durée",
+      "title": "Trace d’exécution",
+      "trigger": "Déclencheur",
+      "version": "Version de la procédure"
+    },
+    "trigger": {
+      "none": "Pas encore de déclencheur"
+    },
+    "types": {
+      "cron": {
+        "description": "Se déclenche selon un horaire cron",
+        "name": "Horaire (cron)"
+      },
+      "http": {
+        "description": "Envoie une requête HTTP. Échoue si le statut sort de 200–299 : enveloppez-la dans Retry ou Try / catch pour les services instables.",
+        "name": "Requête HTTP"
+      },
+      "log": {
+        "description": "Écrit un message (et une valeur facultative) dans le journal de l’exécution",
+        "name": "Journal"
+      },
+      "manual": {
+        "description": "Lancé avec « Exécuter » ou depuis l’API",
+        "name": "Manuel"
+      },
+      "webhook": {
+        "description": "Déclare un point d’accès HTTP qui lance la procédure à chaque requête",
+        "name": "Webhook"
       }
     }
   }

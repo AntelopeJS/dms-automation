@@ -53,11 +53,11 @@ function onBlur() {
 </script>
 
 <template>
-	<UTextarea
+	<DmsTextarea
 		v-model="text"
 		:rows="4"
-		placeholder="String, number, true/false, null, or JSON"
-		class="font-mono"
+		:placeholder="$t('dms_automation.editor.inspector.jsonPlaceholder')"
+		class="w-full font-mono"
 		@blur="onBlur"
 	/>
 </template>

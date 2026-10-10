@@ -6,11 +6,35 @@
 <a href="https://antelopejs.com"><img src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000" alt="Documentation"></a>
 </div>
 
-AntelopeJS DMS module that provides a visual automation builder under `/module/automation`. Author procedures as node graphs (triggers, actions, data nodes), wire trigger and data edges, and run them in response to events such as cron schedules and webhooks.
+AntelopeJS DMS module that provides a visual automation builder under `/modules/automation`. Author procedures as node graphs (triggers, actions, data nodes), wire trigger and data edges, and run them in response to events such as cron schedules and webhooks.
+
+It runs on `@antelopejs/dms` 0.6 (`@antelopejs/interface-dms` 0.4) and `@antelopejs/dms-frontend` 0.5.
+
+## Pages
+
+| Page | What it shows |
+| --- | --- |
+| Overview | The health of every procedure in one line, KPIs over 24 h / 7 d / 30 d, what needs attention and why, the latest runs |
+| Run history | Every run grouped by day, with KPIs; a run opens in a drawer (failure, path taken, payload, log), re-runs with its own payload |
+| Run trace | One run, linkable (`/modules/automation/trace?run=<id>`): its steps on a time line, where and why it failed, compared with the last success |
+| Procedures | Every procedure with its state (failing, degraded, healthy, paused, draft), its last 12 runs, success rate and duration; import and new-procedure dialogs |
+| Builder | The graph editor: test runs of the draft overlaid on the canvas, problems mapped onto nodes, Run now with an editable payload |
+| Library | Triggers, actions, data nodes and templates, each with where it is used |
+
+The pages are DMS blocks (KPI and chart cards, period selector, activity feed, table views with the grouped display and module cell displays) around a few module components, each named for the roles screen with `meta()`. Module pages are the platform owner's, like every DMS module, and so is the module's API.
+
+A procedure is **failing** when its last run failed, **degraded** when runs failed in the last 7 days but the last one succeeded, **healthy** otherwise; a disabled one is **paused**, and one that has no trigger, or was never enabled nor run, is a **draft**. Test runs from the builder are kept (they have a trace) but never count in these states or in any figure.
+
+## Configuration
+
+| Key | Default | |
+| --- | --- | --- |
+| `runs.retentionDays` | `30` | Days a run is kept; older runs are deleted every hour by the leader instance. `0` keeps every run. |
+| `cluster.driver` | `auto` | See [Clustering](#clustering). |
 
 ## Vue frontend
 
-The module registers `frontend-vue` through `AddFrontendModule` with the Vue 3 renderer. `dms.frontend.ts` registers the Automation components and the `automation:timeline` TableView display plugin (universal, so it renders on the server too). The generated Inertia application discovers the English and French locale files, while the host DMS provides shared composables and UI components.
+The module registers `frontend-vue` through `AddFrontendModule` with the Vue 3 renderer. `dms.frontend.ts` declares the `DmsAutomation` component prefix, registers the Automation components, and a universal plugin registering the `automation:last-runs` cell display of the procedures table. The trigger and failed-step cells use the DMS `two_line` display over texts the server composes (`src/runtime/wording.ts`). `dms.frontend.build.ts` lists the folders the layer auto-imports (`app/composables`, `app/utils`). The generated Inertia application discovers the English and French locale files, while the host DMS provides shared composables and UI components.
 
 The playground uses the published DMS and Inertia frontend packages. To build or typecheck the module frontend directly, first generate an Inertia workspace, set `DMS_FRONTEND_WORKSPACE` to its absolute path, then run:
 

@@ -12,6 +12,7 @@ import type { User } from "@antelopejs/interface-dms/auth/db";
 import { TriggerTypeConfigModel } from "../db/models/type_config.model";
 import { LibraryPageController } from "../pages/library";
 import { registry } from "../runtime/registry";
+import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
 import { parseConfigBody, serializeTrigger } from "./typeConfigShared";
 
@@ -56,6 +57,9 @@ export class TriggerTypesController extends Controller(
   ) {
     const model = GetModel(TriggerTypeConfigModel, DATABASE_NAME);
     await model.upsertByTypeId(id, parseConfigBody(body));
+    // The switch takes effect on the next reconcile: run it now, here and on
+    // every peer, so a disabled trigger type stops firing at once.
+    await subscriptions.onProcedureChange();
     return { id };
   }
 }

@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import type { TraceStep } from '../../composables/useAutomationRuns'
+import { describeDuration, prettyJson } from '../../utils/describe'
 import JsonField from './JsonField.vue'
 import type { NodeKindEntry } from '../../composables/useAutomationNodeKinds'
 import type {
@@ -28,6 +30,16 @@ const props = defineProps<{
 	nodeKinds: NodeKindEntry[]
 	// Read-only graphs (template-instance view) hide the delete button.
 	readOnly?: boolean
+	/** The node's step in the run shown over the canvas, for the "Last run" tab. */
+	runStep?: TraceStep | null
+	/** Says which run that is ("Test run · just now", "Run 8f3a2c · 14:28"). */
+	runLabel?: string
+	/** Opens the trace of that run. */
+	runTraceUrl?: string
+	/** The problem the validator found on this node. */
+	issue?: { severity: 'error' | 'warning'; message: string } | null
+	/** How a node is named in the builder, for the "From …" of wired fields. */
+	nodeName?: (id: string) => string
 }>()
 
 const emit = defineEmits<{
@@ -42,7 +54,65 @@ const emit = defineEmits<{
 	// removes the node and its edges from the current graph — the same outcome as
 	// pressing Delete/Backspace on the canvas, surfaced for discoverability.
 	(e: 'delete:node', payload: { id: string }): void
+	(e: 'duplicate:node', payload: { id: string }): void
+	(e: 'wrap:retry', payload: { id: string }): void
 }>()
+
+type InspectorTab = 'settings' | 'run' | 'docs'
+const tab = ref<InspectorTab>('settings')
+
+// A node with a run to show opens on it; otherwise on its settings.
+watch(
+	[() => props.node?.id, () => !!props.runStep],
+	([, hasRun]) => {
+		tab.value = hasRun && props.runStep?.status === 'failed' ? 'run' : 'settings'
+	},
+	{ immediate: true },
+)
+
+const tabs = computed(() => [
+	{ label: t('dms_automation.editor.inspector.settings'), value: 'settings' },
+	...(props.runStep
+		? [{ label: props.runStep.status === 'failed' ? t('dms_automation.editor.inspector.runFailed') : t('dms_automation.editor.inspector.lastRun'), value: 'run' }]
+		: []),
+	{ label: t('dms_automation.editor.inspector.docs'), value: 'docs' },
+])
+
+const label = computed({
+	get: () => ((props.node as (GraphNode & { label?: string }) | null)?.label ?? ''),
+	set: (value: string) => {
+		if (!props.node) return
+		const next = { ...props.node, label: value.trim() ? value : undefined } as GraphNode
+		emit('update:node', next)
+	},
+})
+
+const canWrapInRetry = computed(() => {
+	const n = props.node
+	return !!n && !props.readOnly && n.kind === 'action'
+})
+
+const typeDescription = computed(() => {
+	const n = props.node
+	if (!n) return ''
+	const type = n.kind === 'trigger' ? props.triggerType : n.kind === 'action' ? props.actionType : dataNodeType.value
+	return type?.description ? processI18n(type.description) : ''
+})
+
+const outputSchema = computed(() => {
+	const n = props.node
+	if (!n) return null
+	if (n.kind === 'trigger') return props.triggerType?.outputSchema ?? null
+	if (n.kind === 'action') return props.actionType?.outputSchema ?? null
+	if (n.kind === 'data') return dataNodeType.value?.outputSchema ?? null
+	return null
+})
+
+function unwrap(described: unknown): unknown {
+	if (!described || typeof described !== 'object') return described
+	if ('value' in described && 'type' in described) return (described as { value: unknown }).value
+	return Object.fromEntries(Object.entries(described as Record<string, unknown>).map(([k, v]) => [k, unwrap(v)]))
+}
 
 // Sentinel nodes (the group's input/output handles) are auto-managed and
 // never user-deletable, mirroring the canvas keyboard-delete guard.
@@ -144,6 +214,7 @@ const fields = computed<
 // Type names may be `$`-prefixed DMS i18n keys shipped in the declaring
 // module's locales; plain text is shown as written.
 const { processI18n } = useTranslation()
+const { t } = useI18n()
 const typeName = (type: { name: string } | null | undefined) =>
 	type ? processI18n(type.name) : undefined
 
@@ -232,21 +303,71 @@ function onUnwire(field: string) {
 </script>
 
 <template>
-	<UCard>
-		<template #header>
-			<div class="flex items-center gap-2">
-				<UIcon name="i-ph-faders" class="size-4 text-primary" />
-				<span class="text-sm font-semibold text-highlighted">
-					{{ $t('dms_automation.editor.inspector.title') }}
-				</span>
-			</div>
-		</template>
-
-		<div v-if="!node" class="p-2 text-sm text-dimmed">
+	<div class="flex h-full min-h-0 flex-col">
+		<div v-if="!node" class="p-4 text-sm text-dimmed">
 			{{ $t('dms_automation.editor.inspector.empty') }}
 		</div>
 
-		<div v-else class="flex flex-col gap-3">
+		<template v-else>
+			<div class="flex flex-col gap-1 border-b border-default px-4 pt-3 pb-2">
+				<span class="truncate font-mono text-[10.5px] text-dimmed uppercase">{{ nodeTypeLabel }} · {{ node.id.slice(0, 8) }}</span>
+				<UInput
+					v-model.lazy="label"
+					size="sm"
+					variant="ghost"
+					:placeholder="nodeTypeLabel"
+					:disabled="readOnly"
+					:aria-label="$t('dms_automation.editor.inspector.stepName')"
+					class="-mx-2 font-medium"
+				/>
+				<UTabs v-model="tab" :items="tabs" variant="link" size="xs" :content="false" class="-mb-2" />
+			</div>
+			<div
+				v-if="issue"
+				class="mx-4 mt-3 flex items-start gap-2 rounded-md px-2 py-1.5 text-xs"
+				:class="issue.severity === 'error' ? 'bg-error/10 text-error' : 'bg-warning/10 text-warning'"
+			>
+				<UIcon name="i-ph-warning" class="mt-0.5 size-3.5 shrink-0" />
+				{{ issue.message }}
+			</div>
+
+			<div v-if="tab === 'run' && runStep" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+				<div class="flex items-center justify-between gap-2">
+					<DmsStatusPill
+						:tone="runStep.status === 'failed' ? 'error' : 'success'"
+						:label="runStep.status === 'failed' ? $t('dms_automation.runs.status.failed') : $t('dms_automation.runs.status.ok')"
+						size="sm"
+					/>
+					<span class="font-mono text-xs text-muted">{{ describeDuration(runStep.durationMs) }}</span>
+				</div>
+				<p v-if="runLabel" class="text-xs text-muted">{{ runLabel }}</p>
+				<div class="flex flex-col gap-1">
+					<span class="font-mono text-[10.5px] text-dimmed uppercase">{{ $t('dms_automation.trace.input') }}</span>
+					<pre class="max-h-56 overflow-auto rounded-md bg-elevated p-2 font-mono text-xs text-toned">{{ prettyJson(unwrap(runStep.inputs)) || '—' }}</pre>
+				</div>
+				<div class="flex flex-col gap-1">
+					<span class="font-mono text-[10.5px] text-dimmed uppercase">
+						{{ runStep.status === 'failed' ? $t('dms_automation.trace.error') : $t('dms_automation.trace.output') }}
+					</span>
+					<pre
+						class="max-h-56 overflow-auto rounded-md bg-elevated p-2 font-mono text-xs"
+						:class="runStep.status === 'failed' ? 'text-error' : 'text-toned'"
+					>{{ runStep.status === 'failed' ? runStep.error : prettyJson(unwrap(runStep.output)) || '—' }}</pre>
+				</div>
+				<UButton v-if="runTraceUrl" size="xs" variant="ghost" color="neutral" trailing-icon="i-ph-arrow-up-right" :to="runTraceUrl" class="self-start">
+					{{ $t('dms_automation.trace.openFull') }}
+				</UButton>
+			</div>
+
+			<div v-else-if="tab === 'docs'" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+				<p class="text-sm text-toned">{{ typeDescription || $t('dms_automation.editor.inspector.noDocs') }}</p>
+				<div class="flex flex-col gap-1">
+					<span class="font-mono text-[10.5px] text-dimmed uppercase">{{ $t('dms_automation.library.outputs') }}</span>
+					<DmsAutomationSchemaTable :schema="outputSchema" />
+				</div>
+			</div>
+
+		<div v-else class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
 			<UButton
 				v-if="canEnterGroup"
 				block
@@ -257,18 +378,6 @@ function onUnwire(field: string) {
 			>
 				{{ $t('dms_automation.editor.inspector.enterSubgraph') }}
 			</UButton>
-			<div>
-				<div class="text-xs text-dimmed">
-					{{ $t('dms_automation.editor.inspector.type') }}
-				</div>
-				<div class="text-sm text-highlighted">{{ nodeTypeLabel }}</div>
-			</div>
-			<div>
-				<div class="text-xs text-dimmed">
-					{{ $t('dms_automation.editor.inspector.nodeId') }}
-				</div>
-				<div class="truncate font-mono text-xs text-toned">{{ node.id }}</div>
-			</div>
 
 			<div
 				v-if="fields.length === 0 && node.kind !== 'group'"
@@ -285,78 +394,88 @@ function onUnwire(field: string) {
 				@ports:update="onGroupPortsUpdate"
 			/>
 
-			<div
+			<DmsFieldRow
 				v-for="f in fields"
 				:key="f.name"
-				class="flex flex-col gap-1"
+				layout="stack"
+				spacing="list"
+				:inset="false"
+				:label="f.prop.title || f.name"
+				:label-for="findIncoming(f.name) || isBoolish(f.prop) ? undefined : `inspector-${f.name}`"
+				:description="f.prop.description ? processI18n(f.prop.description) : undefined"
 			>
-				<label class="text-xs font-medium text-highlighted">{{ f.prop.title || f.name }}</label>
+				<DmsAutomationWiredField
+					v-if="findIncoming(f.name)"
+					:field="f.name"
+					:source="{
+						node: findIncoming(f.name)!.from.node,
+						port: findIncoming(f.name)!.from.port,
+					}"
+					:source-label="nodeName ? nodeName(findIncoming(f.name)!.from.node) : findIncoming(f.name)!.from.node"
+					@unwire="onUnwire(f.name)"
+				/>
+				<DmsSelect
+					v-else-if="Array.isArray(f.prop.enum) && f.prop.enum.length > 0"
+					:id="`inspector-${f.name}`"
+					:items="(f.prop.enum as unknown[]).map((v) => String(v))"
+					:model-value="asString(getValue(f.name) ?? f.prop.default)"
+					class="w-full"
+					@update:model-value="(v: string) => emitUpdated(f.name, v)"
+				/>
+				<DmsInputText
+					v-else-if="isStringish(f.prop)"
+					:id="`inspector-${f.name}`"
+					:model-value="asString(getValue(f.name))"
+					class="w-full"
+					@update:model-value="(v: string | number) => emitUpdated(f.name, String(v))"
+				/>
+				<DmsInputNumber
+					v-else-if="isNumberish(f.prop)"
+					:id="`inspector-${f.name}`"
+					:model-value="asNumber(getValue(f.name))"
+					class="w-full"
+					@update:model-value="(v: number | null | undefined) => emitUpdated(f.name, asNumber(v))"
+				/>
+				<DmsSwitch
+					v-else-if="isBoolish(f.prop)"
+					:model-value="asBool(getValue(f.name))"
+					@update:model-value="(v: boolean) => emitUpdated(f.name, v)"
+				/>
+				<DmsTextarea
+					v-else-if="f.prop.type === 'array'"
+					:id="`inspector-${f.name}`"
+					:rows="3"
+					:placeholder="$t('dms_automation.editor.inspector.arrayPlaceholder')"
+					:model-value="arrayToText(getValue(f.name))"
+					class="w-full"
+					@update:model-value="(v: string | number) => emitUpdated(f.name, textToArray(String(v)))"
+				/>
+				<JsonField
+					v-else
+					:model-value="getValue(f.name)"
+					@update:model-value="(v: unknown) => emitUpdated(f.name, v)"
+				/>
+			</DmsFieldRow>
 
-				<template v-if="findIncoming(f.name)">
-					<DmsAutomationEditorWiredField
-						:field="f.name"
-						:source="{
-							node: findIncoming(f.name)!.from.node,
-							port: findIncoming(f.name)!.from.port,
-						}"
-						:source-label="findIncoming(f.name)!.from.node"
-						@unwire="onUnwire(f.name)"
-					/>
-				</template>
-
-				<template v-else>
-					<USelect
-						v-if="Array.isArray(f.prop.enum) && f.prop.enum.length > 0"
-						:items="(f.prop.enum as unknown[]).map((v) => String(v))"
-						:model-value="asString(getValue(f.name) ?? f.prop.default)"
-						@update:model-value="(v: string) => emitUpdated(f.name, v)"
-					/>
-					<UInput
-						v-else-if="isStringish(f.prop)"
-						:model-value="asString(getValue(f.name))"
-						@update:model-value="(v: string | number) => emitUpdated(f.name, String(v))"
-					/>
-					<UInput
-						v-else-if="isNumberish(f.prop)"
-						type="number"
-						:model-value="asNumber(getValue(f.name))"
-						@update:model-value="(v: string | number) => emitUpdated(f.name, asNumber(v))"
-					/>
-					<USwitch
-						v-else-if="isBoolish(f.prop)"
-						:model-value="asBool(getValue(f.name))"
-						@update:model-value="(v: boolean) => emitUpdated(f.name, v)"
-					/>
-					<UTextarea
-						v-else-if="f.prop.type === 'array'"
-						:rows="3"
-						:placeholder="$t('dms_automation.editor.inspector.arrayPlaceholder')"
-						:model-value="arrayToText(getValue(f.name))"
-						@update:model-value="(v: string | number) => emitUpdated(f.name, textToArray(String(v)))"
-					/>
-					<JsonField
-						v-else
-						:model-value="getValue(f.name)"
-						@update:model-value="(v: unknown) => emitUpdated(f.name, v)"
-					/>
-				</template>
-
-				<p v-if="f.prop.description" class="text-xs text-dimmed">
-					{{ f.prop.description }}
-				</p>
+			<div v-if="canWrapInRetry" class="flex flex-col gap-1.5 rounded-md border border-default p-3">
+				<span class="text-xs font-medium text-highlighted">{{ $t('dms_automation.editor.inspector.ifItFails') }}</span>
+				<span class="text-xs text-muted">{{ $t('dms_automation.editor.inspector.ifItFailsHint') }}</span>
+				<UButton size="xs" variant="soft" color="neutral" icon="i-ph-arrow-counter-clockwise" class="self-start" @click="emit('wrap:retry', { id: node.id })">
+					{{ $t('dms_automation.editor.inspector.wrapInRetry') }}
+				</UButton>
 			</div>
-
-			<UButton
-				v-if="canDelete"
-				block
-				color="error"
-				icon="i-ph-trash"
-				variant="outline"
-				class="mt-1"
-				@click="emitDelete"
-			>
-				{{ $t('dms_automation.editor.inspector.deleteNode') }}
-			</UButton>
+			<p v-if="node.kind === 'action' && node.typeId === 'http.request'" class="text-xs text-dimmed">
+				{{ $t('dms_automation.editor.inspector.credentialsHint') }}
+			</p>
+			<div v-if="canDelete" class="mt-1 flex gap-2">
+				<UButton size="sm" color="neutral" icon="i-ph-copy" variant="outline" @click="emit('duplicate:node', { id: node.id })">
+					{{ $t('dms_automation.editor.inspector.duplicate') }}
+				</UButton>
+				<UButton size="sm" color="error" icon="i-ph-trash" variant="soft" @click="emitDelete">
+					{{ $t('dms_automation.editor.inspector.deleteNode') }}
+				</UButton>
+			</div>
 		</div>
-	</UCard>
+		</template>
+	</div>
 </template>

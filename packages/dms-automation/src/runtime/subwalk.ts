@@ -20,6 +20,8 @@ import { topoFromPort } from "./topo";
  *                        The outer topo walk must NOT auto-propagate
  *                        through these — the nested fire already did.
  */
+const MAIN_PORT = "main";
+
 export class SubWalk {
   readonly graph: ProcedureGraph;
   readonly sourceNodeId: string;
@@ -76,8 +78,9 @@ export class SubWalk {
 
     const decision = this.branchDecisions.get(source);
     if (decision === undefined) return true;
-    if (port === undefined) return false;
-    return decision.has(port);
+    // An edge without a branch leaves by the main port: the builder draws it
+    // there, and a hand-written or imported graph often leaves it out.
+    return decision.has(port ?? MAIN_PORT);
   }
 
   markExecuted(nodeId: string): void {

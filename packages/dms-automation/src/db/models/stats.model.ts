@@ -1,422 +1,292 @@
 import { GetModel } from "@antelopejs/interface-database-decorators";
-import { registry } from "../../runtime/registry";
+import type { BlockText } from "@antelopejs/interface-dms/base/types";
+import { hasTrigger } from "../../runtime/graphIssues";
+import {
+  parseGraphSafe,
+  type StepName,
+  stepName,
+  type TriggerSummary,
+  triggersOf,
+} from "../../runtime/describe";
+import { triggerText, triggerTypeText } from "../../runtime/wording";
+import {
+  byProcedure,
+  type HealthProcedure,
+  type HealthRun,
+  type ProcedureHealth,
+  type ProcedureState,
+  procedureHealth,
+  runsBetween,
+} from "../../stats/health";
 import { DATABASE_NAME, MS_PER_DAY } from "../../types/constants";
+import type { ProcedureGraph } from "../../types/graph";
+import { isProductionRun } from "../../types/runLog";
 import type { Procedure } from "../tables/procedure.table";
-import type { StatsRun as ProcedureRun } from "./procedure_run.model";
-import { AutomationTemplateModel } from "./automation_template.model";
 import { ProcedureModel } from "./procedure.model";
-import { ProcedureRunModel } from "./procedure_run.model";
+import { type StatsRun, ProcedureRunModel } from "./procedure_run.model";
 
-type Window = "24h" | "7d";
+/**
+ * How far back the last run and the failure streak of a procedure are read,
+ * whatever the window: a procedure that last ran three weeks ago and failed is
+ * still failing. Matches the default run retention.
+ */
+const LOOKBACK_MS = 30 * MS_PER_DAY;
 
-// Look-back span for each health window, replacing an if/else on `windowStr`.
-const WINDOW_MS: Record<Window, number> = {
-  "24h": MS_PER_DAY,
-  "7d": 7 * MS_PER_DAY,
-};
+/** The window the procedure states and the list figures are computed over. */
+const STATE_WINDOW_MS = 7 * MS_PER_DAY;
 
-function startOf(windowStr: Window, now: Date): Date {
-  const d = new Date(now);
-  d.setMilliseconds(0);
-  d.setTime(d.getTime() - WINDOW_MS[windowStr]);
-  return d;
+/** A time window, with the window it is compared to. */
+export interface StatsWindow {
+  from: Date;
+  to: Date;
+  compareFrom?: Date;
+  compareTo?: Date;
 }
 
-interface HealthBucket {
-  total: number;
-  ok: number;
-  failed: number;
-  successRate: number;
-  avgDurationMs: number;
-  p95DurationMs: number;
+/** Raw period query parameters, as the DMS period scope appends them. */
+export interface PeriodQuery {
+  from?: string;
+  to?: string;
+  compareFrom?: string;
+  compareTo?: string;
 }
 
-export interface StatsSnapshot {
-  counts: {
-    procedures: { total: number; enabled: number; disabled: number };
-    triggerTypes: number;
-    actionTypes: number;
-    dataNodeTypes: number;
-    templates: number;
-  };
-  health: {
-    "24h": HealthBucket;
-    "7d": HealthBucket;
-  };
-  runsPerDay7d: Array<{ day: string; ok: number; failed: number }>;
-  recentFailures: Array<{
-    runId: string;
-    procedureId: string;
-    procedureName: string;
-    startedAt: string;
-    errorMessage: string;
-  }>;
-  topProcedures7d: Array<{
-    procedureId: string;
-    name: string;
-    runs: number;
-    ok: number;
-    failed: number;
-  }>;
-  // Latest runs across all statuses (ok | failed), newest first — drives the
-  // "Recent runs" feed on the overview.
-  recentRuns: Array<{
-    runId: string;
-    procedureId: string;
-    procedureName: string;
-    status: string;
-    startedAt: string;
-    durationMs: number | null;
-  }>;
-  // Procedures that need attention: disabled ("paused") procedures and
-  // procedures with failed runs over the 7-day window ("failing"). Drives the
-  // "Failing or paused procedures" panel.
-  needsAttention: Array<{
-    procedureId: string;
-    name: string;
-    kind: "paused" | "failing";
-    failed: number;
-    lastRunAt: string | null;
-  }>;
+function validDate(raw: string | undefined): Date | undefined {
+  if (!raw) return undefined;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
-/** Per-procedure run tallies over the stats window. */
-interface RunAgg {
-  runs: number;
-  ok: number;
-  failed: number;
-}
-
-function computeHealthBucket(
-  runs: ProcedureRun[],
-  fromDate: Date,
-): HealthBucket {
-  const inWindow = runs.filter((r) => new Date(r.startedAt) >= fromDate);
-  const ok = inWindow.filter((r) => r.status === "ok").length;
-  const failed = inWindow.filter((r) => r.status === "failed").length;
-  const total = ok + failed;
-  const durations = inWindow
-    .filter((r) => r.endedAt)
-    .map(
-      (r) => new Date(r.endedAt!).getTime() - new Date(r.startedAt).getTime(),
-    );
-  const avgDurationMs = durations.length
-    ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
-    : 0;
-  let p95DurationMs = 0;
-  if (durations.length) {
-    const sorted = [...durations].sort((a, b) => a - b);
-    const idx = Math.min(
-      sorted.length - 1,
-      Math.ceil(0.95 * sorted.length) - 1,
-    );
-    p95DurationMs = Math.round(sorted[Math.max(0, idx)]!);
-  }
-  return {
-    total,
-    ok,
-    failed,
-    successRate: total ? ok / total : 0,
-    avgDurationMs,
-    p95DurationMs,
-  };
-}
-
-function buildRunsPerDay(
-  allRuns: ProcedureRun[],
-  now: Date,
-): StatsSnapshot["runsPerDay7d"] {
-  const out: StatsSnapshot["runsPerDay7d"] = [];
-  for (let i = 6; i >= 0; i--) {
-    const dayStart = new Date(now);
-    dayStart.setHours(0, 0, 0, 0);
-    dayStart.setDate(dayStart.getDate() - i);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-    const dayRuns = allRuns.filter((r) => {
-      const t = new Date(r.startedAt);
-      return t >= dayStart && t < dayEnd;
-    });
-    out.push({
-      day: dayStart.toISOString().slice(0, 10),
-      ok: dayRuns.filter((r) => r.status === "ok").length,
-      failed: dayRuns.filter((r) => r.status === "failed").length,
-    });
-  }
-  return out;
-}
-
-function buildRecentFailures(
-  allRuns: ProcedureRun[],
-  procById: Map<string, Procedure>,
-): StatsSnapshot["recentFailures"] {
-  return allRuns
-    .filter((r) => r.status === "failed")
-    .sort(
-      (a, b) =>
-        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
-    )
-    .slice(0, 10)
-    .map((r) => ({
-      runId: r._id,
-      procedureId: r.procedureId,
-      procedureName: procById.get(r.procedureId)?.name ?? "(deleted)",
-      startedAt: new Date(r.startedAt).toISOString(),
-      errorMessage: r.errorMessage ?? "",
-    }));
-}
-
-function aggregateByProcedure(allRuns: ProcedureRun[]): Map<string, RunAgg> {
-  const perProc = new Map<string, RunAgg>();
-  for (const r of allRuns) {
-    const cur = perProc.get(r.procedureId) ?? { runs: 0, ok: 0, failed: 0 };
-    cur.runs++;
-    if (r.status === "ok") cur.ok++;
-    else if (r.status === "failed") cur.failed++;
-    perProc.set(r.procedureId, cur);
-  }
-  return perProc;
-}
-
-function buildTopProcedures(
-  perProc: Map<string, RunAgg>,
-  procById: Map<string, Procedure>,
-): StatsSnapshot["topProcedures7d"] {
-  return [...perProc.entries()]
-    .map(([procedureId, c]) => ({
-      procedureId,
-      name: procById.get(procedureId)?.name ?? "(deleted)",
-      ...c,
-    }))
-    .sort((a, b) => b.runs - a.runs)
-    .slice(0, 10);
-}
-
-function buildRecentRuns(
-  allRuns: ProcedureRun[],
-  procById: Map<string, Procedure>,
-): StatsSnapshot["recentRuns"] {
-  return [...allRuns]
-    .sort(
-      (a, b) =>
-        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
-    )
-    .slice(0, 8)
-    .map((r) => ({
-      runId: r._id,
-      procedureId: r.procedureId,
-      procedureName: procById.get(r.procedureId)?.name ?? "(deleted)",
-      status: r.status,
-      startedAt: new Date(r.startedAt).toISOString(),
-      durationMs: r.endedAt
-        ? new Date(r.endedAt).getTime() - new Date(r.startedAt).getTime()
-        : null,
-    }));
-}
-
-function lastRunByProcedure(allRuns: ProcedureRun[]): Map<string, string> {
-  const lastRunByProc = new Map<string, string>();
-  for (const r of allRuns) {
-    const iso = new Date(r.startedAt).toISOString();
-    const prev = lastRunByProc.get(r.procedureId);
-    if (!prev || iso > prev) lastRunByProc.set(r.procedureId, iso);
-  }
-  return lastRunByProc;
-}
-
-function buildNeedsAttention(
-  procedures: Procedure[],
-  perProc: Map<string, RunAgg>,
-  lastRunByProc: Map<string, string>,
-  procById: Map<string, Procedure>,
-): StatsSnapshot["needsAttention"] {
-  const out: StatsSnapshot["needsAttention"] = [];
-  // Paused: disabled procedures. "Disabled" takes precedence over failures so a
-  // procedure's status matches getProceduresSummary (the Procedures page) —
-  // disabled ⇒ paused, enabled-with-failures ⇒ failing.
-  const pausedIds = new Set<string>();
-  for (const p of procedures) {
-    if (!p.enabled) {
-      out.push({
-        procedureId: p._id,
-        name: p.name,
-        kind: "paused",
-        failed: perProc.get(p._id)?.failed ?? 0,
-        lastRunAt: lastRunByProc.get(p._id) ?? null,
-      });
-      pausedIds.add(p._id);
-    }
-  }
-  // Failing: enabled procedures with at least one failed run over the 7d window.
-  for (const [procedureId, c] of perProc) {
-    if (c.failed > 0 && !pausedIds.has(procedureId)) {
-      out.push({
-        procedureId,
-        name: procById.get(procedureId)?.name ?? "(deleted)",
-        kind: "failing",
-        failed: c.failed,
-        lastRunAt: lastRunByProc.get(procedureId) ?? null,
-      });
-    }
-  }
-  // Failing first (most failures), then paused.
-  out.sort((a, b) => {
-    if (a.kind !== b.kind) return a.kind === "failing" ? -1 : 1;
-    return b.failed - a.failed;
-  });
-  return out;
-}
-
-function buildCounts(
-  procedures: Procedure[],
-  templatesCount: number,
-): StatsSnapshot["counts"] {
-  return {
-    procedures: {
-      total: procedures.length,
-      enabled: procedures.filter((p) => p.enabled).length,
-      disabled: procedures.filter((p) => !p.enabled).length,
-    },
-    triggerTypes: registry.listTriggers().length,
-    actionTypes: registry.listActions().length,
-    dataNodeTypes: registry.listDataNodes().length,
-    templates: templatesCount,
-  };
-}
-
-export async function getStatsSnapshot(
+/**
+ * The window a period query asks for. Without one: the last 7 days, compared
+ * with the 7 days before, which is what a widget fetching before its period
+ * scope resolves reads.
+ */
+export function windowOf(
+  query: PeriodQuery,
   now: Date = new Date(),
-): Promise<StatsSnapshot> {
-  const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
-  const runModel = GetModel(ProcedureRunModel, DATABASE_NAME);
+): StatsWindow {
+  const to = validDate(query.to) ?? now;
+  const from =
+    validDate(query.from) ?? new Date(to.getTime() - STATE_WINDOW_MS);
+  const window: StatsWindow = { from, to };
+  const compareFrom = validDate(query.compareFrom);
+  const compareTo = validDate(query.compareTo);
+  if (compareFrom && compareTo) {
+    window.compareFrom = compareFrom;
+    window.compareTo = compareTo;
+  }
+  return window;
+}
 
-  const procedures = await procedureModel.table
-    .orderBy("updated_at", "desc")
-    .run();
-  const procById = new Map(procedures.map((p) => [p._id, p]));
+/** A procedure with what its graph says, parsed once. */
+export interface ProcedureFacts {
+  procedure: Procedure;
+  graph: ProcedureGraph | undefined;
+  triggers: TriggerSummary[];
+}
 
-  const since7 = startOf("7d", now);
-  const allRuns = await runModel.listForStats(since7);
+/** Everything a stats answer is computed from. */
+export interface StatsContext {
+  now: Date;
+  procedures: ProcedureFacts[];
+  byId: Map<string, ProcedureFacts>;
+  /** Production runs since the lookback, newest first. */
+  runs: StatsRun[];
+}
 
-  const perProc = aggregateByProcedure(allRuns);
-  const lastRunByProc = lastRunByProcedure(allRuns);
+function factsOf(procedure: Procedure): ProcedureFacts {
+  const graph = parseGraphSafe(procedure.graph);
+  return { procedure, graph, triggers: graph ? triggersOf(graph) : [] };
+}
 
-  const tplModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
-  const templatesCount = await tplModel.table.count().run();
-
+/** Load the procedures and the production runs a stats answer needs. */
+export async function loadStatsContext(
+  earliest?: Date,
+  now: Date = new Date(),
+): Promise<StatsContext> {
+  const procedures = (
+    await GetModel(ProcedureModel, DATABASE_NAME)
+      .table.orderBy("updated_at", "desc")
+      .run()
+  ).map(factsOf);
+  const lookback = new Date(now.getTime() - LOOKBACK_MS);
+  const since = earliest && earliest < lookback ? earliest : lookback;
+  const runs = (
+    await GetModel(ProcedureRunModel, DATABASE_NAME).listForStats(since)
+  ).filter((r) => isProductionRun(r.kind));
   return {
-    counts: buildCounts(procedures, templatesCount),
-    health: {
-      "24h": computeHealthBucket(allRuns, startOf("24h", now)),
-      "7d": computeHealthBucket(allRuns, since7),
-    },
-    runsPerDay7d: buildRunsPerDay(allRuns, now),
-    recentFailures: buildRecentFailures(allRuns, procById),
-    topProcedures7d: buildTopProcedures(perProc, procById),
-    recentRuns: buildRecentRuns(allRuns, procById),
-    needsAttention: buildNeedsAttention(
-      procedures,
-      perProc,
-      lastRunByProc,
-      procById,
-    ),
+    now,
+    procedures,
+    byId: new Map(procedures.map((p) => [p.procedure._id, p])),
+    runs,
   };
 }
 
+/** Health of every procedure over the state window, keyed by id. */
+export function healthByProcedure(
+  ctx: StatsContext,
+  since: Date = new Date(ctx.now.getTime() - STATE_WINDOW_MS),
+): Map<string, ProcedureHealth> {
+  const runsOf = byProcedure(ctx.runs as HealthRun[]);
+  const out = new Map<string, ProcedureHealth>();
+  for (const facts of ctx.procedures) {
+    const { procedure, graph } = facts;
+    const subject: HealthProcedure = {
+      _id: procedure._id,
+      enabled: procedure.enabled,
+      hasTrigger: graph ? hasTrigger(graph) : false,
+    };
+    if (procedure.pausedAt) subject.pausedAt = procedure.pausedAt;
+    out.set(
+      procedure._id,
+      procedureHealth(subject, runsOf.get(procedure._id) ?? [], since),
+    );
+  }
+  return out;
+}
+
+/** The step a failed run stopped at, named from the procedure's graph. */
+export function failedStepOf(
+  ctx: StatsContext,
+  run: Pick<StatsRun, "procedureId" | "failedNodeId">,
+): StepName | undefined {
+  if (!run.failedNodeId) return undefined;
+  const graph = ctx.byId.get(run.procedureId)?.graph;
+  return graph
+    ? stepName(graph, run.failedNodeId)
+    : { nodeId: run.failedNodeId };
+}
+
+/** Name of a procedure, or `undefined` once it was deleted. */
+export function procedureNameOf(
+  ctx: StatsContext,
+  procedureId: string,
+): string | undefined {
+  return ctx.byId.get(procedureId)?.procedure.name;
+}
+
+/** Production runs inside a window. */
+export function windowRuns(ctx: StatsContext, window: StatsWindow): StatsRun[] {
+  return runsBetween(ctx.runs, window.from, window.to);
+}
+
+/** Production runs inside the compared window, when there is one. */
+export function compareRuns(
+  ctx: StatsContext,
+  window: StatsWindow,
+): StatsRun[] | undefined {
+  if (!window.compareFrom || !window.compareTo) return undefined;
+  return runsBetween(ctx.runs, window.compareFrom, window.compareTo);
+}
+
+/** One row of the procedures list. */
 export interface ProcedureSummaryRow {
   procedureId: string;
   name: string;
+  description: string;
   enabled: boolean;
-  // Trigger node typeId from the procedure graph (e.g. "manual", "cron"); null
-  // if the graph has no trigger / can't be parsed.
+  /** Type id of the first trigger, `null` for a draft. */
   trigger: string | null;
-  status: "active" | "paused" | "failing";
+  /** The first trigger, structured. */
+  triggerSummary: TriggerSummary | null;
+  /** The first trigger in words, the first line of its cell. */
+  triggerText: BlockText;
+  /** The first trigger's type, under its settings; `null` when the text names it. */
+  triggerTypeText: BlockText | null;
+  /** How many triggers the graph has. */
+  triggerCount: number;
+  status: ProcedureState;
+  /** Why the procedure is failing or degraded, under its status pill. */
+  statusDetail: string;
   lastRunAt: string | null;
-  successRate: number;
-  avgDurationMs: number;
+  lastRunId: string | null;
+  /** The last statuses, oldest first, for the `automation:last-runs` display. */
+  lastRuns: string[];
+  successRate: number | null;
+  avgDurationMs: number | null;
   runs: number;
+  failed: number;
+  failingSince: string | null;
+  failedStep: StepName | null;
+  version: number;
+  updatedAt: string | null;
 }
 
-function triggerTypeOf(graphStr: string): string | null {
-  try {
-    const g = JSON.parse(graphStr) as {
-      nodes?: Array<{ kind?: string; typeId?: string }>;
-    };
-    const nodes = Array.isArray(g.nodes) ? g.nodes : [];
-    const trigger = nodes.find((n) => n.kind === "trigger");
-    return trigger?.typeId ?? null;
-  } catch {
-    return null;
-  }
+/** The error of the last failure, for a failing or degraded procedure. */
+function statusDetailOf(
+  health: ProcedureHealth,
+  lastFailed: StatsRun | undefined,
+): string {
+  const explained = health.state === "failing" || health.state === "degraded";
+  return explained ? (lastFailed?.errorMessage ?? "") : "";
 }
 
-// Per-procedure rows for the dedicated Procedures list page: trigger, status
-// (active | paused | failing), last run, success rate and avg duration over the
-// 7-day window.
+function summaryRow(
+  ctx: StatsContext,
+  facts: ProcedureFacts,
+  health: ProcedureHealth,
+): ProcedureSummaryRow {
+  const { procedure, triggers } = facts;
+  const lastFailed = ctx.runs.find(
+    (r) => r.procedureId === procedure._id && r.status === "failed",
+  );
+  return {
+    procedureId: procedure._id,
+    name: procedure.name,
+    description: procedure.description ?? "",
+    enabled: procedure.enabled,
+    trigger: triggers[0]?.typeId ?? null,
+    triggerSummary: triggers[0] ?? null,
+    triggerText: triggerText(triggers[0]),
+    triggerTypeText: triggerTypeText(triggers[0]),
+    triggerCount: triggers.length,
+    status: health.state,
+    statusDetail: statusDetailOf(health, lastFailed),
+    lastRunAt: health.lastRun
+      ? new Date(health.lastRun.startedAt).toISOString()
+      : null,
+    lastRunId: health.lastRun?._id ?? null,
+    lastRuns: health.lastStatuses,
+    successRate: health.successRate,
+    avgDurationMs: health.avgDurationMs,
+    runs: health.runs,
+    failed: health.failed,
+    failingSince: health.failingSince?.toISOString() ?? null,
+    failedStep:
+      health.state === "failing" && health.lastRun
+        ? (failedStepOf(ctx, health.lastRun as StatsRun) ?? null)
+        : null,
+    version: procedure.version ?? 1,
+    updatedAt: procedure.updated_at
+      ? new Date(procedure.updated_at).toISOString()
+      : null,
+  };
+}
+
+/** The procedures list: one row per procedure, its state over 7 days. */
 export async function getProceduresSummary(
   now: Date = new Date(),
 ): Promise<ProcedureSummaryRow[]> {
-  const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
-  const runModel = GetModel(ProcedureRunModel, DATABASE_NAME);
+  const ctx = await loadStatsContext(undefined, now);
+  const health = healthByProcedure(ctx);
+  return ctx.procedures.map((facts) =>
+    summaryRow(ctx, facts, health.get(facts.procedure._id)!),
+  );
+}
 
-  const procedures = await procedureModel.table
-    .orderBy("updated_at", "desc")
-    .run();
-
-  const since7 = startOf("7d", now);
-  const allRuns = await runModel.listForStats(since7);
-
-  interface Agg {
-    runs: number;
-    ok: number;
-    failed: number;
-    durSum: number;
-    durN: number;
-    last: string | null;
-  }
-  const agg = new Map<string, Agg>();
-  for (const r of allRuns) {
-    const a = agg.get(r.procedureId) ?? {
-      runs: 0,
-      ok: 0,
-      failed: 0,
-      durSum: 0,
-      durN: 0,
-      last: null,
-    };
-    a.runs++;
-    if (r.status === "ok") a.ok++;
-    else if (r.status === "failed") a.failed++;
-    if (r.endedAt) {
-      a.durSum +=
-        new Date(r.endedAt).getTime() - new Date(r.startedAt).getTime();
-      a.durN++;
-    }
-    const iso = new Date(r.startedAt).toISOString();
-    if (!a.last || iso > a.last) a.last = iso;
-    agg.set(r.procedureId, a);
-  }
-
-  return procedures.map((p) => {
-    const a = agg.get(p._id);
-    const ok = a?.ok ?? 0;
-    const failed = a?.failed ?? 0;
-    const total = ok + failed;
-    const status: ProcedureSummaryRow["status"] = !p.enabled
-      ? "paused"
-      : failed > 0
-        ? "failing"
-        : "active";
-    return {
-      procedureId: p._id,
-      name: p.name,
-      enabled: p.enabled,
-      trigger: triggerTypeOf(p.graph),
-      status,
-      lastRunAt: a?.last ?? null,
-      successRate: total ? ok / total : 0,
-      avgDurationMs: a && a.durN ? Math.round(a.durSum / a.durN) : 0,
-      runs: a?.runs ?? 0,
-    };
+/** One procedure's row, without the summary of every other one. */
+export async function getProcedureSummary(
+  procedureId: string,
+  now: Date = new Date(),
+): Promise<ProcedureSummaryRow | undefined> {
+  const ctx = await loadStatsContext(undefined, now);
+  const facts = ctx.byId.get(procedureId);
+  if (!facts) return undefined;
+  const health = healthByProcedure({
+    ...ctx,
+    procedures: [facts],
+    runs: ctx.runs.filter((r) => r.procedureId === procedureId),
   });
+  return summaryRow(ctx, facts, health.get(procedureId)!);
 }

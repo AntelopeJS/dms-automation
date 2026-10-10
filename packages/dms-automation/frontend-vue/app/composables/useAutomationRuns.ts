@@ -1,4 +1,4 @@
-import { type ListEnvelope, unwrapList } from "../utils/automation";
+import type { StepName, TriggerSummary } from "../utils/describe";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -8,10 +8,6 @@ export interface FireNode {
   sourceNodeId: string;
   port: string | null;
   ts: number;
-  /**
-   * Monotonic per-run sequence number, shared with LogEntry.seq.
-   * Tiebreaker when several events share the same millisecond ts.
-   */
   seq: number;
   iteration?: number;
   closedAt?: number;
@@ -32,44 +28,107 @@ export interface LogEntry {
 export interface RunLog {
   fires: FireNode[];
   entries: LogEntry[];
+  truncated?: number;
 }
 
-export interface RunSummary {
+/** One execution of a step, read from the run's log by the backend. */
+export interface TraceStep {
+  nodeId: string;
+  name: StepName;
+  fireId: string;
+  startMs: number;
+  durationMs: number | null;
+  status: "ok" | "failed" | "running";
+  error?: string;
+  inputs?: unknown;
+  output?: unknown;
+}
+
+export interface RunRef {
+  runId: string;
+  startedAt: string;
+  durationMs: number | null;
+  stepDurations: Record<string, number | null>;
+}
+
+export interface GraphNodeLite {
+  id: string;
+  kind: string;
+  typeId?: string;
+  label?: string;
+  config?: Record<string, unknown>;
+  position: { x: number; y: number };
+}
+
+export interface GraphLite {
+  nodes: GraphNodeLite[];
+  triggerEdges: Array<{
+    id: string;
+    from: { node: string; branch?: string };
+    to: { node: string; branch?: string };
+  }>;
+  dataEdges: Array<{
+    id: string;
+    from: { node: string; port: string };
+    to: { node: string; field: string };
+  }>;
+}
+
+/** A run as `GET /runs/:id` answers it, with its trace. */
+export interface RunDetail {
   _id: string;
   procedureId: string;
   startedAt: string;
   endedAt?: string | null;
-  status: string;
+  status: "ok" | "failed";
   errorMessage?: string | null;
-  triggerNodeId?: string;
+  triggerNodeId: string;
   triggerPayload?: string;
-}
-
-export interface RunDetail extends RunSummary {
+  payloadKept: boolean;
+  kind?: "run" | "rerun" | "test";
+  rerunOf?: string;
+  failedNodeId?: string;
+  instanceId?: string;
+  procedureVersion?: number;
+  durationMs: number | null;
   logs?: RunLog;
+  procedure: {
+    _id: string;
+    name: string;
+    enabled: boolean;
+    version: number;
+  } | null;
+  graph: GraphLite | null;
+  trigger: TriggerSummary | null;
+  failedStep: StepName | null;
+  trace: {
+    steps: TraceStep[];
+    skipped: Array<{ nodeId: string; name: StepName }>;
+  };
+  usualDurationMs: number | null;
+  lastSuccess: RunRef | null;
+  previous: {
+    runId: string;
+    startedAt: string;
+    status: string;
+    errorMessage: string;
+  } | null;
+  failuresInRow: number;
 }
 
-export interface ProcedureRef {
-  _id: string;
-  name: string;
-}
-
-export function useAutomationRuns() {
+/** The run endpoints the drawer, the trace and the builder share. */
+export function useAutomationRuns(apiUrl = "/api/automation") {
   const { $authFetch } = useAuthFetch();
 
   return {
-    async getRun(id: string): Promise<RunDetail> {
-      return await $authFetch<RunDetail>(`/api/automation/runs/${id}`);
+    getRun(id: string): Promise<RunDetail> {
+      return $authFetch<RunDetail>(`${apiUrl}/runs/${id}`);
     },
-
-    async listProcedures(): Promise<ProcedureRef[]> {
-      const data = await $authFetch<
-        ProcedureRef[] | ListEnvelope<ProcedureRef>
-      >("/api/automation/procedures");
-      return unwrapList<ProcedureRef>(data).map((p) => ({
-        _id: p._id,
-        name: p.name,
-      }));
+    rerun(id: string): Promise<{ runId: string }> {
+      return $authFetch<{ runId: string }>(`${apiUrl}/runs/${id}/rerun`, {
+        method: "POST",
+        body: {},
+      });
     },
   };
 }

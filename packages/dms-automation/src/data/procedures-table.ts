@@ -1,4 +1,9 @@
-import { Controller, HTTPResult, Parameter } from "@antelopejs/interface-api";
+import {
+  Controller,
+  HTTPResult,
+  JSONBody,
+  Parameter,
+} from "@antelopejs/interface-api";
 import {
   DataController,
   RegisterDataController,
@@ -12,28 +17,33 @@ import {
   Sortable,
 } from "@antelopejs/interface-data-api/metadata";
 import { GetModel, Model } from "@antelopejs/interface-database-decorators";
-import { AuthUserWithPermission } from "@antelopejs/interface-dms/guards";
-import { AuthRawUser } from "@antelopejs/interface-dms/auth";
+import { AuthOwnerOnly } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
 import { DefaultDataTypes } from "@antelopejs/interface-dms/base/data-types";
+import type { BlockText } from "@antelopejs/interface-dms/base/types";
 import { Searchable } from "@antelopejs/interface-dms/base/searchable";
-import { Column } from "@antelopejs/interface-dms/base/table-view";
+import {
+  Column,
+  DefaultDisplays,
+} from "@antelopejs/interface-dms/base/table-view";
 import { ProcedureModel } from "../db/models/procedure.model";
 import {
+  getProcedureSummary,
   getProceduresSummary,
   type ProcedureSummaryRow,
 } from "../db/models/stats.model";
 import { Procedure } from "../db/tables/procedure.table";
-import { BuilderPageController } from "../pages/builder";
+import { LastRunsDisplay } from "../displays";
+import { stateRank } from "../stats/health";
 import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
 
-// The Procedures list is a computed aggregate (success rate, avg duration, last
-// run over a 7-day window) rather than plain table columns, so the TableView is
-// backed by custom `list`/`count` routes that run `getProceduresSummary()` and
-// apply the frontend's search/filter/sort/pagination in memory. `get` reuses the
-// prefab (real Procedure row); `delete` mirrors ProceduresController.remove so it
-// also tears down the procedure's runtime subscriptions.
+// The Procedures list is a computed aggregate (state, last runs, success rate
+// over 7 days) rather than plain table columns, so the TableView is backed by
+// custom `list`/`count`/`countBatch` routes that compute the summary and apply
+// the table's search, status filter, sort and pagination in memory. `delete`
+// also tears down the procedure's runtime subscriptions. Module pages are the
+// platform owner's alone, so every route is owner-only, like the module's API.
 
 function parseFilter(
   raw?: string,
@@ -45,6 +55,8 @@ function parseFilter(
     : { mode: raw.slice(0, idx), value: raw.slice(idx + 1) };
 }
 
+const NEGATED_MODES = new Set(["is_not", "exclude"]);
+
 function applyQuery(
   rows: ProcedureSummaryRow[],
   search?: string,
@@ -52,7 +64,13 @@ function applyQuery(
 ): ProcedureSummaryRow[] {
   let out = rows;
   const q = search?.trim().toLowerCase();
-  if (q) out = out.filter((r) => r.name.toLowerCase().includes(q));
+  if (q) {
+    out = out.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.description.toLowerCase().includes(q),
+    );
+  }
 
   const sf = parseFilter(filterStatus);
   if (sf) {
@@ -61,10 +79,9 @@ function applyQuery(
       .map((v) => v.trim())
       .filter(Boolean);
     if (wanted.length) {
-      out =
-        sf.mode === "is_not"
-          ? out.filter((r) => !wanted.includes(r.status))
-          : out.filter((r) => wanted.includes(r.status));
+      out = NEGATED_MODES.has(sf.mode)
+        ? out.filter((r) => !wanted.includes(r.status))
+        : out.filter((r) => wanted.includes(r.status));
     }
   }
   return out;
@@ -80,47 +97,58 @@ const SORTABLE_KEYS = new Set<keyof ProcedureSummaryRow>([
   "runs",
 ]);
 
+type SortValue = ProcedureSummaryRow[keyof ProcedureSummaryRow];
+
+/** Text a row's value sorts by: its JSON for an object (a trigger summary). */
+function sortText(value: SortValue): string {
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+function compareValues(a: SortValue, b: SortValue, dir: number): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1; // nulls last, irrespective of direction
+  if (b == null) return -1;
+  if (typeof a === "number" && typeof b === "number") return (a - b) * dir;
+  return sortText(a).localeCompare(sortText(b)) * dir;
+}
+
 function sortRows(
   rows: ProcedureSummaryRow[],
   sortKey?: string,
   sortDirection?: string,
 ): ProcedureSummaryRow[] {
   if (!sortKey || !SORTABLE_KEYS.has(sortKey as keyof ProcedureSummaryRow)) {
-    return rows;
+    // Default order: the procedures that need attention first.
+    return [...rows].sort((a, b) => stateRank(a.status) - stateRank(b.status));
   }
   const k = sortKey as keyof ProcedureSummaryRow;
   const dir = sortDirection === "desc" ? -1 : 1;
-  return [...rows].sort((a, b) => {
-    const av = a[k];
-    const bv = b[k];
-    if (av == null && bv == null) return 0;
-    if (av == null) return 1; // nulls last, irrespective of direction
-    if (bv == null) return -1;
-    if (typeof av === "number" && typeof bv === "number") {
-      return (av - bv) * dir;
-    }
-    return String(av).localeCompare(String(bv)) * dir;
-  });
+  return [...rows].sort((a, b) => compareValues(a[k], b[k], dir));
 }
 
 // Parse a query-string integer, falling back when it is missing or not a finite
-// positive number (so a malformed `?limit=abc` doesn't slice to an empty page).
-function toPositiveInt(raw: string | undefined, fallback: number): number {
+// number (so a malformed `?limit=abc` doesn't slice to an empty page).
+function toInt(raw: string | undefined, fallback: number, min: number): number {
   const n = Math.trunc(Number(raw));
-  return Number.isFinite(n) && n > 0 ? n : fallback;
+  return Number.isFinite(n) && n >= min ? n : fallback;
 }
 
+const DEFAULT_PAGE_SIZE = 10;
+
+interface CountBatchBody {
+  queries?: Array<{ id: string; query?: Record<string, string | undefined> }>;
+}
+
+const MAX_COUNT_QUERIES = 50;
+
 const procedureSummaryRoutes = {
-  // Custom `select` feeding the runs filter-only RelationType picker. The
-  // built-in select can't be used here: it plucks @Select columns from the real
-  // Procedure table, but our id (`procedureId`) is a renamed `_id` that only
-  // exists on the computed summary. Query the Procedure table directly for
-  // `{ procedureId: _id, name }` (no run aggregation — the picker only needs
-  // id + name), filtered by the relation's `search` and sorted by name.
+  // `select` feeds the procedure picker of the runs table (its relation
+  // filter): `{ procedureId, name }` read straight from the Procedure table,
+  // filtered by the picker's search and sorted by name.
   select: {
     method: "GET",
     args: [
-      AuthRawUser(),
+      AuthOwnerOnly(),
       Parameter("search", "query"),
       Parameter("offset", "query"),
       Parameter("limit", "query"),
@@ -134,11 +162,11 @@ const procedureSummaryRoutes = {
       const q = search?.trim().toLowerCase();
       const procedures = await GetModel(ProcedureModel, DATABASE_NAME).getAll();
       const options = procedures
-        .map((p) => ({ procedureId: p._id, name: p.name }))
+        .map((p) => ({ procedureId: p._id, _id: p._id, name: p.name }))
         .filter((p) => (q ? p.name.toLowerCase().includes(q) : true))
         .sort((a, b) => a.name.localeCompare(b.name));
-      const off = toPositiveInt(offset, 0);
-      const lim = toPositiveInt(limit, 10);
+      const off = toInt(offset, 0, 0);
+      const lim = toInt(limit, DEFAULT_PAGE_SIZE, 1);
       return {
         results: options.slice(off, off + lim),
         total: options.length,
@@ -147,16 +175,11 @@ const procedureSummaryRoutes = {
       };
     },
   },
-  // `get` returns the computed summary row (not the raw Procedure) so the
-  // read-only details view shows the same trigger/status/stats columns as the
-  // list. Enabling details (even hidden) is also what gives rows the standard
-  // full-row hover highlight — see the page's rowActions.
   get: {
     method: "GET",
-    args: [AuthRawUser(), Parameters.Get()],
+    args: [AuthOwnerOnly(), Parameters.Get()],
     func: async (_user: User, params: { id: string }) => {
-      const rows = await getProceduresSummary();
-      const found = rows.find((r) => r.procedureId === params.id);
+      const found = await getProcedureSummary(params.id);
       if (!found) {
         throw new HTTPResult(404, {
           error: `procedure "${params.id}" not found`,
@@ -168,7 +191,7 @@ const procedureSummaryRoutes = {
   list: {
     method: "GET",
     args: [
-      AuthRawUser(),
+      AuthOwnerOnly(),
       Parameter("offset", "query"),
       Parameter("limit", "query"),
       Parameter("sortKey", "query"),
@@ -195,10 +218,8 @@ const procedureSummaryRoutes = {
         filterStatus,
       );
       const sorted = sortRows(filtered, sortKey, sortDirection);
-      // Coerce defensively: a non-numeric offset/limit must fall back, not
-      // become NaN (which would silently slice to an empty page).
-      const off = toPositiveInt(offset, 0);
-      const lim = toPositiveInt(limit, 10);
+      const off = toInt(offset, 0, 0);
+      const lim = toInt(limit, DEFAULT_PAGE_SIZE, 1);
       return {
         results: sorted.slice(off, off + lim),
         total: filtered.length,
@@ -210,7 +231,7 @@ const procedureSummaryRoutes = {
   count: {
     method: "GET",
     args: [
-      AuthRawUser(),
+      AuthOwnerOnly(),
       Parameter("search", "query"),
       Parameter("filter_status", "query"),
     ],
@@ -223,12 +244,32 @@ const procedureSummaryRoutes = {
       return { total: filtered.length };
     },
   },
+  // The tab counters: one count per tab in one request, over one summary.
+  countBatch: {
+    endpoint: "/count/batch",
+    callback: {
+      method: "POST",
+      args: [AuthOwnerOnly(), JSONBody()],
+      func: async (_user: User, body: CountBatchBody) => {
+        const queries = Array.isArray(body?.queries) ? body.queries : [];
+        if (queries.length > MAX_COUNT_QUERIES) {
+          throw new HTTPResult(400, {
+            error: "Too many count batch queries.",
+          });
+        }
+        const rows = await getProceduresSummary();
+        return Object.fromEntries(
+          queries.map(({ id, query }) => [
+            id,
+            applyQuery(rows, query?.search, query?.filter_status).length,
+          ]),
+        );
+      },
+    },
+  },
   delete: {
     method: "DELETE",
-    // Mutations require the builder/edit permission, matching the old
-    // ProceduresController.remove gate. Reads above only require an
-    // authenticated user (dms does NOT auto-gate DataController routes).
-    args: [AuthUserWithPermission(BuilderPageController), Parameters.Delete()],
+    args: [AuthOwnerOnly(), Parameters.Delete()],
     func: async (_user: User, params: { id: string | string[] }) => {
       const ids = Array.isArray(params.id) ? params.id : [params.id];
       const model = GetModel(ProcedureModel, DATABASE_NAME);
@@ -241,14 +282,44 @@ const procedureSummaryRoutes = {
   },
 };
 
+const STATUS_ITEMS = [
+  {
+    value: "failing",
+    label: "$dms_automation.procedures.status.failing",
+    icon: "i-ph-x-circle",
+  },
+  {
+    value: "degraded",
+    label: "$dms_automation.procedures.status.degraded",
+    icon: "i-ph-warning",
+  },
+  {
+    value: "healthy",
+    label: "$dms_automation.procedures.status.healthy",
+    icon: "i-ph-check-circle",
+  },
+  {
+    value: "paused",
+    label: "$dms_automation.procedures.status.paused",
+    icon: "i-ph-pause-circle",
+  },
+  {
+    value: "draft",
+    label: "$dms_automation.procedures.status.draft",
+    icon: "i-ph-pencil-simple-line",
+  },
+];
+
 @RegisterDataController()
 export class ProceduresTableAPI extends DataController(
   Procedure,
   procedureSummaryRoutes,
   Controller("/api/automation/tables/procedures"),
 ) {
+  // The module's named database: the relation of the runs table joins
+  // through this model, and reads nothing from the default instance.
   @ModelReference()
-  @Model(ProcedureModel)
+  @Model(ProcedureModel, DATABASE_NAME)
   declare model: ProcedureModel;
 
   @Searchable()
@@ -256,51 +327,115 @@ export class ProceduresTableAPI extends DataController(
   @Listable()
   @Column({
     name: "$dms_automation.procedures.cols.procedure",
+    size: 280,
     type: new DefaultDataTypes.StringType(),
+    display: new DefaultDisplays.IdentityDisplay({
+      icon: "i-ph-flow-arrow",
+      subtitleField: "description",
+    }),
+    order: 1,
   })
   @Access(AccessMode.ReadOnly)
   declare name: string;
 
   @Listable()
   @Column({
-    name: "$dms_automation.procedures.cols.trigger",
+    name: "$dms_automation.procedures.cols.description",
     type: new DefaultDataTypes.StringType(),
+    isVisible: false,
+    order: 10,
   })
   @Access(AccessMode.ReadOnly)
-  declare trigger: string;
+  declare description: string;
 
   @Listable()
   @Column({
+    name: "$dms_automation.procedures.cols.trigger",
+    size: 200,
+    type: new DefaultDataTypes.StringType(),
+    display: new DefaultDisplays.TwoLineDisplay({
+      primaryField: "triggerText",
+      subField: "triggerTypeText",
+    }),
+    order: 2,
+  })
+  @Access(AccessMode.ReadOnly)
+  declare triggerSummary: string;
+
+  /** The trigger in words: the first line of the "Starts when" cell. */
+  @Listable()
+  @Access(AccessMode.ReadOnly)
+  declare triggerText: BlockText;
+
+  /** The trigger's type under its settings, when the first line does not name it. */
+  @Listable()
+  @Access(AccessMode.ReadOnly)
+  declare triggerTypeText: BlockText | null;
+
+  @Listable()
+  @Sortable({ noIndex: true })
+  @Column({
     name: "$dms_automation.procedures.cols.status",
-    type: new DefaultDataTypes.SelectType({
-      items: [
-        { value: "active", label: "$dms_automation.procedures.status.active" },
-        { value: "paused", label: "$dms_automation.procedures.status.paused" },
-        {
-          value: "failing",
-          label: "$dms_automation.procedures.status.failing",
-        },
-      ],
+    size: 200,
+    type: new DefaultDataTypes.SelectType({ items: STATUS_ITEMS }),
+    display: new DefaultDisplays.StatusPillDisplay({
+      tones: {
+        failing: "error",
+        degraded: "warning",
+        healthy: "success",
+        paused: "neutral",
+        draft: "info",
+      },
+      subField: "statusDetail",
     }),
     filterable: true,
+    order: 3,
   })
   @Access(AccessMode.ReadOnly)
   declare status: string;
+
+  @Listable()
+  @Column({
+    name: "$dms_automation.procedures.cols.statusDetail",
+    type: new DefaultDataTypes.StringType(),
+    isVisible: false,
+    order: 11,
+  })
+  @Access(AccessMode.ReadOnly)
+  declare statusDetail: string;
 
   @Listable()
   @Sortable({ noIndex: true })
   @Column({
     name: "$dms_automation.procedures.cols.lastRun",
     type: new DefaultDataTypes.DateType(),
+    display: new DefaultDisplays.RelativeDateDisplay({
+      emptyLabel: "$dms_automation.procedures.never",
+      emptyTone: "dimmed",
+    }),
+    order: 4,
   })
   @Access(AccessMode.ReadOnly)
   declare lastRunAt: string;
 
   @Listable()
+  @Column({
+    name: "$dms_automation.procedures.cols.lastRuns",
+    size: 130,
+    type: new DefaultDataTypes.StringType(),
+    display: new LastRunsDisplay({ limit: 12 }),
+    order: 5,
+  })
+  @Access(AccessMode.ReadOnly)
+  declare lastRuns: string;
+
+  @Listable()
   @Sortable({ noIndex: true })
   @Column({
     name: "$dms_automation.procedures.cols.success",
-    type: new DefaultDataTypes.PercentageType({ min: 0, max: 1, step: 0.01 }),
+    size: 100,
+    type: new DefaultDataTypes.PercentageType({ min: 0, max: 1, step: 0.001 }),
+    order: 6,
   })
   @Access(AccessMode.ReadOnly)
   declare successRate: number;
@@ -309,17 +444,21 @@ export class ProceduresTableAPI extends DataController(
   @Sortable({ noIndex: true })
   @Column({
     name: "$dms_automation.procedures.cols.avg",
+    size: 90,
     type: new DefaultDataTypes.NumberType(),
+    display: new DefaultDisplays.DurationDisplay({ unit: "ms" }),
+    order: 7,
   })
   @Access(AccessMode.ReadOnly)
   declare avgDurationMs: number;
 
   @Listable()
-  @Sortable({ noIndex: true })
   @Column({
-    name: "$dms_automation.procedures.cols.runs",
-    type: new DefaultDataTypes.NumberType(),
+    name: "$dms_automation.procedures.cols.enabled",
+    type: new DefaultDataTypes.BooleanType(),
+    isVisible: false,
+    order: 12,
   })
   @Access(AccessMode.ReadOnly)
-  declare runs: number;
+  declare enabled: boolean;
 }
