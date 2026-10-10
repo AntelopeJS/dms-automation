@@ -76,6 +76,7 @@ const selectedId = ref<string | null>(null)
 const query = ref('')
 const configText = ref('{}')
 const configError = ref<string | null>(null)
+const CONFIG_ID = 'catalog-global-config'
 const saving = ref(false)
 
 const configurable = computed(() => props.kind !== 'dataNodes')
@@ -215,9 +216,8 @@ function open(use: TypeUsage) {
 <template>
 	<div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
 		<div class="dms-card flex flex-col gap-2 p-2">
-			<UInput
+			<DmsSearchInput
 				v-model="query"
-				icon="i-ph-magnifying-glass"
 				size="sm"
 				:placeholder="$t('dms_automation.library.search')"
 				class="w-full"
@@ -334,8 +334,16 @@ function open(use: TypeUsage) {
 				<template #content>
 					<div class="flex flex-col gap-3 border-t border-default p-4">
 						<p class="text-xs text-muted">{{ $t('dms_automation.library.advancedHint') }}</p>
-						<UTextarea v-model="configText" :rows="6" class="w-full font-mono text-xs" />
-						<p v-if="configError" class="text-xs text-error">{{ configError }}</p>
+						<DmsInputCode
+							:id="CONFIG_ID"
+							v-model="configText"
+							language="json"
+							:min-lines="6"
+							:max-lines="16"
+							:aria-invalid="!!configError || undefined"
+							:aria-describedby="configError ? `${CONFIG_ID}-error` : undefined"
+						/>
+						<DmsFieldError :id="`${CONFIG_ID}-error`" :message="configError" />
 						<div class="flex justify-end">
 							<UButton color="primary" :loading="saving" @click="saveAdvanced">{{ $t('dms_automation.common.save') }}</UButton>
 						</div>

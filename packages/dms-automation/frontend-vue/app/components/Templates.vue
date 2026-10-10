@@ -145,15 +145,24 @@ async function loadUsages() {
 	}
 }
 
+const NAME_ID = 'template-name'
+// A missing name shows under its field; a refused save is a toast.
+const fieldErrors = useFieldErrors({ fields: { name: NAME_ID } })
+watch(formName, () => fieldErrors.clear('name'))
+
 async function onSave() {
 	const s = selected.value
 	if (!s) return
+	if (!formName.value.trim()) {
+		await fieldErrors.setError('name', t('dms_automation.templates.form.nameRequired'))
+		return
+	}
 	saving.value = true
 	try {
 		const updated = await $authFetch<TemplateRow>(`${props.apiUrl}/templates/${s._id}`, {
 			method: 'PUT',
 			body: {
-				name: formName.value.trim() || s.name,
+				name: formName.value.trim(),
 				description: formDescription.value,
 				icon: formIcon.value || DEFAULT_ICON,
 				ports: s.ports ?? [],
@@ -212,7 +221,7 @@ function schemaTypeOf(p: TemplatePort): string {
 <template>
 	<div class="grid grid-cols-1 items-start gap-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
 		<div class="dms-card flex flex-col gap-2 p-2">
-			<UInput v-model="search" size="sm" icon="i-ph-magnifying-glass" :placeholder="$t('dms_automation.templates.search')" class="w-full" />
+			<DmsSearchInput v-model="search" size="sm" :placeholder="$t('dms_automation.templates.search')" class="w-full" />
 			<div v-if="loading && items.length === 0" class="flex flex-col gap-2 p-1">
 				<USkeleton v-for="i in 3" :key="i" class="h-12 w-full" />
 			</div>
@@ -265,16 +274,19 @@ function schemaTypeOf(p: TemplatePort): string {
 			</DmsCard>
 
 			<DmsCard :title="$t('dms_automation.templates.details')">
-				<div class="flex flex-col gap-4">
-					<UFormField :label="$t('dms_automation.templates.form.name')" required>
-						<UInput v-model="formName" class="w-full" />
-					</UFormField>
-					<UFormField :label="$t('dms_automation.templates.form.description')">
-						<UTextarea v-model="formDescription" class="w-full" :rows="2" />
-					</UFormField>
-					<UFormField :label="$t('dms_automation.templates.form.icon')">
+				<div>
+					<DmsFieldRow layout="form" :label="$t('dms_automation.templates.form.name')" :label-for="NAME_ID" required>
+						<div class="grid gap-1.5">
+							<DmsInputText :id="NAME_ID" v-model="formName" class="w-full" v-bind="fieldErrors.aria('name')" />
+							<DmsFieldError :id="fieldErrors.errorId('name')" :message="fieldErrors.errors.name" />
+						</div>
+					</DmsFieldRow>
+					<DmsFieldRow layout="form" :label="$t('dms_automation.templates.form.description')" label-for="template-description">
+						<DmsTextarea id="template-description" v-model="formDescription" class="w-full" :rows="2" />
+					</DmsFieldRow>
+					<DmsFieldRow layout="form" :label="$t('dms_automation.templates.form.icon')">
 						<DmsAutomationIconPicker v-model="formIcon" />
-					</UFormField>
+					</DmsFieldRow>
 				</div>
 				<template #footer>
 					<div class="flex justify-end">

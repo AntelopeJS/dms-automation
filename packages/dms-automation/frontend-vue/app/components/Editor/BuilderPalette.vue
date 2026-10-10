@@ -188,9 +188,8 @@ function onItem(item: PaletteItem) {
 		class="flex h-full flex-col overflow-hidden bg-elevated/40"
 	>
 		<div class="border-b border-default p-2.5">
-			<UInput
+			<DmsSearchInput
 				v-model="search"
-				icon="i-ph-magnifying-glass"
 				size="sm"
 				:placeholder="$t('dms_automation.builder.palette.search')"
 				class="w-full"

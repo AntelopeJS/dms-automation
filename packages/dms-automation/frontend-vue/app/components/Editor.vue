@@ -2015,6 +2015,12 @@ const saveAsTemplateDescription = ref<string>('')
 const saveAsTemplateIcon = ref<string>('i-ph-package')
 const saveAsTemplateSubmitting = ref<boolean>(false)
 const saveAsTemplateError = ref<string | null>(null)
+const TEMPLATE_NAME_ID = 'save-template-name'
+const TEMPLATE_ROW = { layout: 'form', spacing: 'list', inset: false } as const
+// A missing name shows under its field; what the server refuses (issues, a
+// reference cycle) stays in the banner above the buttons.
+const templateFieldErrors = useFieldErrors({ fields: { name: TEMPLATE_NAME_ID } })
+watch(saveAsTemplateName, () => templateFieldErrors.clear('name'))
 
 function openSaveAsTemplate() {
 	const n = selectedLocalGroupNode.value
@@ -2024,6 +2030,7 @@ function openSaveAsTemplate() {
 	saveAsTemplateDescription.value = ''
 	saveAsTemplateIcon.value = 'i-ph-package'
 	saveAsTemplateError.value = null
+	templateFieldErrors.clear()
 	saveAsTemplateSubmitting.value = false
 	saveAsTemplateOpen.value = true
 }
@@ -2078,11 +2085,11 @@ async function submitSaveAsTemplate() {
 	if (!n) return
 	const name = saveAsTemplateName.value.trim()
 	if (!name) {
-		saveAsTemplateError.value = 'Name is required'
+		await templateFieldErrors.setError('name', t('dms_automation.editor.saveTemplateModal.nameRequired'))
 		return
 	}
 	if (!n.subgraph) {
-		saveAsTemplateError.value = 'Group has no subgraph to save'
+		saveAsTemplateError.value = t('dms_automation.editor.saveTemplateModal.noSubgraph')
 		return
 	}
 	saveAsTemplateSubmitting.value = true
@@ -2924,31 +2931,41 @@ const selectedTriggerSummaries = computed<TriggerSummary[]>(() =>
 		>
 			<template #body>
 				<div class="flex flex-col gap-3">
-					<UFormField
+					<DmsFieldRow
+						v-bind="TEMPLATE_ROW"
 						:label="$t('dms_automation.editor.saveTemplateModal.name')"
+						:label-for="TEMPLATE_NAME_ID"
 						required
 					>
-						<UInput
-							v-model="saveAsTemplateName"
-							:placeholder="$t('dms_automation.editor.saveTemplateModal.namePlaceholder')"
-							class="w-full"
-							:disabled="saveAsTemplateSubmitting"
-						/>
-					</UFormField>
-					<UFormField
+						<div class="grid gap-1.5">
+							<DmsInputText
+								:id="TEMPLATE_NAME_ID"
+								v-model="saveAsTemplateName"
+								:placeholder="$t('dms_automation.editor.saveTemplateModal.namePlaceholder')"
+								class="w-full"
+								:disabled="saveAsTemplateSubmitting"
+								v-bind="templateFieldErrors.aria('name')"
+							/>
+							<DmsFieldError :id="templateFieldErrors.errorId('name')" :message="templateFieldErrors.errors.name" />
+						</div>
+					</DmsFieldRow>
+					<DmsFieldRow
+						v-bind="TEMPLATE_ROW"
 						:label="$t('dms_automation.editor.saveTemplateModal.description')"
+						label-for="save-template-description"
 					>
-						<UTextarea
+						<DmsTextarea
+							id="save-template-description"
 							v-model="saveAsTemplateDescription"
 							:placeholder="$t('dms_automation.editor.saveTemplateModal.descriptionPlaceholder')"
 							class="w-full"
 							:rows="3"
 							:disabled="saveAsTemplateSubmitting"
 						/>
-					</UFormField>
-					<UFormField :label="$t('dms_automation.editor.saveTemplateModal.icon')">
+					</DmsFieldRow>
+					<DmsFieldRow v-bind="TEMPLATE_ROW" :label="$t('dms_automation.editor.saveTemplateModal.icon')">
 						<DmsAutomationIconPicker v-model="saveAsTemplateIcon" />
-					</UFormField>
+					</DmsFieldRow>
 					<div v-if="selectedLocalGroupNode?.ports?.length" class="flex flex-col gap-1">
 						<span class="text-xs font-medium text-highlighted">{{ $t('dms_automation.editor.saveTemplateModal.ports') }}</span>
 						<div class="overflow-hidden rounded-md border border-default">
@@ -2963,14 +2980,14 @@ const selectedTriggerSummaries = computed<TriggerSummary[]>(() =>
 							</div>
 						</div>
 					</div>
-					<UAlert
+					<DmsBanner
 						v-if="saveAsTemplateError"
-						color="error"
-						variant="subtle"
-						icon="i-ph-warning"
+						size="sm"
+						tone="error"
 						:title="$t('dms_automation.editor.saveTemplateModal.error')"
 						:description="saveAsTemplateError"
 					/>
+					<DmsFormRequiredLegend />
 				</div>
 			</template>
 			<template #footer>
@@ -3001,11 +3018,10 @@ const selectedTriggerSummaries = computed<TriggerSummary[]>(() =>
 					<p class="text-sm text-toned">
 						{{ $t('dms_automation.editor.forkModal.body') }}
 					</p>
-					<UAlert
+					<DmsBanner
 						v-if="forkError"
-						color="error"
-						variant="subtle"
-						icon="i-ph-warning"
+						size="sm"
+						tone="error"
 						:title="$t('dms_automation.editor.forkModal.error')"
 						:description="forkError"
 					/>

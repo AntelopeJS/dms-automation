@@ -85,10 +85,9 @@ function onKey(ev: KeyboardEvent) {
 	<UModal v-model:open="open" :title="$t('dms_automation.editor.switcher.title')" :ui="{ content: 'max-w-lg' }" @after:leave="afterLeave">
 		<template #body>
 			<div class="flex flex-col gap-2" @keydown="onKey">
-				<UInput
+				<DmsSearchInput
 					v-model="query"
 					autofocus
-					icon="i-ph-magnifying-glass"
 					:placeholder="$t('dms_automation.editor.switcher.search')"
 					class="w-full"
 				/>

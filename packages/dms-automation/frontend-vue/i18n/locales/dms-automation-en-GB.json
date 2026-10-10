@@ -134,6 +134,7 @@
         "enterSubgraph": "Enter group",
         "ifItFails": "If it fails",
         "ifItFailsHint": "The run stops here and downstream steps are skipped.",
+        "jsonPlaceholder": "String, number, true/false, null or JSON",
         "lastRun": "Last run",
         "noDocs": "This block has no description.",
         "noFields": "This node has no settings.",
@@ -198,6 +199,8 @@
         "icon": "Icon",
         "name": "Name",
         "namePlaceholder": "Template name",
+        "nameRequired": "Give the template a name.",
+        "noSubgraph": "This group has no steps to save.",
         "ports": "Ports inferred from the wires crossing the group",
         "submit": "Save template",
         "title": "Save as template"
@@ -543,7 +546,8 @@
       "form": {
         "description": "Description",
         "icon": "Icon",
-        "name": "Name"
+        "name": "Name",
+        "nameRequired": "Give the template a name."
       },
       "loadError": "Couldn’t load the templates",
       "ports": {

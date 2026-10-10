@@ -394,66 +394,68 @@ function onUnwire(field: string) {
 				@ports:update="onGroupPortsUpdate"
 			/>
 
-			<div
+			<DmsFieldRow
 				v-for="f in fields"
 				:key="f.name"
-				class="flex flex-col gap-1"
+				layout="stack"
+				spacing="list"
+				:inset="false"
+				:label="f.prop.title || f.name"
+				:label-for="findIncoming(f.name) || isBoolish(f.prop) ? undefined : `inspector-${f.name}`"
+				:description="f.prop.description ? processI18n(f.prop.description) : undefined"
 			>
-				<label class="text-xs font-medium text-highlighted">{{ f.prop.title || f.name }}</label>
-
-				<template v-if="findIncoming(f.name)">
-					<DmsAutomationWiredField
-						:field="f.name"
-						:source="{
-							node: findIncoming(f.name)!.from.node,
-							port: findIncoming(f.name)!.from.port,
-						}"
-						:source-label="nodeName ? nodeName(findIncoming(f.name)!.from.node) : findIncoming(f.name)!.from.node"
-						@unwire="onUnwire(f.name)"
-					/>
-				</template>
-
-				<template v-else>
-					<USelect
-						v-if="Array.isArray(f.prop.enum) && f.prop.enum.length > 0"
-						:items="(f.prop.enum as unknown[]).map((v) => String(v))"
-						:model-value="asString(getValue(f.name) ?? f.prop.default)"
-						@update:model-value="(v: string) => emitUpdated(f.name, v)"
-					/>
-					<UInput
-						v-else-if="isStringish(f.prop)"
-						:model-value="asString(getValue(f.name))"
-						@update:model-value="(v: string | number) => emitUpdated(f.name, String(v))"
-					/>
-					<UInput
-						v-else-if="isNumberish(f.prop)"
-						type="number"
-						:model-value="asNumber(getValue(f.name))"
-						@update:model-value="(v: string | number) => emitUpdated(f.name, asNumber(v))"
-					/>
-					<USwitch
-						v-else-if="isBoolish(f.prop)"
-						:model-value="asBool(getValue(f.name))"
-						@update:model-value="(v: boolean) => emitUpdated(f.name, v)"
-					/>
-					<UTextarea
-						v-else-if="f.prop.type === 'array'"
-						:rows="3"
-						:placeholder="$t('dms_automation.editor.inspector.arrayPlaceholder')"
-						:model-value="arrayToText(getValue(f.name))"
-						@update:model-value="(v: string | number) => emitUpdated(f.name, textToArray(String(v)))"
-					/>
-					<JsonField
-						v-else
-						:model-value="getValue(f.name)"
-						@update:model-value="(v: unknown) => emitUpdated(f.name, v)"
-					/>
-				</template>
-
-				<p v-if="f.prop.description" class="text-xs text-dimmed">
-					{{ processI18n(f.prop.description) }}
-				</p>
-			</div>
+				<DmsAutomationWiredField
+					v-if="findIncoming(f.name)"
+					:field="f.name"
+					:source="{
+						node: findIncoming(f.name)!.from.node,
+						port: findIncoming(f.name)!.from.port,
+					}"
+					:source-label="nodeName ? nodeName(findIncoming(f.name)!.from.node) : findIncoming(f.name)!.from.node"
+					@unwire="onUnwire(f.name)"
+				/>
+				<DmsSelect
+					v-else-if="Array.isArray(f.prop.enum) && f.prop.enum.length > 0"
+					:id="`inspector-${f.name}`"
+					:items="(f.prop.enum as unknown[]).map((v) => String(v))"
+					:model-value="asString(getValue(f.name) ?? f.prop.default)"
+					class="w-full"
+					@update:model-value="(v: string) => emitUpdated(f.name, v)"
+				/>
+				<DmsInputText
+					v-else-if="isStringish(f.prop)"
+					:id="`inspector-${f.name}`"
+					:model-value="asString(getValue(f.name))"
+					class="w-full"
+					@update:model-value="(v: string | number) => emitUpdated(f.name, String(v))"
+				/>
+				<DmsInputNumber
+					v-else-if="isNumberish(f.prop)"
+					:id="`inspector-${f.name}`"
+					:model-value="asNumber(getValue(f.name))"
+					class="w-full"
+					@update:model-value="(v: number | null | undefined) => emitUpdated(f.name, asNumber(v))"
+				/>
+				<DmsSwitch
+					v-else-if="isBoolish(f.prop)"
+					:model-value="asBool(getValue(f.name))"
+					@update:model-value="(v: boolean) => emitUpdated(f.name, v)"
+				/>
+				<DmsTextarea
+					v-else-if="f.prop.type === 'array'"
+					:id="`inspector-${f.name}`"
+					:rows="3"
+					:placeholder="$t('dms_automation.editor.inspector.arrayPlaceholder')"
+					:model-value="arrayToText(getValue(f.name))"
+					class="w-full"
+					@update:model-value="(v: string | number) => emitUpdated(f.name, textToArray(String(v)))"
+				/>
+				<JsonField
+					v-else
+					:model-value="getValue(f.name)"
+					@update:model-value="(v: unknown) => emitUpdated(f.name, v)"
+				/>
+			</DmsFieldRow>
 
 			<div v-if="canWrapInRetry" class="flex flex-col gap-1.5 rounded-md border border-default p-3">
 				<span class="text-xs font-medium text-highlighted">{{ $t('dms_automation.editor.inspector.ifItFails') }}</span>

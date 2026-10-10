@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 // "New procedure" from the builder: name it, pick what starts it, and land on
 // a draft with its trigger placed (AU-11).
@@ -17,23 +17,38 @@ const STARTERS = [
 	{ value: 'manual', icon: 'i-ph-play', label: 'manual' },
 ] as const
 
+const NAME_ID = 'new-procedure-name'
+const ROW = { layout: 'form', spacing: 'list', inset: false } as const
+
 const name = ref('')
 const trigger = ref<(typeof STARTERS)[number]['value']>('webhook')
 const description = ref('')
 const submitting = ref(false)
-const error = ref<string | null>(null)
+// A missing name shows under its field; a refused request too when the API
+// names the field, a toast otherwise.
+const fieldErrors = useFieldErrors({ fields: { name: NAME_ID } })
+
+const starterItems = computed(() =>
+	STARTERS.map((starter) => ({
+		value: starter.value,
+		icon: starter.icon,
+		label: t(`dms_automation.newProcedure.starts.${starter.label}`),
+		description: t(`dms_automation.newProcedure.starts.${starter.label}Hint`),
+	})),
+)
 
 watch(open, (isOpen) => {
 	if (!isOpen) return
 	name.value = ''
 	trigger.value = 'webhook'
 	description.value = ''
-	error.value = null
+	fieldErrors.clear()
 })
+watch(name, () => fieldErrors.clear('name'))
 
 async function submit() {
 	if (!name.value.trim()) {
-		error.value = t('dms_automation.newProcedure.nameRequired')
+		await fieldErrors.setError('name', t('dms_automation.newProcedure.nameRequired'))
 		return
 	}
 	submitting.value = true
@@ -45,7 +60,7 @@ async function submit() {
 		open.value = false
 		emit('created', res._id)
 	} catch (e) {
-		error.value = (e as Error).message
+		await fieldErrors.handleApiError(e, { toastTitle: 'dms_automation.common.actionFailed' })
 	} finally {
 		submitting.value = false
 	}
@@ -56,31 +71,31 @@ async function submit() {
 	<UModal v-model:open="open" :title="$t('dms_automation.newProcedure.title')" :description="$t('dms_automation.newProcedure.subtitle')">
 		<template #body>
 			<form class="flex flex-col gap-4" @submit.prevent="submit">
-				<UFormField :label="$t('dms_automation.newProcedure.name')" required :error="error ?? undefined">
-					<UInput v-model="name" autofocus class="w-full" :placeholder="$t('dms_automation.newProcedure.namePlaceholder')" />
-				</UFormField>
-				<UFormField :label="$t('dms_automation.newProcedure.startsWhen')" :help="$t('dms_automation.newProcedure.startsWhenHint')">
-					<div class="grid gap-2">
-						<button
-							v-for="starter in STARTERS"
-							:key="starter.value"
-							type="button"
-							class="flex items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors"
-							:class="trigger === starter.value ? 'border-primary bg-primary/10' : 'border-default hover:bg-elevated'"
-							:aria-pressed="trigger === starter.value"
-							@click="trigger = starter.value"
-						>
-							<UIcon :name="starter.icon" class="mt-0.5 size-4 text-muted" />
-							<span class="flex flex-col">
-								<span class="text-sm font-medium text-highlighted">{{ $t(`dms_automation.newProcedure.starts.${starter.label}`) }}</span>
-								<span class="text-xs text-muted">{{ $t(`dms_automation.newProcedure.starts.${starter.label}Hint`) }}</span>
-							</span>
-						</button>
+				<DmsFieldRow v-bind="ROW" :label="$t('dms_automation.newProcedure.name')" :label-for="NAME_ID" required>
+					<div class="grid gap-1.5">
+						<DmsInputText
+							:id="NAME_ID"
+							v-model="name"
+							autofocus
+							class="w-full"
+							:placeholder="$t('dms_automation.newProcedure.namePlaceholder')"
+							v-bind="fieldErrors.aria('name')"
+						/>
+						<DmsFieldError :id="fieldErrors.errorId('name')" :message="fieldErrors.errors.name" />
 					</div>
-				</UFormField>
-				<UFormField :label="$t('dms_automation.newProcedure.description')">
-					<UTextarea v-model="description" :rows="2" class="w-full" />
-				</UFormField>
+				</DmsFieldRow>
+				<DmsFieldRow
+					v-bind="ROW"
+					:label="$t('dms_automation.newProcedure.startsWhen')"
+					:description="$t('dms_automation.newProcedure.startsWhenHint')"
+					required
+				>
+					<DmsChoiceCards v-model="trigger" :items="starterItems" />
+				</DmsFieldRow>
+				<DmsFieldRow v-bind="ROW" :label="$t('dms_automation.newProcedure.description')" label-for="new-procedure-description">
+					<DmsTextarea id="new-procedure-description" v-model="description" :rows="2" class="w-full" />
+				</DmsFieldRow>
+				<DmsFormRequiredLegend />
 			</form>
 		</template>
 		<template #footer>

@@ -134,6 +134,7 @@
         "enterSubgraph": "Entrer dans le groupe",
         "ifItFails": "En cas d’échec",
         "ifItFailsHint": "L’exécution s’arrête ici et les étapes suivantes sont ignorées.",
+        "jsonPlaceholder": "Texte, nombre, true/false, null ou JSON",
         "lastRun": "Dernière exécution",
         "noDocs": "Ce bloc n’a pas de description.",
         "noFields": "Ce nœud n’a pas de réglages.",
@@ -198,6 +199,8 @@
         "icon": "Icône",
         "name": "Nom",
         "namePlaceholder": "Nom du modèle",
+        "nameRequired": "Donnez un nom au template.",
+        "noSubgraph": "Ce groupe n’a aucune étape à enregistrer.",
         "ports": "Ports déduits des liens qui traversent le groupe",
         "submit": "Enregistrer le modèle",
         "title": "Enregistrer comme modèle"
@@ -543,7 +546,8 @@
       "form": {
         "description": "Description",
         "icon": "Icône",
-        "name": "Nom"
+        "name": "Nom",
+        "nameRequired": "Donnez un nom au template."
       },
       "loadError": "Impossible de charger les modèles",
       "ports": {
