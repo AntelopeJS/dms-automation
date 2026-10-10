@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const {
+  asParam,
   cronText,
   stepText,
   triggerText,
@@ -63,4 +64,11 @@ test("a step reads as its label, else its type, else its id", () => {
   assert.equal(stepText({ nodeId: "a1", typeName: "Log" }), "Log");
   assert.equal(stepText({ nodeId: "a1" }), "a1");
   assert.equal(stepText(null), null);
+});
+
+test("a key nested in a composed text is composed, a name is kept", () => {
+  assert.deepEqual(asParam("$dms_automation.types.log.name"), {
+    key: "dms_automation.types.log.name",
+  });
+  assert.equal(asParam("Notify the team"), "Notify the team");
 });

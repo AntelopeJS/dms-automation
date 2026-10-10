@@ -36,7 +36,7 @@
     "test:runs-display": "pnpm run build && node --test tests/runs-display.test.cjs",
     "test:type-origin": "pnpm run build && node --test tests/type-origin.test.cjs",
     "test:type-display": "node --test tests/type-display.test.cjs",
-    "test:unit": "pnpm run build && node --test tests/health.test.cjs tests/kpi.test.cjs tests/graph-issues.test.cjs tests/trace.test.cjs tests/schedule.test.cjs tests/pages.test.cjs tests/procedures-page.test.cjs tests/wording.test.cjs",
+    "test:unit": "pnpm run build && node --test tests/health.test.cjs tests/kpi.test.cjs tests/graph-issues.test.cjs tests/trace.test.cjs tests/schedule.test.cjs tests/pages.test.cjs tests/procedures-page.test.cjs tests/wording.test.cjs tests/health-banner.test.cjs",
     "dev": "ajs project run -w -p playground",
     "lint": "oxlint && oxfmt --check . && cd frontend-vue && pnpm lint && antelopejs-check-interface-ranges",
     "typecheck": "pnpm --filter @antelopejs/interface-dms-automation typecheck && tsc --noEmit",

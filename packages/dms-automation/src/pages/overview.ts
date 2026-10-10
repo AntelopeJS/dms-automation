@@ -1,5 +1,6 @@
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { ActivityFeed } from "@antelopejs/interface-dms/base/activity-feed";
+import { Banner } from "@antelopejs/interface-dms/base/banner";
 import { ChartColumn } from "@antelopejs/interface-dms/base/chart";
 import { ChartCard } from "@antelopejs/interface-dms/base/chart-card";
 import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
@@ -69,22 +70,16 @@ export class OverviewPageController extends PageController(
 
   /**
    * One line saying how automation is doing, the next action, and the first
-   * run state when nothing is built yet.
+   * run recipes when nothing is built yet: a DMS banner the route words.
    */
-  static health = CustomComponent("dms-automation-health-hero")
-    .options({
-      periodScope: SCOPE,
-      fetchUrl: `${STATS_URL}/health`,
-      runsUrl: RUNS_URL,
-      traceUrl: TRACE_URL,
-      builderUrl: BUILDER_URL,
-      createUrl: `${API_URL}/procedures/new`,
-    })
-    .meta({
-      name: "$dms_automation.permissions.health.name",
-      description: "$dms_automation.permissions.health.description",
-      icon: "i-ph-heartbeat",
-    });
+  static health = Banner({
+    fetchUrl: `${STATS_URL}/health`,
+    periodScope: SCOPE,
+  }).meta({
+    name: "$dms_automation.permissions.health.name",
+    description: "$dms_automation.permissions.health.description",
+    icon: "i-ph-heartbeat",
+  });
 
   static kpis = Grid({ gap: "1rem", minColumnWidth: "220px" }).child(
     "row",

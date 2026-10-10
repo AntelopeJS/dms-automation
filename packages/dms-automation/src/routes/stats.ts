@@ -12,7 +12,13 @@ import {
   type StatsWindow,
   windowOf,
 } from "../db/models/stats.model";
-import { PROCEDURES_URL, TRACE_URL } from "../pages/shared";
+import {
+  PROCEDURES_URL,
+  recipeActions,
+  RUNS_URL,
+  TRACE_URL,
+} from "../pages/shared";
+import { healthBanner } from "../stats/health-banner";
 import { isKpiMetric, kpiPayload } from "../stats/kpi";
 import {
   attentionRows,
@@ -55,7 +61,12 @@ export class StatsController extends Controller("/api/automation/stats") {
     @Parameter("to", "query") to?: string,
   ) {
     const window = windowOf({ from, to });
-    return healthHero(await loadStatsContext(earliestOf(window)), window);
+    const hero = healthHero(await loadStatsContext(earliestOf(window)), window);
+    return healthBanner(hero, {
+      runsUrl: RUNS_URL,
+      traceUrl: TRACE_URL,
+      recipes: recipeActions(),
+    });
   }
 
   @Get("/kpi/:metric")

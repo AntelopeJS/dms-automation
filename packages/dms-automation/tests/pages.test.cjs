@@ -81,8 +81,9 @@ test("the module's pages are DMS blocks around a few custom components", () => {
     return all.filter((c) => c._componentName.startsWith("dms-automation-"))
       .length;
   });
-  // overview: hero + attention; runs: none on the page itself (the drawer is
-  // a row action); trace: the trace; procedures: none; builder: the editor;
-  // library: three catalogs and the templates.
-  assert.deepEqual(counts, [2, 0, 1, 0, 1, 4]);
+  // overview: the attention list (the health line is a DMS banner); runs:
+  // none on the page itself (the drawer is a row action); trace: the trace;
+  // procedures: none; builder: the editor; library: three catalogs and the
+  // templates.
+  assert.deepEqual(counts, [1, 0, 1, 0, 1, 4]);
 });

@@ -1,4 +1,5 @@
 import {
+  type BannerButtonAction,
   ButtonVariant,
   type CustomButton,
 } from "@antelopejs/interface-dms/base";
@@ -68,8 +69,10 @@ const STARTER_OPTIONS = [
   },
 ];
 
+type Starter = "webhook" | "schedule.cron" | "manual";
+
 /** The "New procedure" dialog: name it, pick what starts it, open the builder. */
-function newProcedureForm() {
+function newProcedureForm(trigger: Starter = "webhook") {
   return Form({
     submitUrl: `${API_URL}/procedures/new`,
     submitUrlMethod: "POST",
@@ -94,7 +97,7 @@ function newProcedureForm() {
           items: STARTER_OPTIONS,
           display: "cards",
         }),
-        defaultValue: "webhook",
+        defaultValue: trigger,
         required: true,
       },
       {
@@ -108,6 +111,32 @@ function newProcedureForm() {
     description: "$dms_automation.permissions.newProcedure.description",
     icon: "i-ph-plus",
   });
+}
+
+const RECIPES: { id: string; trigger: Starter; icon: string }[] = [
+  { id: "webhook", trigger: "webhook", icon: "i-ph-webhooks-logo" },
+  { id: "digest", trigger: "schedule.cron", icon: "i-ph-clock" },
+  { id: "manual", trigger: "manual", icon: "i-ph-play" },
+];
+
+/**
+ * The first-run recipes of the overview banner: each opens "New procedure"
+ * with its trigger picked, and the dialog then opens the builder.
+ */
+export function recipeActions(): BannerButtonAction[] {
+  return RECIPES.map((recipe) => ({
+    label: `$dms_automation.recipes.${recipe.id}.title`,
+    icon: recipe.icon,
+    variant: ButtonVariant.outline,
+    color: "neutral",
+    target: {
+      type: "modal",
+      size: "md",
+      title: `$dms_automation.recipes.${recipe.id}.title`,
+      description: `$dms_automation.recipes.${recipe.id}.hint`,
+      component: newProcedureForm(recipe.trigger).serializeSync(),
+    },
+  }));
 }
 
 /** Header button opening the "New procedure" dialog. */

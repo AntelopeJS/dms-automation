@@ -41,7 +41,6 @@
       "cancel": "Cancel",
       "next": "Next",
       "previous": "Previous",
-      "refresh": "Refresh",
       "retry": "Retry",
       "save": "Save"
     },
@@ -235,23 +234,19 @@
       "failedAt": "{error} at {step}"
     },
     "firstRun": {
-      "description": "A procedure listens for a trigger — a webhook, a schedule or a click — then runs actions like HTTP calls, emails or data updates. Start from a recipe: it opens the builder with the trigger in place.",
-      "otherModules": "Other modules add their own blocks to the palette.",
+      "description": "A procedure listens for a trigger — a webhook, a schedule or a click — then runs actions like HTTP calls, emails or data updates. Start from a recipe: name it, and the builder opens with the trigger in place.",
       "title": "Automate your first workflow"
     },
     "health": {
       "degraded": "{count} procedure degraded | {count} procedures degraded",
-      "eyebrow": "Execution health · {window}",
       "failing": "{count} procedure failing | {count} procedures failing",
+      "failingDetail": "{name} · failing since {since} · {cause}",
       "failingSince": "{name} · failing since {since}",
       "healthy": "Every procedure is healthy",
       "idle": "Nothing ran in this window",
       "inspectLastFailure": "Inspect last failure",
       "lastFailureAt": "{error} at {step}",
-      "live": "Live · updated {ago}",
-      "loadError": "Couldn’t load automation health",
       "showFailedRuns": "Show failed runs",
-      "staleData": "Couldn’t refresh: showing data from {time}. Retrying every 30 s.",
       "summary": "{runs} runs, {failed} failed · {enabled} of {total} procedures enabled"
     },
     "iconPicker": {
@@ -328,7 +323,6 @@
     },
     "newProcedure": {
       "description": "Description",
-      "failed": "Couldn’t create the procedure",
       "name": "Name",
       "namePlaceholder": "Sync paid invoices to the ERP",
       "nameRequired": "Give the procedure a name.",
@@ -378,11 +372,6 @@
       "runsPerDay": "Runs",
       "succeeded": "Succeeded",
       "title": "Overview"
-    },
-    "period": {
-      "last24h": "24 h",
-      "last30d": "30 days",
-      "last7d": "7 days"
     },
     "permissions": {
       "attention": {
@@ -480,21 +469,15 @@
     },
     "recipes": {
       "digest": {
-        "description": "Runs every Monday at 09:00.",
         "hint": "Every Monday at 09:00, send a summary of last week.",
-        "name": "Weekly digest",
         "title": "Send a scheduled digest"
       },
       "manual": {
-        "description": "Started with Run now.",
         "hint": "A procedure you start yourself, with Run now or from the API.",
-        "name": "On-demand procedure",
         "title": "Run it on demand"
       },
       "webhook": {
-        "description": "Receives a webhook and forwards it.",
         "hint": "Receive events from Stripe or Shopify and push them to another system.",
-        "name": "Forward incoming webhook",
         "title": "Forward a webhook"
       }
     },

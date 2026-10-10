@@ -112,3 +112,13 @@ export function stepText(step: StepName | null | undefined): BlockText | null {
   if (!step?.nodeId) return null;
   return step.label ?? step.typeName ?? step.nodeId;
 }
+
+/**
+ * A text as a composed-text parameter: a `$`-prefixed i18n key becomes a
+ * nested `ComposedText`, since a string parameter is inserted as written.
+ */
+export function asParam(text: BlockText): BlockText {
+  return typeof text === "string" && text.startsWith("$")
+    ? { key: text.slice(1) }
+    : text;
+}

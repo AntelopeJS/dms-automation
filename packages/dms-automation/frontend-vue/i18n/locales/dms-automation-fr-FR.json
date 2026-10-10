@@ -41,7 +41,6 @@
       "cancel": "Annuler",
       "next": "Suivant",
       "previous": "Précédent",
-      "refresh": "Actualiser",
       "retry": "Réessayer",
       "save": "Enregistrer"
     },
@@ -235,23 +234,19 @@
       "failedAt": "{error} à l’étape {step}"
     },
     "firstRun": {
-      "description": "Une procédure attend un déclencheur — un webhook, un horaire ou un clic — puis exécute des actions : appels HTTP, e-mails, mises à jour de données. Partez d’une recette : l’éditeur s’ouvre avec le déclencheur en place.",
-      "otherModules": "Les autres modules ajoutent leurs propres blocs à la palette.",
+      "description": "Une procédure attend un déclencheur — un webhook, un horaire ou un clic — puis exécute des actions : appels HTTP, e-mails, mises à jour de données. Partez d’une recette : nommez-la, et l’éditeur s’ouvre avec le déclencheur en place.",
       "title": "Automatisez votre premier flux"
     },
     "health": {
       "degraded": "{count} procédure dégradée | {count} procédures dégradées",
-      "eyebrow": "Santé des exécutions · {window}",
       "failing": "{count} procédure en échec | {count} procédures en échec",
+      "failingDetail": "{name} · en échec depuis {since} · {cause}",
       "failingSince": "{name} · en échec depuis {since}",
       "healthy": "Toutes les procédures sont en bonne santé",
       "idle": "Rien n’a tourné sur cette période",
       "inspectLastFailure": "Inspecter le dernier échec",
       "lastFailureAt": "{error} à l’étape {step}",
-      "live": "En direct · mis à jour {ago}",
-      "loadError": "Impossible de charger la santé de l’automatisation",
       "showFailedRuns": "Voir les échecs",
-      "staleData": "Actualisation impossible : données de {time}. Nouvel essai toutes les 30 s.",
       "summary": "{runs} exécutions, {failed} en échec · {enabled} procédures actives sur {total}"
     },
     "iconPicker": {
@@ -328,7 +323,6 @@
     },
     "newProcedure": {
       "description": "Description",
-      "failed": "Impossible de créer la procédure",
       "name": "Nom",
       "namePlaceholder": "Synchroniser les factures payées vers l’ERP",
       "nameRequired": "Donnez un nom à la procédure.",
@@ -378,11 +372,6 @@
       "runsPerDay": "Exécutions",
       "succeeded": "Réussies",
       "title": "Vue d’ensemble"
-    },
-    "period": {
-      "last24h": "24 h",
-      "last30d": "30 jours",
-      "last7d": "7 jours"
     },
     "permissions": {
       "attention": {
@@ -480,21 +469,15 @@
     },
     "recipes": {
       "digest": {
-        "description": "Tourne chaque lundi à 09:00.",
         "hint": "Chaque lundi à 09:00, envoyez un résumé de la semaine passée.",
-        "name": "Récapitulatif hebdomadaire",
         "title": "Envoyer un récapitulatif planifié"
       },
       "manual": {
-        "description": "Lancée avec « Exécuter ».",
         "hint": "Une procédure que vous lancez vous-même, avec « Exécuter » ou depuis l’API.",
-        "name": "Procédure à la demande",
         "title": "Lancer à la demande"
       },
       "webhook": {
-        "description": "Reçoit un webhook et le transmet.",
         "hint": "Recevez les événements de Stripe ou Shopify et transmettez-les à un autre système.",
-        "name": "Relayer un webhook entrant",
         "title": "Relayer un webhook"
       }
     },
