@@ -39,8 +39,6 @@
     "common": {
       "actionFailed": "Something went wrong",
       "cancel": "Cancel",
-      "next": "Next",
-      "previous": "Previous",
       "retry": "Retry",
       "save": "Save"
     },
@@ -511,6 +509,7 @@
       },
       "listTitle": "Runs",
       "peek": "Quick look",
+      "peekPosition": "Run {index} of {total}",
       "peekTitle": "Run",
       "rerun": "Re-run",
       "rerunConfirmDescription": "Runs the saved version of the procedure again, from the same trigger, with the payload this run received. Side effects are real.",

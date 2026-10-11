@@ -4,22 +4,12 @@ import { type RunDetail, useAutomationRuns } from '../composables/useAutomationR
 import { useRunActions } from '../composables/useRunActions'
 import { describeDuration, describeTrigger } from '../utils/describe'
 
-// The quick look at a run, in the run history's drawer: what it did, where it
-// failed, the path it took and its payload, with the next actions. J / K step
-// through the rows of the table.
-
-interface RowNavigation {
-	index: number
-	total: number
-	hasPrev: boolean
-	hasNext: boolean
-	prev: () => void
-	next: () => void
-}
+// The quick look at a run, in the run history's side panel: what it did, where
+// it failed, the path it took and its payload, with the next actions. The DMS
+// panel draws the header, "Run x of y" and the J / K navigation.
 
 const props = defineProps<{
 	rowData?: { _id?: string }
-	navigation?: RowNavigation
 	apiUrl: string
 	traceUrl: string
 	builderUrl: string
@@ -74,15 +64,6 @@ function go(url: string) {
 
 <template>
 	<div class="flex flex-col gap-4">
-		<div v-if="navigation" class="flex items-center justify-between text-xs text-muted">
-			<span class="font-mono">{{ navigation.index + 1 }} / {{ navigation.total }}</span>
-			<div class="flex items-center gap-1">
-				<UButton size="xs" variant="ghost" color="neutral" icon="i-ph-caret-up" :disabled="!navigation.hasPrev" :aria-label="$t('dms_automation.common.previous')" @click="navigation.prev()" />
-				<UButton size="xs" variant="ghost" color="neutral" icon="i-ph-caret-down" :disabled="!navigation.hasNext" :aria-label="$t('dms_automation.common.next')" @click="navigation.next()" />
-				<UKbd value="J" /><UKbd value="K" />
-			</div>
-		</div>
-
 		<div v-if="loading && !run" class="flex flex-col gap-3">
 			<USkeleton class="h-6 w-60" />
 			<USkeleton class="h-24 w-full" />

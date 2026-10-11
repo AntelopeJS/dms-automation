@@ -15,13 +15,16 @@ test("the run history uses the DMS grouped display, by day, counted", () => {
   assert.equal(options.defaultDisplay, "grouped");
 });
 
-test("a run opens in a drawer, deep linked, and re-runs with its payload", () => {
+test("a run opens in the side panel on one click, deep linked, and re-runs with its payload", () => {
   const { RunsPageController } = require("../dist/pages/runs.js");
   const [peek, rerun, trace] =
     RunsPageController.table._options.rowActions.custom;
   assert.equal(peek.isDefault, true);
   assert.equal(peek.deepLink, true);
-  assert.equal(peek.target.type, "drawer");
+  assert.equal(peek.target.type, "sidePanel");
+  assert.equal(peek.target.positionLabel, "$dms_automation.runs.peekPosition");
+  assert.equal(peek.target.deepLink, true);
+  assert.equal(RunsPageController.table._options.rowClick, "single");
   assert.equal(rerun.target.url, "/api/automation/runs/{_id}/rerun");
   assert.ok(rerun.confirm, "re-running asks first");
   assert.equal(trace.target.url, "/modules/automation/trace?run={_id}");

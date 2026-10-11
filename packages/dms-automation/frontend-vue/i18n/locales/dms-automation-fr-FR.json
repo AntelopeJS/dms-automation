@@ -39,8 +39,6 @@
     "common": {
       "actionFailed": "Une erreur est survenue",
       "cancel": "Annuler",
-      "next": "Suivant",
-      "previous": "Précédent",
       "retry": "Réessayer",
       "save": "Enregistrer"
     },
@@ -511,6 +509,7 @@
       },
       "listTitle": "Exécutions",
       "peek": "Aperçu",
+      "peekPosition": "Exécution {index} sur {total}",
       "peekTitle": "Exécution",
       "rerun": "Relancer",
       "rerunConfirmDescription": "Exécute à nouveau la version enregistrée de la procédure, depuis le même déclencheur, avec la charge utile reçue. Les effets sont réels.",

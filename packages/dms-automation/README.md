@@ -15,7 +15,7 @@ It runs on `@antelopejs/dms` 0.6 (`@antelopejs/interface-dms` 0.4) and `@antelop
 | Page | What it shows |
 | --- | --- |
 | Overview | The health of every procedure in one line, KPIs over 24 h / 7 d / 30 d, what needs attention and why, the latest runs |
-| Run history | Every run grouped by day, with KPIs; a run opens in a drawer (failure, path taken, payload, log), re-runs with its own payload |
+| Run history | Every run grouped by day, with KPIs; one click opens a run in the side panel (failure, path taken, payload, log; J / K to step), re-runs with its own payload |
 | Run trace | One run, linkable (`/modules/automation/trace?run=<id>`): its steps on a time line, where and why it failed, compared with the last success |
 | Procedures | Every procedure with its state (failing, degraded, healthy, paused, draft), its last 12 runs, success rate and duration; import and new-procedure dialogs |
 | Builder | The graph editor: test runs of the draft overlaid on the canvas, problems mapped onto nodes, Run now with an editable payload |
