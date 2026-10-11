@@ -287,6 +287,7 @@ function schemaTypeOf(p: TemplatePort): string {
 					<DmsFieldRow layout="form" :label="$t('dms_automation.templates.form.icon')">
 						<DmsAutomationIconPicker v-model="formIcon" />
 					</DmsFieldRow>
+					<DmsFormRequiredLegend class="px-[18px] pt-3" />
 				</div>
 				<template #footer>
 					<div class="flex justify-end">
