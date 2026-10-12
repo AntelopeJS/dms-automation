@@ -38,10 +38,30 @@ export interface TraceStep {
   fireId: string;
   startMs: number;
   durationMs: number | null;
-  status: "ok" | "failed" | "running";
+  /** `truncated`: its end was cut from the log to keep the run small. */
+  status: "ok" | "failed" | "running" | "truncated";
   error?: string;
   inputs?: unknown;
   output?: unknown;
+  /** 0 in the run's own flow, one more inside each loop, try or branch. */
+  depth: number;
+  /** Index in the trace's steps of the loop, retry, try or parallel step it ran under. */
+  parent?: number;
+  /** That step's port: `body`, `try`, `catch`, a parallel branch. */
+  port?: string;
+  /** The iteration or attempt of that step, from 0. */
+  iteration?: number;
+  /** The branch the step chose: `then`, a switch case, `exhausted`. */
+  branch?: string;
+  /** A failure a Try/Catch or a Retry around the step caught. */
+  handled?: boolean;
+}
+
+/** A step of the graph the run did not reach, and why. */
+export interface SkippedStep {
+  nodeId: string;
+  name: StepName;
+  reason: "branch" | "stopped";
 }
 
 export interface RunRef {
@@ -74,6 +94,14 @@ export interface GraphLite {
   }>;
 }
 
+/** A run next to another in its procedure's history. */
+export interface RunNeighbour {
+  runId: string;
+  startedAt: string;
+  status: string;
+  errorMessage: string;
+}
+
 /** A run as `GET /runs/:id` answers it, with its trace. */
 export interface RunDetail {
   _id: string;
@@ -89,43 +117,110 @@ export interface RunDetail {
   rerunOf?: string;
   failedNodeId?: string;
   instanceId?: string;
-  procedureVersion?: number;
+  /** The version that ran; `null` for a test run of the builder's draft. */
+  procedureVersion?: number | null;
+  procedureName?: string;
   durationMs: number | null;
+  /** No end was stored: the duration is the end of the last step. */
+  durationEstimated?: boolean;
+  /** The log, when the run carries it; else read with `getLogs`. */
   logs?: RunLog;
+  logCount?: number;
+  logTruncated?: number;
   procedure: {
     _id: string;
     name: string;
     enabled: boolean;
     version: number;
   } | null;
+  /** The graph drawn: the one that ran, else (`graphOutdated`) the current one. */
   graph: GraphLite | null;
+  graphOutdated?: boolean;
   trigger: TriggerSummary | null;
   failedStep: StepName | null;
   trace: {
     steps: TraceStep[];
-    skipped: Array<{ nodeId: string; name: StepName }>;
+    skipped: SkippedStep[];
+    edgesTaken?: string[];
+    truncated?: number;
   };
   usualDurationMs: number | null;
   lastSuccess: RunRef | null;
-  previous: {
-    runId: string;
-    startedAt: string;
-    status: string;
-    errorMessage: string;
-  } | null;
+  /** The runs of the same procedure and kind just before and after this one. */
+  previous: RunNeighbour | null;
+  next?: RunNeighbour | null;
   failuresInRow: number;
+}
+
+/** What `POST /runs/:id/rerun` answers: the new run and how it ended. */
+export interface RerunResult {
+  runId: string;
+  status?: "ok" | "failed";
+  /** An i18n key (with `$`) to show when the new run failed. */
+  warning?: string;
+}
+
+/**
+ * The confirmation of a re-run as the server words it (a DMS confirm
+ * dialog): its texts are i18n keys filled in with `params`, and `blocked`
+ * says why the run cannot be re-run.
+ */
+export interface RerunDialog {
+  title: string;
+  description?: string;
+  params?: Record<string, unknown>;
+  icon?: string;
+  color?: "primary" | "error" | "warning" | "info" | "success" | "neutral";
+  confirmLabel?: string;
+  impact?: Array<{ icon: string; label: string }>;
+  blocked?: boolean;
+}
+
+/**
+ * The builder open on a run: its procedure, with this run's trace and, given
+ * one, a step selected (its top-level node: a step inside a group selects the
+ * group). The trace, the drawer and the path taken all link through it.
+ */
+export function builderRunUrl(
+  builderUrl: string,
+  run: RunDetail,
+  nodeId?: string,
+): string {
+  const query = new URLSearchParams({
+    selected: run.procedureId,
+    run: run._id,
+  });
+  if (nodeId) query.set("node", nodeId.split("__")[0] ?? nodeId);
+  return `${builderUrl}?${query}`;
+}
+
+/**
+ * Whether the builder can show a run: not for a deleted procedure, and not
+ * for a test, which ran a draft the builder does not have.
+ */
+export function opensInBuilder(run: RunDetail): boolean {
+  return !!run.procedure && run.kind !== "test";
 }
 
 /** The run endpoints the drawer, the trace and the builder share. */
 export function useAutomationRuns(apiUrl = "/api/automation") {
   const { $authFetch } = useAuthFetch();
+  // A run id from the URL goes into a path: encoded, "../procedures" stays
+  // a run id that does not exist instead of reaching another route.
+  const runUrl = (id: string) => `${apiUrl}/runs/${encodeURIComponent(id)}`;
 
   return {
     getRun(id: string): Promise<RunDetail> {
-      return $authFetch<RunDetail>(`${apiUrl}/runs/${id}`);
+      return $authFetch<RunDetail>(runUrl(id));
     },
-    rerun(id: string): Promise<{ runId: string }> {
-      return $authFetch<{ runId: string }>(`${apiUrl}/runs/${id}/rerun`, {
+    getLogs(id: string): Promise<RunLog> {
+      return $authFetch<RunLog>(`${runUrl(id)}/logs`);
+    },
+    rerunConfirm(id: string): Promise<RerunDialog> {
+      return $authFetch<RerunDialog>(`${runUrl(id)}/rerun-confirm`);
+    },
+    rerun(id: string): Promise<RerunResult> {
+      return $authFetch<RerunResult>(`${runUrl(id)}/rerun`, {
         method: "POST",
         body: {},
       });

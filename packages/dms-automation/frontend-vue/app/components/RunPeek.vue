@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { type RunDetail, useAutomationRuns } from '../composables/useAutomationRuns'
+import { builderRunUrl, opensInBuilder, type RunDetail, useAutomationRuns } from '../composables/useAutomationRuns'
 import { useRunActions } from '../composables/useRunActions'
-import { describeDuration, describeTrigger } from '../utils/describe'
+import { describeDateTime, describeDuration, describeTrigger } from '../utils/describe'
 
 // The quick look at a run, in the run history's side panel: what it did, where
 // it failed, the path it took and its payload, with the next actions. The DMS
@@ -42,19 +42,17 @@ async function load(id: string | undefined) {
 watch(() => props.rowData?._id, (id) => void load(id), { immediate: true })
 
 const failed = computed(() => run.value?.status === 'failed')
-const procedureName = computed(() => run.value?.procedure?.name ?? t('dms_automation.feed.deletedProcedure'))
+const procedureName = computed(
+	() => run.value?.procedure?.name ?? run.value?.procedureName ?? t('dms_automation.feed.deletedProcedure'),
+)
 const names = computed(() => new Map((run.value?.trace.steps ?? []).map((s) => [s.nodeId, s.name])))
 
-const when = computed(() =>
-	run.value
-		? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'medium' }).format(new Date(run.value.startedAt))
-		: '',
-)
+const when = computed(() => describeDateTime(run.value?.startedAt, locale.value))
 
 const sections = computed(() => [
 	{ label: t('dms_automation.trace.tabs.summary'), value: 'summary' },
 	{ label: t('dms_automation.trace.tabs.payload'), value: 'payload' },
-	{ label: t('dms_automation.trace.tabs.logs'), value: 'logs', badge: run.value?.logs?.entries.length },
+	{ label: t('dms_automation.trace.tabs.logs'), value: 'logs', badge: run.value?.logCount ?? run.value?.logs?.entries.length },
 ])
 
 function go(url: string) {
@@ -82,6 +80,7 @@ function go(url: string) {
 						size="sm"
 					/>
 					<UBadge v-if="run.kind === 'test'" color="info" variant="subtle" size="sm">{{ $t('dms_automation.runs.kind.test') }}</UBadge>
+					<UBadge v-if="!run.procedure" color="neutral" variant="subtle" size="sm">{{ $t('dms_automation.trace.deleted') }}</UBadge>
 				</div>
 				<p class="text-xs text-muted">
 					{{ when }} · {{ describeDuration(run.durationMs, locale) }} · {{ describeTrigger(run.trigger, processI18n) }}
@@ -91,42 +90,41 @@ function go(url: string) {
 			<UTabs v-model="section" :items="sections" variant="link" :content="false" size="sm" />
 
 			<template v-if="section === 'summary'">
-				<DmsAutomationRunFailure v-if="failed" :run="run" />
+				<DmsAutomationRunFailure v-if="failed" :run="run" :trace-url="traceUrl" />
 				<div class="flex flex-col gap-2">
-					<span class="font-mono text-[10.5px] text-dimmed uppercase">{{ $t('dms_automation.trace.pathTaken') }}</span>
-					<DmsAutomationRunPathTaken :graph="run.graph" :steps="run.trace.steps" :failed-node-id="run.failedNodeId" />
+					<DmsEyebrow as="h4" :label="$t('dms_automation.trace.pathTaken')" />
+					<DmsAutomationRunPathTaken :run="run" :builder-url="builderUrl" />
 				</div>
 				<div class="flex flex-col gap-2">
-					<span class="font-mono text-[10.5px] text-dimmed uppercase">{{ $t('dms_automation.trace.tabs.steps') }}</span>
-					<DmsAutomationRunWaterfall :steps="run.trace.steps" :skipped="[]" :total-ms="run.durationMs" path-only />
+					<DmsEyebrow as="h4" :label="$t('dms_automation.trace.tabs.steps')" />
+					<DmsAutomationRunWaterfall :steps="run.trace.steps" :skipped="[]" :total-ms="run.durationMs" :truncated="run.trace.truncated" path-only />
 				</div>
 			</template>
 			<DmsAutomationRunPayload v-else-if="section === 'payload'" :raw="run.triggerPayload" :kept="run.payloadKept" />
-			<DmsAutomationRunLogList v-else :log="run.logs" :names="names" />
+			<DmsAutomationRunLogList v-else :api-url="apiUrl" :run-id="run._id" :log="run.logs" :names="names" />
 
-			<div class="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-default bg-default pt-3">
-				<UButton
-					v-if="run.procedure && run.payloadKept"
-					color="neutral"
-					variant="outline"
-					icon="i-ph-arrow-clockwise"
-					:loading="rerunning"
-					@click="rerun(run._id, procedureName)"
-				>
-					{{ $t('dms_automation.runs.rerunWithPayload') }}
-				</UButton>
-				<UButton color="neutral" variant="outline" icon="i-ph-path" @click="go(`${traceUrl}?run=${run._id}`)">
+			<!-- One line in a narrow panel: Re-run as an icon, its name in a tooltip. -->
+			<div class="sticky bottom-0 flex items-center gap-2 border-t border-default bg-default pt-3">
+				<UTooltip v-if="run.procedure && run.payloadKept" :text="$t('dms_automation.runs.rerunWithPayload')">
+					<UButton
+						color="neutral"
+						variant="outline"
+						icon="i-ph-arrow-clockwise"
+						:aria-label="$t('dms_automation.runs.rerunWithPayload')"
+						:loading="rerunning"
+						@click="rerun(run._id, procedureName)"
+					/>
+				</UTooltip>
+				<UButton color="neutral" variant="outline" icon="i-ph-path" @click="go(`${traceUrl}?run=${encodeURIComponent(run._id)}`)">
 					{{ $t('dms_automation.runs.trace') }}
 				</UButton>
-				<UButton
-					v-if="run.procedure"
-					color="primary"
-					icon="i-ph-bug"
-					class="ml-auto"
-					@click="go(`${builderUrl}?selected=${run.procedureId}&run=${run._id}`)"
-				>
-					{{ $t('dms_automation.trace.debugInBuilder') }}
-				</UButton>
+				<UTooltip v-if="run.procedure" :text="opensInBuilder(run) ? '' : $t('dms_automation.trace.builderDraftHint')" :disabled="opensInBuilder(run)">
+					<span class="ml-auto inline-flex">
+						<UButton color="primary" icon="i-ph-bug" :disabled="!opensInBuilder(run)" @click="go(builderRunUrl(builderUrl, run))">
+							{{ $t('dms_automation.trace.debugInBuilder') }}
+						</UButton>
+					</span>
+				</UTooltip>
 			</div>
 		</template>
 	</div>

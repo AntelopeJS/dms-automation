@@ -1,125 +1,139 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { GraphLite, TraceStep } from '../../composables/useAutomationRuns'
+import { builderRunUrl, opensInBuilder, type RunDetail, type TraceStep } from '../../composables/useAutomationRuns'
+import { stepTitle } from '../../utils/describe'
 
-// The procedure's graph in miniature, the path the run took drawn over it:
-// steps that ran in green, the failing one in red, the rest greyed. Data nodes
-// are left out: they are evaluated on demand and never "on a path".
+// The path the run took, read from its log as a list: each step once, in the
+// order it first ran, indented under its loop or try, with how often it ran
+// and the branch it chose; the branches it left aside under the step that
+// chose. A step opens in the builder on this run. Read from the log, the path
+// is the run's own even when the graph that ran was not kept: then only the
+// branches left aside, which come from the graph, are not shown.
 
 const props = defineProps<{
-	graph: GraphLite | null
-	steps: TraceStep[]
-	failedNodeId?: string | null
+	run: RunDetail
+	builderUrl?: string
 }>()
 
-const NODE_W = 120
-const NODE_H = 28
-const PAD = 16
-// Positions are drawn closer than on the canvas, so the boxes stay readable
-// once the graph is scaled down to the card.
-const POS_SCALE = 0.55
-// A small graph is drawn at most this much larger than its own size.
-const MAX_UPSCALE = 1.2
-const HIDDEN_KINDS = new Set(['data', 'groupInput', 'groupOutput'])
+const { processI18n } = useTranslation()
 
 const topLevel = (id: string) => id.split('__')[0] ?? id
 
-const ran = computed(() => new Set(props.steps.map((s) => topLevel(s.nodeId))))
-const failed = computed(() => (props.failedNodeId ? topLevel(props.failedNodeId) : null))
+type State = 'ok' | 'failed' | 'handled' | 'running' | 'truncated'
 
-const nodes = computed(() =>
-	(props.graph?.nodes ?? [])
-		.filter((n) => !HIDDEN_KINDS.has(n.kind))
-		.map((n) => ({ ...n, position: { x: n.position.x * POS_SCALE, y: n.position.y * POS_SCALE } })),
-)
-
-const box = computed(() => {
-	const xs = nodes.value.map((n) => n.position.x)
-	const ys = nodes.value.map((n) => n.position.y)
-	const minX = Math.min(...xs, 0)
-	const minY = Math.min(...ys, 0)
-	const maxX = Math.max(...xs, 0) + NODE_W
-	const maxY = Math.max(...ys, 0) + NODE_H
-	return { minX: minX - PAD, minY: minY - PAD, width: maxX - minX + PAD * 2, height: maxY - minY + PAD * 2 }
-})
-
-const byId = computed(() => new Map(nodes.value.map((n) => [n.id, n])))
-
-const edges = computed(() =>
-	(props.graph?.triggerEdges ?? [])
-		.map((e) => ({ id: e.id, from: byId.value.get(e.from.node), to: byId.value.get(e.to.node) }))
-		.filter((e) => e.from && e.to)
-		.map((e) => ({
-			id: e.id,
-			x1: e.from!.position.x + NODE_W,
-			y1: e.from!.position.y + NODE_H / 2,
-			x2: e.to!.position.x,
-			y2: e.to!.position.y + NODE_H / 2,
-			taken: ran.value.has(e.from!.id) && ran.value.has(e.to!.id),
-			failing: e.to!.id === failed.value,
-		})),
-)
-
-function stateOf(id: string): 'failed' | 'ran' | 'idle' {
-	if (id === failed.value) return 'failed'
-	return ran.value.has(id) ? 'ran' : 'idle'
+interface PathItem {
+	nodeId: string
+	title: string
+	kind?: string
+	depth: number
+	runs: number
+	state: State
+	branch?: string
+	/** Branches the step could have taken, and where they led. */
+	notTaken: Array<{ branch: string; title: string }>
 }
 
-const FILL = { failed: 'var(--ui-error)', ran: 'var(--ui-success)', idle: 'var(--ui-border)' } as const
+function stateOf(executions: TraceStep[]): State {
+	if (executions.some((s) => s.status === 'failed' && !s.handled)) return 'failed'
+	if (executions.some((s) => s.status === 'failed')) return 'handled'
+	if (executions.some((s) => s.status === 'running')) return 'running'
+	if (executions.some((s) => s.status === 'truncated')) return 'truncated'
+	return 'ok'
+}
 
-const namesById = computed(() => new Map(props.steps.map((s) => [s.nodeId, s.name])))
-const { processI18n } = useTranslation()
+// Only a graph that is the one that ran says which branches were left aside.
+const graph = computed(() => (props.run.graphOutdated ? null : props.run.graph))
 
-function labelOf(node: GraphLite['nodes'][number]): string {
-	const name = namesById.value.get(node.id)
-	const label = node.label ?? (name?.typeName ? processI18n(name.typeName) : undefined) ?? node.typeId ?? node.kind
-	return label.length > 16 ? `${label.slice(0, 15)}…` : label
+const names = computed(() => {
+	const map = new Map<string, string>()
+	for (const s of [...props.run.trace.skipped, ...props.run.trace.steps]) map.set(s.nodeId, stepTitle(s.name, processI18n))
+	for (const node of graph.value?.nodes ?? []) if (!map.has(node.id) && node.label) map.set(node.id, node.label)
+	return map
+})
+
+function branchesNotTaken(nodeId: string): PathItem['notTaken'] {
+	const taken = new Set(props.run.trace.edgesTaken ?? [])
+	const ran = new Set(props.run.trace.steps.map((s) => topLevel(s.nodeId)))
+	return (graph.value?.triggerEdges ?? [])
+		.filter((e) => e.from.node === nodeId && !taken.has(e.id) && !ran.has(e.to.node))
+		.map((e) => ({ branch: e.from.branch ?? 'main', title: names.value.get(e.to.node) ?? e.to.node }))
+}
+
+// Steps that choose where the run goes on: the branches they left aside are
+// listed under them.
+const CHOOSING_KINDS = new Set(['if', 'switch', 'tryCatch', 'retry'])
+
+const items = computed<PathItem[]>(() => {
+	const byNode = new Map<string, TraceStep[]>()
+	for (const step of props.run.trace.steps) byNode.set(step.nodeId, [...(byNode.get(step.nodeId) ?? []), step])
+	return [...byNode.entries()].map(([nodeId, executions]) => {
+		const first = executions[0]!
+		const branch = executions.map((s) => s.branch).find(Boolean)
+		return {
+			nodeId,
+			title: stepTitle(first.name, processI18n),
+			kind: first.name.kind,
+			depth: Math.min(...executions.map((s) => s.depth)),
+			runs: executions.length,
+			state: stateOf(executions),
+			branch,
+			notTaken: CHOOSING_KINDS.has(first.name.kind ?? '') ? branchesNotTaken(nodeId) : [],
+		}
+	})
+})
+
+const ICON: Record<State, { name: string; class: string }> = {
+	ok: { name: 'i-ph-check-circle', class: 'text-success' },
+	failed: { name: 'i-ph-x-circle', class: 'text-error' },
+	handled: { name: 'i-ph-warning-circle', class: 'text-warning' },
+	running: { name: 'i-ph-circle-notch', class: 'text-info' },
+	truncated: { name: 'i-ph-scissors', class: 'text-muted' },
+}
+
+// The builder opens the procedure on this run with the step selected; not
+// when it cannot show the run, nor when the graph shown is not the one that
+// ran.
+function stepUrl(nodeId: string): string | undefined {
+	if (!props.builderUrl || !opensInBuilder(props.run) || props.run.graphOutdated) return undefined
+	return builderRunUrl(props.builderUrl, props.run, nodeId)
 }
 </script>
 
 <template>
-	<div class="overflow-hidden rounded-md border border-default bg-elevated/40">
-		<svg
-			v-if="nodes.length"
-			:viewBox="`${box.minX} ${box.minY} ${box.width} ${box.height}`"
-			class="mx-auto block max-h-56 w-full"
-			:style="{ maxWidth: `${box.width * MAX_UPSCALE}px` }"
-			preserveAspectRatio="xMidYMid meet"
-			role="img"
-			:aria-label="$t('dms_automation.trace.pathTaken')"
-		>
-			<path
-				v-for="edge in edges"
-				:key="edge.id"
-				:d="`M ${edge.x1} ${edge.y1} C ${edge.x1 + 40} ${edge.y1}, ${edge.x2 - 40} ${edge.y2}, ${edge.x2} ${edge.y2}`"
-				fill="none"
-				:stroke="edge.failing && edge.taken ? 'var(--ui-error)' : edge.taken ? 'var(--ui-success)' : 'var(--ui-border-accented)'"
-				:stroke-width="edge.taken ? 2.5 : 1.5"
-				:stroke-dasharray="edge.taken ? undefined : '4 4'"
-			/>
-			<g v-for="node in nodes" :key="node.id">
-				<rect
-					:x="node.position.x"
-					:y="node.position.y"
-					:width="NODE_W"
-					:height="NODE_H"
-					rx="6"
-					fill="var(--ui-bg)"
-					:stroke="FILL[stateOf(node.id)]"
-					:stroke-width="stateOf(node.id) === 'idle' ? 1 : 2"
-					:opacity="stateOf(node.id) === 'idle' ? 0.6 : 1"
-				/>
-				<circle :cx="node.position.x + 12" :cy="node.position.y + NODE_H / 2" r="4" :fill="FILL[stateOf(node.id)]" />
-				<text
-					:x="node.position.x + 22"
-					:y="node.position.y + NODE_H / 2 + 4"
-					font-size="11"
-					fill="var(--ui-text-toned)"
+	<div class="flex flex-col gap-2">
+		<ol v-if="items.length" class="flex max-h-96 flex-col overflow-auto" :aria-label="$t('dms_automation.trace.pathTaken')">
+			<li v-for="item in items" :key="item.nodeId" class="flex flex-col" :style="{ paddingInlineStart: `${Math.min(item.depth, 4)}rem` }">
+				<!-- DmsLink is registered globally: a link when the step opens in the builder. -->
+				<component
+					:is="stepUrl(item.nodeId) ? 'DmsLink' : 'span'"
+					:to="stepUrl(item.nodeId)"
+					class="flex min-w-0 items-center gap-2 rounded-md px-1.5 py-1 text-sm"
+					:class="stepUrl(item.nodeId) ? 'hover:bg-elevated' : ''"
 				>
-					{{ labelOf(node) }}
-				</text>
-			</g>
-		</svg>
-		<p v-else class="p-4 text-center text-xs text-dimmed">{{ $t('dms_automation.trace.noGraph') }}</p>
+					<UIcon :name="ICON[item.state].name" class="size-4 shrink-0" :class="ICON[item.state].class" />
+					<span class="truncate text-highlighted">{{ item.title }}</span>
+					<span v-if="item.runs > 1" class="shrink-0 font-mono text-xs text-muted">×{{ item.runs }}</span>
+					<span v-if="item.branch" class="shrink-0 font-mono text-xs text-muted">→ {{ item.branch }}</span>
+				</component>
+				<p
+					v-for="other in item.notTaken"
+					:key="other.branch + other.title"
+					class="flex min-w-0 items-center gap-2 py-0.5 ps-8 text-xs text-muted"
+				>
+					<UIcon name="i-ph-circle-dashed" class="size-3.5 shrink-0" />
+					<span class="truncate">{{ $t('dms_automation.trace.branchLeft', { branch: other.branch, step: other.title }) }}</span>
+				</p>
+			</li>
+		</ol>
+		<p v-else class="p-2 text-center text-xs text-muted">{{ $t('dms_automation.trace.noSteps') }}</p>
+		<p v-if="!run.graph" class="text-xs text-muted">{{ $t('dms_automation.trace.noGraph') }}</p>
+		<p v-else-if="run.graphOutdated" class="flex items-start gap-1.5 text-xs text-warning">
+			<UIcon name="i-ph-info" class="mt-0.5 size-3.5 shrink-0" />
+			{{ $t('dms_automation.trace.pathWithoutGraph') }}
+		</p>
+		<p v-else-if="run.procedure && !opensInBuilder(run)" class="flex items-start gap-1.5 text-xs text-muted">
+			<UIcon name="i-ph-info" class="mt-0.5 size-3.5 shrink-0" />
+			{{ $t('dms_automation.trace.builderDraftHint') }}
+		</p>
 	</div>
 </template>

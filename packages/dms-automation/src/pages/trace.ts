@@ -7,7 +7,8 @@ import "./category";
 /**
  * One run, linkable: its steps on a time line, where it failed and why, the
  * path it took, its payload and its log. Not in the menu: it is reached from a
- * run, `?run=<id>`.
+ * run, `?run=<id>`. The trace itself says when the id is missing or unknown,
+ * inside the app, rather than the DMS 404 page a required parameter gives.
  */
 @RegisterPage()
 export class TracePageController extends PageController(
@@ -20,7 +21,6 @@ export class TracePageController extends PageController(
     module: "automation",
     order: 2,
     hidden: true,
-    validation: { requiredQueryParams: ["run"] },
   },
   DefaultLayout({ hideHeader: true }),
 ) {

@@ -5,6 +5,7 @@ import {
 } from "../types/graph";
 import { nodeKinds } from "./nodeKinds";
 import { registry } from "./registry";
+import { scheduleTimeZone } from "./schedule";
 
 /** Separator the flattener puts between a group id and an inner node id. */
 const FLAT_ID_SEPARATOR = "__";
@@ -78,6 +79,30 @@ export function stepName(graph: ProcedureGraph, flatId: string): StepName {
   return name;
 }
 
+/** Kinds the trace never lists as steps. */
+const NOT_A_STEP = new Set(["data", "groupInput", "groupOutput"]);
+
+/**
+ * The name of every step of a graph, by the id the executor logs it under
+ * (`<groupId>__<innerId>` inside a group). Kept with each run, so its trace
+ * still names its steps once the procedure has changed or is deleted.
+ */
+export function stepNamesOf(graph: ProcedureGraph): Record<string, StepName> {
+  const names: Record<string, StepName> = {};
+  const walk = (current: ProcedureGraph, prefix: string) => {
+    for (const node of current.nodes) {
+      if (NOT_A_STEP.has(node.kind)) continue;
+      const flatId = `${prefix}${node.id}`;
+      names[flatId] = stepName(graph, flatId);
+      if (isGroupNode(node) && node.subgraph) {
+        walk(node.subgraph, `${flatId}${FLAT_ID_SEPARATOR}`);
+      }
+    }
+  };
+  walk(graph, "");
+  return names;
+}
+
 /** The text a step reads as: its label, else its type name, else its id. */
 export function stepTitle(name: StepName): string {
   return name.label ?? name.typeName ?? name.nodeId;
@@ -95,6 +120,8 @@ export interface TriggerSummary {
   method?: string;
   path?: string;
   cron?: string;
+  /** The time zone a schedule fires in: the server's. */
+  timeZone?: string;
 }
 
 const DEFAULT_WEBHOOK_METHOD = "POST";
@@ -117,7 +144,10 @@ export function summarizeTrigger(node: GraphNode): TriggerSummary {
     summary.path = path;
     summary.method = configString(node, "method") ?? DEFAULT_WEBHOOK_METHOD;
   }
-  if (cron) summary.cron = cron;
+  if (cron) {
+    summary.cron = cron;
+    summary.timeZone = scheduleTimeZone();
+  }
   return summary;
 }
 
