@@ -7,7 +7,7 @@ import type {
 	DataNodeType,
 	GroupPort,
 } from '../../composables/useGraphConnect'
-import type { NodeKindEntry } from '../../composables/useAutomationNodeKinds'
+import { PALETTE_DRAG_TYPE, type NodeKindEntry, type PaletteBlock } from '../../composables/useAutomationNodeKinds'
 
 interface TemplateSummary {
 	_id: string
@@ -33,8 +33,9 @@ const search = ref('')
 
 // Registered type names may be `$`-prefixed DMS i18n keys shipped in the
 // declaring module's locales; plain text is shown as written. Search matches
-// the translated label.
+// the translated label, the type id, its data category and its description.
 const { processI18n } = useTranslation()
+const { t, te } = useI18n()
 
 interface PaletteItem {
 	key: string
@@ -43,14 +44,21 @@ interface PaletteItem {
 	kind?: NodeKind
 	typeId?: string
 	template?: TemplateSummary
+	/** Data category of a data node. */
+	category?: string
+	/** Switched off in the Library: its steps fail when they run. */
+	off?: boolean
+	/** Lower-cased text the search looks in. */
+	keywords: string
 }
 // Items inside a category are bucketed by the module that registered them:
 // one unlabeled leading section for our own built-ins (types the backend left
 // unattributed, plus plain node kinds), then one labeled section per external
-// module.
+// module. Built-in data nodes are split further by their data category.
 interface PaletteSection {
-	/** Module id shown as a sub-header; undefined for the built-in section. */
+	/** Sub-header: a data category, or the id of the module that registered the types. */
 	label?: string
+	module?: boolean
 	items: PaletteItem[]
 }
 interface PaletteGroup {
@@ -83,6 +91,33 @@ const CATEGORY_ICON: Record<string, string> = {
 // rather than under an invented "unknown" sub-header.
 const BUILTIN_BUCKET = ''
 
+// Order of the built-in data categories; any other one follows, A to Z.
+const DATA_CATEGORY_ORDER = ['constant', 'math', 'compare', 'boolean', 'string', 'object', 'json']
+
+function dataCategoryLabel(category: string): string {
+	const key = `dms_automation.types.dataCategories.${category}`
+	return te(key) ? t(key) : category
+}
+
+function keywordsOf(...parts: Array<string | undefined>): string {
+	return parts.filter(Boolean).join(' ').toLowerCase()
+}
+
+// Built-in data nodes, one section per data category.
+function dataSections(items: PaletteItem[]): PaletteSection[] {
+	const rank = (c: string) => {
+		const i = DATA_CATEGORY_ORDER.indexOf(c)
+		return i === -1 ? DATA_CATEGORY_ORDER.length : i
+	}
+	const categories = [...new Set(items.map((it) => it.category ?? ''))].sort(
+		(a, b) => rank(a) - rank(b) || a.localeCompare(b),
+	)
+	return categories.map((category) => ({
+		label: dataCategoryLabel(category),
+		items: items.filter((it) => (it.category ?? '') === category),
+	}))
+}
+
 const groups = computed<PaletteGroup[]>(() => {
 	const out: PaletteGroup[] = []
 
@@ -109,22 +144,35 @@ const groups = computed<PaletteGroup[]>(() => {
 		for (const k of kinds) {
 			const ui = k.meta.ui!
 			const reg = ui.typeRegistry
-			if (reg === 'triggers') {
-				for (const t of props.triggerTypes ?? []) {
-					push(t.module ?? BUILTIN_BUCKET, { key: `${k.kind}:${t.id}`, label: processI18n(t.name), icon: t.icon ?? groupIcon, kind: k.kind, typeId: t.id })
-				}
-			} else if (reg === 'actions') {
-				for (const a of props.actionTypes ?? []) {
-					push(a.module ?? BUILTIN_BUCKET, { key: `${k.kind}:${a.id}`, label: processI18n(a.name), icon: a.icon ?? groupIcon, kind: k.kind, typeId: a.id })
+			if (reg === 'triggers' || reg === 'actions') {
+				for (const type of (reg === 'triggers' ? props.triggerTypes : props.actionTypes) ?? []) {
+					const label = processI18n(type.name)
+					push(type.module ?? BUILTIN_BUCKET, {
+						key: `${k.kind}:${type.id}`,
+						label,
+						icon: type.icon ?? groupIcon,
+						kind: k.kind,
+						typeId: type.id,
+						off: type.enabled === false,
+						keywords: keywordsOf(label, type.id, type.description && processI18n(type.description), type.module),
+					})
 				}
 			} else if (reg === 'dataNodes') {
-				// Flatten data-node sub-categories into the single "Data" group.
 				for (const d of props.dataNodeTypes ?? []) {
-					push(d.module ?? BUILTIN_BUCKET, { key: `${k.kind}:${d.id}`, label: processI18n(d.name), icon: d.icon ?? groupIcon, kind: k.kind, typeId: d.id })
+					const label = processI18n(d.name)
+					push(d.module ?? BUILTIN_BUCKET, {
+						key: `${k.kind}:${d.id}`,
+						label,
+						icon: d.icon ?? groupIcon,
+						kind: k.kind,
+						typeId: d.id,
+						category: d.category,
+						keywords: keywordsOf(label, d.id, d.category, dataCategoryLabel(d.category), processI18n(d.description), d.module),
+					})
 				}
 			} else {
 				// Plain node kinds (flow / helpers) are built into this module.
-				push(BUILTIN_BUCKET, { key: k.kind, label: ui.label, icon: ui.icon ?? groupIcon, kind: k.kind })
+				push(BUILTIN_BUCKET, { key: k.kind, label: ui.label, icon: ui.icon ?? groupIcon, kind: k.kind, keywords: keywordsOf(ui.label, k.kind) })
 			}
 		}
 
@@ -132,12 +180,15 @@ const groups = computed<PaletteGroup[]>(() => {
 		// one labeled section per external module, alphabetically.
 		const sections: PaletteSection[] = []
 		const builtins = byModule.get(BUILTIN_BUCKET)
-		if (builtins && builtins.length > 0) sections.push({ items: builtins })
+		if (builtins && builtins.length > 0) {
+			if (cat === 'data') sections.push(...dataSections(builtins))
+			else sections.push({ items: builtins })
+		}
 		const externalModules = [...byModule.keys()]
 			.filter((m) => m !== BUILTIN_BUCKET)
 			.sort()
 		for (const mod of externalModules) {
-			sections.push({ label: mod, items: byModule.get(mod)! })
+			sections.push({ label: mod, module: true, items: byModule.get(mod)! })
 		}
 
 		if (sections.length > 0) out.push({ key: cat, label: processI18n(CATEGORY_LABEL[cat] ?? cat), icon: groupIcon, sections })
@@ -150,12 +201,10 @@ const groups = computed<PaletteGroup[]>(() => {
 			icon: 'i-ph-package',
 			sections: [
 				{
-					items: props.templates.map((t) => ({
-						key: `tpl:${t._id}`,
-						label: t.name,
-						icon: t.icon ?? 'i-ph-package',
-						template: t,
-					})),
+					items: props.templates.map((tpl) => {
+						const label = tpl.name.trim() || t('dms_automation.builder.palette.untitledTemplate')
+						return { key: `tpl:${tpl._id}`, label, icon: tpl.icon ?? 'i-ph-package', template: tpl, keywords: keywordsOf(label) }
+					}),
 				},
 			],
 		})
@@ -171,7 +220,7 @@ const filteredGroups = computed<PaletteGroup[]>(() => {
 		.map((g) => ({
 			...g,
 			sections: g.sections
-				.map((s) => ({ ...s, items: s.items.filter((it) => it.label.toLowerCase().includes(q)) }))
+				.map((s) => ({ ...s, items: s.items.filter((it) => it.keywords.includes(q)) }))
 				.filter((s) => s.items.length > 0),
 		}))
 		.filter((g) => g.sections.length > 0)
@@ -180,6 +229,14 @@ const filteredGroups = computed<PaletteGroup[]>(() => {
 function onItem(item: PaletteItem) {
 	if (item.template) emit('add-template', item.template)
 	else if (item.kind) emit('add-node', { kind: item.kind, typeId: item.typeId })
+}
+
+// The canvas reads the block back on drop and places it there.
+function onDragStart(event: DragEvent, item: PaletteItem) {
+	if (!event.dataTransfer) return
+	const block: PaletteBlock = item.template ? { template: item.template } : { kind: item.kind, typeId: item.typeId }
+	event.dataTransfer.setData(PALETTE_DRAG_TYPE, JSON.stringify(block))
+	event.dataTransfer.effectAllowed = 'copy'
 }
 </script>
 
@@ -208,19 +265,22 @@ function onItem(item: PaletteItem) {
 						v-if="section.label"
 						class="flex items-center gap-1.5 px-2 pb-0.5 pt-1.5 text-[10px] font-medium text-dimmed"
 					>
-						<UIcon name="i-ph-puzzle-piece" class="size-3 shrink-0" />
+						<UIcon v-if="section.module" name="i-ph-puzzle-piece" class="size-3 shrink-0" />
 						<span class="truncate">{{ section.label }}</span>
 					</div>
 					<button
 						v-for="item in section.items"
 						:key="item.key"
 						type="button"
-						draggable="false"
-						class="group flex w-full items-center gap-2.5 rounded-md border border-transparent px-2.5 py-2 text-left text-sm text-toned transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-highlighted"
+						draggable="true"
+						:title="item.off ? $t('dms_automation.builder.palette.offHint') : undefined"
+						class="group flex w-full cursor-grab items-center gap-2.5 rounded-md border border-transparent px-2.5 py-2 text-left text-sm text-toned transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-highlighted"
 						@click="onItem(item)"
+						@dragstart="onDragStart($event, item)"
 					>
-						<UIcon :name="item.icon" class="size-4 shrink-0 text-primary" />
-						<span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
+						<UIcon :name="item.icon" class="size-4 shrink-0" :class="item.off ? 'text-dimmed' : 'text-primary'" />
+						<span class="min-w-0 flex-1 truncate" :class="{ 'text-dimmed': item.off }">{{ item.label }}</span>
+						<UBadge v-if="item.off" size="sm" color="neutral" variant="subtle">{{ $t('dms_automation.builder.palette.off') }}</UBadge>
 						<UIcon
 							name="i-ph-plus"
 							class="size-3.5 shrink-0 text-dimmed opacity-0 transition-opacity group-hover:opacity-100"
@@ -236,7 +296,7 @@ function onItem(item: PaletteItem) {
 			</div>
 		</div>
 		<p class="border-t border-default px-3 py-2 text-[11px] text-dimmed">
-			{{ $t('dms_automation.builder.palette.hint') }}
+			{{ $t('dms_automation.builder.palette.hintDrag') }}
 		</p>
 	</div>
 </template>

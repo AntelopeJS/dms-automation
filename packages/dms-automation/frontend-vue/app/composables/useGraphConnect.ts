@@ -63,6 +63,8 @@ export interface TriggerType {
   description?: string;
   icon?: string;
   module?: string;
+  /** False when the type is switched off in the Library. */
+  enabled?: boolean;
   configSchema?: JsonSchema;
   outputSchema?: JsonSchema;
 }
@@ -73,6 +75,8 @@ export interface ActionType {
   description?: string;
   icon?: string;
   module?: string;
+  /** False when the type is switched off in the Library. */
+  enabled?: boolean;
   inputSchema?: JsonSchema;
   outputSchema?: JsonSchema;
 }
@@ -126,7 +130,20 @@ export interface ConnectionLike {
   targetHandle?: string | null;
 }
 
-export type ConnectResult = { ok: true } | { ok: false; reason: string };
+/**
+ * Why a connection is refused. The canvas turns the code into a sentence
+ * (`dms_automation.editor.canvas.connect.<code>`), with `params` filled in.
+ */
+export type ConnectRefusal =
+  | "invalidPorts"
+  | "kindMismatch"
+  | "selfLoop"
+  | "cycle"
+  | "typeMismatch";
+
+export type ConnectResult =
+  | { ok: true }
+  | { ok: false; code: ConnectRefusal; params?: Record<string, string> };
 
 // Optional context for canConnect / schema lookups. `parentGroupPorts` is the
 // declared port list of the outer group when the canvas is editing that
@@ -436,6 +453,25 @@ function isTriggerTargetHandle(handle: string | null | undefined): boolean {
   return TRIGGER_IN_PREFIXES.some((p) => handle.startsWith(p));
 }
 
+// True when `to` can be reached from `from` by following `next`: linking
+// `to` back to `from` would then close a loop.
+function reaches(
+  from: string,
+  to: string,
+  next: (node: string) => string[],
+): boolean {
+  const seen = new Set<string>();
+  const stack = [from];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    if (node === to) return true;
+    if (seen.has(node)) continue;
+    seen.add(node);
+    stack.push(...next(node));
+  }
+  return false;
+}
+
 export function canConnect(
   graph: ProcedureGraph,
   nodeKinds: NodeKindEntry[],
@@ -452,21 +488,6 @@ export function canConnect(
   // `ok` so the existing edge keeps rendering. The real connect path
   // always supplies both endpoints.
   if (!source || !target) return { ok: true };
-  if (source === target) return { ok: true };
-
-  const fromKind = connectionKind(sourceHandle);
-  const toKind = connectionKind(targetHandle);
-  if (!fromKind || !toKind) return { ok: false, reason: "Unrecognized handle" };
-  if (fromKind !== toKind)
-    return {
-      ok: false,
-      reason: "Cannot connect trigger handle to data handle",
-    };
-
-  const sourceNode = findNode(graph, source);
-  const targetNode = findNode(graph, target);
-  if (!sourceNode || !targetNode)
-    return { ok: false, reason: "Unknown node id" };
 
   const selfId = connection.id;
   // If the edge being validated is already in the graph (Vue Flow calls
@@ -476,38 +497,65 @@ export function canConnect(
     !!selfId &&
     (graph.triggerEdges.some((e) => e.id === selfId) ||
       graph.dataEdges.some((e) => e.id === selfId));
+  if (isReValidation) return { ok: true };
+
+  const fromKind = connectionKind(sourceHandle);
+  const toKind = connectionKind(targetHandle);
+  if (!fromKind || !toKind) return { ok: false, code: "invalidPorts" };
+  if (fromKind !== toKind) return { ok: false, code: "kindMismatch" };
+  // A step wired to itself either never ends (trigger) or reads an output it
+  // has not produced yet (data).
+  if (source === target) return { ok: false, code: "selfLoop" };
+
+  const sourceNode = findNode(graph, source);
+  const targetNode = findNode(graph, target);
+  if (!sourceNode || !targetNode) return { ok: false, code: "invalidPorts" };
 
   if (fromKind === "trigger") {
     // Source must be one of the trigger-out flavors; target one of the
     // trigger-in flavors. (No literal-handle check — the new prefixes
     // `group-trigger-in-<port>` / `groupOutput-trigger-in-<port>` are
     // valid in addition to the fixed `trigger-in`.)
-    if (!isTriggerSourceHandle(sourceHandle))
-      return { ok: false, reason: "Trigger source must be an out handle" };
-    if (!isTriggerTargetHandle(targetHandle))
-      return {
-        ok: false,
-        reason: "Trigger target must be a trigger-in handle",
-      };
-    // Stateful rules (divergence, duplicate) only apply to NEW connections.
-    // During re-validation of stored edges, trust the persisted state.
+    if (
+      !isTriggerSourceHandle(sourceHandle) ||
+      !isTriggerTargetHandle(targetHandle)
+    )
+      return { ok: false, code: "invalidPorts" };
+    // The server refuses a trigger cycle: refuse it while drawing. The edge
+    // this one may replace leaves `source`, so it can't be on a path that
+    // ends there.
+    if (
+      reaches(target, source, (n) =>
+        graph.triggerEdges
+          .filter((e) => e.from.node === n)
+          .map((e) => e.to.node),
+      )
+    )
+      return { ok: false, code: "cycle" };
     // Replacement of an existing outgoing edge is handled by the connect
-    // handler, not by rejection here.
-    //
-    // Note: divergence is enforced server-side by `validate.ts` via
-    // `nodeKinds.mayDiverge(kind)`. The frontend connect path replaces
-    // existing outgoing edges per source/branch in GraphCanvas.vue so
-    // divergence never actually occurs from non-whitelisted sources at
-    // the editor level.
+    // handler, not by rejection here. Divergence is enforced server-side by
+    // `validate.ts` via `nodeKinds.mayDiverge(kind)`.
     return { ok: true };
   }
 
   // data edge — overwrite is allowed; replacement is handled by the caller.
   const port = parseDataPort(sourceHandle);
   const field = parseDataField(targetHandle);
-  if (!port || !field) return { ok: false, reason: "Invalid data handle id" };
+  if (!port || !field) return { ok: false, code: "invalidPorts" };
 
-  if (isReValidation) return { ok: true };
+  // A loop of data nodes fails at run time ("data node cycle detected"). A
+  // loop through a step only reads that step's last output, so it stays.
+  const isData = (id: string) => findNode(graph, id)?.kind === "data";
+  if (
+    isData(source) &&
+    isData(target) &&
+    reaches(target, source, (n) =>
+      graph.dataEdges
+        .filter((e) => e.from.node === n && isData(e.to.node))
+        .map((e) => e.to.node),
+    )
+  )
+    return { ok: false, code: "cycle" };
 
   const outSchema = getOutputSchema(
     sourceNode,
@@ -527,16 +575,19 @@ export function canConnect(
   );
   const outProp = outSchema?.properties?.[port];
   const inProp = inSchema?.properties?.[field];
-  if (outSchema && !outProp)
-    return { ok: false, reason: `Unknown source port "${port}"` };
-  if (inSchema && !inProp)
-    return { ok: false, reason: `Unknown target field "${field}"` };
+  if ((outSchema && !outProp) || (inSchema && !inProp))
+    return { ok: false, code: "invalidPorts" };
 
   if (!typesCompatible(outProp?.type, inProp?.type))
     return {
       ok: false,
-      reason: `Type mismatch: ${outProp?.type} → ${inProp?.type}`,
+      code: "typeMismatch",
+      params: { from: typeText(outProp?.type), to: typeText(inProp?.type) },
     };
 
   return { ok: true };
+}
+
+function typeText(type: string | string[] | undefined): string {
+  return Array.isArray(type) ? type.join(" / ") : (type ?? "");
 }

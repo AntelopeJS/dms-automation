@@ -73,6 +73,15 @@ const borderClass = computed(() => {
 const dimmed = computed(() => props.data?.run?.status === 'skipped')
 
 const { processI18n } = useTranslation()
+const { t, te } = useI18n()
+
+// A data node's category, in words ("Logic" for `boolean`).
+const categoryLabel = computed(() => {
+	const category = props.data?.category
+	if (!category) return undefined
+	const key = `dms_automation.types.dataCategories.${category}`
+	return te(key) ? t(key) : category
+})
 
 // The eyebrow names the type when the node has a label of its own, and the
 // node's role otherwise, so a bare node does not read its type twice.
@@ -125,7 +134,7 @@ const rows = computed<BodyRow[]>(() => {
 				<UIcon :name="data.run.status === 'failed' ? 'i-ph-x' : 'i-ph-check'" class="size-3" />
 				{{ describeDuration(data.run.durationMs) }}
 			</span>
-			<span v-else-if="data.category" class="ml-auto shrink-0 text-[10px] text-dimmed uppercase">{{ data.category }}</span>
+			<span v-else-if="categoryLabel" class="ml-auto shrink-0 text-[10px] text-dimmed uppercase">{{ categoryLabel }}</span>
 			<Handle v-if="hasMainTriggerOut" id="trigger-out-main" type="source" :position="Position.Right" :style="triggerStyle" />
 		</div>
 

@@ -39,9 +39,8 @@ const dataOutPorts = computed(() =>
 
 const isTemplateInstance = computed(() => Boolean(props.data?.templateId))
 
-const title = computed(
-	() => props.data?.config?.name ?? props.data?.label ?? 'Group',
-)
+// GraphCanvas resolves the name: the step name, else the group's own name.
+const title = computed(() => props.data?.label ?? props.data?.config?.name)
 
 const headerIcon = computed(() =>
 	isTemplateInstance.value ? 'i-ph-link' : 'i-ph-package',
@@ -128,10 +127,10 @@ const hasAnyPorts = computed(
 			<span
 				v-if="isTemplateInstance"
 				class="ml-auto inline-flex items-center gap-1 rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-primary"
-				:title="`Linked to template ${data.templateId}`"
+				:title="$t('dms_automation.nodes.linkedHint')"
 			>
 				<UIcon name="i-ph-link" class="w-3 h-3" />
-				linked
+				{{ $t('dms_automation.nodes.linked') }}
 			</span>
 			<Handle
 				v-if="mainTriggerOut"
@@ -194,7 +193,7 @@ const hasAnyPorts = computed(
 			v-else-if="!hasAnyPorts"
 			class="py-2 px-3 text-xs text-dimmed italic"
 		>
-			no ports
+			{{ $t('dms_automation.nodes.noPorts') }}
 		</div>
 	</div>
 </template>

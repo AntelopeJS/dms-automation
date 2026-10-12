@@ -36,11 +36,12 @@ const handlePosition = computed(() =>
 const handlePrefix = computed(() => (isInput.value ? 'groupInput' : 'groupOutput'))
 const handleVerb = computed(() => (isInput.value ? 'out' : 'in'))
 const headerIcon = computed(() => (isInput.value ? 'i-ph-sign-in' : 'i-ph-sign-out'))
+const { t } = useI18n()
 const headerLabel = computed(() =>
-	isInput.value ? 'Group Input' : 'Group Output',
+	t(isInput.value ? 'dms_automation.nodes.groupInput' : 'dms_automation.nodes.groupOutput'),
 )
 const emptyText = computed(() =>
-	isInput.value ? 'no input ports' : 'no output ports',
+	t(isInput.value ? 'dms_automation.nodes.noInputPorts' : 'dms_automation.nodes.noOutputPorts'),
 )
 const rowKeyPrefix = computed(() => (isInput.value ? 'gi-row' : 'go-row'))
 

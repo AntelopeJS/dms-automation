@@ -43,10 +43,13 @@ import type {
 	DataNodeType,
 	JsonSchema,
 	GroupPort,
+	ConnectResult,
 } from '../../composables/useGraphConnect'
-import type {
-	NodeKindEntry,
-	NodeKindUI,
+import {
+	PALETTE_DRAG_TYPE,
+	type NodeKindEntry,
+	type NodeKindUI,
+	type PaletteBlock,
 } from '../../composables/useAutomationNodeKinds'
 
 // Minimal shape of a workspace template surfaced in the palette. Mirrors the
@@ -92,11 +95,31 @@ const props = defineProps<{
 	runStates?: Record<string, NodeRunState>
 	/** The problem of each node the validator named. */
 	issues?: Record<string, NodeIssue>
+	/**
+	 * The node the editor has selected (inspector, dock "Select node", a
+	 * `?node=` link): the canvas selects it too and brings it into view.
+	 */
+	selectedNodeId?: string | null
+	/**
+	 * Names the graph shown (the procedure, the group entered): a new key
+	 * fits the new graph into view.
+	 */
+	viewKey?: string
+	/**
+	 * An element drawn over the canvas's right edge (the inspector on narrow
+	 * screens): fitting and centring keep the nodes out from under it.
+	 */
+	coveredBy?: HTMLElement | null
+	/** The saved graph's triggers: a schedule names the server's time zone. */
+	savedTriggers?: Array<{ cron?: string; timeZone?: string }>
 }>()
 
 interface NodeIssue {
 	severity: 'error' | 'warning'
 	message: string
+	/** Problem code, translated as `dms_automation.editor.problems.codes.<code>`. */
+	code?: string
+	params?: Record<string, unknown>
 }
 
 const emit = defineEmits<{
@@ -117,6 +140,18 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const { processI18n } = useTranslation()
+const { t, te } = useI18n()
+
+// Fit view never zooms past 100% (a lone trigger would fill the canvas) and
+// may go down to 10% so a large graph fits whole.
+const FIT_PADDING = 0.15
+const FIT_MAX_ZOOM = 1
+const MIN_ZOOM = 0.1
+const MAX_ZOOM = 1.5
+// Room left around a new node, and the size assumed for a node not drawn
+// yet (GenericNode's width, a typical height).
+const NODE_GAP = 60
+const NEW_NODE_SIZE = { width: 230, height: 90 }
 
 const nodeTypes = markRaw({
 	genericNode: GenericNode,
@@ -170,6 +205,19 @@ function lookupTypeBySpec(spec: NodeKindUI, typeId: string | undefined) {
 	return null
 }
 
+// A schedule says the time zone it fires in, the server's (known once a
+// schedule is saved).
+const scheduleTimeZone = computed(() => props.savedTriggers?.find((tr) => tr.timeZone)?.timeZone)
+
+// The validator's problem on a node, in the reader's language (its English
+// message when this version has no text for the code).
+function issueOf(id: string): NodeIssue | null {
+	const issue = props.issues?.[id]
+	if (!issue) return null
+	const key = `dms_automation.editor.problems.codes.${issue.code}`
+	return issue.code && te(key) ? { ...issue, message: t(key, issue.params ?? {}) } : issue
+}
+
 // Build the GenericNode `data` payload from a graph node. For every kind
 // with `ui` metadata (every kind except group + sentinels), one
 // data-driven resolver applies: combine `spec` from the backend with the
@@ -220,9 +268,9 @@ function dataFor(node: AppGraphNode) {
 			typeName: label,
 			role: roleOf(node.kind, spec.category),
 			module,
-			summary: summarizeNode(node.kind, node.typeId, node.config, processI18n),
+			summary: summarizeNode(node.kind, node.typeId, node.config, processI18n, scheduleTimeZone.value),
 			run: props.runStates?.[node.id] ?? null,
-			issue: props.issues?.[node.id] ?? null,
+			issue: issueOf(node.id),
 			icon,
 			category,
 			typeId: node.typeId,
@@ -241,14 +289,17 @@ function dataFor(node: AppGraphNode) {
 		// GroupNode interface) — surface them so the renderer can display
 		// handles, linked badges, etc.
 		const g = node as AppGraphNode & {
+			label?: string
 			ports?: unknown
 			templateId?: string
 			subgraph?: unknown
 		}
+		// Step name (`label`) first, as for any node; `config.name` is the name
+		// the group or its template was created with.
 		return {
-			label: node.config?.name ?? 'Group',
+			label: g.label || (node.config?.name as string | undefined) || t('dms_automation.nodes.role.group'),
 			run: props.runStates?.[node.id] ?? null,
-			issue: props.issues?.[node.id] ?? null,
+			issue: issueOf(node.id),
 			ports: Array.isArray(g.ports) ? g.ports : [],
 			templateId: g.templateId,
 			subgraph: g.subgraph,
@@ -271,16 +322,39 @@ function dataFor(node: AppGraphNode) {
 	return {}
 }
 
+// What a screen reader announces for a node: its type when the node has a
+// name of its own, its name, and what it does.
+function ariaLabelOf(data: { label?: string; typeName?: string; summary?: string }) {
+	if (!data.label) return undefined
+	const type = data.typeName && data.typeName !== data.label ? `${data.typeName}: ` : ''
+	return `${type}${data.label}${data.summary ? `, ${data.summary}` : ''}`
+}
+
 const vfNodes = computed(() =>
-	props.graph.nodes.map((n) => ({
-		id: n.id,
-		type: vfTypeFor(n.kind),
-		position: n.position,
-		data: dataFor(n),
-		sourcePosition: Position.Bottom,
-		targetPosition: Position.Top,
-	})),
+	props.graph.nodes.map((n) => {
+		const data = dataFor(n)
+		return {
+			id: n.id,
+			type: vfTypeFor(n.kind),
+			position: n.position,
+			data,
+			ariaLabel: SENTINEL_KINDS.has(n.kind)
+				? t(n.kind === 'groupInput' ? 'dms_automation.nodes.groupInput' : 'dms_automation.nodes.groupOutput')
+				: ariaLabelOf(data),
+			sourcePosition: Position.Bottom,
+			targetPosition: Position.Top,
+		}
+	}),
 )
+
+// How the canvas names a node in its messages: its label, else (a group's
+// sentinels) the group role.
+const nodeNames = computed(
+	() => new Map(vfNodes.value.map((n) => [n.id, (n.data as { label?: string }).label])),
+)
+function nodeName(id: string): string {
+	return nodeNames.value.get(id) || t('dms_automation.nodes.role.group')
+}
 
 // Look up the kind of an edge endpoint by node id — needed for the group
 // handle-id derivation below. Sentinels and groups have richer handle
@@ -360,6 +434,7 @@ const vfEdges = computed(() => {
 		sourceHandle: triggerSourceHandle(e, kinds.get(e.from.node)),
 		targetHandle: triggerTargetHandle(e, kinds.get(e.to.node)),
 		data: { kind: 'trigger' as const },
+		ariaLabel: `${menuName(e.from.node)} → ${menuName(e.to.node)}`,
 		class: edgeClass(e.from.node, e.to.node),
 	}))
 	const dataEdges = props.graph.dataEdges.map((e) => ({
@@ -369,6 +444,7 @@ const vfEdges = computed(() => {
 		sourceHandle: dataSourceHandle(e, kinds.get(e.from.node)),
 		targetHandle: dataTargetHandle(e, kinds.get(e.to.node)),
 		data: { kind: 'data' as const },
+		ariaLabel: `${menuName(e.from.node)} · ${e.from.port} → ${menuName(e.to.node)} · ${e.to.field}`,
 		class: 'edge-data',
 	}))
 	return [...triggerEdges, ...dataEdges]
@@ -379,10 +455,166 @@ function emitGraph(g: ProcedureGraph) {
 	emit('update:graph', g)
 }
 
-function defaultPos() {
-	// Stagger new nodes a bit so they don't all stack.
-	const n = props.graph.nodes.length
-	return { x: 120 + (n % 5) * 40, y: 120 + n * 40 }
+interface XY {
+	x: number
+	y: number
+}
+interface Rect extends XY {
+	width: number
+	height: number
+}
+
+function nodeRects(): Rect[] {
+	return props.graph.nodes.map((n) => {
+		const size = flowRef.value?.findNode(n.id)?.dimensions
+		return {
+			...n.position,
+			width: size?.width || NEW_NODE_SIZE.width,
+			height: size?.height || NEW_NODE_SIZE.height,
+		}
+	})
+}
+
+function overlaps(a: Rect, b: Rect): boolean {
+	const gap = NODE_GAP / 2
+	return a.x < b.x + b.width + gap && b.x < a.x + a.width + gap && a.y < b.y + b.height + gap && b.y < a.y + a.height + gap
+}
+
+// The first place at or below `pos` where a new node covers no other one.
+function freeSpot(pos: XY): XY {
+	const rects = nodeRects()
+	const spot: Rect = { ...pos, ...NEW_NODE_SIZE }
+	for (let hit = rects.find((r) => overlaps(spot, r)); hit; hit = rects.find((r) => overlaps(spot, r))) {
+		spot.y = hit.y + hit.height + NODE_GAP
+	}
+	return { x: Math.round(spot.x), y: Math.round(spot.y) }
+}
+
+// A new step goes right of the selected one, else in the middle of what the
+// canvas shows.
+function newNodePosition(anchor: AppGraphNode | undefined): XY {
+	const flow = flowRef.value
+	if (anchor) {
+		const width = flow?.findNode(anchor.id)?.dimensions.width || NEW_NODE_SIZE.width
+		return freeSpot({ x: anchor.position.x + width + NODE_GAP, y: anchor.position.y })
+	}
+	if (!flow) return freeSpot({ x: 0, y: 0 })
+	const { x, y, zoom } = flow.viewport
+	return freeSpot({
+		x: (flow.dimensions.width / 2 - x) / zoom - NEW_NODE_SIZE.width / 2,
+		y: (flow.dimensions.height / 2 - y) / zoom - NEW_NODE_SIZE.height / 2,
+	})
+}
+
+// The node a new step follows: the one selected last on this canvas.
+function anchorNode(): AppGraphNode | undefined {
+	const id = props.selectedNodeId ?? canvasSelection.value[canvasSelection.value.length - 1]
+	return props.graph.nodes.find((n) => n.id === id)
+}
+
+interface Port {
+	/** Vue Flow handle id. */
+	id: string
+	/** Port name ('' for the single trigger input of a step). */
+	name: string
+}
+interface NodeHandles {
+	triggerIns: Port[]
+	triggerOuts: Port[]
+	dataIns: Port[]
+	dataOuts: Port[]
+}
+
+// The handles a node draws, named as its renderer names them (see the
+// handle prefix table in useGraphConnect).
+function handlesOf(node: AppGraphNode): NodeHandles {
+	if (node.kind === 'group' || SENTINEL_KINDS.has(node.kind)) {
+		const ports =
+			node.kind === 'group'
+				? ((node as AppGraphNode & { ports?: GroupPort[] }).ports ?? [])
+				: (props.parentGroupPorts ?? [])
+		const pick = (kind: GroupPort['kind'], direction: GroupPort['direction'], prefix: string) =>
+			ports
+				.filter((p) => p.kind === kind && p.direction === direction)
+				.map((p) => ({ id: `${prefix}${p.name}`, name: p.name }))
+		if (node.kind === 'group') {
+			return {
+				triggerIns: pick('trigger', 'in', 'group-trigger-in-'),
+				triggerOuts: pick('trigger', 'out', 'group-trigger-out-'),
+				dataIns: pick('data', 'in', 'group-data-in-'),
+				dataOuts: pick('data', 'out', 'group-data-out-'),
+			}
+		}
+		// The sentinels face inwards: the group's inputs leave groupInput, its
+		// outputs enter groupOutput.
+		if (node.kind === 'groupInput') {
+			return {
+				triggerIns: [],
+				triggerOuts: pick('trigger', 'in', 'groupInput-trigger-out-'),
+				dataIns: [],
+				dataOuts: pick('data', 'in', 'groupInput-data-out-'),
+			}
+		}
+		return {
+			triggerIns: pick('trigger', 'out', 'groupOutput-trigger-in-'),
+			triggerOuts: [],
+			dataIns: pick('data', 'out', 'groupOutput-data-in-'),
+			dataOuts: [],
+		}
+	}
+	const data = dataFor(node) as {
+		hasTriggerIn?: boolean
+		hasMainTriggerOut?: boolean
+		triggerOuts?: string[]
+		dataIns?: Array<{ name: string }>
+		dataOuts?: Array<{ name: string }>
+	}
+	const branches = [...(data.hasMainTriggerOut === false ? [] : ['main']), ...(data.triggerOuts ?? [])]
+	return {
+		triggerIns: data.hasTriggerIn === false ? [] : [{ id: 'trigger-in', name: '' }],
+		triggerOuts: branches.map((name) => ({ id: `trigger-out-${name}`, name })),
+		dataIns: (data.dataIns ?? []).map((p) => ({ id: `data-in-${p.name}`, name: p.name })),
+		dataOuts: (data.dataOuts ?? []).map((p) => ({ id: `data-out-${p.name}`, name: p.name })),
+	}
+}
+
+function check(graph: ProcedureGraph, conn: Connection) {
+	return canConnect(
+		graph,
+		props.nodeKinds,
+		props.triggerTypes,
+		props.actionTypes,
+		props.dataNodeTypes,
+		conn,
+		{ parentGroupPorts: props.parentGroupPorts },
+	)
+}
+
+// The link from `from`'s main output to `to`, when that output is free and
+// `to` has an input that accepts it.
+function nextStepConnection(graph: ProcedureGraph, from: AppGraphNode, to: AppGraphNode): Connection | null {
+	const out = handlesOf(from).triggerOuts.find((p) => p.name === 'main')
+	const ins = handlesOf(to).triggerIns
+	const into = ins.find((p) => p.name === 'main' || p.name === '') ?? ins[0]
+	if (!out || !into) return null
+	if (graph.triggerEdges.some((e) => e.from.node === from.id && (e.from.branch ?? 'main') === 'main')) return null
+	const conn: Connection = { source: from.id, sourceHandle: out.id, target: to.id, targetHandle: into.id }
+	return check(graph, conn).ok ? conn : null
+}
+
+// The node to select and bring into view once drawn: one just added, or one
+// the editor points at (`readable`).
+let revealPending: { id: string; readable: boolean } | null = null
+
+// Add a node where it was dropped, or next to the selected node and linked
+// from it (one undo step for both).
+function insertNode(node: AppGraphNode, at?: XY) {
+	const anchor = at ? undefined : anchorNode()
+	const placed = { ...node, position: at ? freeSpot(at) : newNodePosition(anchor) }
+	const graph = { ...props.graph, nodes: [...props.graph.nodes, placed] }
+	const link = anchor ? nextStepConnection(graph, anchor, placed) : null
+	emitGraph(link ? (withConnection(graph, link)?.graph ?? graph) : graph)
+	revealPending = { id: placed.id, readable: false }
 }
 
 function defaultsFromSchema(schema: JsonSchema | undefined): Record<string, unknown> {
@@ -419,18 +651,17 @@ function defaultConfigFor(kind: NodeKind, typeId?: string): Record<string, unkno
 		: {}
 }
 
-function addNode(kind: NodeKind, typeId?: string) {
-	const node: AppGraphNode = {
-		id: newId(),
-		kind,
-		typeId,
-		config: defaultConfigFor(kind, typeId),
-		position: defaultPos(),
-	}
-	emitGraph({
-		...props.graph,
-		nodes: [...props.graph.nodes, node],
-	})
+function addNode(kind: NodeKind, typeId?: string, at?: XY) {
+	insertNode(
+		{
+			id: newId(),
+			kind,
+			typeId,
+			config: defaultConfigFor(kind, typeId),
+			position: { x: 0, y: 0 },
+		},
+		at,
+	)
 }
 
 // Drop a template-instance group node into the current graph. The instance
@@ -442,7 +673,7 @@ function addNode(kind: NodeKind, typeId?: string) {
 // (the "live link" model); the port list is cloned so a port rename on
 // the template doesn't silently invalidate the outer wiring on this
 // instance (the user can manually re-sync by forking + re-saving).
-function addTemplateInstance(template: TemplateSummary) {
+function addTemplateInstance(template: TemplateSummary, at?: XY) {
 	const node: AppGraphNode & {
 		ports: GroupPort[]
 		templateId: string
@@ -450,21 +681,37 @@ function addTemplateInstance(template: TemplateSummary) {
 		id: newId(),
 		kind: 'group',
 		config: { name: template.name },
-		position: defaultPos(),
+		position: { x: 0, y: 0 },
 		templateId: template._id,
 		// JSON round-trip strips Vue's reactive proxy that wraps the template
 		// passed from the palette; structuredClone throws on proxies.
 		ports: JSON.parse(JSON.stringify(template.ports ?? [])) as GroupPort[],
 	}
-	emitGraph({
-		...props.graph,
-		nodes: [...props.graph.nodes, node],
-	})
+	insertNode(node, at)
 }
 
 // Node creation is driven from the left BuilderPalette (in Editor.vue) — expose
 // the two add helpers so the palette's events can reach the graph mutation.
 defineExpose({ addNode, addTemplateInstance })
+
+// A block dragged from the palette lands where it is dropped.
+function onDragOver(event: DragEvent) {
+	if (props.readOnly || !event.dataTransfer?.types.includes(PALETTE_DRAG_TYPE)) return
+	event.preventDefault()
+	event.dataTransfer.dropEffect = 'copy'
+}
+
+function onDrop(event: DragEvent) {
+	const raw = event.dataTransfer?.getData(PALETTE_DRAG_TYPE)
+	const flow = flowRef.value
+	if (props.readOnly || !raw || !flow) return
+	event.preventDefault()
+	const point = flow.screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
+	const at = { x: point.x - NEW_NODE_SIZE.width / 2, y: point.y - NEW_NODE_SIZE.height / 2 }
+	const block = JSON.parse(raw) as PaletteBlock
+	if (block.template) addTemplateInstance(block.template, at)
+	else if (block.kind) addNode(block.kind, block.typeId, at)
+}
 
 // DmsFlowCanvas owns the VueFlow store (it calls `useVueFlow(flowId)` with a
 // private id and `defineExpose`s the resulting controller). We grab that
@@ -472,19 +719,166 @@ defineExpose({ addNode, addTemplateInstance })
 // a bare `useVueFlow()` would resolve to the DEFAULT store, which is NOT the
 // one DmsFlowCanvas drives, so zoom/fit/updateNodeInternals would silently
 // no-op. Only the handful of imperative methods we actually use are typed.
+interface FlowNodeState {
+	id: string
+	selected?: boolean
+	computedPosition: XY
+	dimensions: { width: number; height: number }
+}
 interface FlowController {
 	zoomIn: () => void
 	zoomOut: () => void
-	fitView: () => void
 	zoomTo: (zoom: number) => void
+	setViewport: (viewport: XY & { zoom: number }, options?: { duration?: number }) => Promise<boolean>
+	screenToFlowCoordinate: (position: XY) => XY
+	findNode: (id: string) => FlowNodeState | undefined
+	addSelectedNodes: (nodes: FlowNodeState[]) => void
+	removeSelectedNodes: (nodes: FlowNodeState[]) => void
 	updateNodeInternals: (ids?: string | string[]) => void
 	// DmsFlowCanvas `defineExpose`s the VueFlow controller; Vue's expose proxy
 	// unwraps the `viewport` ref, so consumers read `.viewport.zoom` directly
 	// (NOT `.viewport.value.zoom` — that extra `.value` is undefined and pinned
-	// the zoom readout at 100%).
-	viewport: { zoom: number }
+	// the zoom readout at 100%). Same for the refs below.
+	viewport: XY & { zoom: number }
+	/** Size of the canvas on screen. */
+	dimensions: { width: number; height: number }
+	getSelectedNodes: FlowNodeState[]
+	getSelectedEdges: Array<{ id: string }>
+	/** 'invalid' while the link being drawn hovers a port that refuses it. */
+	connectionStatus: 'valid' | 'invalid' | null
 }
 const flowRef = ref<FlowController | null>(null)
+const wrapRef = ref<HTMLElement | null>(null)
+
+// The width of the canvas the inspector covers when it is drawn over it.
+function coveredRight(): number {
+	const cover = props.coveredBy?.getBoundingClientRect()
+	const own = wrapRef.value?.getBoundingClientRect()
+	if (!cover?.width || !own) return 0
+	return Math.max(0, Math.min(own.right, cover.right) - Math.max(own.left, cover.left))
+}
+
+// Fit every node into the part of the canvas left visible.
+function fitView() {
+	const flow = flowRef.value
+	if (!flow) return
+	const nodes = props.graph.nodes
+		.map((n) => flow.findNode(n.id))
+		.filter((n): n is FlowNodeState => !!n?.dimensions.width)
+	if (nodes.length === 0) return
+	const left = Math.min(...nodes.map((n) => n.computedPosition.x))
+	const top = Math.min(...nodes.map((n) => n.computedPosition.y))
+	const width = Math.max(...nodes.map((n) => n.computedPosition.x + n.dimensions.width)) - left
+	const height = Math.max(...nodes.map((n) => n.computedPosition.y + n.dimensions.height)) - top
+	const visible = flow.dimensions.width - coveredRight()
+	const room = 1 + FIT_PADDING
+	const fit = Math.min(visible / (width * room), flow.dimensions.height / (height * room))
+	const zoom = Math.min(Math.max(fit, MIN_ZOOM), FIT_MAX_ZOOM)
+	flow.setViewport({
+		x: (visible - width * zoom) / 2 - left * zoom,
+		y: (flow.dimensions.height - height * zoom) / 2 - top * zoom,
+		zoom,
+	})
+}
+
+// Select a node and bring it into the visible part of the canvas. A node the
+// editor points at (a link, a problem) is also shown at a readable zoom; a
+// new node keeps the zoom.
+function focusNode(id: string, readable = false) {
+	const flow = flowRef.value
+	const node = flow?.findNode(id)
+	if (!flow || !node) return
+	if (!node.selected) flow.addSelectedNodes([node])
+	// Selecting opens the inspector, which narrows or covers the canvas:
+	// look once it is drawn (two frames).
+	requestAnimationFrame(() => requestAnimationFrame(() => panTo(id, readable)))
+}
+
+function panTo(id: string, readable: boolean) {
+	const flow = flowRef.value
+	const node = flow?.findNode(id)
+	if (!flow || !node) return
+	const visible = flow.dimensions.width - coveredRight()
+	const zoom = readable ? Math.max(flow.viewport.zoom, 1) : flow.viewport.zoom
+	const left = node.computedPosition.x * zoom + flow.viewport.x
+	const top = node.computedPosition.y * zoom + flow.viewport.y
+	const inSight =
+		left >= 0 &&
+		top >= 0 &&
+		left + node.dimensions.width * zoom <= visible &&
+		top + node.dimensions.height * zoom <= flow.dimensions.height
+	if (inSight && zoom === flow.viewport.zoom) return
+	flow.setViewport(
+		{
+			x: visible / 2 - (node.computedPosition.x + node.dimensions.width / 2) * zoom,
+			y: flow.dimensions.height / 2 - (node.computedPosition.y + node.dimensions.height / 2) * zoom,
+			zoom,
+		},
+		// A node pointed at is shown at once; a new one slides into view.
+		{ duration: readable ? 0 : 200 },
+	)
+}
+
+// A new graph on the canvas (first load, another procedure, a group entered
+// or left) is fitted into view; a node just added or pointed at is shown.
+// Both wait until every node is measured and the panels around the canvas
+// have settled (two frames): Vue Flow keeps the measures of nodes whose id
+// the previous graph shared, so it does not always report them again.
+let fitPending = true
+let settleQueued = false
+function settleView() {
+	if (settleQueued) return
+	settleQueued = true
+	requestAnimationFrame(() =>
+		requestAnimationFrame(() => {
+			settleQueued = false
+			const flow = flowRef.value
+			if (!flow || !props.graph.nodes.every((n) => flow.findNode(n.id)?.dimensions.width)) return
+			if (fitPending) {
+				fitPending = false
+				fitView()
+				// The node the editor points at stays the one shown.
+				if (props.selectedNodeId) revealPending ??= { id: props.selectedNodeId, readable: true }
+			}
+			if (revealPending) {
+				const { id, readable } = revealPending
+				revealPending = null
+				focusNode(id, readable)
+			}
+		}),
+	)
+}
+
+// Vue Flow emits this once every node on the canvas has been measured.
+function onNodesInitialized() {
+	settleView()
+}
+
+watch(
+	() => props.viewKey,
+	() => {
+		fitPending = true
+		nextTick(settleView)
+	},
+)
+
+watch(
+	() => props.selectedNodeId,
+	(id) => {
+		const flow = flowRef.value
+		// The editor closed its inspector: the canvas lets go of the node too.
+		if (!id) {
+			if (flow?.getSelectedNodes.length) flow.removeSelectedNodes(flow.getSelectedNodes)
+			return
+		}
+		// A node selected on the canvas itself is already where the user looks.
+		if (flow?.findNode(id)?.selected) return
+		revealPending = { id, readable: true }
+		nextTick(settleView)
+	},
+	// The editor may name a node (a `?node=` link) before the canvas exists.
+	{ immediate: true },
+)
 
 // Vue Flow caches each node's handle bounding boxes in its internal store and
 // only re-measures when `updateNodeInternals(id)` is called. When a port is
@@ -536,27 +930,12 @@ function resetZoom() {
 	flowRef.value?.zoomTo(1)
 }
 
-function onConnect(conn: Connection) {
-	if (props.readOnly) return
+// The graph once `conn` is drawn, and the link it took the place of.
+function withConnection(
+	graph: ProcedureGraph,
+	conn: Connection,
+): { graph: ProcedureGraph; added: TriggerEdge | DataEdge; replaced?: TriggerEdge | DataEdge } | null {
 	const kind = connectionKind(conn.sourceHandle)
-	const result = canConnect(
-		props.graph,
-		props.nodeKinds,
-		props.triggerTypes,
-		props.actionTypes,
-		props.dataNodeTypes,
-		conn,
-		{ parentGroupPorts: props.parentGroupPorts },
-	)
-	if (!result.ok) {
-		toast.add({
-			title: 'Cannot connect',
-			description: result.reason,
-			color: 'warning',
-			icon: 'i-ph-warning',
-		})
-		return
-	}
 	if (kind === 'trigger') {
 		const branch = parseSourceBranch(conn.sourceHandle)
 		const toBranch = parseTargetBranch(conn.targetHandle)
@@ -571,48 +950,196 @@ function onConnect(conn: Connection) {
 		// Connecting again replaces any existing edge from that source/branch.
 		// (Branching across if/switch named branches still works because each
 		// branch has its own `from.branch` and only conflicts with itself.)
-		const remaining = props.graph.triggerEdges.filter(
-			(e) =>
-				!(
-					e.from.node === conn.source &&
-					(e.from.branch ?? 'main') === branch
-				),
+		const replaced = graph.triggerEdges.find(
+			(e) => e.from.node === conn.source && (e.from.branch ?? 'main') === branch,
 		)
-		emitGraph({
-			...props.graph,
-			triggerEdges: [...remaining, newEdge],
-		})
-	} else if (kind === 'data') {
-		const port = parseDataPort(conn.sourceHandle)
-		const field = parseDataField(conn.targetHandle)
-		if (!port || !field) return
-		const newEdge: DataEdge = {
-			id: newId(),
-			from: { node: conn.source, port },
-			to: { node: conn.target, field },
+		return {
+			graph: { ...graph, triggerEdges: [...graph.triggerEdges.filter((e) => e !== replaced), newEdge] },
+			added: newEdge,
+			replaced,
 		}
-		// Overwrite: if the target field is already wired, drop the existing
-		// data edge before adding the new one.
-		const remaining = props.graph.dataEdges.filter(
-			(e) => !(e.to.node === conn.target && e.to.field === field),
-		)
-		emitGraph({
-			...props.graph,
-			dataEdges: [...remaining, newEdge],
-		})
+	}
+	if (kind !== 'data') return null
+	const port = parseDataPort(conn.sourceHandle)
+	const field = parseDataField(conn.targetHandle)
+	if (!port || !field) return null
+	const newEdge: DataEdge = {
+		id: newId(),
+		from: { node: conn.source, port },
+		to: { node: conn.target, field },
+	}
+	// Overwrite: a field reads from one output only.
+	const replaced = graph.dataEdges.find((e) => e.to.node === conn.target && e.to.field === field)
+	return {
+		graph: { ...graph, dataEdges: [...graph.dataEdges.filter((e) => e !== replaced), newEdge] },
+		added: newEdge,
+		replaced,
 	}
 }
 
+function refusalText(result: ConnectResult): string {
+	return result.ok ? '' : t(`dms_automation.editor.canvas.connect.${result.code}`, result.params ?? {})
+}
+
+// Undo of a replacement: the new link goes, the old one comes back — unless
+// the new link is gone already, or an end of the old one was deleted since.
+function restoreLink(added: TriggerEdge | DataEdge, old: TriggerEdge | DataEdge) {
+	const graph = props.graph
+	const ids = new Set(graph.nodes.map((n) => n.id))
+	const back = ids.has(old.from.node) && ids.has(old.to.node)
+	if ('port' in added.from) {
+		if (!graph.dataEdges.some((e) => e.id === added.id)) return
+		const edges = graph.dataEdges.filter((e) => e.id !== added.id)
+		emitGraph({ ...graph, dataEdges: back ? [...edges, old as DataEdge] : edges })
+	} else {
+		if (!graph.triggerEdges.some((e) => e.id === added.id)) return
+		const edges = graph.triggerEdges.filter((e) => e.id !== added.id)
+		emitGraph({ ...graph, triggerEdges: back ? [...edges, old as TriggerEdge] : edges })
+	}
+}
+
+// Drawing over an existing link replaces it: say which one, with an undo of
+// that replacement only.
+function notifyReplaced(added: TriggerEdge | DataEdge, old: TriggerEdge | DataEdge, conn: Connection) {
+	let description: string
+	if ('port' in old.from) {
+		const port = parseDataPort(conn.sourceHandle)
+		if (old.from.node === conn.source && old.from.port === port) return
+		description = t('dms_automation.editor.canvas.replaced.data', {
+			field: (old as DataEdge).to.field,
+			step: menuName(conn.target),
+			source: `${menuName(conn.source)} · ${port}`,
+			previous: `${menuName(old.from.node)} · ${old.from.port}`,
+		})
+	} else {
+		if (old.to.node === conn.target) return
+		description = t('dms_automation.editor.canvas.replaced.trigger', {
+			source: menuName(conn.source),
+			target: menuName(conn.target),
+			previous: menuName(old.to.node),
+		})
+	}
+	toast.add({
+		title: t('dms_automation.editor.canvas.replaced.title'),
+		description,
+		color: 'info',
+		icon: 'i-ph-arrows-left-right',
+		actions: [{ label: t('dms_automation.editor.canvas.undo'), onClick: () => restoreLink(added, old) }],
+	})
+}
+
+function onConnect(conn: Connection) {
+	if (props.readOnly) return
+	const result = check(props.graph, conn)
+	if (!result.ok) {
+		toast.add({
+			title: t('dms_automation.editor.canvas.connect.title'),
+			description: refusalText(result),
+			color: 'warning',
+			icon: 'i-ph-warning',
+		})
+		return
+	}
+	const next = withConnection(props.graph, conn)
+	if (!next) return
+	emitGraph(next.graph)
+	if (next.replaced) notifyReplaced(next.added, next.replaced, conn)
+}
+
+// Why the port under a link being drawn refuses it, shown while it hovers.
+const refusal = ref('')
+const refusalShown = computed(() => flowRef.value?.connectionStatus === 'invalid' && refusal.value !== '')
+
 function isValidConnection(conn: Connection): boolean {
-	return canConnect(
-		props.graph,
-		props.nodeKinds,
-		props.triggerTypes,
-		props.actionTypes,
-		props.dataNodeTypes,
-		conn,
-		{ parentGroupPorts: props.parentGroupPorts },
-	).ok
+	const result = check(props.graph, conn)
+	refusal.value = refusalText(result)
+	return result.ok
+}
+
+// Released over a port that refuses the link: keep the reason on screen.
+function onConnectEnd() {
+	if (refusalShown.value) {
+		toast.add({
+			title: t('dms_automation.editor.canvas.connect.title'),
+			description: refusal.value,
+			color: 'warning',
+			icon: 'i-ph-warning',
+		})
+	}
+	refusal.value = ''
+}
+
+// Without a mouse: every link the selected step can make, from the canvas
+// toolbar (WCAG 2.5.7).
+
+// Two steps with the same name are told apart by the end of their id (link
+// menu, replacement toast, links read aloud).
+function menuName(id: string): string {
+	const name = nodeName(id)
+	const twins = props.graph.nodes.filter((n) => nodeName(n.id) === name).length
+	return twins > 1 ? `${name} #${id.slice(-4)}` : name
+}
+interface LinkItem {
+	label: string
+	connection: Connection
+}
+
+const linkGroups = computed(() => {
+	const id = canvasSelection.value.length === 1 ? canvasSelection.value[0] : undefined
+	const node = props.graph.nodes.find((n) => n.id === id)
+	if (!node || props.readOnly) return []
+	const mine = handlesOf(node)
+	const next: LinkItem[] = []
+	const send: LinkItem[] = []
+	const read: LinkItem[] = []
+	const wired = (target: string, field: string) =>
+		props.graph.dataEdges.some((e) => e.to.node === target && e.to.field === field)
+	const add = (into: LinkItem[], label: string, connection: Connection) => {
+		if (check(props.graph, connection).ok) into.push({ label, connection })
+	}
+	for (const other of props.graph.nodes) {
+		if (other.id === node.id) continue
+		const theirs = handlesOf(other)
+		const name = menuName(other.id)
+		for (const out of mine.triggerOuts) {
+			const current = props.graph.triggerEdges.find(
+				(e) => e.from.node === node.id && (e.from.branch ?? 'main') === out.name,
+			)
+			if (current?.to.node === other.id) continue
+			// The output already leads somewhere: the menu says what goes.
+			const replaces = current ? ` (${t('dms_automation.editor.canvas.link.replaces', { name: menuName(current.to.node) })})` : ''
+			for (const into of theirs.triggerIns) {
+				const branch = out.name === 'main' ? '' : `${out.name} `
+				const port = into.name && into.name !== 'main' ? ` · ${into.name}` : ''
+				add(next, `${branch}→ ${name}${port}${replaces}`, { source: node.id, sourceHandle: out.id, target: other.id, targetHandle: into.id })
+			}
+		}
+		for (const out of mine.dataOuts) {
+			for (const into of theirs.dataIns) {
+				if (wired(other.id, into.name)) continue
+				add(send, `${out.name} → ${name} · ${into.name}`, { source: node.id, sourceHandle: out.id, target: other.id, targetHandle: into.id })
+			}
+		}
+		for (const out of theirs.dataOuts) {
+			for (const into of mine.dataIns) {
+				if (wired(node.id, into.name)) continue
+				add(read, `${name} · ${out.name} → ${into.name}`, { source: other.id, sourceHandle: out.id, target: node.id, targetHandle: into.id })
+			}
+		}
+	}
+	const group = (key: string, items: LinkItem[]) =>
+		items.length ? [{ type: 'label' as const, label: t(`dms_automation.editor.canvas.link.${key}`) }, ...items] : []
+	return [group('next', next), group('send', send), group('read', read)].filter((g) => g.length > 0)
+})
+
+// The link menu is offered for a single selected step of an editable graph.
+const canLink = computed(() => !props.readOnly && canvasSelection.value.length === 1)
+
+// The menu is an action, not a field: it never keeps a value.
+const linkChoice = ref<LinkItem | null>(null)
+function onLink(item: LinkItem | null) {
+	if (item?.connection) onConnect(item.connection)
+	linkChoice.value = null
 }
 
 // Multi-selection tracking — Vue Flow emits one NodeSelectionChange per
@@ -622,6 +1149,9 @@ function isValidConnection(conn: Connection): boolean {
 // fold a sentinel into a new group). The single-node `select:node` event
 // is preserved for the inspector (it expects exactly one node id).
 const selectedNodeIds = new Set<string>()
+// The same set, reactive (sentinels included), for the toolbar's link menu
+// and the placement of new nodes.
+const canvasSelection = ref<string[]>([])
 
 // Drop any tracked ids that no longer exist in the current graph (e.g.
 // after navigating to a different procedure / subgraph, or after the
@@ -645,6 +1175,7 @@ watch(
 				const n = nodes.find((nn) => nn.id === id)
 				return n ? !SENTINEL_KINDS.has(n.kind) : false
 			})
+			canvasSelection.value = [...selectedNodeIds]
 			emit('selection-change', { ids })
 		}
 	},
@@ -711,6 +1242,7 @@ function onNodesChange(changes: NodeChange[]) {
 			const n = props.graph.nodes.find((nn) => nn.id === id)
 			return n ? !SENTINEL_KINDS.has(n.kind) : false
 		})
+		canvasSelection.value = [...selectedNodeIds]
 		emit('selection-change', { ids })
 	}
 
@@ -761,6 +1293,18 @@ function onEdgesChange(changes: EdgeChange[]) {
 			dataEdges: nextData,
 		})
 	}
+}
+
+// The DMS canvas deletes the selected nodes on Delete / Backspace, not the
+// selected links: remove those here (a deleted node takes its links along).
+function onKeydown(event: KeyboardEvent) {
+	if (props.readOnly || (event.key !== 'Delete' && event.key !== 'Backspace')) return
+	const target = event.target
+	if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) return
+	const flow = flowRef.value
+	if (!flow || flow.getSelectedNodes.length > 0 || flow.getSelectedEdges.length === 0) return
+	event.preventDefault()
+	onEdgesChange(flow.getSelectedEdges.map((e) => ({ type: 'remove', id: e.id }) as EdgeChange))
 }
 
 // Edge-update flow (drag an existing edge's endpoint to reattach or delete):
@@ -849,7 +1393,11 @@ function onEdgeUpdateEnd(payload: { event: MouseEvent; edge: VfEdge }) {
 
 <template>
 	<div
-		class="graph-canvas-wrap relative w-full h-full border border-default rounded-lg overflow-hidden"
+		ref="wrapRef"
+		class="graph-canvas-wrap @container relative w-full h-full border border-default rounded-lg overflow-hidden"
+		@keydown="onKeydown"
+		@dragover="onDragOver"
+		@drop="onDrop"
 	>
 		<DmsFlowCanvas
 			ref="flowRef"
@@ -863,8 +1411,12 @@ function onEdgeUpdateEnd(payload: { event: MouseEvent; edge: VfEdge }) {
 			:elements-selectable="true"
 			:edges-updatable="!readOnly"
 			:deletable-nodes="!readOnly"
-			:max-zoom="1.5"
+			:fit-view-on-init="false"
+			:min-zoom="MIN_ZOOM"
+			:max-zoom="MAX_ZOOM"
+			@nodes-initialized="onNodesInitialized"
 			@connect="onConnect"
+			@connect-end="onConnectEnd"
 			@nodes-change="onNodesChange"
 			@delete-nodes="onDeleteNodes"
 			@edges-change="onEdgesChange"
@@ -873,62 +1425,96 @@ function onEdgeUpdateEnd(payload: { event: MouseEvent; edge: VfEdge }) {
 			@edge-update-end="onEdgeUpdateEnd"
 			@node-double-click="onNodeDoubleClick"
 		>
-			<!-- Toolbar. While editable: Undo / Redo and the selection's group
-			     actions (saving lives in the editor's bar). Read-only
-			     template-instance view: only the group actions (Fork) survive.
-			     The two branches share DmsFlowCanvas's single `top-right` slot. -->
-			<template v-if="!readOnly || $slots.groupActions" #top-right>
-				<div
-					v-if="!readOnly"
-					class="flex items-center gap-1 rounded-lg border border-default bg-elevated p-1 shadow-md flex-wrap"
-				>
-					<UButton
-						size="sm"
-						variant="ghost"
-						color="neutral"
-						icon="i-ph-arrow-counter-clockwise"
-						:aria-label="$t('dms_automation.editor.canvas.undo')"
-						:disabled="!canUndo"
-						@click="emit('undo')"
-					/>
-					<UButton
-						size="sm"
-						variant="ghost"
-						color="neutral"
-						icon="i-ph-arrow-clockwise"
-						:aria-label="$t('dms_automation.editor.canvas.redo')"
-						:disabled="!canRedo"
-						@click="emit('redo')"
-					/>
-					<!-- Group-related actions slotted in by Editor.vue: Group
-					     selection, Save as template, Fork to local group, Enter
-					     group. Kept inside the canvas toolbar so they sit next
-					     to Add Node / Undo / Redo instead of in a separate card. -->
-					<template v-if="$slots.groupActions">
-						<div class="w-px h-5 bg-default mx-1" />
-						<slot name="groupActions" />
-					</template>
-				</div>
-				<!-- Read-only fallback: Fork stays reachable from the
-				     template-instance inner-subgraph view. -->
-				<div
-					v-else-if="$slots.groupActions"
-					class="flex items-center gap-1 rounded-lg border border-default bg-elevated p-1 shadow-md flex-wrap"
-				>
-					<slot name="groupActions" />
-				</div>
-			</template>
-
-			<!-- Provided unconditionally: DmsFlowCanvas reads its panel slots once,
-			     so a slot added later would never render. -->
+			<!-- One row along the top edge: the breadcrumb (shrinks, truncated by
+			     its owner) and the toolbar (Undo / Redo, the link menu and the
+			     selection's group actions; saving lives in the editor's bar). A
+			     read-only template-instance view keeps only the group actions
+			     (Fork). The row lets pointer events through between the two.
+			     Provided unconditionally: DmsFlowCanvas reads its panel slots
+			     once, so a slot added later would never render. -->
 			<template #top-left>
-				<slot name="breadcrumb" />
+				<div class="pointer-events-none flex w-[calc(100cqw-1.5rem)] items-start justify-between gap-2">
+					<!-- The breadcrumb takes what the toolbar leaves (6rem at least),
+					     the toolbar wraps only past that. -->
+					<div class="min-w-24 flex-1 basis-0">
+						<div class="pointer-events-auto w-fit max-w-full">
+							<slot name="breadcrumb" />
+						</div>
+					</div>
+					<div
+						v-if="canLink || $slots.groupActions"
+						class="pointer-events-auto flex min-w-0 flex-wrap items-center justify-end gap-1 rounded-lg border border-default bg-elevated p-1 shadow-md"
+					>
+						<template v-if="canLink">
+							<!-- Links the selected step can make, for keyboard users: an
+							     icon, so the row stays on one line. -->
+							<UTooltip :text="$t('dms_automation.editor.canvas.link.label')">
+								<USelectMenu
+									:model-value="linkChoice"
+									:items="linkGroups"
+									size="sm"
+									variant="ghost"
+									icon="i-ph-flow-arrow"
+									:aria-label="$t('dms_automation.editor.canvas.link.label')"
+									:search-input="{ placeholder: $t('dms_automation.editor.canvas.link.search') }"
+									:content="{ align: 'end' }"
+									:ui="{ content: 'min-w-72', base: 'ps-1.5 pe-1.5', leading: 'static p-0', placeholder: 'hidden', trailing: 'hidden' }"
+									@update:model-value="onLink"
+								>
+									<template #empty>
+										{{ $t('dms_automation.editor.canvas.link.empty') }}
+									</template>
+								</USelectMenu>
+							</UTooltip>
+							<div v-if="$slots.groupActions" class="mx-1 h-5 w-px bg-default" />
+						</template>
+						<!-- Group-related actions slotted in by Editor.vue: Group
+						     selection, Save as template, Fork to local group, Enter
+						     group. -->
+						<slot name="groupActions" />
+					</div>
+				</div>
 			</template>
 
 			<template #bottom-center>
-				<div
-					class="flex items-center gap-1 rounded-lg border border-default bg-elevated p-1 shadow-md"
+				<p
+					v-if="refusalShown"
+					role="status"
+					class="mx-auto mb-2 flex w-fit max-w-sm items-center gap-1.5 rounded-md border border-warning/40 bg-elevated px-2 py-1 text-xs text-warning shadow-md"
 				>
+					<UIcon name="i-ph-prohibit" class="size-3.5 shrink-0" />
+					{{ refusal }}
+				</p>
+				<div
+					class="mx-auto flex w-fit items-center gap-1 rounded-lg border border-default bg-elevated p-1 shadow-md"
+				>
+					<!-- Undo / Redo sit with the view controls, leaving the top row
+					     to the selection's actions. -->
+					<template v-if="!readOnly">
+						<UTooltip :text="$t('dms_automation.editor.canvas.undo')" :kbds="['meta', 'z']">
+							<UButton
+								size="sm"
+								variant="ghost"
+								color="neutral"
+								icon="i-ph-arrow-counter-clockwise"
+								:aria-label="$t('dms_automation.editor.canvas.undo')"
+								:disabled="!canUndo"
+								@click="emit('undo')"
+							/>
+						</UTooltip>
+						<UTooltip :text="$t('dms_automation.editor.canvas.redo')" :kbds="['meta', 'shift', 'z']">
+							<UButton
+								size="sm"
+								variant="ghost"
+								color="neutral"
+								icon="i-ph-arrow-clockwise"
+								:aria-label="$t('dms_automation.editor.canvas.redo')"
+								:disabled="!canRedo"
+								@click="emit('redo')"
+							/>
+						</UTooltip>
+						<div class="mx-1 h-5 w-px bg-default" />
+					</template>
 					<UButton
 						size="sm"
 						variant="ghost"
@@ -960,7 +1546,7 @@ function onEdgeUpdateEnd(payload: { event: MouseEvent; edge: VfEdge }) {
 						color="neutral"
 						icon="i-ph-arrows-out"
 						:aria-label="$t('dms_automation.editor.canvas.fitView')"
-						@click="flowRef?.fitView()"
+						@click="fitView"
 					/>
 				</div>
 			</template>
@@ -969,6 +1555,21 @@ function onEdgeUpdateEnd(payload: { event: MouseEvent; edge: VfEdge }) {
 </template>
 
 <style>
+/* The top row spans the canvas: between the breadcrumb and the toolbar, the
+   pane under it stays draggable. Vue Flow sets the panel's pointer-events
+   inline, hence the !important. */
+.graph-canvas-wrap .vue-flow__panel.top.left {
+	pointer-events: none !important;
+}
+
+/* Ports keep their small dot but take a 24px target (WCAG 2.5.8). */
+.dms-automation-node .vue-flow__handle::before {
+	content: '';
+	position: absolute;
+	inset: -8px;
+	border-radius: 9999px;
+}
+
 /* Trigger edges (control flow) take the info role, data edges the success
    role, dashed; theme tokens only (AU-15). The `.edge-*` class out-specifies
    DmsFlowCanvas's generic `.vue-flow__edge-path` rule. */
