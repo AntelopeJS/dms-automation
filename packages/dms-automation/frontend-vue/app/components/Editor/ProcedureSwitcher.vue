@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 // ⌘P: jump to another procedure, by name, with its state; or create one.
 
@@ -34,9 +34,22 @@ const STATE_TONES = {
 const query = ref('')
 const active = ref(0)
 
+// By name, so a procedure is found where it was the last time.
 const visible = computed(() => {
 	const q = query.value.trim().toLowerCase()
-	return props.procedures.filter((p) => !q || p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q))
+	return props.procedures
+		.filter((p) => !q || p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q))
+		.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+})
+
+// The search field drives the list (a combobox): the active row is announced
+// through aria-activedescendant and kept in view while arrows move it.
+const LIST_ID = 'procedure-switcher-list'
+function optionId(index: number): string {
+	return `${LIST_ID}-${index}`
+}
+watch(active, (index) => {
+	void nextTick(() => document.getElementById(optionId(index))?.scrollIntoView({ block: 'nearest' }))
 })
 
 watch(open, (isOpen) => {
@@ -90,12 +103,19 @@ function onKey(ev: KeyboardEvent) {
 					autofocus
 					:placeholder="$t('dms_automation.editor.switcher.search')"
 					class="w-full"
+					role="combobox"
+					aria-autocomplete="list"
+					:aria-expanded="visible.length > 0"
+					:aria-controls="LIST_ID"
+					:aria-activedescendant="visible[active] ? optionId(active) : undefined"
 				/>
-				<ul class="flex max-h-80 flex-col overflow-y-auto" role="listbox">
-					<li v-for="(row, index) in visible" :key="row.procedureId">
+				<ul :id="LIST_ID" class="flex max-h-80 flex-col overflow-y-auto" role="listbox" :aria-label="$t('dms_automation.editor.switcher.title')">
+					<li v-for="(row, index) in visible" :key="row.procedureId" role="presentation">
 						<button
+							:id="optionId(index)"
 							type="button"
 							role="option"
+							tabindex="-1"
 							:aria-selected="index === active"
 							class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left"
 							:class="index === active ? 'bg-elevated' : 'hover:bg-elevated/60'"

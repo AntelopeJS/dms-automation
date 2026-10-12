@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { describeTrigger, type TriggerSummary } from '../../utils/describe'
+import { redactedHeadersOf } from '../../utils/redactedHeaders'
 
 // "Run now": the saved procedure, run for real with a payload the user can
 // edit, prefilled with the last real one (AU-01, AU-05).
@@ -28,6 +29,9 @@ const PAYLOAD_ID = 'run-now-payload'
 const ROW = { layout: 'stack', spacing: 'list', inset: false } as const
 // A payload that is not JSON shows under it; a refused run is a toast.
 const fieldErrors = useFieldErrors({ fields: { payload: PAYLOAD_ID } })
+
+// A payload prefilled from a stored run says which secret headers it lacks.
+const redactedHeaders = computed(() => redactedHeadersOf(payload.value))
 
 const triggerItems = computed(() =>
 	props.triggers.map((trigger) => ({ label: describeTrigger(trigger, processI18n), value: trigger.nodeId ?? '' })),
@@ -121,6 +125,13 @@ async function submit() {
 						<DmsFieldError :id="fieldErrors.errorId('payload')" :message="fieldErrors.errors.payload" />
 					</div>
 				</DmsFieldRow>
+				<DmsBanner
+					v-if="redactedHeaders.length"
+					size="sm"
+					tone="warning"
+					icon="i-ph-key"
+					:title="$t('dms_automation.editor.runNow.redactedHeaders', { headers: redactedHeaders.join(', ') })"
+				/>
 				<DmsBanner size="sm" tone="warning" icon="i-ph-warning" :title="$t('dms_automation.editor.runNow.sideEffects')" />
 			</div>
 		</template>

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { TraceStep } from '../../composables/useAutomationRuns'
 import { describeDuration, describeTime, stepTitle, type StepName } from '../../utils/describe'
+import { redactedHeadersOf } from '../../utils/redactedHeaders'
 
 // The builder's bottom dock: the graph's problems (each one selects its node),
 // this procedure's last runs (same rows as the run history, each opening its
@@ -32,11 +33,14 @@ const props = defineProps<{
 	testSteps: TraceStep[] | null
 	payloadSource: string | null
 	runsUrl: string
+	/** The triggers a test run can start from; a picker shows when there are several. */
+	triggers?: Array<{ label: string; value: string }>
 }>()
 
 const tab = defineModel<DockTab>('tab', { default: 'problems' })
 const payload = defineModel<string>('payload', { default: '{}' })
 const collapsed = defineModel<boolean>('collapsed', { default: false })
+const trigger = defineModel<string | undefined>('trigger')
 
 const emit = defineEmits<{
 	(e: 'select-node', id: string): void
@@ -45,7 +49,11 @@ const emit = defineEmits<{
 
 const { processI18n } = useTranslation()
 
-const failedRuns = computed(() => props.runs.filter((r) => r.status === 'failed').length)
+// Real runs only: a failed test of a draft says nothing of the procedure.
+const failedRuns = computed(() => props.runs.filter((r) => r.status === 'failed' && r.kind !== 'test').length)
+// A payload prefilled from a stored run says which secret headers it lacks.
+const redactedHeaders = computed(() => redactedHeadersOf(payload.value))
+
 const payloadError = computed(() => {
 	try {
 		JSON.parse(payload.value || 'null')
@@ -133,12 +141,20 @@ function runLine(run: DockRun): string {
 			</template>
 
 			<div v-else-if="tab === 'payload'" class="flex h-full flex-col gap-2 p-3">
+				<div v-if="(triggers?.length ?? 0) > 1" class="flex items-center gap-2 text-xs">
+					<label for="dock-test-trigger" class="shrink-0 text-muted">{{ $t('dms_automation.editor.dock.fromTrigger') }}</label>
+					<DmsSelect id="dock-test-trigger" v-model="trigger" :items="triggers" size="xs" class="min-w-48" />
+				</div>
 				<div class="flex items-center justify-between gap-2 text-xs">
 					<span class="text-muted">
 						{{ payloadSource ? $t('dms_automation.editor.dock.payloadFrom', { run: payloadSource.slice(-6) }) : $t('dms_automation.editor.dock.payloadHint') }}
 					</span>
 					<span v-if="payloadError" class="text-error">{{ $t('dms_automation.editor.dock.invalidJson') }}</span>
 				</div>
+				<p v-if="redactedHeaders.length" class="flex items-center gap-2 text-xs text-warning">
+					<UIcon name="i-ph-key" class="size-4 shrink-0" />
+					{{ $t('dms_automation.editor.dock.redactedHeaders', { headers: redactedHeaders.join(', ') }) }}
+				</p>
 				<UTextarea v-model="payload" :rows="5" class="w-full flex-1 font-mono text-xs" autoresize :maxrows="12" />
 			</div>
 
