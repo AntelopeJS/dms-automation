@@ -104,3 +104,33 @@ export function kahn(
 
   return result.length === nodes.size ? result : null;
 }
+
+/**
+ * The nodes that sit on a cycle of `edges` (or between two cycles): what is
+ * left once every node without an incoming edge, then every node without an
+ * outgoing edge, has been peeled off. Empty when the edges form a DAG. The
+ * validator names these nodes so the builder can mark them.
+ */
+export function cycleMembers(
+  nodes: Iterable<string>,
+  edges: readonly (readonly [from: string, to: string])[],
+): string[] {
+  const left = new Set(nodes);
+  let peeled = true;
+  while (peeled) {
+    peeled = false;
+    const hasIncoming = new Set<string>();
+    const hasOutgoing = new Set<string>();
+    for (const [from, to] of edges) {
+      if (!left.has(from) || !left.has(to)) continue;
+      hasOutgoing.add(from);
+      hasIncoming.add(to);
+    }
+    for (const id of left) {
+      if (hasIncoming.has(id) && hasOutgoing.has(id)) continue;
+      left.delete(id);
+      peeled = true;
+    }
+  }
+  return [...left];
+}

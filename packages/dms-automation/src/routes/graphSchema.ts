@@ -1,7 +1,11 @@
 import { HTTPResult } from "@antelopejs/interface-api";
 import { z } from "zod";
 import { nodeKindZodSchema } from "../runtime/nodeKinds";
-import { type ValidateResult, validateGraph } from "../runtime/validate";
+import {
+  MAX_GROUP_DEPTH,
+  type ValidateResult,
+  validateGraph,
+} from "../runtime/validate";
 import type { GraphNode, GroupPort, ProcedureGraph } from "../types/graph";
 
 /**
@@ -35,13 +39,48 @@ export const dataEdgeSchema = z.object({
   to: z.object({ node: z.string(), field: z.string() }),
 });
 
-export const procedureGraphSchema: z.ZodType<ProcedureGraph> = z.lazy(() =>
+/**
+ * How deep the local groups of a raw graph nest, counted without recursion
+ * and stopping past `max`: a hostile body nesting thousands of groups must be
+ * refused before the recursive schema below walks it.
+ */
+function groupDepthOf(value: unknown, max: number): number {
+  let deepest = 0;
+  const pending: { graph: unknown; depth: number }[] = [
+    { graph: value, depth: 0 },
+  ];
+  while (pending.length > 0) {
+    const { graph, depth } = pending.pop() as (typeof pending)[number];
+    deepest = Math.max(deepest, depth);
+    if (deepest > max) return deepest;
+    const nodes = (graph as { nodes?: unknown } | null)?.nodes;
+    if (!Array.isArray(nodes)) continue;
+    for (const node of nodes) {
+      const subgraph = (node as { subgraph?: unknown } | null)?.subgraph;
+      if (subgraph) pending.push({ graph: subgraph, depth: depth + 1 });
+    }
+  }
+  return deepest;
+}
+
+const graphShapeSchema: z.ZodType<ProcedureGraph> = z.lazy(() =>
   z.object({
     nodes: z.array(graphNodeSchema),
     triggerEdges: z.array(triggerEdgeSchema),
     dataEdges: z.array(dataEdgeSchema),
   }),
 );
+
+export const procedureGraphSchema: z.ZodType<
+  ProcedureGraph,
+  z.ZodTypeDef,
+  unknown
+> = z
+  .unknown()
+  .refine((graph) => groupDepthOf(graph, MAX_GROUP_DEPTH) <= MAX_GROUP_DEPTH, {
+    message: `groups are nested more than ${MAX_GROUP_DEPTH} levels deep`,
+  })
+  .pipe(graphShapeSchema);
 
 export const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
   z
@@ -54,7 +93,7 @@ export const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
       // group-specific fields — accepted but only meaningful when kind === "group"
       templateId: z.string().optional(),
       ports: z.array(z.lazy(() => groupPortSchema)).optional(),
-      subgraph: procedureGraphSchema.optional(),
+      subgraph: graphShapeSchema.optional(),
     })
     // Allow other transient fields (e.g. UI metadata) without rejecting.
     .passthrough(),
@@ -67,7 +106,7 @@ export const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
  * and templates routes.
  */
 export function parseAndValidate<T>(
-  schema: z.ZodType<T>,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   body: unknown,
   graphSelector: (data: T) => ProcedureGraph,
 ): T {

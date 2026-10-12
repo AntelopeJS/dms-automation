@@ -12,104 +12,59 @@ import {
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
-import type { ConfirmDialog } from "@antelopejs/interface-dms/base";
 import { serializeConfirmDialog } from "@antelopejs/interface-dms/base/confirm-dialog";
-import { z } from "zod";
 import { ProcedureModel } from "../db/models/procedure.model";
 import { ProcedureRunModel } from "../db/models/procedure_run.model";
 import { getProceduresSummary } from "../db/models/stats.model";
 import type { Procedure } from "../db/tables/procedure.table";
-import { readTriggerPayload } from "../runtime/boundRunLog";
+import { PROCEDURES_TOPIC, notifyTopic } from "../realtime";
+import { DEFAULT_SCHEDULE } from "../runtime/builtins/triggers/cron";
 import { parseGraphSafe, triggersOf } from "../runtime/describe";
-import {
-  type GraphIssue,
-  graphIssues,
-  hasBlockingIssue,
-  hasTrigger,
-} from "../runtime/graphIssues";
+import { hasBlockingIssue } from "../runtime/graphIssues";
+import { changesExecution } from "../runtime/graphVersion";
 import { nextOccurrence } from "../runtime/schedule";
 import { subscriptions } from "../runtime/subscriptions";
+import { withFreeWebhookPaths } from "../runtime/webhookRoutes";
 import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import { isProductionRun } from "../types/runLog";
-import { procedureGraphSchema } from "./graphSchema";
-
-const procedureBodySchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  description: z.string().optional(),
-  enabled: z.boolean(),
-  graph: procedureGraphSchema,
-});
-
-type ProcedureBody = z.infer<typeof procedureBodySchema>;
-
-const STARTERS = ["webhook", "schedule.cron", "manual"] as const;
-
-const newProcedureSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  trigger: z.enum(STARTERS),
-  description: z.string().nullish(),
-});
-
-const importSchema = z.object({ json: z.string().min(1) });
-
-const exportedSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  description: z.string().optional(),
-  graph: procedureGraphSchema,
-});
-
-const enabledSchema = z.object({ enabled: z.boolean() });
-
-const runNowSchema = z
-  .object({
-    payload: z.unknown().optional(),
-    triggerNodeId: z.string().optional(),
-  })
-  .nullish();
-
-const testSchema = z.object({
-  graph: procedureGraphSchema,
-  payload: z.unknown().optional(),
-  triggerNodeId: z.string().optional(),
-});
-
-/** A refused body, its issues listed. */
-function invalid(error: string, issues: unknown): HTTPResult {
-  return new HTTPResult(400, { error, issues });
-}
-
-function parseBody<T>(schema: z.ZodType<T>, body: unknown): T {
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) throw invalid("invalid body", parsed.error.issues);
-  return parsed.data;
-}
-
-/**
- * The problems of a graph about to be saved. An enabled procedure must have a
- * trigger and no error: enabling it would arm triggers on a graph the
- * executor refuses. A disabled one is saved as a draft with its problems,
- * which the builder lists.
- */
-function checkSavable(graph: ProcedureGraph, enabled: boolean): GraphIssue[] {
-  const issues = graphIssues(graph);
-  if (!enabled) return issues;
-  if (hasBlockingIssue(issues)) throw invalid("invalid graph", issues);
-  if (!hasTrigger(graph)) {
-    throw invalid("invalid graph", [
-      {
-        severity: "error",
-        message: "a procedure needs a trigger before it can be enabled",
-      },
-    ]);
-  }
-  return issues;
-}
+import { deleteDialogOf } from "./deleteConfirm";
+import {
+  checkSavable,
+  graphRefusal,
+  isStale,
+  issuesOf,
+  nameWarning,
+  saveIssues,
+  stale,
+} from "./procedureChecks";
+import { lastPayloadOf, runOutcome } from "./procedureRuns";
+import {
+  enabledSchema,
+  exportedSchema,
+  importErrorOf,
+  importSchema,
+  MAX_NAME_LENGTH,
+  newProcedureSchema,
+  type ProcedureBody,
+  procedureBodySchema,
+  procedureUpdateSchema,
+  runNowSchema,
+  type Starter,
+  testSchema,
+  validateSchema,
+} from "./procedureSchemas";
+import {
+  API_MESSAGES as API,
+  pageParams,
+  parseBody,
+  refused,
+} from "./requests";
 
 async function loadProcedure(id: string): Promise<Procedure> {
   const procedure = await GetModel(ProcedureModel, DATABASE_NAME).get(id);
   if (!procedure) {
-    throw new HTTPResult(404, { error: `procedure "${id}" not found` });
+    throw refused(404, `procedure "${id}" not found`, `${API}.notFound`);
   }
   return procedure;
 }
@@ -117,9 +72,11 @@ async function loadProcedure(id: string): Promise<Procedure> {
 function graphOf(procedure: Procedure): ProcedureGraph {
   const graph = parseGraphSafe(procedure.graph);
   if (!graph) {
-    throw new HTTPResult(400, {
-      error: `procedure "${procedure._id}" has an invalid graph`,
-    });
+    throw refused(
+      400,
+      `procedure "${procedure._id}" has an invalid graph`,
+      `${API}.graphHasErrors`,
+    );
   }
   return graph;
 }
@@ -135,7 +92,6 @@ function newNodeId(): string {
 const SLUG_INVALID = /[^a-z0-9]+/g;
 const SLUG_EDGES = /^-+|-+$/g;
 const MAX_SLUG_LENGTH = 40;
-const DEFAULT_SCHEDULE = "0 9 * * 1";
 
 function slugOf(name: string): string {
   const slug = name
@@ -149,7 +105,7 @@ function slugOf(name: string): string {
 }
 
 const STARTER_CONFIG: Record<
-  (typeof STARTERS)[number],
+  Starter,
   (name: string) => Record<string, unknown>
 > = {
   webhook: (name) => ({ path: `/webhooks/${slugOf(name)}`, method: "POST" }),
@@ -158,10 +114,7 @@ const STARTER_CONFIG: Record<
 };
 
 /** A graph holding only the trigger picked in the "New procedure" dialog. */
-function starterGraph(
-  trigger: (typeof STARTERS)[number],
-  name: string,
-): ProcedureGraph {
+function starterGraph(trigger: Starter, name: string): ProcedureGraph {
   const node: GraphNode = {
     id: newNodeId(),
     kind: "trigger",
@@ -183,8 +136,9 @@ async function insertDraft(
     name,
     description,
     enabled: false,
-    graph: JSON.stringify(graph),
+    graph: JSON.stringify(await withFreeWebhookPaths(graph)),
     version: 1,
+    revision: 1,
     created_at: now,
     updated_at: now,
   });
@@ -193,51 +147,14 @@ async function insertDraft(
     throw new HTTPResult(500, { error: "procedure insert returned no id" });
   }
   await subscriptions.onProcedureChange(id);
+  notifyTopic(PROCEDURES_TOPIC, "created", { procedureId: id });
   return id;
 }
 
-/** What changes when a procedure stops: its webhooks and schedules. */
-function stopImpact(graph: ProcedureGraph | undefined) {
-  return (graph ? triggersOf(graph) : [])
-    .filter((t) => t.path || t.cron)
-    .map((t) =>
-      t.path
-        ? {
-            icon: "i-ph-webhooks-logo",
-            label: "$dms_automation.procedures.deleteImpact.webhook",
-            count: `${t.method} ${t.path}`,
-          }
-        : {
-            icon: "i-ph-clock",
-            label: "$dms_automation.procedures.deleteImpact.schedule",
-            count: t.cron,
-          },
-    );
-}
-
-/** The payload of the last production run that started from a trigger. */
-async function lastPayloadOf(procedureId: string, triggerNodeId?: string) {
-  const runs = await GetModel(ProcedureRunModel, DATABASE_NAME).listByProcedure(
-    procedureId,
-    0,
-    20,
-  );
-  const last = runs.find(
-    (r) =>
-      isProductionRun(r.kind) &&
-      (!triggerNodeId || r.triggerNodeId === triggerNodeId),
-  );
-  if (!last) return null;
-  const run = await GetModel(ProcedureRunModel, DATABASE_NAME).get(last._id);
-  const stored = readTriggerPayload(run?.triggerPayload);
-  return stored.kept
-    ? {
-        runId: last._id,
-        triggerNodeId: last.triggerNodeId,
-        startedAt: new Date(last.startedAt).toISOString(),
-        payload: stored.payload,
-      }
-    : null;
+/** The name of a copy, kept within the length a name may have. */
+function copyNameOf(name: string): string {
+  const suffix = " (copy)";
+  return `${name.slice(0, MAX_NAME_LENGTH - suffix.length)}${suffix}`;
 }
 
 @AuthOwnerOnly()
@@ -251,9 +168,7 @@ export class ProceduresController extends Controller(
     @Parameter("limit", "query") limit?: string,
   ) {
     const model = GetModel(ProcedureModel, DATABASE_NAME);
-    const pageNum = page ? Number(page) : 0;
-    const limitNum = limit ? Number(limit) : 20;
-    return await model.list({ page: pageNum, limit: limitNum });
+    return await model.list(pageParams(page, limit));
   }
 
   // Per-procedure rows (trigger, state, last runs, success, avg): the
@@ -263,14 +178,20 @@ export class ProceduresController extends Controller(
     return { results: await getProceduresSummary() };
   }
 
-  /** The problems of a draft graph, for the builder's Problems dock. */
+  /**
+   * The problems of a draft graph, for the builder's Problems dock: as for an
+   * enabled procedure when `enabled` is set (a missing setting then blocks).
+   * With the procedure's id and name, a webhook path or a name another
+   * procedure already uses is reported too.
+   */
   @Post("/validate")
   async validate(@AuthRawUser() _user: User, @JSONBody() body: unknown) {
-    const { graph } = parseBody(
-      z.object({ graph: procedureGraphSchema }),
+    const { graph, enabled, procedureId, name } = parseBody(
+      validateSchema,
       body,
     );
-    return { issues: graphIssues(graph) };
+    const target = { procedureId, name };
+    return { issues: await saveIssues(graph, enabled ?? false, target) };
   }
 
   /**
@@ -283,12 +204,13 @@ export class ProceduresController extends Controller(
     @JSONBody() body: unknown,
   ) {
     const data = parseBody(newProcedureSchema, body);
+    const warning = await nameWarning(data.name);
     const id = await insertDraft(
       data.name,
       data.description ?? "",
       starterGraph(data.trigger, data.name),
     );
-    return { _id: id };
+    return { _id: id, ...warning };
   }
 
   /** "Import JSON": an exported procedure becomes a new disabled draft. */
@@ -308,15 +230,18 @@ export class ProceduresController extends Controller(
     if (!parsed.success) {
       throw new HTTPResult(400, {
         field: "json",
-        message: "$dms_automation.importProcedure.notProcedure",
+        // No `issues` list: the DMS would map its paths onto form fields
+        // before reading `field`, and the error would miss the JSON field.
+        message: importErrorOf(parsed.error.issues),
       });
     }
+    const warning = await nameWarning(parsed.data.name);
     const id = await insertDraft(
       parsed.data.name,
       parsed.data.description ?? "",
       parsed.data.graph,
     );
-    return { _id: id, issues: graphIssues(parsed.data.graph) };
+    return { _id: id, issues: issuesOf(parsed.data.graph, false), ...warning };
   }
 
   @Get("/:id")
@@ -324,7 +249,10 @@ export class ProceduresController extends Controller(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
   ) {
-    return await loadProcedure(id);
+    const procedure = await loadProcedure(id);
+    // Stored before revisions existed: at 0, the revision a save checks.
+    procedure.revision ??= 0;
+    return procedure;
   }
 
   /** The procedure as "Import JSON" reads it back. */
@@ -341,10 +269,27 @@ export class ProceduresController extends Controller(
     };
   }
 
+  /** "Duplicate": a disabled copy, its webhooks moved to free paths. */
+  @Post("/:id/duplicate")
+  async duplicate(
+    @AuthRawUser() _user: User,
+    @Parameter("id", "param") id: string,
+  ) {
+    const procedure = await loadProcedure(id);
+    const copyId = await insertDraft(
+      copyNameOf(procedure.name),
+      procedure.description ?? "",
+      graphOf(procedure),
+    );
+    return { _id: copyId };
+  }
+
   @Post("")
   async create(@AuthRawUser() _user: User, @JSONBody() body: unknown) {
     const data: ProcedureBody = parseBody(procedureBodySchema, body);
-    const issues = checkSavable(data.graph, data.enabled);
+    const issues = await checkSavable(data.graph, data.enabled, {
+      name: data.name,
+    });
     const model = GetModel(ProcedureModel, DATABASE_NAME);
     const now = new Date();
     const ids = await model.insert({
@@ -353,6 +298,7 @@ export class ProceduresController extends Controller(
       enabled: data.enabled,
       graph: JSON.stringify(data.graph),
       version: 1,
+      revision: 1,
       created_at: now,
       updated_at: now,
     });
@@ -361,40 +307,67 @@ export class ProceduresController extends Controller(
       throw new HTTPResult(500, { error: "procedure insert returned no id" });
     }
     await subscriptions.onProcedureChange(id);
-    return { _id: id, version: 1, issues };
+    notifyTopic(PROCEDURES_TOPIC, "created", { procedureId: id });
+    return { _id: id, version: 1, revision: 1, issues };
   }
 
+  /**
+   * Save a procedure. With `expectedRevision` (or the older
+   * `expectedVersion`), the save is refused (409 `stale`) when the procedure
+   * was written since it was loaded. The version moves on only when the
+   * graph changes; the revision on every save.
+   */
   @Put("/:id")
   async update(
     @AuthRawUser() user: User,
     @Parameter("id", "param") id: string,
     @JSONBody() body: unknown,
   ) {
-    const data: ProcedureBody = parseBody(procedureBodySchema, body);
+    const data = parseBody(procedureUpdateSchema, body);
     const existing = await loadProcedure(id);
-    const issues = checkSavable(data.graph, data.enabled);
-    const version = (existing.version ?? 1) + 1;
+    if (isStale(existing, data)) throw stale(existing, data);
+    const issues = await checkSavable(data.graph, data.enabled, {
+      procedureId: id,
+      name: data.name,
+    });
+    const graph = JSON.stringify(data.graph);
+    const current = existing.version ?? 1;
+    // Moving or restyling nodes is a new revision, not a new version.
+    const version = changesExecution(existing.graph, data.graph)
+      ? current + 1
+      : current;
+    const revision = (existing.revision ?? 0) + 1;
     const patch: Partial<Procedure> = {
       name: data.name,
       description: data.description ?? "",
       enabled: data.enabled,
-      graph: JSON.stringify(data.graph),
+      graph,
       version,
+      revision,
       updated_at: new Date(),
     };
     if (existing.enabled && !data.enabled) {
       patch.pausedAt = new Date();
       patch.pausedBy = user.name ?? user.email;
     }
-    await GetModel(ProcedureModel, DATABASE_NAME).update(id, patch);
-    if (existing.name !== data.name) {
-      await GetModel(ProcedureRunModel, DATABASE_NAME).renameProcedure(
-        id,
-        data.name,
-      );
+    const model = GetModel(ProcedureModel, DATABASE_NAME);
+    const checked =
+      data.expectedRevision !== undefined || data.expectedVersion !== undefined;
+    if (!checked) {
+      await model.update(id, patch);
+    } else if (!(await model.updateAtRevision(id, revision - 1, patch))) {
+      // Written by someone else between the read and this write.
+      throw stale(await loadProcedure(id), data);
     }
+    const runs = GetModel(ProcedureRunModel, DATABASE_NAME);
+    if (existing.name !== data.name) {
+      await runs.renameProcedure(id, data.name);
+    }
+    // The runs of the previous graph now read as an older version.
+    if (version !== current) await runs.markOlderVersions(id, version);
     await subscriptions.onProcedureChange(id);
-    return { _id: id, version, issues };
+    notifyTopic(PROCEDURES_TOPIC, "updated", { procedureId: id });
+    return { _id: id, version, revision, issues };
   }
 
   /** Pause or resume a procedure without touching its graph. */
@@ -404,17 +377,30 @@ export class ProceduresController extends Controller(
     @Parameter("id", "param") id: string,
     @JSONBody() body: unknown,
   ) {
-    const { enabled } = parseBody(enabledSchema, body);
+    const { enabled, restorePause } = parseBody(enabledSchema, body);
     const procedure = await loadProcedure(id);
-    if (enabled) checkSavable(graphOf(procedure), true);
-    const patch: Partial<Procedure> = { enabled, updated_at: new Date() };
-    if (!enabled && procedure.enabled) {
+    if (enabled) {
+      await checkSavable(graphOf(procedure), true, { procedureId: id });
+    }
+    // A new revision (the graph, and so the version, stays): a builder
+    // still open on the old one cannot save it back over a pause or a resume.
+    const patch: Partial<Procedure> = {
+      enabled,
+      revision: (procedure.revision ?? 0) + 1,
+      updated_at: new Date(),
+    };
+    // Undoing a resume puts the pause back as it was: a resume leaves its
+    // time and author in place.
+    if (!enabled && procedure.enabled && !restorePause) {
       patch.pausedAt = new Date();
       patch.pausedBy = user.name ?? user.email;
     }
     await GetModel(ProcedureModel, DATABASE_NAME).update(id, patch);
     await subscriptions.onProcedureChange(id);
-    return { _id: id, enabled };
+    notifyTopic(PROCEDURES_TOPIC, enabled ? "enabled" : "disabled", {
+      procedureId: id,
+    });
+    return { _id: id, enabled, revision: patch.revision };
   }
 
   /** Hide a degraded procedure from "Needs attention" until it fails again. */
@@ -427,6 +413,21 @@ export class ProceduresController extends Controller(
     await GetModel(ProcedureModel, DATABASE_NAME).update(id, {
       attentionDismissedAt: new Date(),
     });
+    notifyTopic(PROCEDURES_TOPIC, "updated", { procedureId: id });
+    return { _id: id };
+  }
+
+  /** Undo a dismiss: the procedure is back in "Needs attention". */
+  @Delete("/:id/dismiss-attention")
+  async undoDismissAttention(
+    @AuthRawUser() _user: User,
+    @Parameter("id", "param") id: string,
+  ) {
+    await loadProcedure(id);
+    await GetModel(ProcedureModel, DATABASE_NAME).update(id, {
+      attentionDismissedAt: null,
+    });
+    notifyTopic(PROCEDURES_TOPIC, "updated", { procedureId: id });
     return { _id: id };
   }
 
@@ -435,16 +436,14 @@ export class ProceduresController extends Controller(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
   ) {
-    const model = GetModel(ProcedureModel, DATABASE_NAME);
-    await model.delete(id);
+    await loadProcedure(id);
+    await GetModel(ProcedureModel, DATABASE_NAME).delete(id);
     await subscriptions.onProcedureDelete(id);
+    notifyTopic(PROCEDURES_TOPIC, "deleted", { procedureId: id });
     return { _id: id };
   }
 
-  /**
-   * The delete dialog, worded for the procedure: what stops answering, how
-   * often it ran this week, and, for an enabled one, its name to type.
-   */
+  /** The delete dialog, worded for the procedure (see deleteDialogOf). */
   @Get("/:id/delete-confirm")
   async deleteConfirm(
     @AuthRawUser() _user: User,
@@ -455,21 +454,7 @@ export class ProceduresController extends Controller(
     const runs = (
       await GetModel(ProcedureRunModel, DATABASE_NAME).listForStats(since)
     ).filter((r) => r.procedureId === id && isProductionRun(r.kind));
-    const graph = parseGraphSafe(procedure.graph);
-    const dialog: ConfirmDialog = {
-      title: "$dms_automation.procedures.deleteTitle",
-      description: procedure.enabled
-        ? "$dms_automation.procedures.deleteEnabledDescription"
-        : "$dms_automation.procedures.deleteDescription",
-      params: { name: procedure.name, count: runs.length },
-      icon: "i-ph-trash",
-      color: "error",
-      confirmLabel: "$dms_automation.procedures.deleteConfirm",
-      impact: procedure.enabled ? stopImpact(graph) : [],
-    };
-    // An enabled procedure is deleted by typing its name.
-    if (procedure.enabled) dialog.confirmText = procedure.name;
-    return serializeConfirmDialog(dialog);
+    return serializeConfirmDialog(deleteDialogOf(procedure, runs.length));
   }
 
   /** Run the saved graph of a procedure with a manual trigger (API invoke). */
@@ -486,7 +471,9 @@ export class ProceduresController extends Controller(
   /**
    * Run now: the saved graph, from the given trigger (the manual one or the
    * first by default), with the given payload, or the last real payload of
-   * that trigger when none is given.
+   * that trigger when none is given. A graph with errors is refused, as a
+   * test run is, rather than stored as a failed production run. The answer
+   * says how the run ended.
    */
   @Post("/:id/run-now")
   async runNow(
@@ -495,12 +482,14 @@ export class ProceduresController extends Controller(
     @JSONBody() body: unknown,
   ) {
     const data = parseBody(runNowSchema, body) ?? {};
+    const issues = issuesOf(graphOf(await loadProcedure(id)), false);
+    if (hasBlockingIssue(issues)) throw graphRefusal(issues);
     const hasPayload = Object.hasOwn(data, "payload");
     const payload = hasPayload
       ? data.payload
-      : ((await lastPayloadOf(id, data.triggerNodeId))?.payload ?? {});
+      : ((await lastPayloadOf(id, data.triggerNodeId)).last?.payload ?? {});
     const runId = await subscriptions.runNow(id, payload, data.triggerNodeId);
-    return { runId };
+    return await runOutcome(runId, true);
   }
 
   /**
@@ -514,15 +503,15 @@ export class ProceduresController extends Controller(
     @JSONBody() body: unknown,
   ) {
     const data = parseBody(testSchema, body);
-    const issues = graphIssues(data.graph);
-    if (hasBlockingIssue(issues)) throw invalid("invalid graph", issues);
+    const issues = issuesOf(data.graph, false);
+    if (hasBlockingIssue(issues)) throw graphRefusal(issues);
     const runId = await subscriptions.testRun(
       id,
       data.graph,
       data.payload ?? {},
       data.triggerNodeId,
     );
-    return { runId };
+    return await runOutcome(runId, false);
   }
 
   /** The last real payload of a trigger: the default test payload. */
@@ -532,7 +521,8 @@ export class ProceduresController extends Controller(
     @Parameter("id", "param") id: string,
     @Parameter("triggerNodeId", "query") triggerNodeId?: string,
   ) {
-    return { last: await lastPayloadOf(id, triggerNodeId) };
+    await loadProcedure(id);
+    return await lastPayloadOf(id, triggerNodeId);
   }
 
   /** The triggers of the saved graph, with the next time a schedule fires. */
@@ -557,10 +547,10 @@ export class ProceduresController extends Controller(
     @Parameter("page", "query") page?: string,
     @Parameter("limit", "query") limit?: string,
   ) {
+    const params = pageParams(page, limit);
+    await loadProcedure(id);
     const model = GetModel(ProcedureRunModel, DATABASE_NAME);
-    const pageNum = page ? Number(page) : 0;
-    const limitNum = limit ? Number(limit) : 20;
     // Over-fetch one row so the client can tell whether a next page exists.
-    return await model.listByProcedure(id, pageNum, limitNum, true);
+    return await model.listByProcedure(id, params.page, params.limit, true);
   }
 }

@@ -12,8 +12,13 @@ import {
 import { ProcedureModel } from "../db/models/procedure.model";
 import type { Procedure } from "../db/tables/procedure.table";
 import { DATABASE_NAME, FETCH_ALL_LIMIT } from "../types/constants";
-import type { GroupNode, ProcedureGraph } from "../types/graph";
+import type { ProcedureGraph } from "../types/graph";
 import { MANUAL_TRIGGER_ID } from "./builtins/triggers/manual";
+import {
+  type ArmedWebhook,
+  namedRouteConflict,
+  webhookTrigger,
+} from "./builtins/triggers/webhook";
 import {
   executeProcedure,
   findTriggerNode,
@@ -21,10 +26,16 @@ import {
   parseStoredGraph,
   syncRunNames,
 } from "./runProcedure";
+import { type ArmError, armErrorFrom, storeArmErrors } from "./armErrors";
 import { diff } from "./reconcileDiff";
 import { registry } from "./registry";
-import { validateGraph } from "./validate";
+import {
+  bumpVersionOfUsages,
+  disableInvalidUsages,
+  forkUsage,
+} from "./templateUsages";
 import { isTriggerTypeDisabled, refreshTypeSwitches } from "./typeSwitches";
+import { withTimeout } from "./withTimeout";
 
 interface HandleEntry {
   handle: unknown;
@@ -46,6 +57,11 @@ const handles = new Map<string, HandleEntry>();
 // tearing down and re-creating the handle (which the diff in reconcile()
 // only does when typeId/config change).
 const liveMeta = new Map<string, LiveMeta>();
+// Why a desired trigger failed to arm on this instance, by key. Kept until the
+// trigger arms or is no longer desired, and written on the procedure after
+// each reconcile (storeArmErrors), so the procedures list can tell an enabled
+// procedure that will never start from a healthy one.
+const activationErrors = new Map<string, ArmError>();
 
 // Module-level cache of every workspace-global template. Populated by
 // hydrate() at boot and kept in sync by onTemplateChange / onTemplateDelete.
@@ -55,6 +71,25 @@ const templateCache = new Map<string, AutomationTemplateRow>();
 
 function getTemplate(id: string): AutomationTemplateRow | undefined {
   return templateCache.get(id);
+}
+
+/**
+ * Why a run cannot start from `triggerNodeId`: it is not in the graph, or the
+ * graph has no trigger at all.
+ */
+function noTriggerToRun(
+  triggerNodeId: string | undefined,
+  owner: string,
+): HTTPResult {
+  return triggerNodeId
+    ? new HTTPResult(404, {
+        error: `trigger "${triggerNodeId}" is not in ${owner}`,
+        message: "$dms_automation.api.triggerNotFound",
+      })
+    : new HTTPResult(400, {
+        error: `${owner} has no trigger to run from`,
+        message: "$dms_automation.api.noTriggerToRun",
+      });
 }
 
 const templates = { get: getTemplate };
@@ -90,29 +125,6 @@ function key(procedureId: string, nodeId: string): string {
 // implementation that hangs would otherwise block the whole serialized
 // reconcile chain indefinitely.
 const TRIGGER_OP_TIMEOUT_MS = 10_000;
-
-function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(
-      () =>
-        reject(new Error(`[dms-automation] ${label} timed out after ${ms}ms`)),
-      ms,
-    );
-    // Don't let the fallback timer keep the event loop alive — otherwise a hung
-    // trigger teardown could hold the process open for up to `ms` on shutdown.
-    timer.unref?.();
-    p.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      },
-    );
-  });
-}
 
 // Tear down one trigger handle, bounded so a misbehaving deactivate can't wedge
 // the caller. Returns whether teardown succeeded; callers decide whether to drop
@@ -233,6 +245,16 @@ async function deactivateStaleHandles(
   return failedDeactivate;
 }
 
+/** The webhooks armed here, with the procedure each belongs to. */
+function armedWebhooks(): ArmedWebhook[] {
+  return [...handles]
+    .filter(([, entry]) => entry.typeId === webhookTrigger.id)
+    .map(([k, entry]) => ({
+      config: JSON.parse(entry.configHash) as Record<string, unknown>,
+      procedure: liveMeta.get(k)?.procedure.name ?? entry.procedureId,
+    }));
+}
+
 async function activateNewHandles(
   toActivate: Iterable<string>,
   desiredMeta: Map<string, DesiredMeta>,
@@ -249,6 +271,11 @@ async function activateNewHandles(
       Logging.Warn(
         `[dms-automation] trigger type "${meta.typeId}" not registered; skipping ${k}`,
       );
+      activationErrors.set(k, {
+        code: "unknownType",
+        params: { type: meta.typeId },
+        message: `trigger type "${meta.typeId}" is not available`,
+      });
       continue;
     }
     try {
@@ -260,10 +287,19 @@ async function activateNewHandles(
         procedureId: meta.procedure._id,
         nodeId: meta.nodeId,
       });
+      activationErrors.delete(k);
     } catch (err) {
       Logging.Error(
         `[dms-automation] failed to activate ${meta.typeId} for ${k}:`,
         err,
+      );
+      activationErrors.set(
+        k,
+        namedRouteConflict(
+          armErrorFrom(err),
+          meta.config as Record<string, unknown>,
+          armedWebhooks(),
+        ),
       );
     }
   }
@@ -304,6 +340,10 @@ async function reconcile(): Promise<void> {
   const failedDeactivate = await deactivateStaleHandles(toDeactivate);
   await activateNewHandles(toActivate, desiredMeta, failedDeactivate);
   refreshLiveMeta(desiredMeta);
+  for (const k of activationErrors.keys()) {
+    if (!desired.has(k)) activationErrors.delete(k);
+  }
+  await storeArmErrors(desiredMeta, activationErrors);
 }
 
 async function activateTrigger(
@@ -348,47 +388,16 @@ async function hydrateTemplates(): Promise<void> {
   }
 }
 
-// Re-validate every procedure that references `templateId`. If a procedure
-// fails validation and is currently enabled, disable it (so a broken
-// template can't keep firing trigger subscriptions against a graph that
-// won't execute cleanly). Either way, reconcile trigger subscriptions so
-// the live cache picks up the latest graph (and drops handles for now-
-// disabled procedures).
+// Disable the procedures a template change leaves invalid, then reconcile
+// trigger subscriptions so the live cache picks up the latest graph (and
+// drops handles for now-disabled procedures). One reconcile covers every
+// affected procedure — reconcile() rebuilds the full desired-handle map from
+// `listEnabled()`. Queued so it serializes with bus/leadership reconciles
+// against the shared handle map.
 async function revalidateProceduresUsingTemplate(
   templateId: string,
 ): Promise<void> {
-  const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
-  const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
-  const usages = await templateModel.findUsages(templateId);
-  const procIds = new Set(usages.map((u) => u.procedureId));
-  for (const id of procIds) {
-    const p = await procedureModel.get(id);
-    if (!p) continue;
-    let graph: ProcedureGraph;
-    try {
-      graph = JSON.parse(p.graph) as ProcedureGraph;
-    } catch (err) {
-      Logging.Error(
-        `[dms-automation] template cascade: skipping procedure "${id}" — graph JSON parse failed:`,
-        err,
-      );
-      continue;
-    }
-    const verdict = validateGraph(graph);
-    if (!verdict.ok && p.enabled) {
-      await procedureModel.update(id, {
-        enabled: false,
-        updated_at: new Date(),
-      });
-    }
-  }
-  // One reconcile covers every affected procedure — reconcile() rebuilds
-  // the full desired-handle map from `listEnabled()`, so calling it once
-  // after the loop is equivalent to calling it per-procedure. Queue it so it
-  // serializes with bus/leadership reconciles against the shared handle map.
-  if (procIds.size > 0) {
-    await queueReconcile();
-  }
+  if (await disableInvalidUsages(templateId)) await queueReconcile();
 }
 
 // Refresh this instance's template cache for a created/updated template.
@@ -494,6 +503,7 @@ export const subscriptions = {
   },
   /** Called by the templates routes after a template is created or updated. */
   async onTemplateChange(id: string): Promise<void> {
+    await bumpVersionOfUsages(id);
     await notifyChange({ kind: "template-change", id });
   },
   /**
@@ -534,30 +544,17 @@ export const subscriptions = {
    * — the route caller then proceeds with delete and the dangling reference
    * surfaces as a validation failure on next change (auto-disabling the
    * consumer).
+   *
+   * The instance may sit inside local groups: `groupPath` (the usage's, ids
+   * outermost first) finds it there; without it, the first node with that id
+   * at any depth is forked.
    */
-  async forkUsageToLocal(procedureId: string, nodeId: string): Promise<void> {
-    const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
-    const p = await procedureModel.get(procedureId);
-    if (!p) return;
-    let graph: ProcedureGraph;
-    try {
-      graph = JSON.parse(p.graph) as ProcedureGraph;
-    } catch {
-      return;
-    }
-    const node = graph.nodes.find((n) => n.id === nodeId) as
-      | GroupNode
-      | undefined;
-    if (!node) return;
-    if (!node.templateId) return; // already local — no-op
-    const tpl = templateCache.get(node.templateId);
-    if (!tpl) return;
-    delete node.templateId;
-    node.subgraph = structuredClone(tpl.subgraph);
-    await procedureModel.update(procedureId, {
-      graph: JSON.stringify(graph),
-      updated_at: new Date(),
-    });
+  async forkUsageToLocal(
+    procedureId: string,
+    nodeId: string,
+    groupPath?: readonly string[],
+  ): Promise<void> {
+    await forkUsage(procedureId, nodeId, groupPath, getTemplate);
   },
   async deactivateAllForTriggerType(typeId: string): Promise<void> {
     for (const [k, entry] of handles) {
@@ -600,9 +597,7 @@ export const subscriptions = {
     const graph = parseStoredGraph(procedure);
     const trigger = findTriggerNode(graph, triggerNodeId);
     if (!trigger) {
-      throw new HTTPResult(400, {
-        error: `procedure "${procedureId}" has no trigger to run from`,
-      });
+      throw noTriggerToRun(triggerNodeId, `procedure "${procedureId}"`);
     }
     return await executeProcedure(
       procedure,
@@ -648,11 +643,7 @@ export const subscriptions = {
   ): Promise<string> {
     const procedure = await loadProcedure(procedureId);
     const trigger = findTriggerNode(graph, triggerNodeId);
-    if (!trigger) {
-      throw new HTTPResult(400, {
-        error: "the draft has no trigger to run from",
-      });
-    }
+    if (!trigger) throw noTriggerToRun(triggerNodeId, "the draft");
     return await executeProcedure(
       procedure,
       graph,
@@ -662,6 +653,24 @@ export const subscriptions = {
       { kind: "test" },
     );
   },
+  /** Whether a template exists: what a group node may reference. */
+  hasTemplate(id: string): boolean {
+    return templateCache.has(id);
+  },
+  /**
+   * Why a trigger of this procedure failed to arm on this instance (an invalid
+   * cron, a webhook path already taken…), in English, or undefined when every
+   * trigger it should run here is armed. Retried on every reconcile.
+   * Prefer `armErrorOf(procedure)` (runtime/armErrors.ts): stored on the
+   * procedure, translatable, and the same on every instance of a cluster.
+   */
+  activationErrorOf(procedureId: string): string | undefined {
+    const prefix = key(procedureId, "");
+    for (const [k, error] of activationErrors) {
+      if (k.startsWith(prefix)) return error.message;
+    }
+    return undefined;
+  },
   /** @internal exposed for destroy() in src/index.ts */
   async _deactivateAll(): Promise<void> {
     for (const [k, entry] of handles) {
@@ -669,5 +678,6 @@ export const subscriptions = {
       handles.delete(k);
       liveMeta.delete(k);
     }
+    activationErrors.clear();
   },
 };
