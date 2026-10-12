@@ -3,13 +3,16 @@
  * plain rows, so the rules are tested without a database.
  */
 
+import type { ArmError } from "../runtime/armErrors";
+
 /**
  * State of a procedure:
  * - `draft`: no trigger yet, or disabled and never enabled nor run;
  * - `paused`: disabled after being enabled (or after it ran);
- * - `failing`: enabled, and its last run failed;
+ * - `failing`: enabled, and its last run failed or a trigger failed to arm;
  * - `degraded`: enabled, its last run succeeded, but runs failed in the window;
- * - `healthy`: enabled, no failure in the window.
+ * - `healthy`: enabled, no failure in the window (a procedure that never ran
+ *   yet included: the list says so under its state).
  */
 export type ProcedureState =
   | "draft"
@@ -44,6 +47,8 @@ export interface HealthProcedure {
   hasTrigger: boolean;
   /** When it was last disabled; absent for one never enabled. */
   pausedAt?: Date;
+  /** Why one of its triggers failed to arm: it will never start that way. */
+  armError?: ArmError;
 }
 
 /** The health of one procedure over a window. */
@@ -59,11 +64,15 @@ export interface ProcedureHealth {
   failingSince?: Date;
   /** Number of failed runs in a row, ending with the last run. */
   failureStreak: number;
-  /** The most recent statuses, newest last. */
-  lastStatuses: string[];
+  /** Why one of its triggers failed to arm, when it is enabled. */
+  armError?: ArmError;
+  /** The same, as the English message the log carries. */
+  triggerError?: string;
+  /** The most recent runs, newest last. */
+  recentRuns: HealthRun[];
 }
 
-const RECENT_STATUSES = 12;
+const RECENT_RUNS = 12;
 
 export function timeOf(value: Date | string): number {
   return new Date(value).getTime();
@@ -112,7 +121,7 @@ function stateOf(
     // Never enabled (just created or imported, nothing ran): still a draft.
     return procedure.pausedAt || lastRun ? "paused" : "draft";
   }
-  if (lastRun?.status === "failed") return "failing";
+  if (procedure.armError || lastRun?.status === "failed") return "failing";
   return failedInWindow > 0 ? "degraded" : "healthy";
 }
 
@@ -143,12 +152,13 @@ export function procedureHealth(
     successRate: ok + failed > 0 ? ok / (ok + failed) : null,
     avgDurationMs: average(durations),
     failureStreak: streak.length,
-    lastStatuses: sorted
-      .slice(0, RECENT_STATUSES)
-      .map((r) => r.status)
-      .reverse(),
+    recentRuns: sorted.slice(0, RECENT_RUNS).reverse(),
   };
   if (lastRun) health.lastRun = lastRun;
+  if (procedure.armError) {
+    health.armError = procedure.armError;
+    health.triggerError = procedure.armError.message;
+  }
   const firstOfStreak = streak.at(-1);
   if (firstOfStreak) health.failingSince = new Date(firstOfStreak.startedAt);
   return health;

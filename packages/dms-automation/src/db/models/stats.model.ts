@@ -1,5 +1,9 @@
 import { GetModel } from "@antelopejs/interface-database-decorators";
-import type { BlockText } from "@antelopejs/interface-dms/base/types";
+import type { CellSublineValue } from "@antelopejs/interface-dms/base/table-view";
+import type {
+  BlockText,
+  ComposedText,
+} from "@antelopejs/interface-dms/base/types";
 import { hasTrigger } from "../../runtime/graphIssues";
 import {
   parseGraphSafe,
@@ -8,7 +12,14 @@ import {
   type TriggerSummary,
   triggersOf,
 } from "../../runtime/describe";
-import { triggerText, triggerTypeText } from "../../runtime/wording";
+import { retentionCutoff, runsKeptDays } from "../../runtime/retention";
+import { armErrorOf } from "../../runtime/armErrors";
+import {
+  asParam,
+  stepText,
+  triggerText,
+  triggerTypeText,
+} from "../../runtime/wording";
 import {
   byProcedure,
   type HealthProcedure,
@@ -28,9 +39,13 @@ import { type StatsRun, ProcedureRunModel } from "./procedure_run.model";
 /**
  * How far back the last run and the failure streak of a procedure are read,
  * whatever the window: a procedure that last ran three weeks ago and failed is
- * still failing. Matches the default run retention.
+ * still failing. As far back as runs are kept (`runs.retentionDays`), every
+ * run when they are kept forever.
  */
-const LOOKBACK_MS = 30 * MS_PER_DAY;
+function lookbackStart(now: Date): Date {
+  const days = runsKeptDays();
+  return days > 0 ? retentionCutoff(days, now) : new Date(0);
+}
 
 /** The window the procedure states and the list figures are computed over. */
 const STATE_WINDOW_MS = 7 * MS_PER_DAY;
@@ -110,7 +125,7 @@ export async function loadStatsContext(
       .table.orderBy("updated_at", "desc")
       .run()
   ).map(factsOf);
-  const lookback = new Date(now.getTime() - LOOKBACK_MS);
+  const lookback = lookbackStart(now);
   const since = earliest && earliest < lookback ? earliest : lookback;
   const runs = (
     await GetModel(ProcedureRunModel, DATABASE_NAME).listForStats(since)
@@ -138,6 +153,8 @@ export function healthByProcedure(
       hasTrigger: graph ? hasTrigger(graph) : false,
     };
     if (procedure.pausedAt) subject.pausedAt = procedure.pausedAt;
+    const armError = armErrorOf(procedure);
+    if (armError) subject.armError = armError;
     out.set(
       procedure._id,
       procedureHealth(subject, runsOf.get(procedure._id) ?? [], since),
@@ -180,6 +197,14 @@ export function compareRuns(
   return runsBetween(ctx.runs, window.compareFrom, window.compareTo);
 }
 
+/** A bar of the strip of last runs, linking to its trace. */
+export interface RecentRunCell {
+  runId: string;
+  status: string;
+  startedAt: string;
+  errorMessage: string | null;
+}
+
 /** One row of the procedures list. */
 export interface ProcedureSummaryRow {
   procedureId: string;
@@ -188,21 +213,30 @@ export interface ProcedureSummaryRow {
   enabled: boolean;
   /** Type id of the first trigger, `null` for a draft. */
   trigger: string | null;
+  /** Type ids of every trigger, for the trigger filter. */
+  triggerTypes: string[];
   /** The first trigger, structured. */
   triggerSummary: TriggerSummary | null;
+  /** Every trigger, structured: the search reads their paths and schedules. */
+  triggers: TriggerSummary[];
   /** The first trigger in words, the first line of its cell. */
   triggerText: BlockText;
-  /** The first trigger's type, under its settings; `null` when the text names it. */
+  /**
+   * The first trigger's type under its settings, and how many triggers
+   * follow; `null` when the text names the only trigger.
+   */
   triggerTypeText: BlockText | null;
   /** How many triggers the graph has. */
   triggerCount: number;
   status: ProcedureState;
-  /** Why the procedure is failing or degraded, under its status pill. */
-  statusDetail: string;
+  /** What the state rests on, under its status pill. */
+  statusDetail: CellSublineValue | null;
+  /** Why a trigger failed to arm, else the error of the last failed run. */
+  lastError: string | null;
   lastRunAt: string | null;
   lastRunId: string | null;
-  /** The last statuses, oldest first, for the `automation:last-runs` display. */
-  lastRuns: string[];
+  /** The last runs, oldest first, for the `automation:last-runs` display. */
+  lastRuns: RecentRunCell[];
   successRate: number | null;
   avgDurationMs: number | null;
   runs: number;
@@ -213,13 +247,98 @@ export interface ProcedureSummaryRow {
   updatedAt: string | null;
 }
 
-/** The error of the last failure, for a failing or degraded procedure. */
+const DETAIL = "dms_automation.procedures.detail";
+
+/**
+ * Under the type of the first trigger, how many more the procedure has
+ * ("Webhook · +2 more"): the cell names only the first one.
+ */
+function triggersTypeText(triggers: TriggerSummary[]): BlockText | null {
+  const typeText = triggerTypeText(triggers[0]);
+  const more = triggers.length - 1;
+  if (more < 1) return typeText;
+  const count = { type: "count", value: more } as const;
+  return typeText
+    ? {
+        key: `${DETAIL}.moreTriggers`,
+        params: { type: asParam(typeText), count },
+      }
+    : { key: `${DETAIL}.moreTriggersOnly`, params: { count } };
+}
+
+/** The error a run failed with, or "Run failed" when it gave none. */
+function errorParam(message: string | undefined): BlockText {
+  return message || { key: `${DETAIL}.runFailed` };
+}
+
+/**
+ * Why a failing procedure fails: the trigger that cannot arm, or the error of
+ * its last run, the step it stopped at and since when it fails.
+ */
+function failingDetail(
+  health: ProcedureHealth,
+  failedStep: StepName | null,
+): ComposedText {
+  if (health.armError) {
+    const { code, params } = health.armError;
+    return {
+      key: `${DETAIL}.triggerError`,
+      params: {
+        error: { key: `dms_automation.editor.problems.codes.${code}`, params },
+      },
+    };
+  }
+  const step = stepText(failedStep);
+  const params = {
+    error: errorParam(health.lastRun?.errorMessage),
+    count: { type: "count", value: health.failureStreak } as const,
+    since: {
+      type: "relative",
+      value: (health.failingSince ?? new Date()).toISOString(),
+    } as const,
+  };
+  return step
+    ? { key: `${DETAIL}.failingAt`, params: { ...params, step: asParam(step) } }
+    : { key: `${DETAIL}.failing`, params };
+}
+
+/**
+ * The line under the status pill: why it fails, how many runs failed in the
+ * window of a degraded one, or that an enabled one never ran yet (healthy,
+ * as no failure was seen, but nothing proves it works either).
+ */
 function statusDetailOf(
   health: ProcedureHealth,
   lastFailed: StatsRun | undefined,
-): string {
-  const explained = health.state === "failing" || health.state === "degraded";
-  return explained ? (lastFailed?.errorMessage ?? "") : "";
+  failedStep: StepName | null,
+): CellSublineValue | null {
+  switch (health.state) {
+    case "failing":
+      return failingDetail(health, failedStep);
+    case "degraded":
+      return {
+        key: `${DETAIL}.degraded`,
+        params: {
+          failed: health.failed,
+          runs: health.runs,
+          error: errorParam(lastFailed?.errorMessage),
+        },
+      };
+    case "healthy":
+      return health.lastRun
+        ? null
+        : { text: `$${DETAIL}.noRunYet`, tone: "muted" };
+    default:
+      return null;
+  }
+}
+
+/**
+ * A success rate in whole percents, rounded down: one failure in 300 runs
+ * reads 99%, never a perfect 100%.
+ */
+function wholePercent(rate: number | null): number | null {
+  return rate === null ? null : Math.floor(rate * 100) / 100;
 }
 
 function summaryRow(
@@ -231,32 +350,41 @@ function summaryRow(
   const lastFailed = ctx.runs.find(
     (r) => r.procedureId === procedure._id && r.status === "failed",
   );
+  const failedStep =
+    health.state === "failing" && health.lastRun?.status === "failed"
+      ? (failedStepOf(ctx, health.lastRun as StatsRun) ?? null)
+      : null;
   return {
     procedureId: procedure._id,
     name: procedure.name,
     description: procedure.description ?? "",
     enabled: procedure.enabled,
     trigger: triggers[0]?.typeId ?? null,
+    triggerTypes: [...new Set(triggers.map((t) => t.typeId))],
     triggerSummary: triggers[0] ?? null,
+    triggers,
     triggerText: triggerText(triggers[0]),
-    triggerTypeText: triggerTypeText(triggers[0]),
+    triggerTypeText: triggersTypeText(triggers),
     triggerCount: triggers.length,
     status: health.state,
-    statusDetail: statusDetailOf(health, lastFailed),
+    statusDetail: statusDetailOf(health, lastFailed, failedStep),
+    lastError: health.triggerError ?? lastFailed?.errorMessage ?? null,
     lastRunAt: health.lastRun
       ? new Date(health.lastRun.startedAt).toISOString()
       : null,
     lastRunId: health.lastRun?._id ?? null,
-    lastRuns: health.lastStatuses,
-    successRate: health.successRate,
+    lastRuns: health.recentRuns.map((r) => ({
+      runId: r._id,
+      status: r.status,
+      startedAt: new Date(r.startedAt).toISOString(),
+      errorMessage: r.errorMessage ?? null,
+    })),
+    successRate: wholePercent(health.successRate),
     avgDurationMs: health.avgDurationMs,
     runs: health.runs,
     failed: health.failed,
     failingSince: health.failingSince?.toISOString() ?? null,
-    failedStep:
-      health.state === "failing" && health.lastRun
-        ? (failedStepOf(ctx, health.lastRun as StatsRun) ?? null)
-        : null,
+    failedStep,
     version: procedure.version ?? 1,
     updatedAt: procedure.updated_at
       ? new Date(procedure.updated_at).toISOString()

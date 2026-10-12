@@ -35,7 +35,30 @@ test("a procedure whose last run failed is failing, with its streak", () => {
   assert.equal(health.failureStreak, 2);
   assert.equal(health.lastRun._id, "c");
   assert.deepEqual(health.failingSince, run("b", "failed", 2).startedAt);
-  assert.deepEqual(health.lastStatuses, ["ok", "failed", "failed"]);
+  assert.deepEqual(
+    health.recentRuns.map((r) => r.status),
+    ["ok", "failed", "failed"],
+  );
+});
+
+test("an enabled procedure whose trigger cannot arm is failing", () => {
+  const armError = {
+    code: "cronInvalid",
+    params: { cron: "every monday" },
+    message: "invalid cron expression",
+  };
+  const broken = { ...enabled, armError };
+  const health = procedureHealth(broken, [run("a", "ok", 1)], WEEK_AGO);
+  assert.equal(health.state, "failing");
+  assert.deepEqual(health.armError, armError);
+  assert.equal(health.triggerError, "invalid cron expression");
+});
+
+test("an enabled procedure that never ran stays healthy, without a last run", () => {
+  const health = procedureHealth(enabled, [], WEEK_AGO);
+  assert.equal(health.state, "healthy");
+  assert.equal(health.lastRun, undefined);
+  assert.equal(health.successRate, null);
 });
 
 test("a failure followed by a success is degraded, not failing", () => {

@@ -23,6 +23,7 @@ import { DefaultDataTypes } from "@antelopejs/interface-dms/base/data-types";
 import type { BlockText } from "@antelopejs/interface-dms/base/types";
 import { Searchable } from "@antelopejs/interface-dms/base/searchable";
 import {
+  type CellSublineValue,
   Column,
   DefaultDisplays,
 } from "@antelopejs/interface-dms/base/table-view";
@@ -33,7 +34,9 @@ import {
   type ProcedureSummaryRow,
 } from "../db/models/stats.model";
 import { Procedure } from "../db/tables/procedure.table";
-import { LastRunsDisplay } from "../displays";
+import { LastRunsDisplay, ProcedureLinkDisplay } from "../displays";
+import { BUILDER_URL, TRACE_URL } from "../pages/shared";
+import { builtinTriggers } from "../runtime/builtins/triggers";
 import { stateRank } from "../stats/health";
 import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
@@ -45,46 +48,88 @@ import { DATABASE_NAME } from "../types/constants";
 // also tears down the procedure's runtime subscriptions. Module pages are the
 // platform owner's alone, so every route is owner-only, like the module's API.
 
-function parseFilter(
-  raw?: string,
-): { mode: string; value: string } | undefined {
-  if (!raw) return undefined;
-  const idx = raw.indexOf(":");
-  return idx < 0
-    ? { mode: "is", value: raw }
-    : { mode: raw.slice(0, idx), value: raw.slice(idx + 1) };
+/**
+ * A query-string value as text: the API hands a parameter sent without a
+ * value (`?search`, an emptied search field) in as `true`.
+ */
+function queryText(raw: unknown): string {
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+/** Text as the search compares it: lower case, accents dropped. */
+function folded(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+interface ColumnFilter {
+  mode: string;
+  values: string[];
+}
+
+function parseFilter(raw: unknown): ColumnFilter | undefined {
+  const text = queryText(raw);
+  if (!text) return undefined;
+  const idx = text.indexOf(":");
+  const [mode, value] =
+    idx < 0 ? ["is", text] : [text.slice(0, idx), text.slice(idx + 1)];
+  const values = value
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+  return values.length ? { mode, values } : undefined;
 }
 
 const NEGATED_MODES = new Set(["is_not", "exclude"]);
 
-function applyQuery(
-  rows: ProcedureSummaryRow[],
-  search?: string,
-  filterStatus?: string,
-): ProcedureSummaryRow[] {
-  let out = rows;
-  const q = search?.trim().toLowerCase();
-  if (q) {
-    out = out.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.description.toLowerCase().includes(q),
-    );
-  }
+/** Whether a row holding these values passes a column filter. */
+function passes(
+  values: readonly string[],
+  filter: ColumnFilter | undefined,
+): boolean {
+  if (!filter) return true;
+  const hit = values.some((v) => filter.values.includes(v));
+  return NEGATED_MODES.has(filter.mode) ? !hit : hit;
+}
 
-  const sf = parseFilter(filterStatus);
-  if (sf) {
-    const wanted = sf.value
-      .split(",")
-      .map((v) => v.trim())
-      .filter(Boolean);
-    if (wanted.length) {
-      out = NEGATED_MODES.has(sf.mode)
-        ? out.filter((r) => !wanted.includes(r.status))
-        : out.filter((r) => wanted.includes(r.status));
-    }
-  }
-  return out;
+/**
+ * What the search reads in a row: its name and description, the paths and
+ * schedules of its triggers, and its last error.
+ */
+function searchedText(row: ProcedureSummaryRow): string {
+  return folded(
+    [
+      row.name,
+      row.description,
+      row.lastError ?? "",
+      ...row.triggers.flatMap((t) => [t.path ?? "", t.cron ?? ""]),
+    ].join("\n"),
+  );
+}
+
+/** The table's query: its search and its column filters, raw. */
+export interface ProceduresQuery {
+  search?: unknown;
+  filter_status?: unknown;
+  filter_triggerTypes?: unknown;
+}
+
+/** The rows the search and the status and trigger filters keep. */
+export function applyQuery(
+  rows: ProcedureSummaryRow[],
+  query: ProceduresQuery,
+): ProcedureSummaryRow[] {
+  const q = folded(queryText(query.search));
+  const status = parseFilter(query.filter_status);
+  const triggerTypes = parseFilter(query.filter_triggerTypes);
+  return rows.filter(
+    (r) =>
+      (!q || searchedText(r).includes(q)) &&
+      passes([r.status], status) &&
+      passes(r.triggerTypes, triggerTypes),
+  );
 }
 
 const SORTABLE_KEYS = new Set<keyof ProcedureSummaryRow>([
@@ -112,23 +157,37 @@ function compareValues(a: SortValue, b: SortValue, dir: number): number {
   return sortText(a).localeCompare(sortText(b)) * dir;
 }
 
-function sortRows(
+/**
+ * By state, the ones that need attention first (last with `dir` -1), then by
+ * name.
+ */
+function byState(
+  a: ProcedureSummaryRow,
+  b: ProcedureSummaryRow,
+  dir = 1,
+): number {
+  return (
+    (stateRank(a.status) - stateRank(b.status)) * dir ||
+    a.name.localeCompare(b.name)
+  );
+}
+
+export function sortRows(
   rows: ProcedureSummaryRow[],
-  sortKey?: string,
-  sortDirection?: string,
+  sortKey?: unknown,
+  sortDirection?: unknown,
 ): ProcedureSummaryRow[] {
-  if (!sortKey || !SORTABLE_KEYS.has(sortKey as keyof ProcedureSummaryRow)) {
-    // Default order: the procedures that need attention first.
-    return [...rows].sort((a, b) => stateRank(a.status) - stateRank(b.status));
-  }
-  const k = sortKey as keyof ProcedureSummaryRow;
+  const k = queryText(sortKey) as keyof ProcedureSummaryRow;
+  if (!SORTABLE_KEYS.has(k)) return [...rows].sort((a, b) => byState(a, b));
   const dir = sortDirection === "desc" ? -1 : 1;
+  // A state sorts by severity, not by its name.
+  if (k === "status") return [...rows].sort((a, b) => byState(a, b, dir));
   return [...rows].sort((a, b) => compareValues(a[k], b[k], dir));
 }
 
 // Parse a query-string integer, falling back when it is missing or not a finite
 // number (so a malformed `?limit=abc` doesn't slice to an empty page).
-function toInt(raw: string | undefined, fallback: number, min: number): number {
+function toInt(raw: unknown, fallback: number, min: number): number {
   const n = Math.trunc(Number(raw));
   return Number.isFinite(n) && n >= min ? n : fallback;
 }
@@ -136,7 +195,7 @@ function toInt(raw: string | undefined, fallback: number, min: number): number {
 const DEFAULT_PAGE_SIZE = 10;
 
 interface CountBatchBody {
-  queries?: Array<{ id: string; query?: Record<string, string | undefined> }>;
+  queries?: Array<{ id: string; query?: ProceduresQuery }>;
 }
 
 const MAX_COUNT_QUERIES = 50;
@@ -159,11 +218,11 @@ const procedureSummaryRoutes = {
       offset?: string,
       limit?: string,
     ) => {
-      const q = search?.trim().toLowerCase();
+      const q = folded(queryText(search));
       const procedures = await GetModel(ProcedureModel, DATABASE_NAME).getAll();
       const options = procedures
         .map((p) => ({ procedureId: p._id, _id: p._id, name: p.name }))
-        .filter((p) => (q ? p.name.toLowerCase().includes(q) : true))
+        .filter((p) => !q || folded(p.name).includes(q))
         .sort((a, b) => a.name.localeCompare(b.name));
       const off = toInt(offset, 0, 0);
       const lim = toInt(limit, DEFAULT_PAGE_SIZE, 1);
@@ -198,6 +257,7 @@ const procedureSummaryRoutes = {
       Parameter("sortDirection", "query"),
       Parameter("search", "query"),
       Parameter("filter_status", "query"),
+      Parameter("filter_triggerTypes", "query"),
     ],
     // Each parameter is bound to a request input by its decorator, so
     // the framework hands them in positionally: an options object is not
@@ -211,12 +271,13 @@ const procedureSummaryRoutes = {
       sortDirection?: string,
       search?: string,
       filterStatus?: string,
+      filterTriggerTypes?: string,
     ) => {
-      const filtered = applyQuery(
-        await getProceduresSummary(),
+      const filtered = applyQuery(await getProceduresSummary(), {
         search,
-        filterStatus,
-      );
+        filter_status: filterStatus,
+        filter_triggerTypes: filterTriggerTypes,
+      });
       const sorted = sortRows(filtered, sortKey, sortDirection);
       const off = toInt(offset, 0, 0);
       const lim = toInt(limit, DEFAULT_PAGE_SIZE, 1);
@@ -234,13 +295,19 @@ const procedureSummaryRoutes = {
       AuthOwnerOnly(),
       Parameter("search", "query"),
       Parameter("filter_status", "query"),
+      Parameter("filter_triggerTypes", "query"),
     ],
-    func: async (_user: User, search?: string, filterStatus?: string) => {
-      const filtered = applyQuery(
-        await getProceduresSummary(),
+    func: async (
+      _user: User,
+      search?: string,
+      filterStatus?: string,
+      filterTriggerTypes?: string,
+    ) => {
+      const filtered = applyQuery(await getProceduresSummary(), {
         search,
-        filterStatus,
-      );
+        filter_status: filterStatus,
+        filter_triggerTypes: filterTriggerTypes,
+      });
       return { total: filtered.length };
     },
   },
@@ -261,7 +328,7 @@ const procedureSummaryRoutes = {
         return Object.fromEntries(
           queries.map(({ id, query }) => [
             id,
-            applyQuery(rows, query?.search, query?.filter_status).length,
+            applyQuery(rows, query ?? {}).length,
           ]),
         );
       },
@@ -310,6 +377,13 @@ const STATUS_ITEMS = [
   },
 ];
 
+/** The built-in trigger types, for the trigger filter. */
+const TRIGGER_TYPE_ITEMS = builtinTriggers.map((t) => ({
+  value: t.id,
+  label: t.name,
+  icon: t.icon,
+}));
+
 @RegisterDataController()
 export class ProceduresTableAPI extends DataController(
   Procedure,
@@ -322,16 +396,21 @@ export class ProceduresTableAPI extends DataController(
   @Model(ProcedureModel, DATABASE_NAME)
   declare model: ProcedureModel;
 
+  // Five columns whose widths add up to the list beside an open sidebar at
+  // 1024 px; wider screens spread them. The state comes second, so a phone
+  // still shows it by the name. The last run's date sits under the run strip;
+  // the average duration is in the column picker.
   @Searchable()
   @Sortable({ noIndex: true })
   @Listable()
   @Column({
     name: "$dms_automation.procedures.cols.procedure",
-    size: 280,
+    size: 160,
     type: new DefaultDataTypes.StringType(),
-    display: new DefaultDisplays.IdentityDisplay({
+    display: new ProcedureLinkDisplay({
       icon: "i-ph-flow-arrow",
       subtitleField: "description",
+      url: `${BUILDER_URL}?selected={procedureId}`,
     }),
     order: 1,
   })
@@ -351,13 +430,13 @@ export class ProceduresTableAPI extends DataController(
   @Listable()
   @Column({
     name: "$dms_automation.procedures.cols.trigger",
-    size: 200,
+    size: 120,
     type: new DefaultDataTypes.StringType(),
     display: new DefaultDisplays.TwoLineDisplay({
       primaryField: "triggerText",
       subField: "triggerTypeText",
     }),
-    order: 2,
+    order: 3,
   })
   @Access(AccessMode.ReadOnly)
   declare triggerSummary: string;
@@ -367,16 +446,30 @@ export class ProceduresTableAPI extends DataController(
   @Access(AccessMode.ReadOnly)
   declare triggerText: BlockText;
 
-  /** The trigger's type under its settings, when the first line does not name it. */
+  /** The trigger's type and how many follow, under its settings. */
   @Listable()
   @Access(AccessMode.ReadOnly)
   declare triggerTypeText: BlockText | null;
 
   @Listable()
+  @Column({
+    name: "$dms_automation.procedures.cols.triggerTypes",
+    type: new DefaultDataTypes.SelectType({
+      items: TRIGGER_TYPE_ITEMS,
+      multiple: true,
+    }),
+    isVisible: false,
+    filterable: true,
+    order: 13,
+  })
+  @Access(AccessMode.ReadOnly)
+  declare triggerTypes: string[];
+
+  @Listable()
   @Sortable({ noIndex: true })
   @Column({
     name: "$dms_automation.procedures.cols.status",
-    size: 200,
+    size: 125,
     type: new DefaultDataTypes.SelectType({ items: STATUS_ITEMS }),
     display: new DefaultDisplays.StatusPillDisplay({
       tones: {
@@ -389,10 +482,15 @@ export class ProceduresTableAPI extends DataController(
       subField: "statusDetail",
     }),
     filterable: true,
-    order: 3,
+    order: 2,
   })
   @Access(AccessMode.ReadOnly)
   declare status: string;
+
+  /** What the state rests on, under the status pill. */
+  @Listable()
+  @Access(AccessMode.ReadOnly)
+  declare statusDetail: CellSublineValue | null;
 
   @Listable()
   @Column({
@@ -402,40 +500,42 @@ export class ProceduresTableAPI extends DataController(
     order: 11,
   })
   @Access(AccessMode.ReadOnly)
-  declare statusDetail: string;
+  declare lastError: string;
 
   @Listable()
   @Sortable({ noIndex: true })
   @Column({
-    name: "$dms_automation.procedures.cols.lastRun",
+    name: "$dms_automation.procedures.cols.recentRuns",
+    size: 120,
     type: new DefaultDataTypes.DateType(),
-    display: new DefaultDisplays.RelativeDateDisplay({
+    display: new LastRunsDisplay({
+      limit: 12,
+      runsField: "lastRuns",
+      runUrl: `${TRACE_URL}?run={runId}`,
       emptyLabel: "$dms_automation.procedures.never",
-      emptyTone: "dimmed",
     }),
     order: 4,
   })
   @Access(AccessMode.ReadOnly)
   declare lastRunAt: string;
 
+  /** The last run, which "Open last run" opens. */
   @Listable()
-  @Column({
-    name: "$dms_automation.procedures.cols.lastRuns",
-    size: 130,
-    type: new DefaultDataTypes.StringType(),
-    display: new LastRunsDisplay({ limit: 12 }),
-    order: 5,
-  })
+  @Access(AccessMode.ReadOnly)
+  declare lastRunId: string | null;
+
+  /** The last runs, drawn as the strip of the "Last runs" cell. */
+  @Listable()
   @Access(AccessMode.ReadOnly)
   declare lastRuns: string;
 
   @Listable()
   @Sortable({ noIndex: true })
   @Column({
-    name: "$dms_automation.procedures.cols.success",
-    size: 100,
-    type: new DefaultDataTypes.PercentageType({ min: 0, max: 1, step: 0.001 }),
-    order: 6,
+    name: "$dms_automation.procedures.cols.successRate",
+    size: 118,
+    type: new DefaultDataTypes.PercentageType({ min: 0, max: 1, step: 0.01 }),
+    order: 5,
   })
   @Access(AccessMode.ReadOnly)
   declare successRate: number;
@@ -444,10 +544,10 @@ export class ProceduresTableAPI extends DataController(
   @Sortable({ noIndex: true })
   @Column({
     name: "$dms_automation.procedures.cols.avg",
-    size: 90,
     type: new DefaultDataTypes.NumberType(),
     display: new DefaultDisplays.DurationDisplay({ unit: "ms" }),
-    order: 7,
+    isVisible: false,
+    order: 14,
   })
   @Access(AccessMode.ReadOnly)
   declare avgDurationMs: number;
