@@ -61,7 +61,12 @@ function processI18n(value) {
 
 // Nuxt auto-imports the components below resolve at setup time.
 globalThis.useTranslation = () => ({ processI18n });
-globalThis.useI18n = () => ({ t: (key) => key, locale: { value: "en" } });
+// `te` finds no key: components fall back to the text they were given.
+globalThis.useI18n = () => ({
+  t: (key) => key,
+  te: () => false,
+  locale: { value: "en" },
+});
 globalThis.useToast = () => ({ add() {} });
 
 const SlotStub = vue.defineComponent({
@@ -228,4 +233,60 @@ test("describe helpers translate keyed trigger names and word schedules", () => 
     ),
     "POST erp.acme.io/api/invoices",
   );
+});
+
+test("schema tables show item types, nested fields, one-of rules and inline code", async () => {
+  const html = await render(component("Catalog/SchemaTable.vue"), {
+    schema: {
+      type: "object",
+      properties: {
+        userIds: { type: "array", items: { type: "string" } },
+        roleIds: { type: "array", items: { type: "string" } },
+        options: {
+          type: "object",
+          properties: { retries: { type: "number" } },
+        },
+        cron: { type: "string", description: "e.g. `*/5 * * * *`" },
+      },
+      anyOf: [{ required: ["userIds"] }, { required: ["roleIds"] }],
+    },
+  });
+  assert.match(html, /string\[\]/);
+  assert.match(html, /options\.retries/);
+  assert.match(html, /<code[^>]*>\*\/5 \* \* \* \*<\/code>/);
+  assert.match(html, /dms_automation\.library\.schemaOneOf/);
+});
+
+test("schema tables drop the description column when no field has one", async () => {
+  const html = await render(component("Catalog/SchemaTable.vue"), {
+    schema: { properties: { ok: { type: "boolean" } } },
+  });
+  assert.doesNotMatch(html, /library\.schema\.description/);
+});
+
+test("a webhook endpoint offers no URL to copy until the server's address is known", async () => {
+  globalThis.useAuthFetch = () => ({ $authFetch: () => new Promise(() => {}) });
+  const CopyButton = vue.defineComponent({
+    props: { value: String },
+    setup: (props) => () => vue.h("button", { "data-copy": props.value }),
+  });
+  const compact = await render(
+    component("WebhookEndpoint.vue"),
+    { path: "/webhooks/orders", compact: true },
+    { DmsCopyButton: CopyButton },
+  );
+  assert.match(compact, /POST \/webhooks\/orders/);
+  assert.doesNotMatch(compact, /data-copy/);
+  const full = await render(
+    component("WebhookEndpoint.vue"),
+    { path: "/webhooks/orders" },
+    {
+      DmsCopyButton: CopyButton,
+      USkeleton: vue.defineComponent({
+        setup: () => () => vue.h("i", "loading"),
+      }),
+    },
+  );
+  assert.match(full, /loading/);
+  assert.doesNotMatch(full, /data-copy|curl/);
 });

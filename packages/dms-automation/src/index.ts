@@ -17,13 +17,17 @@ import { instanceId } from "./cluster/instance";
 import * as leader from "./cluster/leader";
 import type { ClusterDriver } from "./cluster/mode";
 import { resolveClusterMode } from "./cluster/mode";
+import { configureRedaction } from "./runtime/boundRunLog";
+import { setHttpRequestOptions } from "./runtime/builtins/actions/http";
 import {
   builtinActions,
   builtinDataNodes,
   builtinTriggers,
 } from "./runtime/builtins";
+import { setPublicUrl } from "./routes/library";
 import { registry } from "./runtime/registry";
 import {
+  configureRetention,
   DEFAULT_RETENTION_DAYS,
   startRetention,
   stopRetention,
@@ -41,6 +45,28 @@ export interface Config {
      * run.
      */
     retentionDays?: number;
+    /**
+     * More header and query parameter names whose value is a credential,
+     * matched case-insensitively as part of the name (e.g. "x-shop-secret").
+     * Added to the built-in list (Authorization, Cookie, *token*, *secret*,
+     * *signature*, *hmac*, *-key…).
+     */
+    sensitiveNames?: string[];
+  };
+  /**
+   * The public origin of the API server, e.g. `https://api.example.com`: the
+   * library and the builder show each webhook's full URL on it. Set it when
+   * outside callers reach the API on another address than the dashboard's
+   * server does; left out, that address is shown.
+   */
+  publicUrl?: string;
+  /** The built-in HTTP request action. */
+  httpRequest?: {
+    /**
+     * Refuse requests to loopback, private and link-local addresses (this
+     * server's network, cloud metadata endpoints). Off by default.
+     */
+    blockPrivateNetwork?: boolean;
   };
 }
 
@@ -48,6 +74,10 @@ let globalConfig: Config = {};
 
 export async function construct(config: Config): Promise<void> {
   globalConfig = defu(config, globalConfig);
+  configureRetention(globalConfig.runs?.retentionDays);
+  configureRedaction(globalConfig.runs?.sensitiveNames);
+  setHttpRequestOptions(globalConfig.httpRequest ?? {});
+  setPublicUrl(globalConfig.publicUrl);
 
   ImplementInterface(
     await import("@antelopejs/interface-dms-automation"),

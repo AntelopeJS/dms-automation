@@ -14,7 +14,11 @@ import { LibraryPageController } from "../pages/library";
 import { registry } from "../runtime/registry";
 import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
-import { parseConfigBody, serializeTrigger } from "./typeConfigShared";
+import {
+  assertRegistered,
+  parseConfigBody,
+  serializeTrigger,
+} from "./typeConfigShared";
 
 @AuthOwnerOnly()
 export class TriggerTypesController extends Controller(
@@ -41,6 +45,7 @@ export class TriggerTypesController extends Controller(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
   ) {
+    assertRegistered(registry.getTrigger(id), id);
     const model = GetModel(TriggerTypeConfigModel, DATABASE_NAME);
     const cfg = await model.getByTypeId(id);
     if (!cfg) {
@@ -55,6 +60,7 @@ export class TriggerTypesController extends Controller(
     @Parameter("id", "param") id: string,
     @JSONBody() body: unknown,
   ) {
+    assertRegistered(registry.getTrigger(id), id);
     const model = GetModel(TriggerTypeConfigModel, DATABASE_NAME);
     await model.upsertByTypeId(id, parseConfigBody(body));
     // The switch takes effect on the next reconcile: run it now, here and on

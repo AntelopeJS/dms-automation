@@ -4,10 +4,14 @@ import {
 } from "@antelopejs/interface-database-decorators";
 import { DATABASE_NAME, FETCH_ALL_LIMIT } from "../../types/constants";
 import {
-  type GraphNode,
+  type TemplateCache,
+  walkPlacedNodes,
+} from "../../runtime/resolveSubgraph";
+import {
+  type GroupNode,
   type GroupPort,
+  isGroupNode,
   type ProcedureGraph,
-  walkNodesRecursive,
 } from "../../types/graph";
 import type { PageParams, Paginated } from "../../types/pagination";
 import {
@@ -35,6 +39,43 @@ export interface AutomationTemplateRow {
 export interface TemplateUsage {
   procedureId: string;
   nodeId: string;
+  /** Ids of the local groups the node sits in, outermost first. */
+  groupPath: string[];
+}
+
+/** A group node placing a template inside another template's graph. */
+export interface TemplateNesting {
+  /** The template whose graph places it. */
+  templateId: string;
+  nodeId: string;
+  /** Ids of the local groups the node sits in, outermost first. */
+  groupPath: string[];
+}
+
+/** A template instance of a stored graph, and the local groups around it. */
+export interface PlacedInstance {
+  node: GroupNode & { templateId: string };
+  groupPath: string[];
+}
+
+// Enters no template: a stored graph only holds references to them.
+const NO_TEMPLATES: TemplateCache = { get: () => undefined };
+
+/**
+ * Every template instance of a stored graph, inside nested local groups too.
+ * Instances inside an instance are the referenced template's own, not this
+ * graph's.
+ */
+export function* templateInstancesOf(
+  graph: ProcedureGraph,
+): Iterable<PlacedInstance> {
+  for (const { node, groups } of walkPlacedNodes(graph, NO_TEMPLATES)) {
+    if (!isGroupNode(node) || !node.templateId) continue;
+    yield {
+      node: node as PlacedInstance["node"],
+      groupPath: groups.map((g) => g.id),
+    };
+  }
 }
 
 /** Fields accepted when creating a template. */
@@ -181,11 +222,26 @@ export class AutomationTemplateModel extends BasicDataModel(
       } catch {
         continue;
       }
-      for (const node of walkNodesRecursive(graph)) {
-        if (node.kind !== "group") continue;
-        const groupNode = node as GraphNode & { templateId?: string };
-        if (groupNode.templateId === templateId) {
-          out.push({ procedureId: p._id, nodeId: node.id });
+      for (const { node, groupPath } of templateInstancesOf(graph)) {
+        if (node.templateId === templateId) {
+          out.push({ procedureId: p._id, nodeId: node.id, groupPath });
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
+   * The other templates whose graph places `templateId`: deleting it must
+   * fork those instances too, or every procedure using them breaks.
+   */
+  async findNestings(templateId: string): Promise<TemplateNesting[]> {
+    const all = await this.list({ page: 0, limit: FETCH_ALL_LIMIT });
+    const out: TemplateNesting[] = [];
+    for (const t of all.results) {
+      for (const { node, groupPath } of templateInstancesOf(t.subgraph)) {
+        if (node.templateId === templateId) {
+          out.push({ templateId: t._id, nodeId: node.id, groupPath });
         }
       }
     }

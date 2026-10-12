@@ -21,8 +21,22 @@ import {
  */
 export const configBodySchema = z.object({
   enabled: z.boolean(),
-  config: z.string(),
+  config: z.string().refine(isJsonObject, "config must be a JSON object"),
 });
+
+function isJsonObject(text: string): boolean {
+  try {
+    const value: unknown = JSON.parse(text);
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+  } catch {
+    return false;
+  }
+}
+
+/** 404 for a type no module registered: there is nothing to configure. */
+export function assertRegistered(type: unknown, id: string): void {
+  if (!type) throw new HTTPResult(404, { error: `type "${id}" not found` });
+}
 
 export type ConfigBody = z.infer<typeof configBodySchema>;
 
