@@ -3,10 +3,17 @@ import {
   ButtonVariant,
   type CustomButton,
 } from "@antelopejs/interface-dms/base";
-import { DefaultDataTypes } from "@antelopejs/interface-dms/base/data-types";
+import {
+  CodeType,
+  DefaultDataTypes,
+} from "@antelopejs/interface-dms/base/data-types";
+import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
 import { Form } from "@antelopejs/interface-dms/base/form";
+import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
+import { KpiCard } from "@antelopejs/interface-dms/base/kpi-card";
 import type { PeriodPreset } from "@antelopejs/interface-dms/base/period-selector";
 import { PeriodSelector } from "@antelopejs/interface-dms/base/period-selector";
+import { RegisterPageTopic } from "@antelopejs/interface-dms/realtime";
 
 /** Base URL of the module's pages. */
 const MODULE_URL = "/modules/automation";
@@ -28,6 +35,13 @@ const PERIOD_PRESETS: PeriodPreset[] = [
   "last-30-days",
 ];
 
+/** One of the windows the pages offer. */
+export function isPeriodPreset(
+  value: string | undefined,
+): value is PeriodPreset {
+  return (PERIOD_PRESETS as readonly (string | undefined)[]).includes(value);
+}
+
 /** The 24 h / 7 d / 30 d switch of a page, publishing under `scope`. */
 export function periodSwitch(scope: string) {
   return PeriodSelector({
@@ -45,6 +59,84 @@ export function periodSwitch(scope: string) {
     description: "$dms_automation.permissions.period.description",
     icon: "i-ph-calendar-blank",
   });
+}
+
+/**
+ * Keeps a page declared with `live` in step with `topics`: each event they
+ * publish refreshes every block of the page through its Live / Pause. The
+ * DMS KPI, chart and top list cards take no realtime topic of their own, and
+ * a custom block binds none to its page, so this one binds them.
+ */
+export function liveTopics(topics: string[]) {
+  return CustomComponent("dms-automation-live-topics")
+    .options({ realtimeTopic: topics })
+    .meta({
+      name: "$dms_automation.permissions.liveTopics.name",
+      description: "$dms_automation.permissions.liveTopics.description",
+      icon: "i-ph-broadcast",
+    })
+    .onCreated((page) => {
+      const pageId = page.pageInfo?.fullId;
+      if (!pageId) return;
+      for (const topic of topics) RegisterPageTopic(pageId, topic);
+    });
+}
+
+/** The run history's period scope, which links from the overview name. */
+export const RUNS_PERIOD_SCOPE = "automation-runs";
+
+/** The run KPIs, in the order both pages show them; `invert` when a rise is bad news. */
+const KPIS = [
+  { id: "runs", metric: "runs", icon: "i-ph-play-circle", invert: false },
+  {
+    id: "successRate",
+    metric: "success-rate",
+    icon: "i-ph-check-circle",
+    invert: false,
+  },
+  { id: "failed", metric: "failed", icon: "i-ph-x-circle", invert: true },
+  {
+    id: "durationP95",
+    metric: "duration-p95",
+    icon: "i-ph-timer",
+    invert: true,
+  },
+] as const;
+
+/**
+ * The four run KPIs of a page over the period of `scope`, read from
+ * `<fetchUrl>/<metric>`: the same row, in the same order, on the overview and
+ * the run history. Duration p95 is in milliseconds, like the run lists.
+ */
+export function kpiRow(
+  scope: string,
+  { fetchUrl, sparkline = false }: { fetchUrl: string; sparkline?: boolean },
+) {
+  const row = GridRow();
+  for (const { id, metric, icon, invert } of KPIS) {
+    row.child(
+      id,
+      KpiCard({
+        title:
+          metric === "duration-p95"
+            ? "$dms_automation.kpi.durationP95"
+            : `$dms_automation.kpi.${metric}`,
+        variant: "stat",
+        icon,
+        fetchUrl: `${fetchUrl}/${metric}`,
+        periodScope: scope,
+        showDelta: true,
+        showSparkline: sparkline,
+        sparklineAccent: "auto",
+        invert,
+        compareLabel: "$dms_automation.kpi.vsPrevious",
+        valueFormat: metric === "success-rate" ? "percent" : "number",
+      }),
+    );
+  }
+  // 260px keeps four cards on one line on a wide screen and two by two at
+  // 1024px, where a 3 + 1 split left a card alone and cut the titles.
+  return Grid({ gap: "1rem", minColumnWidth: "260px" }).child("row", row);
 }
 
 /** What can start a new procedure from the "New procedure" dialog. */
@@ -85,14 +177,14 @@ function newProcedureForm(trigger: Starter = "webhook") {
         label: "$dms_automation.newProcedure.name",
         type: new DefaultDataTypes.StringType({
           placeholder: "$dms_automation.newProcedure.namePlaceholder",
-          maxLength: 120,
+          // The limit the procedure routes enforce.
+          maxLength: 200,
         }),
         required: true,
       },
       {
         id: "trigger",
         label: "$dms_automation.newProcedure.startsWhen",
-        description: "$dms_automation.newProcedure.startsWhenHint",
         type: new DefaultDataTypes.SelectType({
           items: STARTER_OPTIONS,
           display: "cards",
@@ -150,7 +242,7 @@ export function newProcedureButton(): CustomButton {
       type: "modal",
       size: "md",
       title: "$dms_automation.newProcedure.title",
-      description: "$dms_automation.newProcedure.subtitle",
+      description: "$dms_automation.newProcedure.subtitleDraft",
       component: newProcedureForm(),
     },
   };
@@ -169,7 +261,9 @@ function importProcedureForm() {
         id: "json",
         label: "$dms_automation.importProcedure.json",
         description: "$dms_automation.importProcedure.jsonHint",
-        type: new DefaultDataTypes.StringType({ textarea: true, rows: 12 }),
+        // A code editor: monospace, and JSON that does not parse is refused
+        // before it is sent.
+        type: new CodeType({ language: "json", minLines: 12, maxLines: 20 }),
         required: true,
       },
     ],

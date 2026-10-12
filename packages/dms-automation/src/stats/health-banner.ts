@@ -3,7 +3,10 @@ import type {
   BannerContent,
   BannerTone,
 } from "@antelopejs/interface-dms/base";
-import type { BlockText } from "@antelopejs/interface-dms/base/types";
+import type {
+  BlockText,
+  ComposedTextParam,
+} from "@antelopejs/interface-dms/base/types";
 import { asParam, stepText } from "../runtime/wording";
 import type { HealthHero } from "./overview";
 
@@ -19,7 +22,10 @@ const HEALTH = "dms_automation.health";
 /** The links the banner points to, and the recipe dialogs it opens. */
 export interface HealthBannerLinks {
   runsUrl: string;
+  /** The run history's period matching the banner's, to open it on. */
+  runsPeriod?: { scope: string; preset: string };
   traceUrl: string;
+  proceduresUrl: string;
   /** The "New procedure" dialog with a trigger picked, one per recipe. */
   recipes: BannerAction[];
 }
@@ -70,24 +76,44 @@ function failureCause(hero: HealthHero): BlockText {
 }
 
 function detail(hero: HealthHero): BlockText {
-  const first = hero.failing[0];
+  const [first, ...others] = hero.failing;
   if (hero.state === "failing" && first) {
-    return {
-      key: `${HEALTH}.failingDetail`,
-      params: {
-        name: first.name,
-        since: first.since
-          ? { type: "datetime", value: first.since, format: "short" }
-          : "—",
-        cause: failureCause(hero),
-      },
-    };
+    const since: ComposedTextParam = first.since
+      ? { type: "datetime", value: first.since, format: "day" }
+      : "—";
+    // Worded as the procedure list words it, from the code of the refusal.
+    const cause: ComposedTextParam = first.armError
+      ? {
+          key: "dms_automation.procedures.detail.triggerError",
+          params: {
+            error: {
+              key: `dms_automation.editor.problems.codes.${first.armError.code}`,
+              params: first.armError.params ?? {},
+            },
+          },
+        }
+      : failureCause(hero);
+    // Several failing: the first of "Needs attention", and how many more.
+    return others.length > 0
+      ? {
+          key: `${HEALTH}.failingDetailMany`,
+          params: {
+            name: first.name,
+            others: { type: "count", value: others.length },
+            since,
+            cause,
+          },
+        }
+      : {
+          key: `${HEALTH}.failingDetail`,
+          params: { name: first.name, since, cause },
+        };
   }
   const { total, failed } = hero.figures;
   return {
-    key: `${HEALTH}.summary`,
+    key: `${HEALTH}.summaryCount`,
     params: {
-      runs: total,
+      count: { type: "count", value: total },
       failed,
       enabled: hero.enabled,
       total: hero.procedures,
@@ -95,10 +121,21 @@ function detail(hero: HealthHero): BlockText {
   };
 }
 
+/** The failed runs in the run history, over the banner's period when it has one. */
+function failedRunsUrl(links: HealthBannerLinks): string {
+  const query = new URLSearchParams({ tab: "failed" });
+  if (links.runsPeriod) {
+    query.set(`${links.runsPeriod.scope}.period`, links.runsPeriod.preset);
+  }
+  return `${links.runsUrl}?${query}`;
+}
+
 function actions(hero: HealthHero, links: HealthBannerLinks): BannerAction[] {
   const list: BannerAction[] = [];
   const failing = hero.state === "failing";
-  if (hero.lastFailure && hero.state !== "healthy") {
+  // Only while something is wrong: a calm or idle window would point to a
+  // failure that may be weeks old.
+  if (hero.lastFailure && (failing || hero.state === "degraded")) {
     list.push({
       label: `$${HEALTH}.inspectLastFailure`,
       icon: "i-ph-path",
@@ -107,11 +144,21 @@ function actions(hero: HealthHero, links: HealthBannerLinks): BannerAction[] {
       color: failing ? "error" : "neutral",
     });
   }
-  if (hero.figures.failed > 0) {
+  // Several failing: which ones comes before their runs, and a third button
+  // would squeeze the sentence on a laptop screen.
+  if (hero.failing.length > 1) {
+    list.push({
+      label: `$${HEALTH}.showFailingProcedures`,
+      icon: "i-ph-flow-arrow",
+      to: `${links.proceduresUrl}?tab=failing`,
+      variant: "outline",
+      color: "neutral",
+    });
+  } else if (hero.figures.failed > 0) {
     list.push({
       label: `$${HEALTH}.showFailedRuns`,
       icon: "i-ph-x-circle",
-      to: `${links.runsUrl}?tab=failed`,
+      to: failedRunsUrl(links),
       variant: "outline",
       color: "neutral",
     });

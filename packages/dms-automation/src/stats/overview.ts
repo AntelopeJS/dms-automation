@@ -1,5 +1,4 @@
 import {
-  compareRuns,
   failedStepOf,
   healthByProcedure,
   procedureNameOf,
@@ -8,9 +7,9 @@ import {
   windowRuns,
 } from "../db/models/stats.model";
 import type { StatsRun } from "../db/models/procedure_run.model";
+import type { ArmError } from "../runtime/armErrors";
 import { type StepName, stepTitle } from "../runtime/describe";
 import {
-  deltaPercent,
   durationOf,
   type ProcedureHealth,
   type ProcedureState,
@@ -38,6 +37,8 @@ export interface FailingProcedure {
   since: string | null;
   streak: number;
   lastRunId: string | null;
+  /** Why a trigger failed to arm, when that is why it fails. */
+  armError: ArmError | null;
 }
 
 /** What the overview's health line says. */
@@ -82,13 +83,44 @@ function overallState(
   return figures.total > 0 ? "healthy" : "idle";
 }
 
-/** The overview's one-line state, over the selected window. */
+/** What "Needs attention" and the health line sort procedures by. */
+interface Urgency {
+  state: ProcedureState;
+  streak: number;
+  failed: number;
+}
+
+/**
+ * Failing first, then degraded, then paused; within a state, the longest run
+ * of failures, then the most failures.
+ */
+function byUrgency(a: Urgency, b: Urgency): number {
+  return (
+    stateRank(a.state) - stateRank(b.state) ||
+    b.streak - a.streak ||
+    b.failed - a.failed
+  );
+}
+
+/**
+ * The overview's one-line state, over the selected window: a procedure whose
+ * last run failed is failing whatever the window, one that failed in the
+ * window and recovered is degraded.
+ */
 export function healthHero(ctx: StatsContext, window: StatsWindow): HealthHero {
-  const health = healthByProcedure(ctx);
+  const health = healthByProcedure(ctx, window.from);
   const states = [...health.values()].map((h) => h.state);
   const figures = runFigures(windowRuns(ctx, window));
+  // In the order of "Needs attention", so the one the line names is its first.
+  const urgency = (id: string): Urgency => {
+    const h = health.get(id)!;
+    return { state: h.state, streak: h.failureStreak, failed: h.failed };
+  };
   const failing = ctx.procedures
     .filter((p) => health.get(p.procedure._id)?.state === "failing")
+    .sort((a, b) =>
+      byUrgency(urgency(a.procedure._id), urgency(b.procedure._id)),
+    )
     .map((p) => {
       const h = health.get(p.procedure._id)!;
       return {
@@ -97,14 +129,15 @@ export function healthHero(ctx: StatsContext, window: StatsWindow): HealthHero {
         since: h.failingSince?.toISOString() ?? null,
         streak: h.failureStreak,
         lastRunId: h.lastRun?._id ?? null,
+        armError: h.armError ?? null,
       };
-    })
-    .sort((a, b) => (a.since ?? "").localeCompare(b.since ?? ""));
-  // While a procedure is failing, its failure is the one to inspect.
-  const firstFailing = failing[0]?.lastRunId;
-  const lastFailed =
-    ctx.runs.find((r) => r._id === firstFailing) ??
-    ctx.runs.find((r) => r.status === "failed");
+    });
+  // While a procedure is failing, its failure is the one to inspect (none
+  // when it fails because a trigger did not arm).
+  const first = failing[0];
+  const lastFailed = first
+    ? ctx.runs.find((r) => r._id === first.lastRunId && r.status === "failed")
+    : ctx.runs.find((r) => r.status === "failed");
   return {
     state: overallState(ctx.procedures.length, states, figures),
     updatedAt: ctx.now.toISOString(),
@@ -131,6 +164,8 @@ export interface AttentionRow {
   lastFailure: FailureRef | null;
   /** The last run succeeded after a failure: the procedure recovered. */
   recovered: boolean;
+  /** Why a trigger failed to arm, when that is why it fails. */
+  armError: ArmError | null;
   pausedAt: string | null;
   pausedBy: string | null;
   triggerType: string | null;
@@ -142,10 +177,11 @@ const ATTENTION_STATES = new Set<ProcedureState>([
   "paused",
 ]);
 
-const MAX_ATTENTION_ROWS = 8;
+/** Rows of "Needs attention"; the rest is counted and a link lists them all. */
+const MAX_ATTENTION_ROWS = 5;
 
 function isDismissed(
-  dismissedAt: Date | undefined,
+  dismissedAt: Date | null | undefined,
   lastFailure: StatsRun | undefined,
 ): boolean {
   if (!dismissedAt || !lastFailure) return false;
@@ -173,6 +209,7 @@ function attentionRow(
     lastRunId: health.lastRun?._id ?? null,
     lastFailure: lastFailed ? failureRef(ctx, lastFailed) : null,
     recovered: health.state === "degraded",
+    armError: health.armError ?? null,
     pausedAt: procedure.pausedAt
       ? new Date(procedure.pausedAt).toISOString()
       : null,
@@ -181,12 +218,20 @@ function attentionRow(
   };
 }
 
+/** The first rows of "Needs attention", and how many procedures it holds. */
+export interface AttentionList {
+  items: AttentionRow[];
+  total: number;
+}
+
 /**
  * The procedures that need someone: failing first, then degraded (until
- * dismissed, or until they fail again), then paused.
+ * dismissed, or until they fail again), then paused. Degraded is read since
+ * `since`, the start of the overview's period, as its health line does; the
+ * state window of the procedure list without one.
  */
-export function attentionRows(ctx: StatsContext): AttentionRow[] {
-  const health = healthByProcedure(ctx);
+export function attentionRows(ctx: StatsContext, since?: Date): AttentionList {
+  const health = healthByProcedure(ctx, since);
   const rows: AttentionRow[] = [];
   for (const facts of ctx.procedures) {
     const id = facts.procedure._id;
@@ -200,11 +245,10 @@ export function attentionRows(ctx: StatsContext): AttentionRow[] {
       isDismissed(facts.procedure.attentionDismissedAt, lastFailed);
     if (!dismissed) rows.push(attentionRow(ctx, id, h));
   }
-  return rows
-    .sort(
-      (a, b) => stateRank(a.state) - stateRank(b.state) || b.failed - a.failed,
-    )
-    .slice(0, MAX_ATTENTION_ROWS);
+  return {
+    items: rows.sort(byUrgency).slice(0, MAX_ATTENTION_ROWS),
+    total: rows.length,
+  };
 }
 
 /** One item of an `ActivityFeed`. */
@@ -243,6 +287,11 @@ export function recentRunItems(
       error: run.errorMessage ?? "",
     };
     if (step) params.step = stepTitle(step);
+    const name = procedureNameOf(ctx, run.procedureId);
+    // A deleted procedure keeps the name its runs were stored with.
+    if (name === undefined && run.procedureName) {
+      params.name = run.procedureName;
+    }
     const outcome = failed
       ? step
         ? "$dms_automation.feed.failedAt"
@@ -253,8 +302,10 @@ export function recentRunItems(
       icon: failed ? "i-ph-x-circle" : "i-ph-check-circle",
       tone: failed ? "error" : "success",
       title:
-        procedureNameOf(ctx, run.procedureId) ??
-        "$dms_automation.feed.deletedProcedure",
+        name ??
+        (params.name
+          ? "$dms_automation.feed.deletedProcedureNamed"
+          : "$dms_automation.feed.deletedProcedure"),
       meta: [outcome, "$dms_automation.feed.duration"],
       params,
       date: new Date(run.startedAt).toISOString(),
@@ -273,48 +324,52 @@ export interface KeyValueItem {
   to?: string;
 }
 
-/** The overview's procedure counts, each linking to its tab of the list. */
+/** The states counted, in the order of the procedure list's tabs. */
+const COUNTED_STATES: readonly ProcedureState[] = [
+  "failing",
+  "degraded",
+  "healthy",
+  "paused",
+  "draft",
+];
+
+/** The tone of a state's count once it is above 0. */
+const COUNT_TONE: Partial<Record<ProcedureState, KeyValueItem["tone"]>> = {
+  failing: "error",
+  degraded: "warning",
+};
+
+/**
+ * The overview's procedure counts: the total, then one line per state in the
+ * order of the list's tabs, adding up to the total, each linking to its tab.
+ */
 export function procedureCounts(
   ctx: StatsContext,
   proceduresUrl: string,
 ): KeyValueItem[] {
-  const health = healthByProcedure(ctx);
-  const count = (state: ProcedureState) =>
-    [...health.values()].filter((h) => h.state === state).length;
-  const tab = (state: string) => `${proceduresUrl}?tab=${state}`;
-  return [
-    {
-      id: "total",
-      label: "$dms_automation.overview.counts.total",
-      value: ctx.procedures.length,
-      to: proceduresUrl,
-    },
-    {
-      id: "enabled",
-      label: "$dms_automation.overview.counts.enabled",
-      value: ctx.procedures.filter((p) => p.procedure.enabled).length,
-    },
-    {
-      id: "failing",
-      label: "$dms_automation.overview.counts.failing",
-      value: count("failing"),
-      type: "status",
-      tone: count("failing") > 0 ? "error" : "neutral",
-      to: tab("failing"),
-    },
-    {
-      id: "paused",
-      label: "$dms_automation.overview.counts.paused",
-      value: count("paused"),
-      to: tab("paused"),
-    },
-    {
-      id: "draft",
-      label: "$dms_automation.overview.counts.draft",
-      value: count("draft"),
-      to: tab("draft"),
-    },
-  ];
+  const health = [...healthByProcedure(ctx).values()];
+  const total: KeyValueItem = {
+    id: "total",
+    label: "$dms_automation.overview.counts.total",
+    value: ctx.procedures.length,
+    to: proceduresUrl,
+  };
+  const states = COUNTED_STATES.map((state) => {
+    const value = health.filter((h) => h.state === state).length;
+    const item: KeyValueItem = {
+      id: state,
+      label: `$dms_automation.overview.counts.${state}`,
+      value,
+      to: `${proceduresUrl}?tab=${state}`,
+    };
+    const tone = COUNT_TONE[state];
+    if (tone && value > 0) {
+      item.type = "status";
+      item.tone = tone;
+    }
+    return item;
+  });
+  return [total, ...states];
 }
 
 /** One row of a `TopListCard`. */
@@ -351,8 +406,6 @@ export interface ChartPoint {
 /** What a `ChartCard` reads: a headline value and its series. */
 export interface ChartPayload {
   value: number;
-  previousValue?: number;
-  delta?: number;
   series: Array<{ name: string; data: ChartPoint[] }>;
 }
 
@@ -368,7 +421,9 @@ export function runsPerDayChart(
     x: starts[i]!.toISOString(),
     y: bucket.filter((r) => r.status === status).length,
   });
-  const payload: ChartPayload = {
+  // No comparison: the Runs KPI above already compares the same count, and
+  // without one the card shows its description, which names the colours.
+  return {
     value: runs.length,
     series: [
       {
@@ -381,10 +436,4 @@ export function runsPerDayChart(
       },
     ],
   };
-  const previous = compareRuns(ctx, window);
-  if (previous) {
-    payload.previousValue = previous.length;
-    payload.delta = deltaPercent(runs.length, previous.length);
-  }
-  return payload;
 }

@@ -6,13 +6,17 @@ import { ChartCard } from "@antelopejs/interface-dms/base/chart-card";
 import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
 import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { KeyValueList } from "@antelopejs/interface-dms/base/key-value-list";
-import { KpiCard } from "@antelopejs/interface-dms/base/kpi-card";
 import { ButtonVariant } from "@antelopejs/interface-dms/base";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
+import { LiveToggle } from "@antelopejs/interface-dms/base/live-toggle";
+import { HStack } from "@antelopejs/interface-dms/base/stack";
 import { TopListCard } from "@antelopejs/interface-dms/base/top-list-card";
+import { PROCEDURES_TOPIC, RUNS_TOPIC } from "../realtime";
 import {
   API_URL,
   BUILDER_URL,
+  kpiRow,
+  liveTopics,
   newProcedureButton,
   periodSwitch,
   PROCEDURES_URL,
@@ -24,22 +28,28 @@ import "./category";
 const SCOPE = "automation-overview";
 const STATS_URL = `${API_URL}/stats`;
 
-function kpi(metric: string, icon: string, invert = false) {
-  return KpiCard({
-    title: `$dms_automation.kpi.${metric}`,
-    variant: "stat",
-    icon,
-    fetchUrl: `${STATS_URL}/kpi/${metric}`,
+/**
+ * Shortest interval, in seconds, between two reads of one block: the first
+ * event of a quiet page reads at once, a burst of runs reads once per
+ * interval, and the page reads on this clock while the stream is down.
+ */
+const LIVE_MAX_RATE = 10;
+
+/** "Needs attention": degraded over the period, failing and paused now. */
+const attentionList = CustomComponent("dms-automation-attention-list")
+  .options({
+    fetchUrl: `${STATS_URL}/attention`,
     periodScope: SCOPE,
-    showDelta: true,
-    showSparkline: true,
-    sparklineAccent: "auto",
-    invert,
-    compareLabel: "$dms_automation.kpi.vsPrevious",
-    valueFormat: metric === "success-rate" ? "percent" : "number",
-    valuePrecision: metric === "duration-p95" ? 1 : undefined,
+    proceduresUrl: PROCEDURES_URL,
+    builderUrl: BUILDER_URL,
+    traceUrl: TRACE_URL,
+    apiUrl: API_URL,
+  })
+  .meta({
+    name: "$dms_automation.permissions.attention.name",
+    description: "$dms_automation.permissions.attention.description",
+    icon: "i-ph-warning-circle",
   });
-}
 
 @RegisterPage()
 export class OverviewPageController extends PageController(
@@ -51,6 +61,7 @@ export class OverviewPageController extends PageController(
     icon: "i-ph-gauge",
     module: "automation",
     order: 0,
+    live: { maxRate: LIVE_MAX_RATE },
   },
   DefaultLayout({
     headerActions: [
@@ -66,6 +77,19 @@ export class OverviewPageController extends PageController(
     ],
   }),
 ) {
+  /**
+   * "Live · updated 12 s ago" with its pause, and what keeps the page live:
+   * a run stored, a procedure changed.
+   */
+  static live = HStack()
+    .child("toggle", LiveToggle({ align: "left" }))
+    .child("topics", liveTopics([RUNS_TOPIC, PROCEDURES_TOPIC]))
+    .meta({
+      name: "$dms_automation.permissions.live.name",
+      description: "$dms_automation.permissions.live.description",
+      icon: "i-ph-broadcast",
+    });
+
   static period = periodSwitch(SCOPE);
 
   /**
@@ -81,49 +105,42 @@ export class OverviewPageController extends PageController(
     icon: "i-ph-heartbeat",
   });
 
-  static kpis = Grid({ gap: "1rem", minColumnWidth: "220px" }).child(
-    "row",
-    GridRow()
-      .child("successRate", kpi("success-rate", "i-ph-check-circle"))
-      .child("runs", kpi("runs", "i-ph-play-circle"))
-      .child("failed", kpi("failed", "i-ph-x-circle", true))
-      .child("durationP95", kpi("duration-p95", "i-ph-timer", true)),
-  );
+  static kpis = kpiRow(SCOPE, {
+    fetchUrl: `${STATS_URL}/kpi`,
+    sparkline: true,
+  });
 
   static activity = Grid({ gap: "1rem", minColumnWidth: "420px" }).child(
     "row",
     GridRow()
-      .child(
-        "attention",
-        CustomComponent("dms-automation-attention-list")
-          .options({
-            fetchUrl: `${STATS_URL}/attention`,
-            proceduresUrl: PROCEDURES_URL,
-            builderUrl: BUILDER_URL,
-            traceUrl: TRACE_URL,
-            runsUrl: RUNS_URL,
-            apiUrl: API_URL,
-          })
-          .meta({
-            name: "$dms_automation.permissions.attention.name",
-            description: "$dms_automation.permissions.attention.description",
-            icon: "i-ph-warning-circle",
-          }),
-      )
+      .child("attention", attentionList)
       .child(
         "runsPerDay",
         ChartCard({
           title: "$dms_automation.overview.runsPerDay",
+          // The card draws no legend for a stacked chart: say it in words.
+          description: "$dms_automation.overview.runsPerDayLegend",
           icon: "i-ph-chart-bar",
           fetchUrl: `${STATS_URL}/runs-per-day`,
           periodScope: SCOPE,
-          showLegend: true,
           chart: ChartColumn({
             stacked: true,
-            height: "220px",
+            height: "260px",
             xaxisType: "datetime",
             color: ["success", "error"],
             roundedCorners: true,
+            // One tooltip per bucket, with both series and the bucket's hour.
+            rawOptions: [
+              {
+                key: "tooltip",
+                value: JSON.stringify({
+                  shared: true,
+                  intersect: false,
+                  marker: { show: true },
+                  x: { format: "dd MMM, HH:mm" },
+                }),
+              },
+            ],
           }),
         }),
       ),
@@ -153,9 +170,10 @@ export class OverviewPageController extends PageController(
       .child(
         "procedures",
         KeyValueList({
-          title: "$dms_automation.overview.procedures",
+          // The state of the procedure list, whose tabs the lines open.
+          title: "$dms_automation.overview.proceduresWeek",
           fetchUrl: `${STATS_URL}/procedures`,
-          skeletonCount: 4,
+          skeletonCount: 5,
           card: true,
         }),
       )
