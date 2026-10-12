@@ -37,6 +37,8 @@ const DAY_NAMES: Record<string, number> = {
   sat: 6,
 };
 
+const SECONDS: FieldSpec = { min: 0, max: 59 };
+
 const FIELDS: FieldSpec[] = [
   { min: 0, max: 59 },
   { min: 0, max: 23 },
@@ -51,6 +53,7 @@ const SUNDAY_ALIAS = 7;
 /** How far ahead an occurrence is looked for. */
 const HORIZON_DAYS = 366;
 const MINUTES_PER_DAY = 24 * 60;
+const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60_000;
 
 function valueOf(token: string, spec: FieldSpec): number {
@@ -88,6 +91,7 @@ function parseField(field: string, spec: FieldSpec): Set<number> {
 }
 
 interface ParsedCron {
+  seconds: number[];
   minutes: Set<number>;
   hours: Set<number>;
   daysOfMonth: Set<number>;
@@ -102,12 +106,15 @@ function parseCron(expression: string): ParsedCron {
   if (parts.length !== MINUTE_FIELDS && parts.length !== SECOND_FIELDS) {
     throw new Error(`invalid cron expression "${expression}"`);
   }
-  const fields = parts.length === SECOND_FIELDS ? parts.slice(1) : parts;
+  const withSeconds = parts.length === SECOND_FIELDS;
+  const fields = withSeconds ? parts.slice(1) : parts;
+  const seconds = withSeconds ? parseField(parts[0]!, SECONDS) : new Set([0]);
   const [minute, hour, dayOfMonth, month, dayOfWeek] = fields.map((f, i) =>
     parseField(f, FIELDS[i]!),
   ) as [Set<number>, Set<number>, Set<number>, Set<number>, Set<number>];
   if (dayOfWeek.has(SUNDAY_ALIAS)) dayOfWeek.add(0);
   return {
+    seconds: [...seconds].sort((a, b) => a - b),
     minutes: minute,
     hours: hour,
     daysOfMonth: dayOfMonth,
@@ -130,7 +137,7 @@ function dayMatches(cron: ParsedCron, date: Date): boolean {
 }
 
 /**
- * The first minute after `from` the expression matches, in the server's time
+ * The first second after `from` the expression matches, in the server's time
  * zone, or `undefined` when it never does within a year or does not parse.
  */
 export function nextOccurrence(
@@ -144,8 +151,8 @@ export function nextOccurrence(
     return undefined;
   }
   const t = new Date(from.getTime());
-  t.setSeconds(0, 0);
-  t.setTime(t.getTime() + MS_PER_MINUTE);
+  t.setMilliseconds(0);
+  t.setTime(t.getTime() + MS_PER_SECOND);
   const limit = HORIZON_DAYS * MINUTES_PER_DAY;
   for (let i = 0; i < limit; i++) {
     if (!cron.months.has(t.getMonth() + 1) || !dayMatches(cron, t)) {
@@ -154,9 +161,22 @@ export function nextOccurrence(
       continue;
     }
     if (cron.hours.has(t.getHours()) && cron.minutes.has(t.getMinutes())) {
-      return t;
+      const second = cron.seconds.find((s) => s >= t.getSeconds());
+      if (second !== undefined) {
+        t.setSeconds(second);
+        return t;
+      }
     }
+    t.setSeconds(0);
     t.setTime(t.getTime() + MS_PER_MINUTE);
   }
   return undefined;
+}
+
+/**
+ * The time zone the schedules fire in: node-cron runs them in the server's
+ * local time, so their clock times are worded with it.
+ */
+export function scheduleTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }

@@ -1,5 +1,6 @@
 import type { BlockText } from "@antelopejs/interface-dms/base/types";
 import type { StepName, TriggerSummary } from "./describe";
+import { scheduleTimeZone } from "./schedule";
 
 /**
  * The texts the table cells draw for a trigger or a step, composed in the
@@ -18,14 +19,31 @@ function pad(value: string): string {
   return value.padStart(TWO_DIGITS, "0");
 }
 
-/** Five-field (or six with seconds) cron expression split in its fields. */
-function cronFields(expression: string): string[] | null {
+type CronFields = [string, string, string, string, string];
+
+/**
+ * A cron expression split in its five fields (minute to day of week), with
+ * its seconds field: "0" when it has none.
+ */
+function cronFields(
+  expression: string,
+): { seconds: string; fields: CronFields } | null {
   const parts = expression.trim().split(/\s+/);
-  if (parts.length === 6) return parts.slice(1);
-  return parts.length === 5 ? parts : null;
+  if (parts.length === 6) {
+    return { seconds: parts[0]!, fields: parts.slice(1) as CronFields };
+  }
+  return parts.length === 5
+    ? { seconds: "0", fields: parts as CronFields }
+    : null;
 }
 
-type CronFields = [string, string, string, string, string];
+/** The shapes that fire several times a minute: every second, every N seconds. */
+function secondsText(seconds: string, fields: CronFields): BlockText | null {
+  if (fields.some((field) => field !== "*")) return null;
+  if (seconds === "*") return { key: `${CRON}.everySecond` };
+  const n = EVERY_N.exec(seconds)?.[1];
+  return n ? { key: `${CRON}.everySeconds`, params: { n } } : null;
+}
 
 /** The shapes that repeat within the hour or every few hours, any day. */
 function repeatingText([minute, hour]: CronFields): BlockText | null {
@@ -39,21 +57,25 @@ function repeatingText([minute, hour]: CronFields): BlockText | null {
     return { key: `${CRON}.hourly`, params: { minute: pad(minute) } };
   }
   const everyHours = EVERY_N.exec(hour)?.[1];
-  return everyHours
+  if (!everyHours) return null;
+  return Number(minute) === 0
     ? { key: `${CRON}.everyHours`, params: { n: everyHours } }
-    : null;
+    : {
+        key: `${CRON}.everyHoursAt`,
+        params: { n: everyHours, minute: pad(minute) },
+      };
 }
 
-/** The shapes that fire once a day: every day, on weekdays, on one day. */
-function dailyText([
-  minute,
-  hour,
-  ,
-  ,
-  dayOfWeek,
-]: CronFields): BlockText | null {
+/**
+ * The shapes that fire once a day: every day, on weekdays, on one day. The
+ * time is the scheduler's, so its time zone is named after it.
+ */
+function dailyText(
+  [minute, hour, , , dayOfWeek]: CronFields,
+  timeZone: string,
+): BlockText | null {
   if (!NUMBER.test(minute) || !NUMBER.test(hour)) return null;
-  const time = `${pad(hour)}:${pad(minute)}`;
+  const time = `${pad(hour)}:${pad(minute)} (${timeZone})`;
   if (dayOfWeek === "*") return { key: `${CRON}.daily`, params: { time } };
   if (dayOfWeek === "1-5") return { key: `${CRON}.weekdays`, params: { time } };
   const day = NUMBER.test(dayOfWeek)
@@ -68,18 +90,26 @@ function dailyText([
 
 /**
  * A cron expression in words for the common shapes ("Every 15 minutes",
- * "Every day at 02:00", "Mondays at 09:00"), the expression itself
- * otherwise.
+ * "Every day at 02:00 (Europe/Brussels)", "Mondays at 09:00 (UTC)"), the
+ * expression itself otherwise. Clock times are in `timeZone`, the zone the
+ * schedules fire in.
  */
-export function cronText(expression: string): BlockText {
-  const fields = cronFields(expression) as CronFields | null;
-  if (!fields) return expression;
+export function cronText(
+  expression: string,
+  timeZone: string = scheduleTimeZone(),
+): BlockText {
+  const parsed = cronFields(expression);
+  if (!parsed) return expression;
+  const { seconds, fields } = parsed;
+  if (!NUMBER.test(seconds) || Number(seconds) !== 0) {
+    return secondsText(seconds, fields) ?? expression;
+  }
   const [, , dayOfMonth, month, dayOfWeek] = fields;
   if (dayOfMonth !== "*" || month !== "*") return expression;
   const text =
     dayOfWeek === "*"
-      ? (repeatingText(fields) ?? dailyText(fields))
-      : dailyText(fields);
+      ? (repeatingText(fields) ?? dailyText(fields, timeZone))
+      : dailyText(fields, timeZone);
   return text ?? expression;
 }
 

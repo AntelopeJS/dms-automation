@@ -1,11 +1,41 @@
 {
   "dms_automation": {
+    "api": {
+      "nameTaken": "Another procedure already has this name. It was created anyway: rename it in the builder to tell them apart.",
+      "deleteDescription": "The graph is deleted for good: this can’t be undone. Export JSON from the builder first to keep a copy. Its run history stays until retention removes it.",
+      "deleteEnabledDescription": "This procedure is enabled and did not run this week. Only need it to stop? Pause it instead: that keeps the graph and can be undone. Deleting can’t be undone. | This procedure is enabled and ran once this week. Only need it to stop? Pause it instead: that keeps the graph and can be undone. Deleting can’t be undone. | This procedure is enabled and ran {count} times this week. Only need it to stop? Pause it instead: that keeps the graph and can be undone. Deleting can’t be undone.",
+      "deleteImpact": {
+        "webhook": "Webhook stops"
+      },
+      "graphHasErrors": "The graph has problems that keep it from running. Open it in the builder to fix them.",
+      "invalidBody": "The request is not valid.",
+      "invalidPage": "The page or the page size is not valid.",
+      "noTrigger": "This procedure has no trigger yet. Add one in the builder before enabling it.",
+      "noTriggerToRun": "This procedure has no trigger to run from.",
+      "notFound": "This procedure no longer exists: it may have been deleted.",
+      "runFailed": "The run failed. Open Run history to see which step failed.",
+      "stale": "This procedure was changed elsewhere since you opened it.",
+      "triggerNotFound": "This trigger is no longer in the procedure.",
+      "webhookPathTaken": "Another enabled procedure already answers on this webhook path. Change the path in the builder, or pause the other procedure.",
+      "weekly": {
+        "fri": "Fridays at {time}",
+        "mon": "Mondays at {time}",
+        "sat": "Saturdays at {time}",
+        "sun": "Sundays at {time}",
+        "thu": "Thursdays at {time}",
+        "tue": "Tuesdays at {time}",
+        "wed": "Wednesdays at {time}"
+      }
+    },
     "attention": {
+      "degradedInPeriod": "{failed} of {runs} runs failed in this period · last at {when}, none since",
+      "loadErrorHint": "The server didn’t answer. Try again in a moment.",
+      "showAll": "Show all ({count})",
+      "undo": "Undo",
       "allProcedures": "All procedures",
-      "degraded": "{failed} of {runs} runs failed in 7 days · last at {when} · recovered since",
       "dismiss": "Dismiss",
       "dismissed": "{name} dismissed until its next failure",
-      "edit": "Edit in the builder",
+      "edit": "Open in builder",
       "empty": "Nothing needs attention",
       "emptyHint": "No procedure is failing, degraded or paused.",
       "failing": "Last run failed | Last {count} runs failed",
@@ -22,6 +52,10 @@
     "builder": {
       "description": "Build a procedure: drop blocks from the palette, wire them, test the draft.",
       "palette": {
+        "hintDrag": "Click a block to add it after the selected step, or drag it onto the canvas.",
+        "off": "Off",
+        "offHint": "Switched off in the Library: its steps fail when they run.",
+        "untitledTemplate": "Untitled template",
         "empty": "No blocks match",
         "groups": {
           "action": "Actions",
@@ -31,7 +65,6 @@
           "templates": "Templates",
           "trigger": "Triggers"
         },
-        "hint": "Click a block to add it to the canvas.",
         "search": "Search blocks…"
       },
       "title": "Builder"
@@ -54,14 +87,60 @@
         "wed": "Wednesdays"
       },
       "everyHours": "Every {n} hours",
+      "everyHoursAt": "Every {n} hours at :{minute}",
       "everyMinute": "Every minute",
       "everyMinutes": "Every {n} minutes",
+      "everySecond": "Every second",
+      "everySeconds": "Every {n} seconds",
       "hourly": "Every hour at :{minute}",
       "weekdays": "Weekdays at {time}",
       "weekly": "{day} at {time}"
     },
     "editor": {
+      "backToTemplates": "Back to templates",
+      "closeInspector": "Close the inspector",
+      "groupDefaultName": "Group",
+      "hideBlocks": "Hide blocks",
+      "missingDescription": "The link points to a procedure that was deleted. Pick another one, or create one.",
+      "missingPick": "Choose a procedure",
+      "missingTitle": "This procedure no longer exists",
+      "nameRequired": "Give it a name to save it.",
+      "runFailed": "{name} failed",
+      "runFailedAt": "{name} failed at {step}",
+      "runSucceeded": "{name} ran successfully",
+      "showBlocks": "Show blocks",
+      "stale": {
+        "keep": "Keep editing",
+        "description": "Someone saved it since you opened it (in another tab, or paused it from the list). Reload it to get that version, losing your changes here, or overwrite it with yours.",
+        "overwrite": "Overwrite with mine",
+        "reload": "Reload saved version",
+        "title": "“{name}” was changed elsewhere"
+      },
+      "templateNotFound": "This template no longer exists: it may have been deleted.",
+      "templatePortsHint": "The template’s inputs and outputs. Every procedure using it wires them; inside, they start from the input step and end at the output step.",
       "canvas": {
+        "connect": {
+          "title": "Can’t link these ports",
+          "invalidPorts": "These two ports can’t be linked.",
+          "kindMismatch": "A trigger port (blue) links to a trigger port, a data port (green) to a data port.",
+          "selfLoop": "A step can’t be linked to itself.",
+          "cycle": "This link would make a loop.",
+          "typeMismatch": "Types don’t match: this output gives {from}, the input expects {to}."
+        },
+        "replaced": {
+          "title": "Link replaced",
+          "trigger": "{source} now leads to {target} instead of {previous}.",
+          "data": "{field} of {step} now reads {source} instead of {previous}."
+        },
+        "link": {
+          "replaces": "replaces {name}",
+          "label": "Link the selected step",
+          "search": "Find a step or a port…",
+          "next": "Next step",
+          "send": "Send data to",
+          "read": "Read data from",
+          "empty": "No link possible"
+        },
         "fitView": "Fit view",
         "redo": "Redo",
         "resetZoom": "Reset zoom",
@@ -70,11 +149,17 @@
         "zoomOut": "Zoom out"
       },
       "debug": {
+        "olderVersion": "ran on v{run}, you are editing v{current}",
+        "rerunHint": "Runs the saved version again, with the payload this run received.",
+        "rerunSaveFirst": "Save your changes first: a re-run uses the saved version.",
+        "runNotFound": "This run no longer exists",
+        "testing": "Testing the draft…",
+        "testingHint": "Its steps show here when the test ends.",
         "again": "Run again",
         "exit": "Exit debug",
         "failed": "Failed · {duration}",
         "failedAt": "Failed at {step} · {duration}",
-        "passed": "Completed · {duration}",
+        "passed": "Succeeded · {duration}",
         "runLabel": "Run …{run} · {when}",
         "testLabel": "Test run · {when}"
       },
@@ -86,6 +171,8 @@
       "disabled": "Disabled",
       "discard": "Discard",
       "dock": {
+        "redactedHeaders": "Sensitive headers were hidden when the run was stored ({headers}): replace them before testing.",
+        "fromTrigger": "From trigger",
         "allRuns": "All runs of this procedure",
         "failedCount": "{count} failed",
         "invalidJson": "The test payload is not valid JSON",
@@ -116,6 +203,17 @@
       "forkToLocal": "Fork to local group",
       "forked": "{name} is now a local group",
       "groupPorts": {
+        "dataTab": "Data ports",
+        "triggerTab": "Trigger ports",
+        "inputs": "Inputs",
+        "outputs": "Outputs",
+        "portName": "Port name",
+        "noInputs": "No inputs.",
+        "noOutputs": "No outputs.",
+        "addInput": "Add input",
+        "addOutput": "Add output",
+        "mainHint": "A port named “main” puts its handle on the group’s title bar, like a regular step; any other port gets its own row.",
+        "fromTemplate": "These ports come from the template: change them in the template.",
         "duplicate": "Duplicate port name: {name}",
         "duplicateHelp": "Each port within an inputs or outputs list must have a unique name.",
         "remove": "Delete port",
@@ -123,6 +221,52 @@
       },
       "groupSelection": "Group ({n})",
       "inspector": {
+        "copyId": "Copy step ID",
+        "nextRun": "Next run: {when} ({zone})",
+        "nextRunAfterSave": "The next run shows once you save.",
+        "templateInstance": "Its steps and ports come from the template: edits made there apply here.",
+        "editTemplate": "Edit template",
+        "branches": "Branches",
+        "fields": {
+          "to": "To",
+          "subject": "Subject",
+          "html": "Content (HTML)",
+          "userIds": "Users",
+          "roleIds": "Roles",
+          "title": "Title",
+          "description": "Description",
+          "icon": "Icon",
+          "linkTo": "Link",
+          "email": "Email",
+          "tenantId": "Workspace ID",
+          "asTenantOwner": "As workspace owner",
+          "sendEmail": "Send an invitation email",
+          "location": "Location",
+          "separator": "Separator",
+          "search": "Search for",
+          "replacement": "Replace with",
+          "start": "Start",
+          "end": "End",
+          "text": "Text",
+          "pretty": "Indent",
+          "mode": "Mode",
+          "url": "URL",
+          "method": "Method",
+          "headers": "Headers",
+          "body": "Body",
+          "timeoutMs": "Timeout (ms)",
+          "failOnStatus": "Fail on an error status",
+          "path": "Path",
+          "cron": "Schedule (cron)",
+          "message": "Message",
+          "level": "Level",
+          "value": "Value",
+          "name": "Name",
+          "maxAttempts": "Max attempts",
+          "ms": "Delay (ms)",
+          "cases": "Cases",
+          "ports": "Branches"
+        },
         "arrayPlaceholder": "One item per line",
         "credentialsHint": "Don’t type credentials into the graph: every builder user and template sees them.",
         "deleteNode": "Delete",
@@ -158,11 +302,50 @@
       "paused": {
         "draftTitle": "{name} is a draft",
         "enable": "Enable",
-        "other": "{what} won’t fire until you enable it. Run now still works for tests.",
-        "schedule": "{what} won’t fire (next would be {next}). Run now still works for tests.",
+        "other": "{what} won’t fire until you enable it. Test run tries it without counting as a run.",
+        "schedule": "Schedule: {what}. Nothing fires until you enable it (otherwise next at {next}). Test run tries it without counting as a run.",
         "title": "{name} is paused"
       },
       "problems": {
+        "codes": {
+          "armFailed": "This trigger could not start: {error}",
+          "loopTooLong": "This loop would run {count} times, more than the {max} a run allows: it will fail.",
+          "nameTaken": "Another procedure is already named “{name}”: give this one a name you can tell apart.",
+          "webhookRouteTaken": "{method} {path} is already used by another route of the server: choose a path under /webhooks/.",
+          "aboveMaximum": "“{label}” must be at most {maximum}.",
+          "belowMinimum": "“{label}” must be at least {minimum}.",
+          "cronInvalid": "“{cron}” is not a valid schedule (cron expression).",
+          "dataCycle": "These data nodes read each other in a loop: {nodes}.",
+          "dataFanIn": "The field “{field}” receives more than one value: keep a single wire.",
+          "duplicateNodeId": "Two steps share the id “{node}”: remove one of them.",
+          "edgeUnknownSource": "A wire comes from a step that no longer exists ({node}).",
+          "edgeUnknownTarget": "A wire goes to a step that no longer exists ({node}).",
+          "groupBodyBoth": "This group is broken: it must either hold its own steps or use a template.",
+          "groupBodyNone": "This group is broken: it must either hold its own steps or use a template.",
+          "groupDuplicatePort": "Two ports of this group share the name “{port}”.",
+          "groupInputCount": "This group must have exactly one input (it has {count}).",
+          "groupNoTriggerIn": "This group has no input to start it.",
+          "groupOutputCount": "This group must have exactly one output (it has {count}).",
+          "groupOutputMultiple": "The output “{port}” of this group gets {count} values: keep one.",
+          "groupOutputUnwired": "The output “{port}” of this group gets no value.",
+          "groupTooDeep": "Groups are nested more than {max} levels deep.",
+          "ifBranchInvalid": "An If continues on “then” or “else” only (got “{branch}”).",
+          "missingField": "Fill in “{label}”.",
+          "nestedTrigger": "Triggers only work at the top level of the procedure, not inside a group.",
+          "noTrigger": "Add a trigger before enabling this procedure.",
+          "notInEnum": "“{label}” cannot be “{value}”.",
+          "triggerCycle": "These steps lead back to each other in a loop: {nodes}. Remove one of the wires.",
+          "triggerDiverges": "This step can only continue to one next step ({count} wires leave it). Use a Parallel step to branch.",
+          "triggerTargeted": "A trigger starts the procedure: no wire can lead into it.",
+          "typeDisabled": "The type “{type}” is turned off in the Library: this step will fail.",
+          "unknownTemplate": "The template this group uses no longer exists.",
+          "unknownType": "Unknown type “{type}”: the module that provides it may be missing.",
+          "untriggered": "Nothing starts this step: connect it to a trigger.",
+          "webhookPathDuplicate": "Another webhook of this procedure already answers {method} {path}.",
+          "webhookPathInvalid": "The webhook path must start with / and use only letters, digits and - . _ ~ : /",
+          "webhookPathReserved": "The path {path} is reserved for the API: choose one under /webhooks/.",
+          "webhookPathTaken": "{method} {path} already answers for “{procedure}”: change the path, or pause that procedure."
+        },
         "description": "Fix them, or save as a disabled draft: nothing fires until they are resolved.",
         "first": "Go to first problem",
         "saveDraft": "Save as draft",
@@ -170,13 +353,14 @@
       },
       "procedureName": "Procedure name",
       "runNow": {
+        "redactedHeaders": "Sensitive headers were hidden when the run was stored ({headers}): replace them before running.",
         "description": "Runs the saved version with this payload.",
         "invalidJson": "The payload is not valid JSON: {error}",
         "noPastPayload": "No past call: edit the payload by hand.",
         "payload": "Payload",
         "sideEffects": "Side effects are real: the services it calls receive the data.",
-        "submit": "Run and follow",
-        "title": "Run “{name}” now",
+        "submit": "Run",
+        "title": "Run “{name}”",
         "trigger": "From trigger"
       },
       "runNowButton": "Run now",
@@ -190,6 +374,7 @@
       "saveAsTemplate": "Save as template",
       "saveError": "Couldn’t save the procedure",
       "saveTemplateModal": {
+        "saveToLink": "Save the procedure to keep the group linked to the template.",
         "cancel": "Cancel",
         "description": "Description",
         "descriptionPlaceholder": "What does it do?",
@@ -227,8 +412,9 @@
       }
     },
     "feed": {
-      "completed": "Completed",
-      "completedPlain": "Completed",
+      "deletedProcedureNamed": "{name} (deleted)",
+      "completed": "Succeeded",
+      "completedPlain": "Succeeded",
       "deletedProcedure": "Deleted procedure",
       "duration": "{duration}",
       "failed": "Failed · {error}",
@@ -236,28 +422,34 @@
     },
     "firstRun": {
       "description": "A procedure listens for a trigger — a webhook, a schedule or a click — then runs actions like HTTP calls, emails or data updates. Start from a recipe: name it, and the builder opens with the trigger in place.",
-      "title": "Automate your first workflow"
+      "title": "Automate your first procedure"
     },
     "health": {
+      "failingDetailMany": "{name} and {others} more · failing since {since} · {cause}",
+      "showFailingProcedures": "Show failing procedures",
+      "summaryCount": "{count} run, {failed} failed · {enabled} of {total} procedures enabled | {count} runs, {failed} failed · {enabled} of {total} procedures enabled",
       "degraded": "{count} procedure degraded | {count} procedures degraded",
       "failing": "{count} procedure failing | {count} procedures failing",
       "failingDetail": "{name} · failing since {since} · {cause}",
-      "failingSince": "{name} · failing since {since}",
       "healthy": "Every procedure is healthy",
       "idle": "Nothing ran in this window",
-      "inspectLastFailure": "Inspect last failure",
+      "inspectLastFailure": "Open last failure",
       "lastFailureAt": "{error} at {step}",
-      "showFailedRuns": "Show failed runs",
-      "summary": "{runs} runs, {failed} failed · {enabled} of {total} procedures enabled"
+      "showFailedRuns": "Show failed runs"
     },
     "iconPicker": {
+      "unknown": "No icon has this name: it would show empty.",
+      "custom": "Icon name",
+      "invalid": "Use an icon name like i-ph-package.",
       "label": "Icons",
       "more": "More…",
       "search": "Search icons…"
     },
     "importProcedure": {
+      "invalidGraph": "This JSON is a procedure, but its graph is not valid: export it again and paste it unchanged.",
+      "unknownKind": "This procedure uses a kind of step this installation doesn’t have: install the module it comes from, or remove the step.",
       "json": "Procedure JSON",
-      "jsonHint": "The file “Export JSON” downloads: name, description and graph.",
+      "jsonHint": "Paste the content of the file “Export JSON” downloads (name, description and graph).",
       "notJson": "This is not valid JSON.",
       "notProcedure": "This JSON is not an exported procedure: it needs a name and a graph.",
       "submit": "Import and open the builder",
@@ -265,15 +457,42 @@
       "title": "Import JSON"
     },
     "kpi": {
-      "duration-p95": "p95 (seconds)",
+      "durationP95": "p95 (ms)",
       "failed": "Failed",
       "runs": "Runs",
       "success-rate": "Success rate",
       "vsPrevious": "vs previous period"
     },
     "library": {
-      "advanced": "Advanced · global config (JSON)",
-      "advancedHint": "Applies to every procedure using this type.",
+      "webhookBaseError": "Couldn’t get the server’s address, so the full URL can’t be shown.",
+      "webhookLoading": "Getting the server’s address…",
+      "backToList": "Back to the list",
+      "disabled": "Disabled",
+      "flowAlwaysOn": "Built into the builder: it can’t be switched off.",
+      "flowBlocks": {
+        "delay": "Waits for a set time before going on.",
+        "forRange": "Repeats the steps it wraps for each number of a range.",
+        "foreach": "Repeats the steps it wraps for each item of a list.",
+        "if": "Goes one way or the other depending on a condition.",
+        "parallel": "Starts several branches at once.",
+        "retry": "Runs the steps it wraps again when they fail, up to a set number of times.",
+        "setVariable": "Keeps a value under a name for the next steps.",
+        "switch": "Picks the branch whose case matches a value.",
+        "tryCatch": "Runs the steps it wraps, and other steps if they fail."
+      },
+      "flowTab": "Flow & helpers",
+      "inGroup": "in group {name}",
+      "inUnnamedGroup": "in a group",
+      "schemaOneOf": "One of these is required: {fields}",
+      "showAll": "Show all ({count})",
+      "showLess": "Show less",
+      "switchLabel": "Enable {name}",
+      "viaTemplate": "via template {name}",
+      "webhook": {
+        "example": "Example",
+        "hint": "Call this URL to start the procedure.",
+        "unconfigured": "This is the address the dashboard’s server reaches the API on. If outside services can’t reach it, set publicUrl in the automation module’s configuration."
+      },
       "builtIn": "Built-in",
       "cluster": {
         "replicated": "Replicated across instances",
@@ -323,6 +542,7 @@
       "title": "Automation"
     },
     "newProcedure": {
+      "subtitleDraft": "Name it and pick what starts it. It starts as a disabled draft: nothing fires until you enable it.",
       "description": "Description",
       "name": "Name",
       "namePlaceholder": "Sync paid invoices to the ERP",
@@ -342,6 +562,24 @@
       "title": "New procedure"
     },
     "nodes": {
+      "groupInput": "Group input",
+      "groupOutput": "Group output",
+      "noInputPorts": "No input ports",
+      "noOutputPorts": "No output ports",
+      "noPorts": "No ports",
+      "linked": "Linked",
+      "linkedHint": "Linked to a template: it runs the template’s current steps.",
+      "docs": {
+        "if": "Follows the then branch when cond is true, the else branch otherwise. The text “false”, “0” and empty text count as false.",
+        "switch": "Compares value with each case and follows the matching branch, or default when none matches.",
+        "retry": "Runs the body branch up to maxAttempts times, until it succeeds. When every attempt fails, the flow goes on from exhausted, with the error.",
+        "foreach": "Runs the body branch once per element of items, with its value and index, then goes on.",
+        "forRange": "Runs the body branch for each number from start up to end (excluded), by step, then goes on.",
+        "parallel": "Starts every branch listed in ports at once, waits for all of them, then goes on. The first failure fails the step.",
+        "tryCatch": "Runs the try branch; if it fails, runs the catch branch with the error. The flow goes on in both cases.",
+        "delay": "Waits ms milliseconds, then goes on.",
+        "setVariable": "Names a value; later steps read it from the value output."
+      },
       "attempts": "{n} attempts",
       "role": {
         "action": "Action",
@@ -353,12 +591,15 @@
       }
     },
     "overview": {
+      "proceduresWeek": "Procedures · last 7 days",
+      "runsPerDayLegend": "Succeeded runs in green, failed runs in red",
       "allRuns": "Run history",
       "byTrigger": "By trigger",
       "byTriggerHint": "How many procedures each trigger starts",
       "counts": {
-        "draft": "Draft",
-        "enabled": "Enabled",
+        "degraded": "Degraded",
+        "healthy": "Healthy",
+        "draft": "Drafts",
         "failing": "Failing",
         "paused": "Paused",
         "total": "Total"
@@ -368,13 +609,20 @@
       "noRuns": "No runs yet",
       "noRunsHint": "Runs show up here as soon as a procedure fires.",
       "noTriggers": "No trigger placed yet",
-      "procedures": "Procedures",
       "recentRuns": "Recent runs",
       "runsPerDay": "Runs",
       "succeeded": "Succeeded",
       "title": "Overview"
     },
     "permissions": {
+      "live": {
+        "description": "The Live / Pause switch and how long ago the page was read.",
+        "name": "Live updates"
+      },
+      "liveTopics": {
+        "description": "Refreshes the page when a run ends or a procedure changes.",
+        "name": "Refresh on events"
+      },
       "attention": {
         "description": "Failing, degraded and paused procedures, with resume and dismiss",
         "name": "Needs attention"
@@ -384,6 +632,8 @@
         "actionsDescription": "Action types, where they are used, enable or disable them",
         "dataNodes": "Data node catalog",
         "dataNodesDescription": "Data node types and where they are used",
+        "flow": "Flow and helper blocks",
+        "flowDescription": "The flow and helper blocks of the library: branches, loops, retries, delays.",
         "triggers": "Trigger catalog",
         "triggersDescription": "Trigger types, where they are used, enable or disable them"
       },
@@ -421,42 +671,61 @@
       }
     },
     "procedures": {
+      "tabs": {
+        "failing": "Failing",
+        "degraded": "Degraded",
+        "healthy": "Healthy",
+        "paused": "Paused",
+        "draft": "Drafts"
+      },
+      "count": "{count} procedure | {count} procedures",
+      "openHint": "Click a name, or double-click a row, to open it in the builder",
+      "noMatch": "No matching procedure",
+      "noMatchHint": "Nothing in this tab matches your search or filters.",
+      "openInBuilder": "Open in builder",
+      "openLastRun": "Open last run",
+      "duplicate": "Duplicate",
+      "duplicated": "“{name}” duplicated: the copy is disabled",
+      "runFinished": "Run finished",
+      "runNowConfirmHint": "Runs the saved version with the payload of its last real call, or an empty payload if it was never called. Side effects are real.",
+      "pausedNamed": "“{name}” paused",
+      "resumedNamed": "“{name}” resumed",
+      "lastRunsLabel": "Last runs: {ok} succeeded, {failed} failed",
+      "detail": {
+        "triggerError": "Trigger not armed: {error}",
+        "failing": "{since} · {error} | {count} in a row · first {since} · {error}",
+        "failingAt": "{since} at “{step}” · {error} | {count} in a row at “{step}” · first {since} · {error}",
+        "degraded": "{failed} of {runs} failed in 7 days · {error}",
+        "runFailed": "Run failed",
+        "noRunYet": "No run yet",
+        "moreTriggers": "{type} · +{count} more",
+        "moreTriggersOnly": "+{count} more trigger | +{count} more triggers"
+      },
       "cols": {
+        "successRate": "Success",
+        "recentRuns": "Last runs",
+        "triggerTypes": "Trigger type",
         "avg": "Avg",
         "description": "Description",
         "enabled": "Enabled",
-        "lastRun": "Last run",
-        "lastRuns": "Last 12 runs",
         "procedure": "Procedure",
         "status": "Status",
         "statusDetail": "Last error",
-        "success": "Success 7 d",
         "trigger": "Starts when"
       },
       "deleteConfirm": "Delete procedure",
-      "deleteDescription": "The graph is deleted. Its run history stays until retention removes it.",
-      "deleteEnabledDescription": "This procedure is enabled and ran {count} times this week. Only need it to stop? Pause it instead: that keeps the graph and can be undone.",
       "deleteImpact": {
-        "schedule": "Schedule stops",
-        "webhook": "Stops answering"
+        "schedule": "Schedule stops"
       },
       "deleteTitle": "Delete “{name}”?",
       "description": "Every procedure, what starts it, and how it ran over the last 7 days.",
       "empty": "No procedures yet",
-      "emptyFiltered": "Nothing here",
-      "emptyFilteredHint": "No procedure matches this tab or this search.",
       "emptyHint": "Procedures run actions when something happens — a webhook, a schedule or a click.",
-      "footerHint": "Double-click a row to open it in the builder",
-      "listTitle": "All procedures",
       "never": "Never",
       "pause": "Pause",
-      "paused": "Paused",
       "resume": "Resume",
-      "resumed": "Resumed",
       "runNow": "Run now",
-      "runNowConfirmDescription": "Runs the saved version with the payload of its last real call. Side effects are real.",
       "runNowConfirmTitle": "Run “{name}” now?",
-      "runStarted": "Run finished",
       "search": "Search procedures…",
       "status": {
         "degraded": "Degraded",
@@ -483,7 +752,31 @@
       }
     },
     "runs": {
+      "olderVersion": "v{version} · now v{current}",
+      "rerunBusy": "This run is being re-run already. Wait a few seconds before re-running it again.",
+      "scopedToMissing": "No procedure matches this link",
+      "scopedKpis": "The figures above count every procedure.",
+      "rerunBlocked": {
+        "deleted": "The procedure was deleted, so there is nothing to run again.",
+        "draftNotKept": "This test ran a draft that wasn’t kept. Test the procedure again from the builder.",
+        "payloadTooLarge": "The payload was too large to keep, so the run can’t be replayed with it.",
+        "triggerGone": "The trigger that started this run is no longer in the procedure."
+      },
+      "rerunBlockedTitle": "This run can’t be re-run",
+      "rerunFailed": "The re-run finished, but it failed. Open its trace to see why.",
+      "rerunPaused": "{name} is paused: the re-run still runs it once.",
+      "rerunRedacted": "Credentials weren’t kept and are sent as “[redacted]”: {headers}.",
+      "retentionConfigured": "Older runs are deleted after the retention period set for this project",
+      "retentionForever": "Runs are kept forever",
+      "retest": "Run the test again",
+      "retestConfirmDescription": "Runs the draft this test ran, from the same trigger, with the same payload. It is stored as a test and doesn’t count in the figures. Side effects are real.",
+      "retestConfirmTitle": "Run this test again?",
+      "scopedTo": "Runs of {name}",
+      "searchRuns": "Search procedures, errors, steps, paths or run ids…",
+      "showAllRuns": "Show all runs",
+      "unknownTrigger": "Unknown trigger",
       "cols": {
+        "procedureVersion": "Version",
         "duration": "Duration",
         "endedAt": "Ended",
         "error": "Error",
@@ -514,14 +807,13 @@
       "rerun": "Re-run",
       "rerunConfirmDescription": "Runs the saved version of the procedure again, from the same trigger, with the payload this run received. Side effects are real.",
       "rerunConfirmTitle": "Re-run with the same payload?",
-      "rerunDone": "{name} re-ran",
+      "rerunDone": "Re-ran {name}",
       "rerunStarted": "Re-run finished",
       "rerunWithPayload": "Re-run with this payload",
       "retentionHint": "Runs are kept 30 days",
-      "search": "Search errors…",
       "status": {
         "failed": "Failed",
-        "ok": "Completed"
+        "ok": "Succeeded"
       },
       "tabs": {
         "failed": "Failed",
@@ -529,14 +821,24 @@
         "tests": "Tests"
       },
       "title": "Run history",
-      "trace": "Trace"
+      "trace": "Open trace"
     },
     "templates": {
+      "deleteForksIn": "It is used once, in {owners}: that usage becomes a local group. | It is used {count} times, in {owners}: each usage becomes a local group.",
+      "ownerProcedures": "{count} procedure | {count} procedures",
+      "ownerTemplates": "{count} template | {count} templates",
+      "ownersAnd": "{first} and {second}",
+      "truncated": "Showing the first {shown} of {total} templates.",
+      "deleteError": "Couldn’t delete the template",
+      "forkIncomplete": "The template was kept: some usages couldn’t be turned into local groups.",
+      "forkIncompleteHint": "They are listed under “Used in”. Open each one, remove the template there or replace it, then delete it again.",
+      "nameTaken": "Another template already has this name.",
+      "placements": "{count} place | {count} places",
+      "templateBadge": "Template",
+      "unused": "No procedure or template uses it yet.",
       "delete": "Delete template",
-      "deleteForks": "It is used once: that usage becomes a local group. | It is used {count} times: each usage becomes a local group.",
       "deleteHint": "Deleting forks each usage into a local group, so the procedures keep working.",
       "deleteTitle": "Delete “{name}”?",
-      "deleteUnused": "No procedure uses it.",
       "deleted": "{name} deleted",
       "details": "Details",
       "editGraph": "Edit graph",
@@ -571,13 +873,59 @@
       "saveError": "Couldn’t save the template",
       "saved": "{name} saved",
       "search": "Search templates…",
-      "usages": {
-        "empty": "No procedure uses this template yet."
-      },
       "usedIn": "Used in",
       "usedInHint": "Changes apply live to every procedure below."
     },
     "trace": {
+      "builderDraftHint": "The builder opens the saved procedure, not the draft this test ran.",
+      "cutFromLog": "cut from the log: its end isn’t known",
+      "graphNotKeptUnknown": "The graph this run used wasn’t kept",
+      "nextRun": "Next run",
+      "stepsDone": "{count} step ran | {count} steps ran",
+      "atStepOnly": "at step {index}",
+      "attempt": "attempt {n}",
+      "attempts": "{count} attempt | {count} attempts",
+      "branchLeft": "{branch}: {step}, not taken",
+      "branchNotTaken": "branch not taken",
+      "compareGap": "Gap",
+      "compareLastSuccess": "Last success",
+      "compareNotReached": "not reached",
+      "compareTotal": "Total",
+      "deleted": "Deleted",
+      "draft": "Draft",
+      "draftDetail": "tested from the builder",
+      "draftNotKept": "The draft this test ran wasn’t kept",
+      "graphNotKept": "The graph of v{version} wasn’t kept",
+      "graphNotKeptHint": "Steps are named from what the run kept, else from the current version (v{current}). The steps it skipped and the branches it left aside can’t be shown.",
+      "handled": "caught",
+      "iterations": "{count} iteration | {count} iterations",
+      "iterationsFailed": "{count} failed",
+      "lastSuccessAt": "Last success {time}",
+      "logCopy": "Copy the log",
+      "logFirstError": "First error",
+      "logLevel": "Level",
+      "logLevelAll": "All levels",
+      "logLevelErrors": "Errors",
+      "logLevelProblems": "Warnings and errors",
+      "logLoadError": "Couldn’t load the log:",
+      "logNoMatch": "No entry matches.",
+      "logSearch": "Search the log…",
+      "logStepMessages": "Step messages only",
+      "noRunHint": "Open a run from the run history to see its trace.",
+      "notFound": "This run doesn’t exist",
+      "notFoundHint": "It may have been deleted: runs are only kept for a limited time.",
+      "notReached": "not reached: the run stopped first",
+      "onInstance": "instance {instance}",
+      "pathWithoutGraph": "Branches not taken aren’t shown: the graph this run used wasn’t kept.",
+      "payloadBody": "Body as received",
+      "payloadPreview": "Preview: the first {chars} characters of {size}",
+      "previousRun": "Previous run",
+      "procedureDeleted": "procedure deleted",
+      "rerunFailed": "{name} re-ran and failed",
+      "rerunUnavailable": "Couldn’t prepare the re-run",
+      "truncatedHint": "Some steps in the middle of the run are missing here, so the steps it skipped aren’t listed.",
+      "truncatedTitle": "{count} log entries were dropped to keep this run small",
+      "versionUnknown": "unknown",
       "atStep": "at step {index} of {total}",
       "compared": "Compared with the last success",
       "currentVersion": "current",
@@ -588,11 +936,10 @@
       "failed": "The run failed",
       "failedAfter": "After {duration}. Downstream steps were skipped.",
       "failedAt": "{step} failed",
-      "failuresInRow": "Failure {count} in a row.",
+      "failuresInRow": "Failed {count} times in a row.",
       "fasterThanUsual": "−{delta} vs usual",
       "input": "Input",
       "instance": "Instance",
-      "lastSuccess": "Last success: run …{run} at {time}.",
       "loadError": "Couldn’t load the run",
       "logComplete": "{count} entries",
       "logTruncated": "{count} entries dropped to keep the run small",
@@ -600,12 +947,11 @@
       "noRun": "No run given.",
       "noSteps": "No step ran.",
       "noSuccessYet": "No successful run to compare with yet.",
-      "notOnPath": "not on this path",
-      "now": "Now",
+      "now": "This run",
       "olderVersion": "This run used v{version} of the procedure",
       "olderVersionHint": "The graph has changed since: the builder shows v{current}.",
       "olderVersionShort": "now v{version}",
-      "openFull": "Open full trace",
+      "openFull": "Open trace",
       "openInBuilder": "Open in builder",
       "openOriginal": "Open the original run",
       "openStep": "Open this step",
@@ -617,17 +963,16 @@
       "rerunOf": "This run is a re-run",
       "skipped": "skipped",
       "slowerThanUsual": "+{delta} vs usual",
-      "startedBy": "started {time} by {trigger}",
+      "startedBy": "Started {time} · {trigger}",
       "status": "Status",
       "step": "Step",
-      "stepsRan": "{count} step ran | {count} steps ran",
       "tabs": {
         "logs": "Logs",
         "payload": "Payload",
         "steps": "Steps",
         "summary": "Summary"
       },
-      "time": "Time",
+      "time": "Duration",
       "title": "Run trace",
       "trigger": "Trigger",
       "version": "Procedure version"
@@ -636,6 +981,210 @@
       "none": "No trigger yet"
     },
     "types": {
+      "bool": {
+        "and": {
+          "description": "True when both a and b are true.",
+          "name": "And"
+        },
+        "not": {
+          "description": "The opposite of a. The text “false”, “0” and empty text count as false.",
+          "name": "Not"
+        },
+        "or": {
+          "description": "True when a, b or both are true.",
+          "name": "Or"
+        },
+        "xor": {
+          "description": "True when exactly one of a and b is true.",
+          "name": "Exactly one"
+        }
+      },
+      "compare": {
+        "eq": {
+          "description": "True when a equals b. A number written as text counts as a number: 5 equals “5”.",
+          "name": "Equals"
+        },
+        "gt": {
+          "description": "True when a is greater than b.",
+          "name": "Greater than"
+        },
+        "gte": {
+          "description": "True when a is greater than or equal to b.",
+          "name": "Greater or equal"
+        },
+        "lt": {
+          "description": "True when a is less than b.",
+          "name": "Less than"
+        },
+        "lte": {
+          "description": "True when a is less than or equal to b.",
+          "name": "Less or equal"
+        },
+        "neq": {
+          "description": "True when a differs from b.",
+          "name": "Not equal"
+        }
+      },
+      "compareMode": "How a and b are compared. auto: as numbers when both are numbers, even written as text (10 is greater than 9), otherwise as text. number: as numbers, and the step fails if one is not a number. text: as text, in alphabetical order.",
+      "const": {
+        "boolean": {
+          "description": "A fixed true or false value.",
+          "name": "True or false"
+        },
+        "json": {
+          "description": "A fixed JSON value: an object, a list or a single value.",
+          "name": "JSON"
+        },
+        "number": {
+          "description": "A fixed number.",
+          "name": "Number"
+        },
+        "string": {
+          "description": "A fixed text.",
+          "name": "Text"
+        }
+      },
+      "dataCategories": {
+        "boolean": "Logic",
+        "compare": "Comparison",
+        "constant": "Constants",
+        "json": "JSON",
+        "math": "Math",
+        "object": "Objects",
+        "string": "Text"
+      },
+      "httpFields": {
+        "failOnStatus": "Fail the step when the server answers with an error status (outside 200–299). Turn it off to handle the status yourself: it is in the status output.",
+        "timeoutMs": "How long to wait for the response, in milliseconds (30000 = 30 seconds, at most 300000 = 5 minutes). Past it, the step fails."
+      },
+      "json": {
+        "parse": {
+          "description": "Turns JSON text into a value. Gives an empty value when the text is not valid JSON.",
+          "name": "Read JSON"
+        },
+        "stringify": {
+          "description": "Turns a value into JSON text. pretty adds line breaks and indentation.",
+          "name": "Write JSON"
+        }
+      },
+      "math": {
+        "abs": {
+          "description": "a without its sign.",
+          "name": "Absolute value"
+        },
+        "add": {
+          "description": "Adds a and b.",
+          "name": "Add"
+        },
+        "ceil": {
+          "description": "Rounds a up to a whole number.",
+          "name": "Round up"
+        },
+        "divide": {
+          "description": "Divides a by b. Gives an empty value when b is 0.",
+          "name": "Divide"
+        },
+        "floor": {
+          "description": "Rounds a down to a whole number.",
+          "name": "Round down"
+        },
+        "max": {
+          "description": "The larger of a and b.",
+          "name": "Maximum"
+        },
+        "min": {
+          "description": "The smaller of a and b.",
+          "name": "Minimum"
+        },
+        "modulo": {
+          "description": "The remainder of a divided by b. Gives an empty value when b is 0.",
+          "name": "Remainder"
+        },
+        "multiply": {
+          "description": "Multiplies a by b.",
+          "name": "Multiply"
+        },
+        "negate": {
+          "description": "Changes the sign of a.",
+          "name": "Negate"
+        },
+        "power": {
+          "description": "a raised to the power of b.",
+          "name": "Power"
+        },
+        "round": {
+          "description": "Rounds a to the nearest whole number.",
+          "name": "Round"
+        },
+        "sqrt": {
+          "description": "The square root of a. Fails when a is negative.",
+          "name": "Square root"
+        },
+        "subtract": {
+          "description": "Subtracts b from a.",
+          "name": "Subtract"
+        }
+      },
+      "object": {
+        "get": {
+          "description": "Reads the field at path in obj, like customer.email. Gives an empty value when it is missing.",
+          "name": "Get a field"
+        },
+        "keys": {
+          "description": "The list of the field names of obj.",
+          "name": "Field names"
+        },
+        "merge": {
+          "description": "The fields of a and b together. When both have a field, b wins.",
+          "name": "Merge"
+        },
+        "set": {
+          "description": "A copy of obj with the field at path set to value. obj itself is not changed.",
+          "name": "Set a field"
+        },
+        "values": {
+          "description": "The list of the field values of obj.",
+          "name": "Field values"
+        }
+      },
+      "string": {
+        "concat": {
+          "description": "a followed by b, as text.",
+          "name": "Join text"
+        },
+        "includes": {
+          "description": "True when s contains search.",
+          "name": "Contains"
+        },
+        "length": {
+          "description": "The number of characters in s. An emoji counts as one.",
+          "name": "Length"
+        },
+        "replace": {
+          "description": "s with every occurrence of search replaced by replacement.",
+          "name": "Replace"
+        },
+        "split": {
+          "description": "Cuts s into a list at each separator (a comma by default).",
+          "name": "Split"
+        },
+        "substring": {
+          "description": "The characters of s from position start up to end, not included. Positions start at 0.",
+          "name": "Extract"
+        },
+        "toLowerCase": {
+          "description": "s in lowercase.",
+          "name": "Lowercase"
+        },
+        "toUpperCase": {
+          "description": "s in uppercase.",
+          "name": "Uppercase"
+        },
+        "trim": {
+          "description": "s without the spaces and line breaks at its start and end.",
+          "name": "Trim spaces"
+        }
+      },
       "cron": {
         "description": "Fires on a cron schedule",
         "name": "Schedule (cron)"

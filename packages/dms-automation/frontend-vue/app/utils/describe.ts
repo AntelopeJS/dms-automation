@@ -18,6 +18,8 @@ export interface TriggerSummary {
   method?: string;
   path?: string;
   cron?: string;
+  /** The time zone the schedule fires in, the server's. */
+  timeZone?: string;
 }
 
 /** A step, named by its label or the name of its type. */
@@ -37,15 +39,27 @@ function pad(value: string): string {
   return value.padStart(TWO_DIGITS, "0");
 }
 
-function timeOf(hour: string, minute: string): string {
-  return `${pad(hour)}:${pad(minute)}`;
+/** A clock time, with the zone it is in when known: "02:00 (UTC)". */
+function timeOf(hour: string, minute: string, timeZone?: string): string {
+  const time = `${pad(hour)}:${pad(minute)}`;
+  return timeZone ? `${time} (${timeZone})` : time;
 }
 
-/** Five-field (or six with seconds) cron expression split in its fields. */
-function cronFields(expression: string): string[] | null {
+type CronFields = [string, string, string, string, string];
+
+/**
+ * A cron expression split in its five fields (minute to day of week), with
+ * its seconds field: "0" when it has none.
+ */
+function cronFields(
+  expression: string,
+): { seconds: string; fields: CronFields } | null {
   const parts = expression.trim().split(/\s+/);
-  if (parts.length === 6) return parts.slice(1);
-  return parts.length === 5 ? parts : null;
+  if (parts.length === 6)
+    return { seconds: parts[0]!, fields: parts.slice(1) as CronFields };
+  return parts.length === 5
+    ? { seconds: "0", fields: parts as CronFields }
+    : null;
 }
 
 function weekdayName(field: string, t: Translate): string | null {
@@ -54,21 +68,36 @@ function weekdayName(field: string, t: Translate): string | null {
   return day ? t(`$dms_automation.cron.days.${day}`) : null;
 }
 
+/** The shapes that fire several times a minute: every second, every N seconds. */
+function describeSeconds(
+  seconds: string,
+  fields: CronFields,
+  t: Translate,
+): string | null {
+  if (fields.some((field) => field !== "*")) return null;
+  if (seconds === "*") return t("$dms_automation.cron.everySecond");
+  const n = EVERY_N.exec(seconds)?.[1];
+  return n ? t("$dms_automation.cron.everySeconds", { n }) : null;
+}
+
 /**
  * A cron expression in words for the common shapes ("Every 15 minutes",
- * "Every day at 02:00", "Mondays at 09:00"), the expression itself
- * otherwise.
+ * "Every day at 02:00 (UTC)", "Mondays at 09:00"), the expression itself
+ * otherwise. Clock times name `timeZone` when it is given: the server's,
+ * where the schedule fires.
  */
-export function describeCron(expression: string, t: Translate): string {
-  const fields = cronFields(expression);
-  if (!fields) return expression;
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = fields as [
-    string,
-    string,
-    string,
-    string,
-    string,
-  ];
+export function describeCron(
+  expression: string,
+  t: Translate,
+  timeZone?: string,
+): string {
+  const parsed = cronFields(expression);
+  if (!parsed) return expression;
+  const { seconds, fields } = parsed;
+  if (!NUMBER.test(seconds) || Number(seconds) !== 0) {
+    return describeSeconds(seconds, fields, t) ?? expression;
+  }
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = fields;
   const anyDate = dayOfMonth === "*" && month === "*";
   if (minute === "*" && hour === "*" && anyDate && dayOfWeek === "*") {
     return t("$dms_automation.cron.everyMinute");
@@ -83,10 +112,15 @@ export function describeCron(expression: string, t: Translate): string {
   }
   const everyHours = EVERY_N.exec(hour);
   if (everyHours && anyDate && dayOfWeek === "*") {
-    return t("$dms_automation.cron.everyHours", { n: everyHours[1] });
+    return Number(minute) === 0
+      ? t("$dms_automation.cron.everyHours", { n: everyHours[1] })
+      : t("$dms_automation.cron.everyHoursAt", {
+          n: everyHours[1],
+          minute: pad(minute),
+        });
   }
   if (!NUMBER.test(hour) || !anyDate) return expression;
-  const time = timeOf(hour, minute);
+  const time = timeOf(hour, minute, timeZone);
   if (dayOfWeek === "*") return t("$dms_automation.cron.daily", { time });
   if (dayOfWeek === "1-5") return t("$dms_automation.cron.weekdays", { time });
   const day = weekdayName(dayOfWeek, t);
@@ -100,7 +134,7 @@ export function describeTrigger(
 ): string {
   if (!trigger) return t("$dms_automation.trigger.none");
   if (trigger.path) return `${trigger.method ?? "POST"} ${trigger.path}`;
-  if (trigger.cron) return describeCron(trigger.cron, t);
+  if (trigger.cron) return describeCron(trigger.cron, t, trigger.timeZone);
   return t(trigger.typeName);
 }
 
@@ -185,19 +219,61 @@ export function describeRelative(
   return "";
 }
 
-/** "14:28" today, "Mon 14:28" this week, "Sep 22, 14:28" before. */
+/**
+ * How a locale writes hours: "09:05" on a 24-hour clock, "9:05 AM" on a
+ * 12-hour one (never "09:05 AM").
+ */
+function hourStyle(locale: string | undefined): "2-digit" | "numeric" {
+  const { hourCycle } = new Intl.DateTimeFormat(locale, {
+    hour: "numeric",
+  }).resolvedOptions();
+  return hourCycle === "h23" || hourCycle === "h24" ? "2-digit" : "numeric";
+}
+
+/**
+ * A date and time, written the same way on every page: "Oct 12, 1:57 PM",
+ * "12 oct., 13:57", with the year when it is not this one. Never all digits,
+ * which reads month-first or day-first depending on the reader. In the
+ * reader's time zone, or in `timeZone` when the text names it (a schedule's
+ * next run, in the server's zone like the schedule itself).
+ */
+export function describeDateTime(
+  date: string | Date | null | undefined,
+  locale?: string,
+  timeZone?: string,
+): string {
+  if (!date) return "—";
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "—";
+  const lang = pageLocale(locale);
+  const yearOf = (value: Date) =>
+    new Intl.DateTimeFormat("en", { year: "numeric", timeZone }).format(value);
+  const options: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    hour: hourStyle(lang),
+    minute: "2-digit",
+    timeZone,
+  };
+  if (yearOf(d) !== yearOf(new Date())) options.year = "numeric";
+  return new Intl.DateTimeFormat(lang, options).format(d);
+}
+
+/** "14:28" today, else the date and time: "Sep 22, 14:28". */
 export function describeTime(
   date: string | Date | null | undefined,
   locale?: string,
 ): string {
   if (!date) return "—";
   const d = new Date(date);
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  const options: Intl.DateTimeFormatOptions = sameDay
-    ? { hour: "2-digit", minute: "2-digit" }
-    : { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" };
-  return new Intl.DateTimeFormat(pageLocale(locale), options).format(d);
+  if (d.toDateString() !== new Date().toDateString()) {
+    return describeDateTime(d, locale);
+  }
+  const lang = pageLocale(locale);
+  return new Intl.DateTimeFormat(lang, {
+    hour: hourStyle(lang),
+    minute: "2-digit",
+  }).format(d);
 }
 
 /** Pretty JSON for a payload or an output, `null` shown as such. */
@@ -220,19 +296,23 @@ export function parsePayload(raw: unknown): unknown {
   }
 }
 
-/** What a node does, in one line, from its settings (AU-10). */
+/**
+ * What a node does, in one line, from its settings (AU-10). A schedule's clock
+ * time names `timeZone` when it is given (the server's, see `TriggerSummary`).
+ */
 export function summarizeNode(
   kind: string,
   typeId: string | undefined,
   config: Record<string, unknown> | undefined,
   t: Translate,
+  timeZone?: string,
 ): string {
   const c = config ?? {};
   const text = (key: string) =>
     typeof c[key] === "string" ? (c[key] as string) : "";
   if (kind === "trigger") {
     if (text("path")) return `${text("method") || "POST"} ${text("path")}`;
-    if (text("cron")) return describeCron(text("cron"), t);
+    if (text("cron")) return describeCron(text("cron"), t, timeZone);
     return "";
   }
   if (text("url")) return `${text("method") || "GET"} ${shortUrl(text("url"))}`;

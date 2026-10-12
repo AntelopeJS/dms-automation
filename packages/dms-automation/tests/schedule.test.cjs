@@ -26,7 +26,28 @@ test("the next occurrence of common schedules", () => {
   );
   assert.deepEqual(
     nextOccurrence("30 0 9 1 * *", from),
-    at("2026-11-01T09:00:00"),
+    at("2026-11-01T09:00:30"),
+  );
+});
+
+test("a schedule with seconds fires within the minute", () => {
+  const from = at("2026-10-07T10:07:30");
+  assert.deepEqual(
+    nextOccurrence("*/20 * * * * *", from),
+    at("2026-10-07T10:07:40"),
+  );
+  assert.deepEqual(
+    nextOccurrence("*/20 * * * * *", at("2026-10-07T10:07:40")),
+    at("2026-10-07T10:08:00"),
+  );
+  assert.deepEqual(
+    nextOccurrence("10 * * * * *", from),
+    at("2026-10-07T10:08:10"),
+  );
+  // Exactly on an occurrence: the next one, not this one.
+  assert.deepEqual(
+    nextOccurrence("*/15 * * * *", at("2026-10-07T10:15:00")),
+    at("2026-10-07T10:30:00"),
   );
 });
 

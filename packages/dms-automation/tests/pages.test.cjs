@@ -81,9 +81,35 @@ test("the module's pages are DMS blocks around a few custom components", () => {
     return all.filter((c) => c._componentName.startsWith("dms-automation-"))
       .length;
   });
-  // overview: the attention list (the health line is a DMS banner); runs:
-  // none on the page itself (the drawer is a row action); trace: the trace;
-  // procedures: none; builder: the editor; library: three catalogs and the
-  // templates.
-  assert.deepEqual(counts, [1, 0, 1, 0, 1, 4]);
+  // overview: the attention list and the live topics relay (the health line is
+  // a DMS banner); runs: the live topics relay (the drawer is a row action);
+  // trace: the trace; procedures: none; builder: the editor; library: four
+  // catalogs and the templates.
+  assert.deepEqual(counts, [2, 1, 1, 0, 1, 5]);
+});
+
+/** Every message of a locale, by its dotted key. */
+function messagesOf(node, prefix = "") {
+  return Object.entries(node).flatMap(([key, value]) =>
+    typeof value === "object"
+      ? messagesOf(value, `${prefix}${key}.`)
+      : [[`${prefix}${key}`, value]],
+  );
+}
+
+test("both locales say the same things with the same parameters", () => {
+  const [en, fr] = LOCALES.map((messages) => new Map(messagesOf(messages)));
+  assert.deepEqual(new Set(en.keys()), new Set(fr.keys()));
+  const params = (text) => new Set(text.match(/\{\w+\}/g));
+  for (const [key, text] of en) {
+    assert.deepEqual(params(fr.get(key)), params(text), key);
+  }
+});
+
+test("no message holds a bare @, which breaks the page", () => {
+  for (const messages of LOCALES) {
+    for (const [key, text] of messagesOf(messages)) {
+      assert.doesNotMatch(text.replaceAll("{'@'}", ""), /@/, key);
+    }
+  }
 });
