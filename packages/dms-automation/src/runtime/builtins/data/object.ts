@@ -49,8 +49,8 @@ export const objectNodes: DataNodeType[] = [
   {
     id: "object.get",
     category: "object",
-    name: "Get",
-    description: "read dot-path from object (null on miss)",
+    name: "$dms_automation.types.object.get.name",
+    description: "$dms_automation.types.object.get.description",
     icon: "i-ph-arrow-square-down",
     inputSchema: {
       type: "object",
@@ -65,8 +65,8 @@ export const objectNodes: DataNodeType[] = [
   {
     id: "object.set",
     category: "object",
-    name: "Set",
-    description: "immutably set value at dot-path",
+    name: "$dms_automation.types.object.set.name",
+    description: "$dms_automation.types.object.set.description",
     icon: "i-ph-arrow-square-up",
     inputSchema: {
       type: "object",
@@ -85,8 +85,8 @@ export const objectNodes: DataNodeType[] = [
   {
     id: "object.keys",
     category: "object",
-    name: "Keys",
-    description: "Object.keys(obj)",
+    name: "$dms_automation.types.object.keys.name",
+    description: "$dms_automation.types.object.keys.description",
     icon: "i-ph-list",
     inputSchema: { type: "object", properties: { obj: objProp } },
     outputSchema: { type: "object", properties: { result: resultArrStr } },
@@ -101,8 +101,8 @@ export const objectNodes: DataNodeType[] = [
   {
     id: "object.values",
     category: "object",
-    name: "Values",
-    description: "Object.values(obj)",
+    name: "$dms_automation.types.object.values.name",
+    description: "$dms_automation.types.object.values.description",
     icon: "i-ph-list-bullets",
     inputSchema: { type: "object", properties: { obj: objProp } },
     outputSchema: { type: "object", properties: { result: resultArrAny } },
@@ -117,8 +117,8 @@ export const objectNodes: DataNodeType[] = [
   {
     id: "object.merge",
     category: "object",
-    name: "Merge",
-    description: "shallow {...a, ...b}",
+    name: "$dms_automation.types.object.merge.name",
+    description: "$dms_automation.types.object.merge.description",
     icon: "i-ph-stack",
     inputSchema: { type: "object", properties: { a: objProp, b: objProp } },
     outputSchema: { type: "object", properties: { result: resultObj } },

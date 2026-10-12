@@ -7,8 +7,8 @@ export const jsonNodes: DataNodeType[] = [
   {
     id: "json.parse",
     category: "json",
-    name: "Parse",
-    description: "JSON.parse (returns null on error)",
+    name: "$dms_automation.types.json.parse.name",
+    description: "$dms_automation.types.json.parse.description",
     icon: "i-ph-brackets-curly",
     inputSchema: {
       type: "object",
@@ -27,8 +27,8 @@ export const jsonNodes: DataNodeType[] = [
   {
     id: "json.stringify",
     category: "json",
-    name: "Stringify",
-    description: "JSON.stringify (pretty = 2-space indent)",
+    name: "$dms_automation.types.json.stringify.name",
+    description: "$dms_automation.types.json.stringify.description",
     icon: "i-ph-code",
     inputSchema: {
       type: "object",

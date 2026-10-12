@@ -39,7 +39,7 @@ nodeKinds.register("delay", execute, {
     defaultConfig: { ms: 1000 },
     configSchema: {
       type: "object",
-      properties: { ms: { type: "number" } },
+      properties: { ms: { type: "number", title: "Delay (ms)", minimum: 0 } },
     },
   },
 });

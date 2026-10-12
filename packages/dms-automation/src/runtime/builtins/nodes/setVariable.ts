@@ -11,7 +11,9 @@ async function execute(
 ): Promise<void> {
   const name = String(node.config.name ?? "");
   const value = node.config.value;
-  ctx.setOutputs({ [name]: value });
+  // `value` is the port the node shows; the output keyed by the variable's
+  // name is kept for graphs that read it before that port carried anything.
+  ctx.setOutputs(name ? { [name]: value, value } : { value });
 }
 
 nodeKinds.register("setVariable", execute, {

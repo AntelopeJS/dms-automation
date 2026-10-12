@@ -8,21 +8,20 @@ import type {
  * literal (a string, a number, a flag) into a downstream port without an
  * upstream source. The value lives in `configSchema` (edited in the inspector),
  * NOT `inputSchema`, so the node has no data-in port to wire: `inputSchema` is
- * empty. `resolveInputs` merges the node's config into the evaluate input, so
- * `value` arrives on `input.value` and is echoed straight to the `value` port.
+ * empty. `resolveInputs` merges the node's config, over the schema's default,
+ * into the evaluate input, so `value` arrives on `input.value` (the default
+ * when the node was saved without one) and is echoed to the `value` port.
  */
 function constant(
   id: string,
-  name: string,
-  description: string,
   icon: string,
   valueSchema: JsonSchema,
 ): DataNodeType {
   return {
     id,
     category: "constant",
-    name,
-    description,
+    name: `$dms_automation.types.${id}.name`,
+    description: `$dms_automation.types.${id}.description`,
     icon,
     inputSchema: { type: "object", properties: {} },
     configSchema: { type: "object", properties: { value: valueSchema } },
@@ -32,25 +31,14 @@ function constant(
 }
 
 export const constantNodes: DataNodeType[] = [
-  constant("const.string", "String", "A constant text value", "i-ph-text-aa", {
-    type: "string",
-    default: "",
+  constant("const.string", "i-ph-text-aa", { type: "string", default: "" }),
+  constant("const.number", "i-ph-hash", { type: "number", default: 0 }),
+  constant("const.boolean", "i-ph-toggle-left", {
+    type: "boolean",
+    default: false,
   }),
-  constant("const.number", "Number", "A constant numeric value", "i-ph-hash", {
-    type: "number",
-    default: 0,
-  }),
-  constant(
-    "const.boolean",
-    "Boolean",
-    "A constant true/false value",
-    "i-ph-toggle-left",
-    { type: "boolean", default: false },
-  ),
   constant(
     "const.json",
-    "JSON",
-    "A constant JSON value (object, array, or any literal)",
     "i-ph-brackets-curly",
     // `default: null` (not an empty schema) so a freshly-dropped, unedited
     // JSON constant emits an explicit null rather than `undefined`.

@@ -1,3 +1,4 @@
+import type { JsonSchema } from "@antelopejs/interface-dms-automation";
 import type { DataEdge, GraphNode } from "../types/graph";
 
 export type DataNodeEvaluator = (
@@ -87,8 +88,24 @@ export class DataCache {
 }
 
 /**
- * Builds the input record for a node by merging static config with
- * data-edge wired fields. For each incoming data edge, pulls the upstream
+ * The `default` of every property of `schema`, keyed by property name. A node
+ * saved without a value (imported, created through the API, or a field the
+ * editor never seeded) then gets the value its schema documents.
+ */
+export function schemaDefaults(
+  schema: JsonSchema | undefined,
+): Record<string, unknown> {
+  const properties = (schema?.properties ?? {}) as Record<string, JsonSchema>;
+  const out: Record<string, unknown> = {};
+  for (const [name, prop] of Object.entries(properties)) {
+    if (prop.default !== undefined) out[name] = prop.default;
+  }
+  return out;
+}
+
+/**
+ * Builds the input record for a node by merging its type's schema defaults,
+ * its static config and its data-edge wired fields, in that order. For each incoming data edge, pulls the upstream
  * output via `cache.getOutput(...)` or — when the source is a data-kind
  * node not yet evaluated — via the optional `evaluateDataNode` callback.
  *
@@ -100,8 +117,9 @@ export function resolveInputs(
   dataEdges: DataEdge[],
   cache: DataCache,
   evaluateDataNode?: DataNodeEvaluator,
+  defaults: Record<string, unknown> = {},
 ): Record<string, unknown> {
-  const result: Record<string, unknown> = { ...node.config };
+  const result: Record<string, unknown> = { ...defaults, ...node.config };
 
   for (const edge of dataEdges) {
     if (edge.to.node !== node.id) continue;
