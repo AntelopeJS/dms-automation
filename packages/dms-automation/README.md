@@ -8,7 +8,7 @@
 
 AntelopeJS DMS module that provides a visual automation builder under `/modules/automation`. Author procedures as node graphs (triggers, actions, data nodes), wire trigger and data edges, and run them in response to events such as cron schedules and webhooks.
 
-It runs on `@antelopejs/dms` 0.6 (`@antelopejs/interface-dms` 0.4) and `@antelopejs/dms-frontend` 0.5.
+It runs on `@antelopejs/dms` 0.7.8 (`@antelopejs/interface-dms` 0.5.4) and `@antelopejs/dms-frontend` 0.5.
 
 ## Pages
 
@@ -23,14 +23,35 @@ It runs on `@antelopejs/dms` 0.6 (`@antelopejs/interface-dms` 0.4) and `@antelop
 
 The pages are DMS blocks (KPI and chart cards, period selector, activity feed, table views with the grouped display and module cell displays) around a few module components, each named for the roles screen with `meta()`. Module pages are the platform owner's, like every DMS module, and so is the module's API.
 
-A procedure is **failing** when its last run failed, **degraded** when runs failed in the last 7 days but the last one succeeded, **healthy** otherwise; a disabled one is **paused**, and one that has no trigger, or was never enabled nor run, is a **draft**. Test runs from the builder are kept (they have a trace) but never count in these states or in any figure.
+A procedure is **failing** when its last run failed, **degraded** when runs failed in the last 7 days but the last one succeeded, **healthy** otherwise; a disabled one is **paused**, and one that has no trigger, or was never enabled nor run, is a **draft**. Test runs from the builder are kept (they have a trace) but never count in these states or in any figure. A procedure whose trigger cannot be armed (an invalid schedule, a webhook path already taken) is **failing**, with the reason under its state.
+
+Webhooks are served by the API server, under the path set on the trigger. A path cannot overlap a route the server already serves, nor start with `/api`, `/auth`, `/dms`, `/modules` or `/settings`, and two enabled procedures cannot share the same method and path. A run keeps the request it received, with credentials replaced by `[redacted]` (see `runs.sensitiveNames`): a re-run therefore sends `[redacted]` in their place, and its confirmation says so.
 
 ## Configuration
 
 | Key | Default | |
 | --- | --- | --- |
 | `runs.retentionDays` | `30` | Days a run is kept; older runs are deleted every hour by the leader instance. `0` keeps every run. |
+| `runs.sensitiveNames` | `[]` | More header and query parameter names whose value is a credential, matched case-insensitively as part of the name. They are added to the built-in list (`Authorization`, `Cookie`, `*token*`, `*secret*`, `*signature*`, `*hmac*`, `*-key`…). A run stores, shows and replays these values as `[redacted]`. |
+| `publicUrl` | — | The public origin of the API server, e.g. `https://api.example.com`. The library and the builder show each webhook's full URL on it. Without it, they show the address the dashboard's server uses to reach the API, which outside callers may not reach. |
+| `httpRequest.blockPrivateNetwork` | `false` | Refuse HTTP requests to this server's network. See [HTTP request: private network](#http-request-private-network). |
 | `cluster.driver` | `auto` | See [Clustering](#clustering). |
+
+### HTTP request: private network
+
+The built-in **HTTP request** action can call any address the server can reach, including its own network. When procedures are built by people you do not fully trust, or when a URL can come from a webhook payload, turn on `blockPrivateNetwork`:
+
+```ts
+"dms-automation": {
+  config: {
+    httpRequest: { blockPrivateNetwork: true },
+  },
+},
+```
+
+The step then fails when the host resolves to a loopback (127.0.0.0/8, ::1), private (10/8, 172.16/12, 192.168/16, fc00::/7), carrier-grade NAT (100.64/10), link-local (169.254/16, fe80::/10, cloud metadata endpoints included), multicast or reserved address, or to a NAT64 address embedding one of them. Each redirect is checked too. DNS rebinding between the check and the connection is not covered. The option is off by default, so procedures that call services on the same machine or network keep working.
+
+Every request also has a timeout (`timeoutMs`, 30 seconds by default, at most 5 minutes, set per step), and a response larger than 2 MB is refused.
 
 ## Vue frontend
 

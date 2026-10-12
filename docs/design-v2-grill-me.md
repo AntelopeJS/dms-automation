@@ -411,3 +411,39 @@ playground with Playwright (overview, run drawer and trace, procedures with the
 new-procedure dialog and delete confirmation, builder test run / save / Run now
 / switcher with unsaved changes, library), in English and French, light and
 dark.
+
+## 11. Revisions after the QA pass (October 2026)
+
+Every screen was then tested in the playground, page by page, and each fix was
+checked again in the browser by someone other than its author. These answers
+changed:
+
+- **Q9.** The trace page no longer declares `requiredQueryParams`: without a
+  run, or with an unknown one, it says so inside the app instead of the DMS
+  404.
+- **Q14.** The overview no longer polls every 30 s. It refreshes on the
+  realtime topics `automation.runs` and `automation.procedures` (a
+  `LiveTopics` block, also on Run history), with the DMS Live / Pause toggle:
+  a busy feed can be paused, which "no toggle" did not allow.
+- **Q17.** The rules stand, with one addition: a procedure whose trigger
+  cannot be armed (invalid schedule, webhook path taken) is *failing*, with
+  the reason stored on the procedure so every instance agrees. An enabled
+  procedure that never ran stays *healthy* and says "No run yet".
+- **Q19.** To fit 1024 px, the last-run date sits under the last-runs strip,
+  and the Avg column is hidden by default (it stays in the column picker).
+- **Q30.** `version` now changes only when the graph changes. Concurrent saves
+  are guarded by a separate `revision` counter (`expectedRevision`, 409 when
+  stale), so a pause from the list no longer counts as a new version. Runs
+  keep the names of their steps, and test runs the graph that ran: the trace
+  draws the graph that actually ran, and says so when it was not kept.
+- **Q33.** The minimap is still left out. The palette is collapsed by default
+  under 1280 px, and the inspector sits beside the canvas instead of over it.
+- **Q39.** Still no secret store, but a run no longer keeps credentials:
+  sensitive headers and query parameters are stored, shown and replayed as
+  `[redacted]` (`runs.sensitiveNames` adds names), older runs included.
+- **Q44.** The library no longer shows the global config JSON under
+  *Advanced*: the runtime never read it. The full webhook URL is built on the
+  new `publicUrl` option.
+- **Webhooks.** A path cannot overlap a route the server already serves, nor
+  start with a reserved prefix (`/api`, `/auth`, `/dms`, `/modules`,
+  `/settings`), and two enabled procedures cannot share a method and path.
