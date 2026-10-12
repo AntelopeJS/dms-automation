@@ -6,10 +6,13 @@ import {
 import {
   Access,
   AccessMode,
+  Filter,
+  type FilterFunction,
   Listable,
   ModelReference,
   Sortable,
 } from "@antelopejs/interface-data-api/metadata";
+import type { ValueProxy } from "@antelopejs/interface-database";
 import { Model } from "@antelopejs/interface-database-decorators";
 import { DefaultDataTypes } from "@antelopejs/interface-dms/base/data-types";
 import type { BlockText } from "@antelopejs/interface-dms/base/types";
@@ -22,6 +25,13 @@ import {
 } from "@antelopejs/interface-dms/base/table-view";
 import { ProcedureRunModel } from "../db/models/procedure_run.model";
 import { ProcedureRun } from "../db/tables/procedure_run.table";
+import {
+  clearCredentialPattern,
+  escapeRegex,
+  scrubSecrets,
+  storedSecretsOf,
+} from "../runtime/boundRunLog";
+import { builtinTriggers } from "../runtime/builtins/triggers";
 import type { StepName, TriggerSummary } from "../runtime/describe";
 import { stepText, triggerText, triggerTypeText } from "../runtime/wording";
 import { DATABASE_NAME } from "../types/constants";
@@ -54,10 +64,76 @@ const STATUS_ITEMS = [
 ];
 
 const KIND_ITEMS = [
-  { value: "run", label: "$dms_automation.runs.kind.run" },
-  { value: "rerun", label: "$dms_automation.runs.kind.rerun" },
-  { value: "test", label: "$dms_automation.runs.kind.test" },
+  { value: "run", label: "$dms_automation.runs.kind.run", icon: "i-ph-play" },
+  {
+    value: "rerun",
+    label: "$dms_automation.runs.kind.rerun",
+    icon: "i-ph-arrow-clockwise",
+  },
+  {
+    value: "test",
+    label: "$dms_automation.runs.kind.test",
+    icon: "i-ph-flask",
+  },
 ];
+
+// The trigger types the filter offers: the module's own, by their name.
+const TRIGGER_TYPE_ITEMS = builtinTriggers.map((t) => ({
+  value: t.id,
+  label: t.name,
+  icon: t.icon,
+}));
+
+/**
+ * The runs whose error contains `text` (the search, the "Error" filter). A run
+ * stored before credentials were redacted, until the boot catch-up rewrites
+ * it, is left out: its error may hold a secret, which a search could guess
+ * character by character.
+ */
+function errorContains(row: ValueProxy<RunsTableAPI>, text: string) {
+  return row
+    .key("errorMessage")
+    .default("")
+    .match(containing(text))
+    .and(
+      row
+        .key("triggerPayload")
+        .default("")
+        .match(clearCredentialPattern())
+        .not(),
+    );
+}
+
+// The data API hands a filter the row sixth.
+// oxlint-disable-next-line eslint/max-params
+const errorFilter: FilterFunction<RunsTableAPI, RunsTableAPI> = (
+  _c,
+  _e,
+  _k,
+  value,
+  _m,
+  row,
+) => errorContains(row, value);
+
+/**
+ * The procedure filter (the funnel, the quick filter, `?procedure=`): the
+ * relation's own compare modes, except that a blank id filters nothing.
+ */
+function procedureFilter(
+  id: ValueProxy<unknown>,
+  value: string,
+  mode: string,
+): ValueProxy<boolean> | boolean {
+  if (mode === "is_empty") return id.default(null).eq(null);
+  if (mode === "is_not_empty") return id.default(null).ne(null);
+  if (!value) return true;
+  return mode === "is_not" ? id.ne(value) : id.eq(value);
+}
+
+/** A case-insensitive pattern matching a value that contains `text`. */
+function containing(text: string): string {
+  return `(?i)${escapeRegex(text.trim())}`;
+}
 
 @RegisterDataController()
 export class RunsTableAPI extends DataController(
@@ -72,6 +148,11 @@ export class RunsTableAPI extends DataController(
   declare model: ProcedureRunModel;
 
   // The row id, so the run drawer and the trace link can read the full run.
+  // The search finds a run by its id or the start of it.
+  @Searchable()
+  @Filter((_ctx, id, _key, value) =>
+    id.match(`(?i)^${escapeRegex(value.trim())}`),
+  )
   @Listable()
   @Column({
     name: "$dms_automation.runs.cols.id",
@@ -88,6 +169,7 @@ export class RunsTableAPI extends DataController(
   @Exported()
   @Column({
     name: "$dms_automation.runs.cols.startedAt",
+    size: 130,
     type: new DefaultDataTypes.DateType(),
     display: new DefaultDisplays.RelativeDateDisplay({
       nowWithinMs: 60_000,
@@ -106,13 +188,13 @@ export class RunsTableAPI extends DataController(
   @Exported()
   @Column({
     name: "$dms_automation.runs.cols.procedure",
-    size: 260,
+    size: 190,
     type: new DefaultDataTypes.StringType(),
     display: new DefaultDisplays.IdentityDisplay({
       icon: "i-ph-flow-arrow",
       subtitleField: "_id",
     }),
-    order: 2,
+    order: 3,
   })
   @Access(AccessMode.ReadOnly)
   declare procedureName: string;
@@ -120,6 +202,9 @@ export class RunsTableAPI extends DataController(
   // Filter-only relation: the funnel and the quick filter pick a procedure
   // through the procedures controller's `select` route, and the row keeps the
   // raw id (the drawer and "View runs" links filter on it).
+  @Filter((_ctx, id, _key, value, mode) =>
+    procedureFilter(id, value.trim(), mode),
+  )
   @Listable()
   @Exported()
   @Column({
@@ -136,25 +221,35 @@ export class RunsTableAPI extends DataController(
   @Access(AccessMode.ReadOnly)
   declare procedureId: string;
 
+  // The search finds a webhook run by its path.
+  @Searchable()
+  @Filter((_ctx, summary, _key, value) =>
+    summary.key("path").default("").match(containing(value)),
+  )
   @Listable()
   @Column({
     name: "$dms_automation.runs.cols.trigger",
-    size: 220,
+    size: 150,
     type: new DefaultDataTypes.StringType(),
     display: new DefaultDisplays.TwoLineDisplay({
       primaryField: "triggerText",
       subField: "triggerTypeText",
     }),
-    order: 3,
+    order: 4,
   })
   @Access(AccessMode.ReadOnly)
   declare triggerSummary: TriggerSummary;
 
-  /** The trigger in words: the first line of the trigger cell. */
+  /**
+   * The trigger in words: the first line of the trigger cell. A run stored
+   * before runs kept their trigger, of a procedure since deleted, has none.
+   */
   @Listable(["triggerSummary"])
   @Access(AccessMode.ReadOnly)
   get triggerText(): BlockText {
-    return triggerText(this.triggerSummary);
+    return this.triggerSummary
+      ? triggerText(this.triggerSummary)
+      : "$dms_automation.runs.unknownTrigger";
   }
 
   /** The trigger's type under its settings, when the first line does not name it. */
@@ -168,21 +263,27 @@ export class RunsTableAPI extends DataController(
   @Exported()
   @Column({
     name: "$dms_automation.runs.cols.status",
-    size: 240,
+    size: 130,
     type: new DefaultDataTypes.SelectType({ items: STATUS_ITEMS }),
     display: new DefaultDisplays.StatusPillDisplay({
       tones: { ok: "success", failed: "error" },
-      subField: "errorMessage",
+      subField: "errorText",
     }),
     filterable: true,
-    order: 4,
+    order: 2,
   })
   @Access(AccessMode.ReadOnly)
   declare status: string;
 
+  // The search finds a failed run by the label of the step it failed at.
+  @Searchable()
+  @Filter((_ctx, step, _key, value) =>
+    step.key("label").default("").match(containing(value)),
+  )
   @Listable()
   @Column({
     name: "$dms_automation.runs.cols.failedStep",
+    size: 130,
     type: new DefaultDataTypes.StringType(),
     display: new DefaultDisplays.TwoLineDisplay({
       primaryField: "failedStepText",
@@ -204,7 +305,7 @@ export class RunsTableAPI extends DataController(
   @Exported()
   @Column({
     name: "$dms_automation.runs.cols.duration",
-    size: 100,
+    size: 140,
     type: new DefaultDataTypes.NumberType(),
     display: new DefaultDisplays.DurationDisplay({ unit: "ms" }),
     order: 6,
@@ -216,10 +317,13 @@ export class RunsTableAPI extends DataController(
   @Exported()
   @Column({
     name: "$dms_automation.runs.cols.kind",
-    size: 100,
+    size: 110,
     type: new DefaultDataTypes.SelectType({ items: KIND_ITEMS }),
+    // Told apart by their icons; neutral keeps the test pill legible in the
+    // light theme.
     display: new DefaultDisplays.StatusPillDisplay({
-      tones: { run: "neutral", rerun: "info", test: "secondary" },
+      tones: { run: "neutral", rerun: "info", test: "neutral" },
+      subField: "versionText",
     }),
     filterable: true,
     order: 7,
@@ -227,11 +331,24 @@ export class RunsTableAPI extends DataController(
   @Access(AccessMode.ReadOnly)
   declare kind: string;
 
+  /** Under the kind, for a run of an older version: "v1 · now v3". */
+  @Listable(["procedureVersion", "procedureCurrentVersion"])
+  @Access(AccessMode.ReadOnly)
+  get versionText(): BlockText | null {
+    const { procedureVersion: version, procedureCurrentVersion: current } =
+      this.table;
+    if (!version || !current || version >= current) return null;
+    return {
+      key: "dms_automation.runs.olderVersion",
+      params: { version, current },
+    };
+  }
+
   @Listable()
   @Exported()
   @Column({
     name: "$dms_automation.runs.cols.triggerType",
-    type: new DefaultDataTypes.StringType(),
+    type: new DefaultDataTypes.SelectType({ items: TRIGGER_TYPE_ITEMS }),
     filterable: true,
     isVisible: false,
     order: 8,
@@ -239,9 +356,21 @@ export class RunsTableAPI extends DataController(
   @Access(AccessMode.ReadOnly)
   declare triggerType: string;
 
+  // Searched, never served as it is stored: a run stored before credentials
+  // were redacted may name one in it. The list reads `errorText`.
   @Searchable()
-  @Listable()
-  @Exported()
+  @Filter(errorFilter)
+  declare errorMessage: string;
+
+  // Read by the error search only (see `errorContains`), never served.
+  declare triggerPayload: string;
+
+  /**
+   * The error a run failed with, without a credential it received. Not
+   * exported: the DMS export writes stored fields, not computed ones.
+   */
+  @Filter(errorFilter)
+  @Listable(["errorMessage", "triggerPayload"])
   @Column({
     name: "$dms_automation.runs.cols.error",
     type: new DefaultDataTypes.StringType(),
@@ -249,7 +378,11 @@ export class RunsTableAPI extends DataController(
     order: 9,
   })
   @Access(AccessMode.ReadOnly)
-  declare errorMessage: string;
+  get errorText(): string | null {
+    const { errorMessage, triggerPayload } = this.table;
+    if (!errorMessage) return null;
+    return scrubSecrets(errorMessage, storedSecretsOf(triggerPayload));
+  }
 
   @Listable()
   @Column({
@@ -270,4 +403,16 @@ export class RunsTableAPI extends DataController(
   })
   @Access(AccessMode.ReadOnly)
   declare rerunOf: string;
+
+  @Listable()
+  @Exported()
+  @Column({
+    name: "$dms_automation.runs.cols.procedureVersion",
+    type: new DefaultDataTypes.NumberType(),
+    filterable: true,
+    isVisible: false,
+    order: 13,
+  })
+  @Access(AccessMode.ReadOnly)
+  declare procedureVersion: number;
 }

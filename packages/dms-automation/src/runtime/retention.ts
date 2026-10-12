@@ -11,6 +11,21 @@ const PURGE_INTERVAL_MS = MS_PER_HOUR;
 
 let timer: ReturnType<typeof setInterval> | undefined;
 
+let keptDays = DEFAULT_RETENTION_DAYS;
+
+/**
+ * Record how long the project keeps runs (`runs.retentionDays`), as soon as
+ * the module is constructed: the run history says it.
+ */
+export function configureRetention(retentionDays: number | undefined): void {
+  keptDays = retentionDays ?? DEFAULT_RETENTION_DAYS;
+}
+
+/** Days runs are kept; `0` keeps every run. */
+export function runsKeptDays(): number {
+  return keptDays;
+}
+
 /** Runs started before this date are past retention. */
 export function retentionCutoff(retentionDays: number, now: Date): Date {
   return new Date(now.getTime() - retentionDays * MS_PER_DAY);

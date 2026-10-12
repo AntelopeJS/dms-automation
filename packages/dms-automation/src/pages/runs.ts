@@ -1,29 +1,41 @@
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
+import { Banner } from "@antelopejs/interface-dms/base/banner";
 import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
-import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
-import { KpiCard } from "@antelopejs/interface-dms/base/kpi-card";
+import { LiveToggle } from "@antelopejs/interface-dms/base/live-toggle";
+import { HStack } from "@antelopejs/interface-dms/base/stack";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
 import { TableView } from "@antelopejs/interface-dms/base/table-view";
 import { RunsTableAPI } from "../data/runs-table";
-import { API_URL, BUILDER_URL, periodSwitch, TRACE_URL } from "./shared";
+import { RUNS_TOPIC } from "../realtime";
+import { DEFAULT_RETENTION_DAYS, runsKeptDays } from "../runtime/retention";
+import {
+  API_URL,
+  BUILDER_URL,
+  kpiRow,
+  liveTopics,
+  periodSwitch,
+  RUNS_PERIOD_SCOPE,
+  TRACE_URL,
+} from "./shared";
 import "./category";
 
-const SCOPE = "automation-runs";
-const KPI_URL = `${API_URL}/runs/kpi`;
+/**
+ * Shortest interval, in seconds, between two reads of one block of the live
+ * page, however many runs land.
+ */
+const LIVE_MAX_RATE = 10;
 
-function kpi(metric: string, icon: string, invert = false) {
-  return KpiCard({
-    title: `$dms_automation.kpi.${metric}`,
-    variant: "stat",
-    icon,
-    fetchUrl: `${KPI_URL}/${metric}`,
-    periodScope: SCOPE,
-    showDelta: true,
-    invert,
-    compareLabel: "$dms_automation.kpi.vsPrevious",
-    valueFormat: metric === "success-rate" ? "percent" : "number",
-    valuePrecision: metric === "duration-p95" ? 1 : undefined,
-  });
+/**
+ * How long runs are kept, as the project configures it. The footer hint is a
+ * bare i18n key (no parameters): the default period and "forever" are said
+ * outright, any other period in general terms.
+ */
+function retentionHint(): string {
+  const days = runsKeptDays();
+  if (days <= 0) return "$dms_automation.runs.retentionForever";
+  return days === DEFAULT_RETENTION_DAYS
+    ? "$dms_automation.runs.retentionHint"
+    : "$dms_automation.runs.retentionConfigured";
 }
 
 /**
@@ -48,26 +60,34 @@ export class RunsPageController extends PageController(
     icon: "i-ph-list-bullets",
     module: "automation",
     order: 1,
+    live: { maxRate: LIVE_MAX_RATE },
   },
   DefaultLayout(),
 ) {
-  static period = periodSwitch(SCOPE);
+  // "Live · updated 12 s ago" with its pause; a stored run reads the KPIs and
+  // the list again.
+  static live = HStack()
+    .child("toggle", LiveToggle({ align: "left" }))
+    .child("topics", liveTopics([RUNS_TOPIC]));
 
-  static kpis = Grid({ gap: "1rem", minColumnWidth: "220px" }).child(
-    "row",
-    GridRow()
-      .child("runs", kpi("runs", "i-ph-play-circle"))
-      .child("successRate", kpi("success-rate", "i-ph-check-circle"))
-      .child("failed", kpi("failed", "i-ph-x-circle", true))
-      .child("durationP95", kpi("duration-p95", "i-ph-timer", true)),
-  );
+  static period = periodSwitch(RUNS_PERIOD_SCOPE);
+
+  static kpis = kpiRow(RUNS_PERIOD_SCOPE, { fetchUrl: `${API_URL}/runs/kpi` });
+
+  // Opened on one procedure (the "View runs" links): which one, and the way
+  // back to every run.
+  static scope = Banner({
+    fetchUrl: `${API_URL}/runs/scope/banner?procedure={{query.procedure}}`,
+  });
 
   static table = TableView(RunsTableAPI, {
     caption: "$dms_automation.runs.listTitle",
     labelKey: "_id",
     rowIdKey: "_id",
     defaultSort: { field: "startedAt", desc: true },
-    searchPlaceholder: "$dms_automation.runs.search",
+    searchPlaceholder: "$dms_automation.runs.searchRuns",
+    // `?procedure=<id>` lists the runs of one procedure (see `scope`).
+    queryParamFilters: { procedure: { field: "procedureId", mode: "is" } },
     tabs: [
       {
         id: "failed",
@@ -141,13 +161,9 @@ export class RunsPageController extends PageController(
             method: "POST",
             successMessage: "$dms_automation.runs.rerunStarted",
           },
-          confirm: {
-            title: "$dms_automation.runs.rerunConfirmTitle",
-            description: "$dms_automation.runs.rerunConfirmDescription",
-            icon: "i-ph-arrow-clockwise",
-            color: "warning",
-            confirmLabel: "$dms_automation.runs.rerun",
-          },
+          // Worded for the run: a test, a paused procedure, redacted
+          // headers, or why it cannot be re-run.
+          confirm: { from: `${API_URL}/runs/{_id}/rerun-confirm` },
         },
         {
           label: "$dms_automation.runs.trace",
@@ -157,5 +173,9 @@ export class RunsPageController extends PageController(
         },
       ],
     },
-  });
+  }).transformOptions((options) =>
+    options?.footer
+      ? { ...options, footer: { ...options.footer, hint: retentionHint() } }
+      : options,
+  );
 }

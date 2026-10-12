@@ -84,7 +84,28 @@ export class ProcedureRun extends Table {
   @Field("any")
   declare failedStep?: StepName;
 
-  /** Procedure version the run executed. */
+  /** Procedure version the run executed; absent on a test run (a draft). */
   @Field("number")
   declare procedureVersion?: number;
+
+  /**
+   * The procedure's version when the run is of an older one, written when
+   * the procedure is saved: the run list says "v1 · now v3".
+   */
+  @Field("number")
+  declare procedureCurrentVersion?: number;
+
+  /**
+   * The name of each step of the graph that ran, by the id the log uses: the
+   * trace names its steps from it once the procedure has changed or is gone.
+   */
+  @Field("any")
+  declare stepNames?: Record<string, StepName>;
+
+  /**
+   * JSON of the graph a test run executed: a draft, kept nowhere else. Its
+   * trace draws it, and re-running the test runs it again.
+   */
+  @Field("string")
+  declare graphSnapshot?: string;
 }

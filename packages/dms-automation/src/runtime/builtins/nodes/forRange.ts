@@ -1,7 +1,16 @@
+import { setImmediate as nextTick } from "node:timers/promises";
 import type { GraphNode } from "../../../types/graph";
 import { type NodeCtx, nodeKinds } from "../../nodeKinds";
 
-const MAX_FOR_RANGE_ITERATIONS = 1_000_000;
+/**
+ * The most iterations a loop runs. Every iteration is logged and the run is
+ * kept as one document, so a longer loop loses most of its log anyway; a job
+ * that needs more belongs in batches.
+ */
+export const MAX_FOR_RANGE_ITERATIONS = 10_000;
+
+/** Iterations run between two yields to the event loop. */
+const ITERATIONS_PER_YIELD = 50;
 
 async function execute(
   _node: GraphNode,
@@ -27,19 +36,25 @@ async function execute(
     throw new Error("forRange: step must be non-zero");
   }
 
+  // Refused before the first iteration, rather than after the limit's worth.
+  const iterations = Math.max(0, Math.ceil((end - start) / step));
+  if (iterations > MAX_FOR_RANGE_ITERATIONS) {
+    throw new Error(
+      `forRange would run ${iterations} iterations, more than the ${MAX_FOR_RANGE_ITERATIONS} allowed`,
+    );
+  }
+
   let value = start;
   let i = 0;
   const goingUp = step > 0;
   while (goingUp ? value < end : value > end) {
-    if (i >= MAX_FOR_RANGE_ITERATIONS) {
-      throw new Error(
-        `forRange exceeded ${MAX_FOR_RANGE_ITERATIONS} iterations`,
-      );
-    }
     ctx.setOutputs({ value, index: i });
     await ctx.fireTrigger("body", { iteration: i });
     value += step;
     i += 1;
+    // A long loop of fast steps would otherwise hold the server: let the
+    // other requests through now and then.
+    if (i % ITERATIONS_PER_YIELD === 0) await nextTick();
   }
   // `main` auto-propagates after execute returns.
 }
