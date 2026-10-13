@@ -2262,7 +2262,7 @@ async function onSave(): Promise<boolean> {
 			toast.add({ title: t('dms_automation.templates.saved', { name: sent.name }), color: 'success', icon: 'i-ph-check-circle' })
 			return true
 		}
-		const res = await $authFetch<{ version: number; revision?: number; issues?: GraphIssue[] }>(`${props.apiUrl}/procedures/${current._id}`, {
+		const res = await $authFetch<{ version: number; revision: number; issues?: GraphIssue[] }>(`${props.apiUrl}/procedures/${current._id}`, {
 			method: 'PUT',
 			body: {
 				name: sent.name,
@@ -2315,8 +2315,7 @@ async function onSave(): Promise<boolean> {
  */
 async function resolveStale(current: ProcedureRecord, error: unknown): Promise<boolean> {
 	saving.value = false
-	const stale = (error as { data?: { revision?: number; current?: number } }).data
-	let latest = stale?.revision ?? stale?.current
+	let latest = (error as { data: { revision: number } }).data.revision
 	const choice = await askChoice({
 		title: t('dms_automation.editor.stale.title', { name: savedName.value }),
 		description: t('dms_automation.editor.stale.description'),
@@ -2335,7 +2334,7 @@ async function resolveStale(current: ProcedureRecord, error: unknown): Promise<b
 			try {
 				const saved = await $authFetch<ProcedureApiRecord>(`${props.apiUrl}/procedures/${current._id}`)
 				current.enabled = !!saved.enabled
-				latest = saved.revision ?? latest
+				latest = saved.revision
 			} catch {
 				// Unreadable: the draft's state is saved, as before.
 			}

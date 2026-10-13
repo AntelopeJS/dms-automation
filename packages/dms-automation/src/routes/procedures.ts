@@ -32,7 +32,6 @@ import { deleteDialogOf } from "./deleteConfirm";
 import {
   checkSavable,
   graphRefusal,
-  isStale,
   issuesOf,
   nameWarning,
   saveIssues,
@@ -309,10 +308,9 @@ export class ProceduresController extends Controller(
   }
 
   /**
-   * Save a procedure. With `expectedRevision` (or the older
-   * `expectedVersion`), the save is refused (409 `stale`) when the procedure
-   * was written since it was loaded. The version moves on only when the
-   * graph changes; the revision on every save.
+   * Save a procedure. The save is refused (409 `stale`) when the procedure
+   * was written since it was loaded at `expectedRevision`. The version moves
+   * on only when the graph changes; the revision on every save.
    */
   @Put("/:id")
   async update(
@@ -322,7 +320,7 @@ export class ProceduresController extends Controller(
   ) {
     const data = parseBody(procedureUpdateSchema, body);
     const existing = await loadProcedure(id);
-    if (isStale(existing, data)) throw stale(existing, data);
+    if (existing.revision !== data.expectedRevision) throw stale(existing);
     const issues = await checkSavable(data.graph, data.enabled, {
       procedureId: id,
       name: data.name,
@@ -348,13 +346,9 @@ export class ProceduresController extends Controller(
       patch.pausedBy = user.name ?? user.email;
     }
     const model = GetModel(ProcedureModel, DATABASE_NAME);
-    const checked =
-      data.expectedRevision !== undefined || data.expectedVersion !== undefined;
-    if (!checked) {
-      await model.update(id, patch);
-    } else if (!(await model.updateAtRevision(id, revision - 1, patch))) {
+    if (!(await model.updateAtRevision(id, existing.revision, patch))) {
       // Written by someone else between the read and this write.
-      throw stale(await loadProcedure(id), data);
+      throw stale(await loadProcedure(id));
     }
     const runs = GetModel(ProcedureRunModel, DATABASE_NAME);
     if (existing.name !== data.name) {

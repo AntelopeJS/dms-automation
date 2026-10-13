@@ -110,39 +110,15 @@ export async function nameWarning(name: string): Promise<{ warning?: string }> {
   return (await isNameTaken(name)) ? { warning: `${API}.nameTaken` } : {};
 }
 
-/** The revision and version a save was made on, when the builder says. */
-export interface SaveExpectation {
-  expectedRevision?: number;
-  expectedVersion?: number;
-}
-
-/** Whether a save was made on what is no longer the current procedure. */
-export function isStale(
-  procedure: Procedure,
-  { expectedRevision, expectedVersion }: SaveExpectation,
-): boolean {
-  return (
-    (expectedRevision !== undefined &&
-      expectedRevision !== procedure.revision) ||
-    (expectedVersion !== undefined && expectedVersion !== procedure.version)
-  );
-}
-
 /**
- * The 409 of a save made on a revision (or, the older form, a version) that
- * is no longer the current one, with the current ones to reload or
- * overwrite with. `current` is the revision, or the version when the save
- * named only a version.
+ * The 409 of a save made on a revision that is no longer the current one,
+ * with the current revision and version to reload or overwrite with.
  */
-export function stale(
-  procedure: Procedure,
-  { expectedRevision }: SaveExpectation,
-): HTTPResult {
+export function stale(procedure: Procedure): HTTPResult {
   const { revision, version } = procedure;
   return new HTTPResult(409, {
     error: "stale",
     message: `${API}.stale`,
-    current: expectedRevision === undefined ? version : revision,
     revision,
     version,
   });
