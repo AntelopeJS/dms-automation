@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.3.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.7...v0.3.0)
+
+### 🚀 Enhancements
+
+- **dms-automation:** ⚠️  Port the v2 design on dms 0.7 ([#39](https://github.com/AntelopeJS/dms-automation/pull/39))
+
+### 💅 Refactors
+
+- **runs:** Namespace the timeline display id as automation:timeline ([#38](https://github.com/AntelopeJS/dms-automation/pull/38))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/interface-dms-automation v0.2.0 ([146bc84](https://github.com/AntelopeJS/dms-automation/commit/146bc84))
+
+#### ⚠️ Breaking Changes
+
+- **dms-automation:** ⚠️  Port the v2 design on dms 0.7 ([#39](https://github.com/AntelopeJS/dms-automation/pull/39))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.2.7
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.6...v0.2.7)
