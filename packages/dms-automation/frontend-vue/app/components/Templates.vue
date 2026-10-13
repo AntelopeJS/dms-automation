@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
-import { unwrapList } from '../utils/automation'
 import { isIconName } from './IconPicker.vue'
 
 // The library's templates: reusable groups other procedures place as linked
@@ -104,10 +103,9 @@ function queryTemplate(): string | null {
 async function loadList() {
 	loading.value = true
 	try {
-		const response = await $authFetch<{ results: TemplateRow[]; total: number }>(`${props.apiUrl}/templates`)
-		const list = unwrapList<TemplateRow>(response)
+		const { results: list, total: count } = await $authFetch<{ results: TemplateRow[]; total: number }>(`${props.apiUrl}/templates`)
 		items.value = list
-		total.value = response.total ?? list.length
+		total.value = count
 		const wanted = selectedId.value ?? queryTemplate()
 		selectedId.value = list.some((x) => x._id === wanted) ? wanted : (sortedItems.value[0]?._id ?? null)
 		loadError.value = null
@@ -120,7 +118,7 @@ async function loadList() {
 
 async function loadProcedures() {
 	try {
-		const rows = unwrapList<ProcedureSummary>(await $authFetch(`${props.apiUrl}/procedures/summary`))
+		const rows = await $authFetch<ProcedureSummary[]>(`${props.apiUrl}/procedures/summary`)
 		procedures.value = new Map(rows.map((p) => [p.procedureId, p]))
 	} catch {
 		procedures.value = new Map()

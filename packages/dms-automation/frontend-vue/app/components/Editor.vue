@@ -7,7 +7,7 @@ import type { ProcedureSummaryRow } from './Editor/ProcedureSwitcher.vue'
 import { describeDateTime, describeDuration, describeTime, describeTrigger, stepTitle, type TriggerSummary } from '../utils/describe'
 import type { BreadcrumbItem } from '@nuxt/ui'
 import type { NodeKindEntry } from '../composables/useAutomationNodeKinds'
-import { type ListEnvelope, newId, unwrapList } from '../utils/automation'
+import { newId } from '../utils/automation'
 import type { GroupPort } from '../composables/useGraphConnect'
 
 // Editor mode.
@@ -122,16 +122,6 @@ interface ProcedureRecord {
 	revision?: number
 }
 
-interface ProcedureApiRecord {
-	_id: string
-	name: string
-	description?: string
-	enabled: boolean
-	graph: string | ProcedureGraph
-	version: number
-	revision: number
-}
-
 interface JsonSchemaProperty {
 	type?: string
 	[key: string]: unknown
@@ -230,20 +220,13 @@ interface TemplatePaletteRow {
 	icon?: string
 	ports: GroupPort[]
 }
-interface TemplateListResponse {
-	results?: TemplatePaletteRow[]
-	items?: TemplatePaletteRow[]
-}
 const templates = ref<TemplatePaletteRow[]>([])
 const templatesLoadError = ref<string | null>(null)
 
 async function loadTemplates() {
 	try {
-		const data = await $authFetch<
-			TemplatePaletteRow[] | TemplateListResponse
-		>('/api/automation/templates')
-		const list = unwrapList<TemplatePaletteRow>(data)
-		templates.value = list.map((t) => ({
+		const { results } = await $authFetch<{ results: TemplatePaletteRow[] }>('/api/automation/templates')
+		templates.value = results.map((t) => ({
 			_id: t._id,
 			name: t.name,
 			icon: t.icon,
@@ -427,47 +410,6 @@ function initHistoryAndSaved() {
 	}
 }
 
-function emptyGraph(): ProcedureGraph {
-	return {
-		nodes: [
-			{
-				id: 'trigger-1',
-				kind: 'trigger',
-				typeId: 'manual',
-				config: {},
-				position: { x: 100, y: 100 },
-			},
-		],
-		triggerEdges: [],
-		dataEdges: [],
-	}
-}
-
-function parseGraph(g: string | ProcedureGraph | undefined | null): ProcedureGraph {
-	if (!g) return emptyGraph()
-	if (typeof g === 'string') {
-		try {
-			const parsed = JSON.parse(g) as ProcedureGraph
-			return parsed && Array.isArray(parsed.nodes) ? parsed : emptyGraph()
-		} catch {
-			return emptyGraph()
-		}
-	}
-	return g
-}
-
-function normalize(r: ProcedureApiRecord): ProcedureRecord {
-	return {
-		_id: r._id,
-		name: r.name,
-		description: r.description ?? '',
-		enabled: !!r.enabled,
-		graph: parseGraph(r.graph),
-		version: r.version,
-		revision: r.revision,
-	}
-}
-
 const PROCEDURES_PAGE_SIZE = 200
 
 async function loadList() {
@@ -475,21 +417,15 @@ async function loadList() {
 	loadError.value = null
 	try {
 		// The API serves pages of PROCEDURES_PAGE_SIZE at most: read them all.
-		// A page that brings nothing new (a server ignoring `page`) ends it.
-		const list: ProcedureApiRecord[] = []
-		const seen = new Set<string>()
+		const list: ProcedureRecord[] = []
 		for (let page = 0; ; page++) {
-			const rows = unwrapList<ProcedureApiRecord>(
-				await $authFetch<ProcedureApiRecord[] | ListEnvelope<ProcedureApiRecord>>(
-					`/api/automation/procedures?limit=${PROCEDURES_PAGE_SIZE}&page=${page}`,
-				),
+			const { results } = await $authFetch<{ results: ProcedureRecord[] }>(
+				`/api/automation/procedures?limit=${PROCEDURES_PAGE_SIZE}&page=${page}`,
 			)
-			const fresh = rows.filter((row) => !seen.has(row._id))
-			for (const row of fresh) seen.add(row._id)
-			list.push(...fresh)
-			if (rows.length < PROCEDURES_PAGE_SIZE || fresh.length === 0) break
+			list.push(...results)
+			if (results.length < PROCEDURES_PAGE_SIZE) break
 		}
-		procedures.value = list.map(normalize)
+		procedures.value = list
 		if (
 			selectedId.value &&
 			!procedures.value.some((p) => p._id === selectedId.value)
@@ -518,21 +454,9 @@ async function loadList() {
 
 async function loadTypeCatalogs() {
 	try {
-		triggerTypes.value = unwrapList<TriggerType>(
-			await $authFetch<TriggerType[] | ListEnvelope<TriggerType>>(
-				'/api/automation/trigger-types',
-			),
-		)
-		actionTypes.value = unwrapList<ActionType>(
-			await $authFetch<ActionType[] | ListEnvelope<ActionType>>(
-				'/api/automation/action-types',
-			),
-		)
-		dataNodeTypes.value = unwrapList<DataNodeType>(
-			await $authFetch<DataNodeType[] | ListEnvelope<DataNodeType>>(
-				'/api/automation/data-node-types',
-			),
-		)
+		triggerTypes.value = await $authFetch<TriggerType[]>('/api/automation/trigger-types')
+		actionTypes.value = await $authFetch<ActionType[]>('/api/automation/action-types')
+		dataNodeTypes.value = await $authFetch<DataNodeType[]>('/api/automation/data-node-types')
 		nodeKinds.value = await useAutomationNodeKinds().list()
 	} catch {
 		// Catalogs are optional for editing — silently ignore.
@@ -544,8 +468,8 @@ interface AutomationTemplateApi {
 	name: string
 	description?: string
 	icon?: string
-	ports?: GroupPort[]
-	subgraph?: string | ProcedureGraph
+	ports: GroupPort[]
+	subgraph: ProcedureGraph
 }
 
 async function loadTemplate(id: string) {
@@ -556,7 +480,6 @@ async function loadTemplate(id: string) {
 		const tpl = await $authFetch<AutomationTemplateApi>(
 			`/api/automation/templates/${id}`,
 		)
-		const subgraph = parseGraph(tpl.subgraph)
 		// Adapt the template into the ProcedureRecord shape so the rest of
 		// the editor (history, dirty-tracking, sentinel sync, group toolbar)
 		// keeps working unchanged. `enabled` is meaningless for templates;
@@ -566,7 +489,7 @@ async function loadTemplate(id: string) {
 			name: tpl.name,
 			description: tpl.description ?? '',
 			enabled: true,
-			graph: subgraph,
+			graph: tpl.subgraph,
 		}
 		procedures.value = [adapted]
 		selectedId.value = adapted._id
@@ -1768,8 +1691,7 @@ const summaries = ref<ProcedureSummaryRow[]>([])
 
 async function loadSummaries() {
 	try {
-		const res = await $authFetch<{ results: ProcedureSummaryRow[] }>(`${props.apiUrl}/procedures/summary`)
-		summaries.value = res.results ?? []
+		summaries.value = await $authFetch<ProcedureSummaryRow[]>(`${props.apiUrl}/procedures/summary`)
 	} catch {
 		summaries.value = []
 	}
@@ -2321,8 +2243,8 @@ async function resolveStale(current: ProcedureRecord, error: unknown): Promise<b
 		// switch was flipped in this draft, the procedure stays as it is now.
 		if (current.enabled === savedSnapshot.value?.enabled) {
 			try {
-				const saved = await $authFetch<ProcedureApiRecord>(`${props.apiUrl}/procedures/${current._id}`)
-				current.enabled = !!saved.enabled
+				const saved = await $authFetch<{ enabled: boolean; revision: number }>(`${props.apiUrl}/procedures/${current._id}`)
+				current.enabled = saved.enabled
 				latest = saved.revision
 			} catch {
 				// Unreadable: the draft's state is saved, as before.
@@ -2340,7 +2262,7 @@ async function reloadSelected() {
 	const current = selected.value
 	if (!current) return
 	try {
-		const fresh = normalize(await $authFetch<ProcedureApiRecord>(`${props.apiUrl}/procedures/${current._id}`))
+		const fresh = await $authFetch<ProcedureRecord>(`${props.apiUrl}/procedures/${current._id}`)
 		procedures.value = procedures.value.map((p) => (p._id === fresh._id ? fresh : p))
 		selectedNodeId.value = null
 		initHistoryAndSaved()

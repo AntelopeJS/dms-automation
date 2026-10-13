@@ -148,6 +148,12 @@ async function insertDraft(
   return id;
 }
 
+/** A procedure as the API serves it: its graph parsed. */
+function served(procedure: Procedure) {
+  const { graph, ...fields } = procedure;
+  return { ...fields, graph: JSON.parse(graph) as ProcedureGraph };
+}
+
 /** The name of a copy, kept within the length a name may have. */
 function copyNameOf(name: string): string {
   const suffix = " (copy)";
@@ -165,14 +171,15 @@ export class ProceduresController extends Controller(
     @Parameter("limit", "query") limit?: string,
   ) {
     const model = GetModel(ProcedureModel, DATABASE_NAME);
-    return await model.list(pageParams(page, limit));
+    const listed = await model.list(pageParams(page, limit));
+    return { ...listed, results: listed.results.map(served) };
   }
 
   // Per-procedure rows (trigger, state, last runs, success, avg): the
   // builder's procedure switcher reads them. Declared before "/:id".
   @Get("/summary")
   async summary(@AuthRawUser() _user: User) {
-    return { results: await getProceduresSummary() };
+    return await getProceduresSummary();
   }
 
   /**
@@ -246,7 +253,7 @@ export class ProceduresController extends Controller(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
   ) {
-    return await loadProcedure(id);
+    return served(await loadProcedure(id));
   }
 
   /** The procedure as "Import JSON" reads it back. */

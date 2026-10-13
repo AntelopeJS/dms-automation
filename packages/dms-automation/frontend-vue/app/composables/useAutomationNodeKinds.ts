@@ -1,5 +1,4 @@
 import type { GroupPort, JsonSchema } from "./useGraphConnect";
-import { type ListEnvelope, unwrapList } from "../utils/automation";
 
 export interface PortRef {
   name: string;
@@ -49,10 +48,7 @@ export function useAutomationNodeKinds() {
   const { $authFetch } = useAuthFetch();
   return {
     async list(): Promise<NodeKindEntry[]> {
-      const data = await $authFetch<
-        NodeKindEntry[] | ListEnvelope<NodeKindEntry>
-      >("/api/automation/node-kinds");
-      return unwrapList(data);
+      return await $authFetch<NodeKindEntry[]>("/api/automation/node-kinds");
     },
   };
 }
