@@ -10,8 +10,8 @@ export const MANUAL_TRIGGER_ID = "manual";
  */
 export const manualTrigger: TriggerType = {
   id: MANUAL_TRIGGER_ID,
-  name: "Manual",
-  description: "Triggered by an explicit Run-now action or API invoke",
+  name: "$dms_automation.types.manual.name",
+  description: "$dms_automation.types.manual.description",
   icon: "i-ph-play",
   cluster: "replicated",
   configSchema: {

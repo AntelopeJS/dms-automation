@@ -17,12 +17,19 @@ import { instanceId } from "./cluster/instance";
 import * as leader from "./cluster/leader";
 import type { ClusterDriver } from "./cluster/mode";
 import { resolveClusterMode } from "./cluster/mode";
+import { configureRedaction } from "./runtime/boundRunLog";
+import { setHttpRequestOptions } from "./runtime/builtins/actions/http";
 import {
   builtinActions,
   builtinDataNodes,
   builtinTriggers,
 } from "./runtime/builtins";
 import { registry } from "./runtime/registry";
+import {
+  configureRetention,
+  startRetention,
+  stopRetention,
+} from "./runtime/retention";
 import { subscriptions } from "./runtime/subscriptions";
 import { isOriginAttributionWorking } from "./runtime/typeOrigin";
 import { FRONTEND_MODULE_NAME, SCHEMA_NAME } from "./types/constants";
@@ -30,12 +37,37 @@ import { FRONTEND_MODULE_NAME, SCHEMA_NAME } from "./types/constants";
 export interface Config {
   /** Multi-instance coordination. Omit for standalone (single-instance) behavior. */
   cluster?: { driver?: ClusterDriver };
+  runs?: {
+    /**
+     * Days a run is kept before it is deleted, 30 by default. `0` keeps every
+     * run.
+     */
+    retentionDays?: number;
+    /**
+     * More header and query parameter names whose value is a credential,
+     * matched case-insensitively as part of the name (e.g. "x-shop-secret").
+     * Added to the built-in list (Authorization, Cookie, *token*, *secret*,
+     * *signature*, *hmac*, *-key…).
+     */
+    sensitiveNames?: string[];
+  };
+  /** The built-in HTTP request action. */
+  httpRequest?: {
+    /**
+     * Refuse requests to loopback, private and link-local addresses (this
+     * server's network, cloud metadata endpoints). Off by default.
+     */
+    blockPrivateNetwork?: boolean;
+  };
 }
 
 let globalConfig: Config = {};
 
 export async function construct(config: Config): Promise<void> {
   globalConfig = defu(config, globalConfig);
+  configureRetention(globalConfig.runs?.retentionDays);
+  configureRedaction(globalConfig.runs?.sensitiveNames);
+  setHttpRequestOptions(globalConfig.httpRequest ?? {});
 
   ImplementInterface(
     await import("@antelopejs/interface-dms-automation"),
@@ -118,9 +150,12 @@ export async function start(): Promise<void> {
 
   if (mode === "redis") await startLeaderElection();
   else Logging.Info("[dms-automation] cluster mode: standalone (memory)");
+
+  startRetention(mode === "redis" ? leader.isLeader : () => true);
 }
 
 export async function destroy(): Promise<void> {
+  stopRetention();
   // Release leadership first (fast handoff), then the bus, then local handles.
   await leader.stop();
   await bus.close();

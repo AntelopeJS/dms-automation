@@ -1,4 +1,5 @@
 import {
+  getRegisteredRouteHandlers,
   HTTPResult,
   ReadBody,
   RegisterRoute,
@@ -7,6 +8,8 @@ import {
   routesProxy,
 } from "@antelopejs/interface-api";
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
+import { TriggerArmError } from "../../armErrors";
+import type { ConfigProblem } from "../../validate";
 
 interface WebhookConfig {
   path: string;
@@ -16,7 +19,7 @@ interface WebhookConfig {
 interface WebhookOutput {
   method: string;
   headers: Record<string, string | string[] | undefined>;
-  query: Record<string, string>;
+  query: Record<string, string | string[]>;
   body: unknown;
   params: Record<string, string>;
 }
@@ -25,11 +28,168 @@ interface WebhookHandle {
   routeId: string;
 }
 
+const DEFAULT_METHOD = "POST";
+
+// A webhook answers anyone, without authentication: it must never shadow a
+// route of the server's API or of the DMS. These prefixes are refused even
+// before their routes are registered; any other registered route is found in
+// the router (see webhookRouteConflict).
+const RESERVED_PREFIXES = ["/api", "/auth", "/dms", "/modules", "/settings"];
+// Letters, digits, `-._~`, `/` between segments and `:` for route parameters.
+const PATH_PATTERN = /^\/[A-Za-z0-9._~:/-]*$/;
+const UNSAFE_SEGMENTS = /\/\/|(^|\/)\.\.?(\/|$)/;
+
+function isReserved(path: string): boolean {
+  const lower = path.toLowerCase();
+  return RESERVED_PREFIXES.some(
+    (prefix) => lower === prefix || lower.startsWith(`${prefix}/`),
+  );
+}
+
+/** Why a webhook path cannot be served, or undefined when it can. */
+export function webhookPathProblem(path: unknown): ConfigProblem | undefined {
+  const value = typeof path === "string" ? path.trim() : "";
+  if (!PATH_PATTERN.test(value) || UNSAFE_SEGMENTS.test(value)) {
+    return {
+      code: "webhookPathInvalid",
+      params: { path: value },
+      message: `webhook path must start with "/" and use only letters, digits and - . _ ~ : / (got ${JSON.stringify(path ?? "")})`,
+    };
+  }
+  if (isReserved(value)) {
+    return {
+      code: "webhookPathReserved",
+      params: { path: value },
+      message: `webhook path ${value} is reserved for the API`,
+    };
+  }
+  return undefined;
+}
+
+/**
+ * The route a webhook config answers on, as two webhooks compare: the method,
+ * and the path without its trailing slash.
+ */
+export function webhookRouteOf(config: Record<string, unknown> | undefined): {
+  method: string;
+  path: string;
+} {
+  const method =
+    typeof config?.method === "string" ? config.method : DEFAULT_METHOD;
+  const path = typeof config?.path === "string" ? config.path.trim() : "";
+  return { method, path: path.length > 1 ? path.replace(/\/+$/, "") : path };
+}
+
+// The ids of the routes this module's webhooks registered: the save check
+// leaves them out (a procedure's armed webhook is not a conflict with
+// itself), while arming counts them (two webhooks on one route are refused
+// when the second arms).
+const armedRoutes = new Set<string>();
+
+const segmentsOf = (path: string) => path.split("/").filter(Boolean);
+
+/** Whether two route paths match the same requests (`:param` matches any). */
+function pathsOverlap(a: string, b: string): boolean {
+  const left = segmentsOf(a);
+  const right = segmentsOf(b);
+  return (
+    left.length === right.length &&
+    left.every((segment, i) => {
+      const other = right[i] ?? "";
+      return (
+        segment === other || segment.startsWith(":") || other.startsWith(":")
+      );
+    })
+  );
+}
+
+/**
+ * The route already registered on the server (a controller of the DMS, of a
+ * module, or another webhook) that answers the same requests, as a problem:
+ * the webhook would shadow it, or never be called.
+ */
+export function webhookRouteConflict(
+  method: string,
+  path: string,
+  ownRouteIds: ReadonlySet<string> = new Set(),
+): ConfigProblem | undefined {
+  const verb = method.toUpperCase();
+  const taken = getRegisteredRouteHandlers().some(
+    ({ id, handler }) =>
+      !ownRouteIds.has(id) &&
+      handler.mode === "handler" &&
+      [verb, "ALL", "*"].includes(handler.method.toUpperCase()) &&
+      pathsOverlap(handler.location, path),
+  );
+  if (!taken) return undefined;
+  return {
+    code: "webhookRouteTaken",
+    params: { method: verb, path },
+    message: `${verb} ${path} already answers for another route of the server`,
+  };
+}
+
+/** An armed webhook of a procedure: its settings, and whose it is. */
+export interface ArmedWebhook {
+  config: Record<string, unknown>;
+  procedure: string;
+}
+
+/**
+ * A webhook refused for a route another procedure's webhook already holds,
+ * reworded to name that procedure (the router knows routes, not
+ * procedures). Any other refusal is returned as it is.
+ */
+export function namedRouteConflict(
+  problem: ConfigProblem,
+  config: Record<string, unknown>,
+  armed: Iterable<ArmedWebhook>,
+): ConfigProblem {
+  if (problem.code !== "webhookRouteTaken") return problem;
+  const { method, path } = webhookRouteOf(config);
+  for (const other of armed) {
+    const route = webhookRouteOf(other.config);
+    if (route.method !== method || !pathsOverlap(route.path, path)) continue;
+    return {
+      code: "webhookPathTaken",
+      params: { method, path, procedure: other.procedure },
+      message: `${method} ${path} already answers for the procedure "${other.procedure}"`,
+    };
+  }
+  return problem;
+}
+
+/** The routes of this module's armed webhooks. */
+export function armedWebhookRouteIds(): ReadonlySet<string> {
+  return armedRoutes;
+}
+
+/** The query string, a key given several times read as a list. */
+function queryOf(url: URL): Record<string, string | string[]> {
+  const query: Record<string, string | string[]> = {};
+  for (const key of new Set(url.searchParams.keys())) {
+    const values = url.searchParams.getAll(key);
+    query[key] = values.length > 1 ? values : (values[0] ?? "");
+  }
+  return query;
+}
+
+/** The body as JSON, a decoded form, or the raw text. */
+function parseBody(text: string, contentType: string | undefined): unknown {
+  if (contentType?.includes("application/x-www-form-urlencoded")) {
+    return Object.fromEntries(new URLSearchParams(text));
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
 export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
   id: "webhook",
-  name: "Webhook",
-  description:
-    "Registers an HTTP endpoint that fires the procedure on each request",
+  name: "$dms_automation.types.webhook.name",
+  description: "$dms_automation.types.webhook.description",
   icon: "i-ph-webhooks-logo",
   cluster: "replicated",
   configSchema: {
@@ -42,7 +202,7 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
       method: {
         type: "string",
         enum: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-        default: "POST",
+        default: DEFAULT_METHOD,
       },
     },
     required: ["path"],
@@ -59,13 +219,12 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
     },
   },
   async activate(config, emit) {
-    const path = (config.path ?? "").trim();
-    if (!path || !path.startsWith("/")) {
-      throw new Error(
-        `webhook path must be a non-empty string starting with "/" (got ${JSON.stringify(config.path)})`,
-      );
-    }
-    const method = config.method ?? "POST";
+    const { method, path } = webhookRouteOf({ ...config });
+    // An already armed webhook on this route is a conflict like any route:
+    // the router would hand every call to the first one.
+    const problem =
+      webhookPathProblem(config.path) ?? webhookRouteConflict(method, path);
+    if (problem) throw new TriggerArmError(problem);
 
     const handler: RouteHandler = {
       mode: "handler",
@@ -75,30 +234,21 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
       properties: {},
       proto: {},
       callback: async (ctx: RequestContext) => {
-        let body: unknown;
-        try {
-          const buf = await ReadBody(ctx);
-          if (buf && buf.length > 0) {
-            const text = buf.toString("utf8");
-            try {
-              body = JSON.parse(text);
-            } catch {
-              body = text;
-            }
-          }
-        } catch {
-          // best-effort body read; ignore parse errors
-        }
-
-        const query: Record<string, string> = {};
-        ctx.url.searchParams.forEach((v, k) => {
-          query[k] = v;
-        });
+        // A body over the size limit rejects with a 413: the caller is told,
+        // and the procedure does not run on a payload it never received.
+        const buf = await ReadBody(ctx);
+        const body =
+          buf.length > 0
+            ? parseBody(
+                buf.toString("utf8"),
+                ctx.rawRequest.headers["content-type"],
+              )
+            : undefined;
 
         emit({
           method: ctx.rawRequest.method ?? method,
           headers: ctx.rawRequest.headers,
-          query,
+          query: queryOf(ctx.url),
           body,
           params: ctx.routeParameters,
         });
@@ -107,12 +257,14 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
       },
     };
 
-    const id = RegisterRoute(handler);
-    return { routeId: String(id) } satisfies WebhookHandle;
+    const routeId = String(RegisterRoute(handler));
+    armedRoutes.add(routeId);
+    return { routeId } satisfies WebhookHandle;
   },
   async deactivate(handle) {
     const h = handle as WebhookHandle | undefined;
     if (!h?.routeId) return;
     routesProxy.unregister(h.routeId);
+    armedRoutes.delete(h.routeId);
   },
 };

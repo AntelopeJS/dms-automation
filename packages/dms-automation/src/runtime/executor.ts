@@ -1,3 +1,4 @@
+import type { JsonSchema } from "@antelopejs/interface-dms-automation";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
 // Side-effect import: every `nodes/<kind>.ts` registers itself on load,
@@ -5,11 +6,13 @@ import type { FireNode, LogEntry, RunLog } from "../types/runLog";
 // route, the validator, executors) sees the built-ins immediately —
 // not only after the first run.
 import "./builtins";
+import { redactHeaders } from "./boundRunLog";
+import { labelOf } from "./describe";
 import type { ExecutionResult } from "./executionResult";
 import { flattenGroups } from "./flatten";
 import { type NodeCtx, nodeKinds } from "./nodeKinds";
 import { registry } from "./registry";
-import { DataCache, resolveInputs } from "./resolveInputs";
+import { DataCache, resolveInputs, schemaDefaults } from "./resolveInputs";
 import type { TemplateCache } from "./resolveSubgraph";
 import { SubWalk } from "./subwalk";
 import { validateGraph } from "./validate";
@@ -39,6 +42,13 @@ interface RunCtx {
   currentFireId: string;
   cache: DataCache;
   signal: AbortSignal;
+  /**
+   * The node each error was first thrown at. Shared by every nested context:
+   * a rethrow through the enclosing nodes keeps the innermost one, whatever
+   * else failed meanwhile (a sibling parallel branch, an error a try/catch
+   * swallowed).
+   */
+  failedAt: Map<unknown, string>;
 }
 
 function nowOffset(start: number): number {
@@ -142,6 +152,7 @@ export async function run(
     currentFireId: "",
     cache,
     signal,
+    failedAt: new Map(),
   };
 
   // Open a synthetic "run" fire so the initial "run started" entry has
@@ -196,11 +207,14 @@ export async function run(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     closeFire(runCtx, rootFire);
-    return {
+    const result: ExecutionResult = {
       status: "failed",
       errorMessage: message,
       logs: toRunLog(runCtx),
     };
+    const failedNodeId = runCtx.failedAt.get(err);
+    if (failedNodeId) result.failedNodeId = failedNodeId;
+    return result;
   }
 
   appendEntry(runCtx, { source: "exec", level: "info", message: "run ok" });
@@ -238,7 +252,13 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
   const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
   const evalDataNode = makeDataNodeEvaluator(graph, nodeById, runCtx);
   const resolveNodeInputs = (n: GraphNode): Record<string, unknown> =>
-    resolveInputs(n, graph.dataEdges, runCtx.cache, evalDataNode);
+    resolveInputs(
+      n,
+      graph.dataEdges,
+      runCtx.cache,
+      evalDataNode,
+      inputDefaults(n),
+    );
 
   for (const nodeId of order) {
     if (runCtx.signal.aborted) {
@@ -260,9 +280,12 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
       node: { id: nodeId, kind: node.kind },
     });
 
-    const inputs = resolveNodeInputs(node);
-
+    const nodeStart = Date.now();
+    // Inside the try: a data node that fails while the inputs are read (a
+    // cycle, an unknown type, a bad value) fails this step, not the run alone.
+    let inputs: Record<string, unknown> = {};
     try {
+      inputs = resolveNodeInputs(node);
       const entry = nodeKinds.get(node.kind);
       if (!entry) {
         throw new Error(`unsupported node kind "${node.kind}"`);
@@ -295,16 +318,105 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      if (!runCtx.failedAt.has(err)) runCtx.failedAt.set(err, nodeId);
       appendEntry(runCtx, {
         source: "exec",
         level: "error",
         message,
         node: { id: nodeId, kind: node.kind },
+        value: {
+          durationMs: Date.now() - nodeStart,
+          inputs: describeRecord(redacted(inputs, typeOf(node)?.inputSchema)),
+        },
       });
       throw err;
     }
+    appendEntry(runCtx, {
+      source: "exec",
+      level: "info",
+      message: "executed",
+      node: { id: nodeId, kind: node.kind },
+      value: {
+        durationMs: Date.now() - nodeStart,
+        inputs: describeRecord(redacted(inputs, typeOf(node)?.inputSchema)),
+        output: describeValue(
+          redacted(runCtx.cache.getOutput(nodeId), typeOf(node)?.outputSchema),
+        ),
+      },
+    });
     subwalk.markExecuted(nodeId);
   }
+}
+
+/**
+ * A data node's error, saying where its empty wired inputs come from: the
+ * cause is usually upstream (a division by zero, a field not found), not in
+ * the node that fails on the empty value.
+ */
+function withEmptySources(
+  err: unknown,
+  node: GraphNode,
+  inputs: Record<string, unknown>,
+  graph: ProcedureGraph,
+  nodeById: Map<string, GraphNode>,
+): unknown {
+  if (!(err instanceof Error)) return err;
+  const sources = graph.dataEdges
+    .filter((e) => e.to.node === node.id)
+    .filter(
+      (e) => inputs[e.to.field] === null || inputs[e.to.field] === undefined,
+    )
+    .map((e) => {
+      const source = nodeById.get(e.from.node);
+      const name =
+        (source && (labelOf(source) ?? source.typeId ?? source.kind)) ??
+        e.from.node;
+      return `${e.to.field} comes from ${name} (${e.from.port}), which gave no value`;
+    });
+  if (sources.length === 0) return err;
+  return new Error(`${err.message}. ${sources.join("; ")}.`, { cause: err });
+}
+
+/** The registered type behind an action or a data node, if any. */
+function typeOf(node: GraphNode):
+  | {
+      inputSchema: JsonSchema;
+      outputSchema: JsonSchema;
+      configSchema?: JsonSchema;
+    }
+  | undefined {
+  if (!node.typeId) return undefined;
+  if (node.kind === "action") return registry.getAction(node.typeId);
+  if (node.kind === "data") return registry.getDataNode(node.typeId);
+  return undefined;
+}
+
+/** The defaults the node's type declares, applied under its config. */
+function inputDefaults(node: GraphNode): Record<string, unknown> {
+  const type = typeOf(node);
+  return {
+    ...schemaDefaults(type?.inputSchema),
+    ...schemaDefaults(type?.configSchema),
+  };
+}
+
+/**
+ * A copy of `values` fit for the run log: the fields `schema` marks
+ * `"x-redact": "headers"` (HTTP header maps) have their credentials masked.
+ * Only the log is masked; the node ran with the real values.
+ */
+function redacted<T>(values: T, schema: JsonSchema | undefined): T {
+  if (!values || typeof values !== "object" || Array.isArray(values)) {
+    return values;
+  }
+  const properties = (schema?.properties ?? {}) as Record<string, JsonSchema>;
+  const out = { ...values } as Record<string, unknown>;
+  for (const [name, prop] of Object.entries(properties)) {
+    if (prop["x-redact"] === "headers" && name in out) {
+      out[name] = redactHeaders(out[name]);
+    }
+  }
+  return out as T;
 }
 
 interface ContinuationState {
@@ -421,8 +533,14 @@ function makeDataNodeEvaluator(
         graph.dataEdges,
         runCtx.cache,
         evaluator,
+        inputDefaults(dn),
       );
-      const out = type.evaluate(inputs) as Record<string, unknown>;
+      let out: Record<string, unknown>;
+      try {
+        out = type.evaluate(inputs) as Record<string, unknown>;
+      } catch (err) {
+        throw withEmptySources(err, dn, inputs, graph, nodeById);
+      }
       const deps = graph.dataEdges
         .filter((e) => e.to.node === nodeId)
         .map((e) => e.from.node);

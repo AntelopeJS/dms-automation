@@ -73,5 +73,9 @@ jobs:
       # Type names and descriptions declared as `$` i18n keys render translated
       # in the catalog, palette and inspector; plain strings render unchanged.
       - run: pnpm --dir packages/dms-automation test:type-display
+      # Procedure health, KPIs, graph problems, run traces, schedules, the
+      # page trees (every custom block named for the roles screen) and the
+      # procedures table.
+      - run: pnpm --dir packages/dms-automation test:unit
       # Frontend build/typecheck run in the consuming generated Inertia
       # workspace, where the host DMS composables and SDK aliases resolve.

@@ -1,6 +1,3 @@
-// Same contract as the string nodes: see the note in
-// runtime/builtins/data/string.ts.
-/* oxlint-disable typescript/no-base-to-string */
 import type { GraphNode } from "../../../types/graph";
 import { type NodeCtx, nodeKinds } from "../../nodeKinds";
 
@@ -9,9 +6,7 @@ async function execute(
   _inputs: Record<string, unknown>,
   ctx: NodeCtx,
 ): Promise<void> {
-  const name = String(node.config.name ?? "");
-  const value = node.config.value;
-  ctx.setOutputs({ [name]: value });
+  ctx.setOutputs({ value: node.config.value });
 }
 
 nodeKinds.register("setVariable", execute, {

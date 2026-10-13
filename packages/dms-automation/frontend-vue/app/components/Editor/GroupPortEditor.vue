@@ -15,6 +15,8 @@ const SCHEMA_TYPE_CHOICES: SchemaTypeChoice[] = [
 
 const props = defineProps<{
 	ports: GroupPort[]
+	/** Shows the ports without editing them (a template instance's ports). */
+	readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -23,10 +25,11 @@ const emit = defineEmits<{
 
 const activeTab = ref<'data' | 'trigger'>('data')
 
-const tabItems = [
-	{ label: 'Data ports', value: 'data', slot: 'data', icon: 'i-ph-plugs' },
-	{ label: 'Trigger ports', value: 'trigger', slot: 'trigger', icon: 'i-ph-lightning' },
-]
+const { t } = useI18n()
+const tabItems = computed(() => [
+	{ label: t('dms_automation.editor.groupPorts.dataTab'), value: 'data', slot: 'data', icon: 'i-ph-plugs' },
+	{ label: t('dms_automation.editor.groupPorts.triggerTab'), value: 'trigger', slot: 'trigger', icon: 'i-ph-lightning' },
+])
 
 interface Section {
 	kind: 'data' | 'trigger'
@@ -151,6 +154,9 @@ const sections = computed(() => ({
 			</div>
 		</template>
 
+		<p v-if="readOnly" class="mb-2 text-xs text-muted">
+			{{ $t('dms_automation.editor.groupPorts.fromTemplate') }}
+		</p>
 		<UTabs v-model="activeTab" :items="tabItems" size="sm" variant="link">
 			<template #data>
 				<div class="flex flex-col gap-4 pt-2">
@@ -160,7 +166,7 @@ const sections = computed(() => ({
 						class="flex flex-col gap-2"
 					>
 						<div class="text-default text-xs font-medium uppercase tracking-wide">
-							{{ section.direction === 'in' ? 'Inputs' : 'Outputs' }}
+							{{ $t(section.direction === 'in' ? 'dms_automation.editor.groupPorts.inputs' : 'dms_automation.editor.groupPorts.outputs') }}
 						</div>
 
 						<div
@@ -170,17 +176,21 @@ const sections = computed(() => ({
 						>
 							<UInput
 								class="flex-1"
-								placeholder="Port name"
+								:placeholder="$t('dms_automation.editor.groupPorts.portName')"
+								:aria-label="$t('dms_automation.editor.groupPorts.portName')"
+								:disabled="readOnly"
 								:model-value="entry.port.name"
 								@update:model-value="(v: string | number) => updateName(entry.index, String(v))"
 							/>
 							<USelect
 								class="w-28"
+								:disabled="readOnly"
 								:items="[...SCHEMA_TYPE_CHOICES]"
 								:model-value="schemaTypeOf(entry.port)"
 								@update:model-value="(v: string) => updateSchemaType(entry.index, v as SchemaTypeChoice)"
 							/>
 							<UButton
+								v-if="!readOnly"
 								size="xs"
 								variant="ghost"
 								color="error"
@@ -191,7 +201,7 @@ const sections = computed(() => ({
 						</div>
 
 						<div v-if="portsFor(section).length === 0" class="text-dimmed text-xs">
-							No {{ section.direction === 'in' ? 'inputs' : 'outputs' }} defined.
+							{{ $t(section.direction === 'in' ? 'dms_automation.editor.groupPorts.noInputs' : 'dms_automation.editor.groupPorts.noOutputs') }}
 						</div>
 
 						<UAlert
@@ -203,7 +213,7 @@ const sections = computed(() => ({
 							:description="$t('dms_automation.editor.groupPorts.duplicateHelp')"
 						/>
 
-						<div>
+						<div v-if="!readOnly">
 							<UButton
 								size="xs"
 								variant="soft"
@@ -212,7 +222,7 @@ const sections = computed(() => ({
 								:disabled="!!duplicateNameIn(section)"
 								@click="addPort(section)"
 							>
-								Add {{ section.direction === 'in' ? 'input' : 'output' }}
+								{{ $t(section.direction === 'in' ? 'dms_automation.editor.groupPorts.addInput' : 'dms_automation.editor.groupPorts.addOutput') }}
 							</UButton>
 						</div>
 					</div>
@@ -221,10 +231,8 @@ const sections = computed(() => ({
 
 			<template #trigger>
 				<div class="flex flex-col gap-4 pt-2">
-					<div class="text-dimmed text-xs">
-						Name a port <code class="text-default">main</code> to place its
-						handle on the group's title bar (like an ordinary action).
-						Any other name renders in the body, one row per port.
+					<div v-if="!readOnly" class="text-dimmed text-xs">
+						{{ $t('dms_automation.editor.groupPorts.mainHint') }}
 					</div>
 					<div
 						v-for="section in [sections.trigger.in, sections.trigger.out]"
@@ -232,7 +240,7 @@ const sections = computed(() => ({
 						class="flex flex-col gap-2"
 					>
 						<div class="text-default text-xs font-medium uppercase tracking-wide">
-							{{ section.direction === 'in' ? 'Inputs' : 'Outputs' }}
+							{{ $t(section.direction === 'in' ? 'dms_automation.editor.groupPorts.inputs' : 'dms_automation.editor.groupPorts.outputs') }}
 						</div>
 
 						<div
@@ -242,11 +250,14 @@ const sections = computed(() => ({
 						>
 							<UInput
 								class="flex-1"
-								placeholder="Port name"
+								:placeholder="$t('dms_automation.editor.groupPorts.portName')"
+								:aria-label="$t('dms_automation.editor.groupPorts.portName')"
+								:disabled="readOnly"
 								:model-value="entry.port.name"
 								@update:model-value="(v: string | number) => updateName(entry.index, String(v))"
 							/>
 							<UButton
+								v-if="!readOnly"
 								size="xs"
 								variant="ghost"
 								color="error"
@@ -257,7 +268,7 @@ const sections = computed(() => ({
 						</div>
 
 						<div v-if="portsFor(section).length === 0" class="text-dimmed text-xs">
-							No {{ section.direction === 'in' ? 'inputs' : 'outputs' }} defined.
+							{{ $t(section.direction === 'in' ? 'dms_automation.editor.groupPorts.noInputs' : 'dms_automation.editor.groupPorts.noOutputs') }}
 						</div>
 
 						<UAlert
@@ -269,7 +280,7 @@ const sections = computed(() => ({
 							:description="$t('dms_automation.editor.groupPorts.duplicateHelp')"
 						/>
 
-						<div>
+						<div v-if="!readOnly">
 							<UButton
 								size="xs"
 								variant="soft"
@@ -278,7 +289,7 @@ const sections = computed(() => ({
 								:disabled="!!duplicateNameIn(section)"
 								@click="addPort(section)"
 							>
-								Add {{ section.direction === 'in' ? 'input' : 'output' }}
+								{{ $t(section.direction === 'in' ? 'dms_automation.editor.groupPorts.addInput' : 'dms_automation.editor.groupPorts.addOutput') }}
 							</UButton>
 						</div>
 					</div>

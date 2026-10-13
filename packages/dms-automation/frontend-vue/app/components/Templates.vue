@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { unwrapList } from '../utils/automation'
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { isIconName } from './IconPicker.vue'
+import { queryString } from '../utils/automation'
 
-// `embedded` drops the page-head when this catalog is rendered inside a Library tab.
-defineProps<{ embedded?: boolean }>()
+// The library's templates: reusable groups other procedures place as linked
+// blocks. The detail edits the name, icon and description, lists the ports
+// (edited inside the graph) and where the template is used — procedures and
+// other templates; deleting forks every usage into a local group so they keep
+// working. The picked template is kept in the URL (`?template=`).
 
-// JSON Schema allows `type` to be a single name or a list (`["string", "null"]`).
 interface JsonSchema {
 	type?: string | string[]
 	[key: string]: unknown
@@ -26,651 +29,493 @@ interface TemplateRow {
 	ports: TemplatePort[]
 	subgraph: unknown
 	usageCount?: number
-	created_at?: string | Date
-	updated_at?: string | Date
-}
-
-interface TemplateListResponse {
-	results: TemplateRow[]
-	total: number
-	page: number
-	limit: number
+	updated_at?: string
 }
 
 interface TemplateUsage {
 	procedureId: string
 	nodeId: string
+	groupPath: string[]
 }
 
-interface ProcedureRow {
-	_id: string
+interface TemplateNesting {
+	templateId: string
+	nodeId: string
+	groupPath: string[]
+}
+
+interface TemplateUsages {
+	procedures: TemplateUsage[]
+	templates: TemplateNesting[]
+}
+
+interface ProcedureSummary {
+	procedureId: string
 	name: string
+	status: 'failing' | 'degraded' | 'healthy' | 'paused' | 'draft'
 }
 
-interface ProcedureListResponse {
-	results: ProcedureRow[]
-}
+const props = defineProps<{
+	apiUrl: string
+	builderUrl: string
+}>()
 
 const DEFAULT_ICON = 'i-ph-package'
+const STATE_TONES = {
+	failing: 'error',
+	degraded: 'warning',
+	healthy: 'success',
+	paused: 'neutral',
+	draft: 'info',
+} as const
+const NO_USAGES: TemplateUsages = { procedures: [], templates: [] }
 
 const { $authFetch } = useAuthFetch()
+const route = useDmsRoute()
 const router = useDmsRouter()
 const toast = useToast()
+const { t } = useI18n()
+const { confirm } = useConfirm()
 
 const items = ref<TemplateRow[]>([])
-const loading = ref(false)
+/** How many templates exist, when the server sent fewer than that. */
+const total = ref(0)
+const loading = ref(true)
 const loadError = ref<string | null>(null)
 const selectedId = ref<string | null>(null)
+const search = ref('')
+const detail = useTemplateRef<HTMLElement>('detail')
+const list = useTemplateRef<HTMLElement>('list')
 
-// Form state for the currently selected template.
 const formName = ref('')
 const formDescription = ref('')
 const formIcon = ref(DEFAULT_ICON)
 const saving = ref(false)
-const saveError = ref<string | null>(null)
 
-// Usages panel state.
-const usages = ref<TemplateUsage[]>([])
+const usages = ref<TemplateUsages>(NO_USAGES)
 const usagesLoading = ref(false)
-const usagesError = ref<string | null>(null)
-const procedureNames = ref<Map<string, string>>(new Map())
+const procedures = ref<Map<string, ProcedureSummary>>(new Map())
 
-// Delete-confirm state.
-const deleteOpen = ref(false)
-const deleting = ref(false)
-const deleteError = ref<string | null>(null)
+function queryTemplate(): string | null {
+	return queryString(route.query.template)
+}
 
 async function loadList() {
 	loading.value = true
-	loadError.value = null
 	try {
-		const data = await $authFetch<TemplateListResponse | TemplateRow[]>(
-			'/api/automation/templates',
-		)
-		const list = unwrapList<TemplateRow>(data)
+		const { results: list, total: count } = await $authFetch<{ results: TemplateRow[]; total: number }>(`${props.apiUrl}/templates`)
 		items.value = list
-		// Keep current selection if it still exists, otherwise pick the first.
-		if (selectedId.value && !list.find((t) => t._id === selectedId.value)) {
-			selectedId.value = list[0]?._id ?? null
-		} else if (!selectedId.value) {
-			selectedId.value = list[0]?._id ?? null
-		}
+		total.value = count
+		const wanted = selectedId.value ?? queryTemplate()
+		selectedId.value = list.some((x) => x._id === wanted) ? wanted : (sortedItems.value[0]?._id ?? null)
+		loadError.value = null
 	} catch (e) {
-		loadError.value = (e as Error).message ?? 'Failed to load templates'
+		loadError.value = describeApiError(e)
 	} finally {
 		loading.value = false
 	}
 }
 
-await loadList()
-
-// Lazily fetch the procedure list once so we can resolve procedureId -> name
-// in the "Used in" panel. If the fetch fails, we silently fall back to showing
-// the raw id (still wrapped in a link to the editor).
-async function ensureProcedureNames() {
-	if (procedureNames.value.size > 0) return
+async function loadProcedures() {
 	try {
-		const data = await $authFetch<ProcedureListResponse | ProcedureRow[]>(
-			'/api/automation/procedures?limit=100000',
-		)
-		const list = unwrapList<ProcedureRow>(data)
-		const map = new Map<string, string>()
-		for (const p of list) map.set(p._id, p.name)
-		procedureNames.value = map
+		const rows = await $authFetch<ProcedureSummary[]>(`${props.apiUrl}/procedures/summary`)
+		procedures.value = new Map(rows.map((p) => [p.procedureId, p]))
 	} catch {
-		// Non-fatal: keep the map empty so we fall back to ids.
+		procedures.value = new Map()
 	}
 }
 
-const selected = computed<TemplateRow | null>(
-	() => items.value.find((t) => t._id === selectedId.value) ?? null,
-)
-
-// Search filter applied to the rail.
-const search = ref('')
-const filteredItems = computed<TemplateRow[]>(() => {
-	const q = search.value.trim().toLowerCase()
-	if (!q) return items.value
-	return items.value.filter(
-		(t) =>
-			t.name.toLowerCase().includes(q) ||
-			(t.description ?? '').toLowerCase().includes(q),
-	)
+onMounted(() => {
+	void loadList()
+	void loadProcedures()
 })
 
-// Sync form fields whenever the selection changes.
+const selected = computed(() => items.value.find((x) => x._id === selectedId.value) ?? null)
+const templateNames = computed(() => new Map(items.value.map((x) => [x._id, x.name])))
+
+const sortedItems = computed(() => [...items.value].sort((a, b) => a.name.localeCompare(b.name)))
+const filteredItems = computed(() => {
+	const q = search.value.trim().toLowerCase()
+	if (!q) return sortedItems.value
+	return sortedItems.value.filter((x) => x.name.toLowerCase().includes(q) || (x.description ?? '').toLowerCase().includes(q))
+})
+
+// A malformed icon is said under the picker; it can't be saved.
+const iconValid = computed(() => !formIcon.value || isIconName(formIcon.value))
+
+const dirty = computed(() => {
+	const s = selected.value
+	if (!s) return false
+	return formName.value !== s.name || formDescription.value !== (s.description ?? '') || formIcon.value !== (s.icon || DEFAULT_ICON)
+})
+
+// Picking another template, leaving the page or the tab asks before the
+// form's unsaved changes are lost.
+const form = useTemplateRef<HTMLElement>('form')
+const { confirmLeave } = useUnsavedChanges({ dirty, element: form })
+
 watch(
 	selected,
-	(t) => {
-		formName.value = t?.name ?? ''
-		formDescription.value = t?.description ?? ''
-		formIcon.value = t?.icon || DEFAULT_ICON
-		saveError.value = null
-		// Reload usages for the new selection.
+	(s) => {
+		formName.value = s?.name ?? ''
+		formDescription.value = s?.description ?? ''
+		formIcon.value = s?.icon || DEFAULT_ICON
 		void loadUsages()
 	},
 	{ immediate: true },
 )
 
-async function loadUsages() {
-	const t = selected.value
-	if (!t) {
-		usages.value = []
-		usagesError.value = null
-		return
+watch(selectedId, (id) => {
+	if (id && id !== queryTemplate()) void router.replace({ query: { ...route.query, template: id } })
+})
+
+async function select(id: string) {
+	if (id === selectedId.value || !(await confirmLeave())) return
+	selectedId.value = id
+	// Below the two-column width the detail sits under the list: bring it into view.
+	await nextTick()
+	if (detail.value && list.value && detail.value.offsetTop > list.value.offsetTop) {
+		detail.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
 	}
+}
+
+function backToList() {
+	list.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+async function fetchUsages(id: string): Promise<TemplateUsages> {
+	return await $authFetch<TemplateUsages>(`${props.apiUrl}/templates/${id}/usages`)
+}
+
+async function loadUsages() {
+	const s = selected.value
+	usages.value = NO_USAGES
+	if (!s) return
 	usagesLoading.value = true
-	usagesError.value = null
 	try {
-		const data = await $authFetch<TemplateUsage[]>(
-			`/api/automation/templates/${t._id}/usages`,
-		)
-		usages.value = unwrapList(data)
-		if (usages.value.length > 0) {
-			await ensureProcedureNames()
-		}
-	} catch (e) {
-		usagesError.value = (e as Error).message ?? 'Failed to load usages'
-		usages.value = []
+		usages.value = await fetchUsages(s._id)
+	} catch {
+		usages.value = NO_USAGES
 	} finally {
 		usagesLoading.value = false
 	}
 }
 
-function procedureLabel(id: string): string {
-	return procedureNames.value.get(id) ?? id
+/** One line per procedure or template placing it, with how many times. */
+const usageRows = computed(() => {
+	const rows = new Map<string, { kind: 'procedure' | 'template'; id: string; first: TemplateUsage | TemplateNesting; count: number }>()
+	for (const usage of usages.value.procedures) {
+		const row = rows.get(`p:${usage.procedureId}`)
+		if (row) row.count++
+		else rows.set(`p:${usage.procedureId}`, { kind: 'procedure', id: usage.procedureId, first: usage, count: 1 })
+	}
+	for (const nesting of usages.value.templates) {
+		const row = rows.get(`t:${nesting.templateId}`)
+		if (row) row.count++
+		else rows.set(`t:${nesting.templateId}`, { kind: 'template', id: nesting.templateId, first: nesting, count: 1 })
+	}
+	return [...rows.values()]
+})
+
+const NAME_ID = 'template-name'
+const NAME_MAX = 200
+const DESCRIPTION_MAX = 2000
+// A missing or taken name shows under its field; a refused save is a toast.
+const fieldErrors = useFieldErrors({ fields: { name: NAME_ID } })
+watch(formName, () => fieldErrors.clear('name'))
+
+interface RefusalBody {
+	code?: string
+	error?: string
+	issues?: { path?: (string | number)[]; message?: string }[]
 }
 
-function procedureLink(id: string): string {
-	return `/modules/automation/builder?selected=${encodeURIComponent(id)}`
+/** The `code` a refused request answered with, if any. */
+function errorCode(e: unknown): string | undefined {
+	return (e as { data?: RefusalBody }).data?.code
+}
+
+/** What the server said was wrong, rather than the request's raw status line. */
+function errorMessage(e: unknown): string {
+	const body = (e as { data?: RefusalBody }).data
+	const issues = body?.issues?.map((i) => (i.path?.length ? `${i.path.join('.')}: ${i.message}` : i.message)).filter(Boolean)
+	return issues?.length ? issues.join(' · ') : (body?.error ?? describeApiError(e))
 }
 
 async function onSave() {
-	const t = selected.value
-	if (!t) return
+	const s = selected.value
+	if (!s) return
+	if (!formName.value.trim()) {
+		await fieldErrors.setError('name', t('dms_automation.templates.form.nameRequired'))
+		return
+	}
 	saving.value = true
-	saveError.value = null
 	try {
-		// PUT is required to send the full template body (including ports +
-		// subgraph) since the route revalidates the whole graph. We forward
-		// the existing ports/subgraph unchanged — only the metadata changes.
-		const body = {
-			name: formName.value.trim() || t.name,
-			description: formDescription.value,
-			icon: formIcon.value || DEFAULT_ICON,
-			ports: t.ports ?? [],
-			subgraph: t.subgraph ?? {
-				nodes: [],
-				triggerEdges: [],
-				dataEdges: [],
+		const updated = await $authFetch<TemplateRow>(`${props.apiUrl}/templates/${s._id}`, {
+			method: 'PUT',
+			body: {
+				name: formName.value.trim(),
+				description: formDescription.value,
+				icon: formIcon.value || DEFAULT_ICON,
+				ports: s.ports ?? [],
+				subgraph: s.subgraph ?? { nodes: [], triggerEdges: [], dataEdges: [] },
 			},
-		}
-		const updated = await $authFetch<TemplateRow>(
-			`/api/automation/templates/${t._id}`,
-			{ method: 'PUT', body },
-		)
-		const idx = items.value.findIndex((x) => x._id === t._id)
-		if (idx >= 0) {
-			items.value[idx] = {
-				...t,
-				...updated,
-				usageCount: t.usageCount,
-			}
-		}
-		toast.add({
-			title: 'Template saved',
-			description: updated.name,
-			color: 'success',
-			icon: 'i-ph-check-circle',
 		})
+		const index = items.value.findIndex((x) => x._id === s._id)
+		if (index >= 0) items.value[index] = { ...s, ...updated, usageCount: s.usageCount }
+		toast.add({ title: t('dms_automation.templates.saved', { name: updated.name }), color: 'success', icon: 'i-ph-check-circle' })
 	} catch (e) {
-		saveError.value = (e as Error).message ?? 'Failed to save'
-		toast.add({
-			title: 'Failed to save template',
-			description: (e as Error).message ?? '',
-			color: 'error',
-			icon: 'i-ph-warning',
-		})
+		if (errorCode(e) === 'name-taken') {
+			await fieldErrors.setError('name', t('dms_automation.templates.nameTaken'))
+			return
+		}
+		toast.add({ title: t('dms_automation.templates.saveError'), description: errorMessage(e), color: 'error', icon: 'i-ph-warning' })
 	} finally {
 		saving.value = false
 	}
 }
 
-function onEditSubgraph() {
-	const t = selected.value
-	if (!t) return
-	router.push({
-		path: '/modules/automation/builder',
-		query: { template: t._id },
-	})
+function editGraph(id: string) {
+	void router.push(`${props.builderUrl}?template=${id}`)
 }
 
-function openDelete() {
-	deleteError.value = null
-	deleteOpen.value = true
+function openUsage(usage: TemplateUsage) {
+	const path = usage.groupPath.length ? `&path=${usage.groupPath.map(encodeURIComponent).join(',')}` : ''
+	void router.push(`${props.builderUrl}?selected=${usage.procedureId}&node=${encodeURIComponent(usage.nodeId)}${path}`)
 }
 
-async function confirmDelete(force: boolean) {
-	const t = selected.value
-	if (!t) return
-	deleting.value = true
-	deleteError.value = null
+async function onDelete() {
+	const s = selected.value
+	if (!s) return
+	// Counted now, not when the list loaded: a usage added since is forked too.
+	let fresh: TemplateUsages
 	try {
-		const url = force
-			? `/api/automation/templates/${t._id}?force=1`
-			: `/api/automation/templates/${t._id}`
-		await $authFetch(url, { method: 'DELETE' })
-		toast.add({
-			title: 'Template deleted',
-			description: t.name,
-			color: 'success',
-			icon: 'i-ph-check-circle',
-		})
-		deleteOpen.value = false
-		// Drop from list, pick a new selection.
-		items.value = items.value.filter((x) => x._id !== t._id)
-		selectedId.value = items.value[0]?._id ?? null
+		fresh = await fetchUsages(s._id)
+		usages.value = fresh
 	} catch (e) {
-		deleteError.value = (e as Error).message ?? 'Failed to delete'
-	} finally {
-		deleting.value = false
+		toast.add({ title: t('dms_automation.templates.deleteError'), description: errorMessage(e), color: 'error', icon: 'i-ph-warning' })
+		return
 	}
+	const count = fresh.procedures.length + fresh.templates.length
+	const ok = await confirm({
+		title: t('dms_automation.templates.deleteTitle', { name: s.name }),
+		description: count > 0 ? t('dms_automation.templates.deleteForksIn', { owners: ownersOf(fresh), count }, count) : t('dms_automation.templates.unused'),
+		color: 'error',
+		icon: 'i-ph-trash',
+		confirmLabel: t('dms_automation.templates.delete'),
+	})
+	if (!ok) return
+	try {
+		await $authFetch(`${props.apiUrl}/templates/${s._id}?force=1`, { method: 'DELETE' })
+	} catch (e) {
+		const kept = errorCode(e) === 'fork-incomplete'
+		toast.add({
+			title: kept ? t('dms_automation.templates.forkIncomplete') : t('dms_automation.templates.deleteError'),
+			description: kept ? t('dms_automation.templates.forkIncompleteHint') : errorMessage(e),
+			color: 'error',
+			icon: 'i-ph-warning',
+		})
+		await loadUsages()
+		return
+	}
+	toast.add({ title: t('dms_automation.templates.deleted', { name: s.name }), color: 'success', icon: 'i-ph-check-circle' })
+	items.value = items.value.filter((x) => x._id !== s._id)
+	total.value = Math.max(0, total.value - 1)
+	selectedId.value = sortedItems.value[0]?._id ?? null
+	// Forking may have changed other templates' graphs and usage counts.
+	void loadList()
 }
 
-function portRowKey(p: TemplatePort, idx: number): string {
-	return `${p.direction}-${p.kind}-${p.name}-${idx}`
+/** "1 procedure", "2 procedures and 1 template": who places the template. */
+function ownersOf(found: TemplateUsages): string {
+	const procedureCount = new Set(found.procedures.map((u) => u.procedureId)).size
+	const templateCount = new Set(found.templates.map((u) => u.templateId)).size
+	const parts = [
+		procedureCount ? t('dms_automation.templates.ownerProcedures', { count: procedureCount }, procedureCount) : '',
+		templateCount ? t('dms_automation.templates.ownerTemplates', { count: templateCount }, templateCount) : '',
+	].filter(Boolean)
+	return parts.length === 2 ? t('dms_automation.templates.ownersAnd', { first: parts[0], second: parts[1] }) : parts[0]!
 }
 
 function schemaTypeOf(p: TemplatePort): string {
 	if (p.kind !== 'data') return '—'
-	const t = p.schema?.type
-	if (typeof t === 'string') return t
-	if (Array.isArray(t)) return t.join(' | ')
+	const type = p.schema?.type
+	if (typeof type === 'string') return type
+	if (Array.isArray(type)) return type.join(' | ')
 	return 'any'
 }
 </script>
 
 <template>
-	<!-- Embedded in the library page, which fills the panel: from `lg` up the
-	     list and the detail share the height and scroll inside; below, where
-	     they stack, the catalog scrolls as a whole. -->
-	<div
-		:class="
-			embedded
-				? 'flex min-h-0 flex-1 flex-col gap-5 max-lg:overflow-y-auto'
-				: 'flex flex-col gap-6 p-4 sm:p-6'
-		"
-	>
-		<section v-if="!embedded" class="flex flex-wrap items-center gap-4">
-			<div
-				class="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring ring-primary/20"
-			>
-				<UIcon name="i-ph-package" class="size-6" />
-			</div>
-			<div class="min-w-0 flex-1">
-				<h1 class="text-2xl font-semibold tracking-tight text-highlighted">
-					{{ $t('dms_automation.templates.title') }}
-				</h1>
-				<p class="text-sm text-muted">
-					{{ $t('dms_automation.templates.description') }}
-				</p>
-			</div>
-			<UButton
-				class="ml-auto"
-				color="neutral"
-				variant="outline"
-				icon="i-ph-arrows-clockwise"
-				:loading="loading"
-				@click="loadList"
-			>
-				{{ $t('dms_automation.templates.refresh') }}
-			</UButton>
-		</section>
-
-		<UAlert
-			v-if="loadError"
-			color="error"
-			variant="subtle"
-			icon="i-ph-warning"
-			:title="$t('dms_automation.templates.loadError')"
-			:description="loadError"
-		/>
-
-		<div
-			class="grid grid-cols-1 gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(280px,360px)_1fr]"
-		>
-			<div class="flex flex-col gap-3 lg:min-h-0">
-				<UInput
-					v-model="search"
-					icon="i-ph-magnifying-glass"
-					:placeholder="$t('dms_automation.templates.search')"
+	<div class="@container">
+		<div class="grid grid-cols-1 items-start gap-5 @5xl:grid-cols-[20rem_minmax(0,1fr)]">
+			<div ref="list" class="dms-card flex flex-col gap-2 p-2">
+				<DmsSearchInput v-model="search" size="sm" :placeholder="$t('dms_automation.templates.search')" class="w-full" />
+				<div v-if="loading && items.length === 0" class="flex flex-col gap-2 p-1">
+					<USkeleton v-for="i in 3" :key="i" class="h-12 w-full" />
+				</div>
+				<DmsEmptyState
+					v-else-if="loadError"
+					size="sm"
+					variant="error"
+					:title="$t('dms_automation.templates.loadError')"
+					:description="loadError"
+					:actions="[{ label: $t('dms_automation.common.retry'), onClick: loadList }]"
 				/>
-				<DmsCard
-					:padded="false"
-					class="flex flex-col overflow-hidden lg:min-h-0 lg:flex-1"
-				>
-					<div
-						v-if="items.length === 0"
-						class="px-3 py-6 text-center text-sm text-dimmed"
+				<DmsEmptyState
+					v-else-if="items.length === 0"
+					size="sm"
+					icon="i-ph-stack"
+					:title="$t('dms_automation.templates.empty')"
+					:description="$t('dms_automation.templates.emptyHint')"
+				/>
+				<template v-else>
+					<button
+						v-for="row in filteredItems"
+						:key="row._id"
+						type="button"
+						class="flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left transition-colors"
+						:class="row._id === selectedId ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-elevated'"
+						:aria-current="row._id === selectedId ? 'true' : undefined"
+						@click="select(row._id)"
 					>
-						{{ $t('dms_automation.templates.empty') }}
+						<UIcon :name="row.icon || DEFAULT_ICON" class="mt-0.5 size-4 shrink-0 text-muted" />
+						<span class="flex min-w-0 flex-1 flex-col">
+							<span class="truncate text-sm font-medium text-highlighted">{{ row.name }}</span>
+							<span v-if="row.description" class="truncate text-xs text-muted">{{ row.description }}</span>
+						</span>
+						<span class="shrink-0 font-mono text-[11px] text-dimmed">{{ $t('dms_automation.library.uses', { count: row.usageCount ?? 0 }) }}</span>
+					</button>
+					<p v-if="filteredItems.length === 0" class="p-3 text-center text-xs text-dimmed">{{ $t('dms_automation.library.noMatch') }}</p>
+					<p v-if="total > items.length" class="p-3 text-center text-xs text-warning">
+						{{ $t('dms_automation.templates.truncated', { shown: items.length, total }) }}
+					</p>
+				</template>
+			</div>
+
+			<div v-if="selected" ref="detail" class="flex scroll-mt-4 flex-col gap-4">
+				<UButton class="self-start @5xl:hidden" size="sm" variant="ghost" color="neutral" icon="i-ph-arrow-up" @click="backToList">
+					{{ $t('dms_automation.library.backToList') }}
+				</UButton>
+				<DmsCard>
+					<div class="flex flex-wrap items-start gap-4">
+						<DmsIconWell :icon="formIcon || DEFAULT_ICON" tone="primary" size="xl" />
+						<div class="flex min-w-0 flex-1 flex-col gap-1">
+							<h2 class="text-lg font-semibold break-words text-highlighted">{{ selected.name }}</h2>
+							<p class="font-mono text-xs break-all text-dimmed">{{ selected._id }}</p>
+						</div>
+						<UButton color="neutral" variant="outline" icon="i-ph-tree-structure" @click="editGraph(selected._id)">
+							{{ $t('dms_automation.templates.editGraph') }}
+						</UButton>
 					</div>
-					<ul v-else class="flex flex-col gap-1 overflow-y-auto p-2">
-						<li v-for="t in filteredItems" :key="t._id">
-							<button
-								type="button"
-								class="flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left transition-colors"
-								:class="
-									selectedId === t._id
-										? 'bg-primary/10 text-primary ring-1 ring-primary/20'
-										: 'text-toned hover:bg-elevated/60'
-								"
-								@click="selectedId = t._id"
-							>
-								<UIcon
-									:name="t.icon || DEFAULT_ICON"
-									class="mt-0.5 size-4 shrink-0"
-									:class="selectedId === t._id ? 'text-primary' : 'text-dimmed'"
-								/>
-								<div class="min-w-0 flex-1">
-									<div
-										class="truncate text-sm font-medium"
-										:class="selectedId === t._id ? 'text-primary' : 'text-highlighted'"
-									>
-										{{ t.name }}
-									</div>
-									<div v-if="t.description" class="truncate text-xs text-muted">
-										{{ t.description }}
-									</div>
+				</DmsCard>
+
+				<div ref="form">
+					<DmsCard :title="$t('dms_automation.templates.details')">
+						<div>
+							<DmsFieldRow layout="form" :label="$t('dms_automation.templates.form.name')" :label-for="NAME_ID" required>
+								<div class="grid gap-1.5">
+									<DmsInputText :id="NAME_ID" v-model="formName" class="w-full" :maxlength="NAME_MAX" v-bind="fieldErrors.aria('name')" />
+									<DmsFieldError :id="fieldErrors.errorId('name')" :message="fieldErrors.errors.name" />
 								</div>
-								<UBadge
-									color="neutral"
-									variant="subtle"
+							</DmsFieldRow>
+							<DmsFieldRow layout="form" :label="$t('dms_automation.templates.form.description')" label-for="template-description">
+								<DmsTextarea id="template-description" v-model="formDescription" class="w-full" :rows="2" :maxlength="DESCRIPTION_MAX" />
+							</DmsFieldRow>
+							<DmsFieldRow layout="form" :label="$t('dms_automation.templates.form.icon')">
+								<DmsAutomationIconPicker v-model="formIcon" />
+							</DmsFieldRow>
+							<DmsFormRequiredLegend class="px-[18px] pt-3" />
+						</div>
+						<template #footer>
+							<div class="flex w-full justify-end">
+								<UButton color="primary" icon="i-ph-floppy-disk" :disabled="!dirty || !iconValid" :loading="saving" @click="onSave">
+									{{ $t('dms_automation.common.save') }}
+								</UButton>
+							</div>
+						</template>
+					</DmsCard>
+				</div>
+
+				<DmsCard :title="$t('dms_automation.templates.ports.title')" :count="selected.ports?.length ?? 0">
+					<p class="mb-3 text-xs text-muted">{{ $t('dms_automation.templates.ports.editHint') }}</p>
+					<p v-if="(selected.ports ?? []).length === 0" class="text-xs text-dimmed">{{ $t('dms_automation.templates.ports.empty') }}</p>
+					<div v-else class="overflow-hidden rounded-md border border-default">
+						<table class="w-full text-left text-xs">
+							<thead class="bg-elevated/60 font-mono text-[10.5px] text-dimmed uppercase">
+								<tr>
+									<th class="px-3 py-1.5 font-normal">{{ $t('dms_automation.templates.ports.col.kind') }}</th>
+									<th class="px-3 py-1.5 font-normal">{{ $t('dms_automation.templates.ports.col.direction') }}</th>
+									<th class="px-3 py-1.5 font-normal">{{ $t('dms_automation.templates.ports.col.name') }}</th>
+									<th class="px-3 py-1.5 font-normal">{{ $t('dms_automation.templates.ports.col.type') }}</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-default">
+								<tr v-for="(port, index) in selected.ports" :key="`${port.direction}-${port.kind}-${port.name}-${index}`">
+									<td class="px-3 py-1.5">
+										<UBadge :color="port.kind === 'trigger' ? 'info' : 'success'" variant="subtle" size="sm">
+											{{ $t(`dms_automation.templates.ports.kind.${port.kind}`) }}
+										</UBadge>
+									</td>
+									<td class="px-3 py-1.5 text-muted">{{ $t(`dms_automation.templates.ports.direction.${port.direction}`) }}</td>
+									<td class="px-3 py-1.5 font-mono text-highlighted">{{ port.name }}</td>
+									<td class="px-3 py-1.5 font-mono text-muted">{{ schemaTypeOf(port) }}</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</DmsCard>
+
+				<DmsCard :title="$t('dms_automation.templates.usedIn')" :count="usageRows.length">
+					<p v-if="usageRows.length" class="mb-3 text-xs text-muted">{{ $t('dms_automation.templates.usedInHint') }}</p>
+					<div v-if="usagesLoading" class="flex flex-col gap-2">
+						<USkeleton v-for="i in 2" :key="i" class="h-8 w-full" />
+					</div>
+					<p v-else-if="usageRows.length === 0" class="text-xs text-dimmed">{{ $t('dms_automation.templates.unused') }}</p>
+					<ul v-else class="divide-y divide-default">
+						<li v-for="row in usageRows" :key="`${row.kind}-${row.id}`" class="flex items-center gap-3 py-2">
+							<template v-if="row.kind === 'procedure'">
+								<DmsStatusPill
+									v-if="procedures.get(row.id)"
+									:tone="STATE_TONES[procedures.get(row.id)!.status]"
+									:label="$t(`dms_automation.procedures.status.${procedures.get(row.id)!.status}`)"
 									size="sm"
-									class="shrink-0 tabular-nums"
-								>
-									{{ t.usageCount ?? 0 }}
-								</UBadge>
-							</button>
+								/>
+								<span class="min-w-0 flex-1 truncate text-sm text-highlighted">
+									{{ procedures.get(row.id)?.name ?? row.id }}
+								</span>
+							</template>
+							<template v-else>
+								<UBadge size="sm" color="neutral" variant="subtle" icon="i-ph-stack">{{ $t('dms_automation.templates.templateBadge') }}</UBadge>
+								<span class="min-w-0 flex-1 truncate text-sm text-highlighted">{{ templateNames.get(row.id) ?? row.id }}</span>
+							</template>
+							<span v-if="row.count > 1" class="shrink-0 font-mono text-[11px] text-dimmed">
+								{{ $t('dms_automation.templates.placements', { count: row.count }) }}
+							</span>
+							<UButton
+								v-if="row.kind === 'procedure'"
+								size="xs"
+								variant="ghost"
+								color="neutral"
+								trailing-icon="i-ph-arrow-up-right"
+								@click="openUsage(row.first as TemplateUsage)"
+							>
+								{{ $t('dms_automation.library.open') }}
+							</UButton>
+							<UButton v-else size="xs" variant="ghost" color="neutral" trailing-icon="i-ph-arrow-up-right" @click="editGraph(row.id)">
+								{{ $t('dms_automation.templates.editGraph') }}
+							</UButton>
 						</li>
 					</ul>
 				</DmsCard>
-			</div>
 
-			<DmsCard
-				v-if="selected"
-				:padded="false"
-				class="flex flex-col lg:min-h-0 lg:overflow-y-auto"
-			>
-				<div class="flex items-start gap-3 border-b border-default px-5 py-4 sm:px-6">
-					<div
-						class="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary ring ring-primary/20"
-					>
-						<UIcon :name="formIcon || DEFAULT_ICON" class="size-5" />
-					</div>
-					<div class="min-w-0 flex-1">
-						<h2 class="truncate text-lg font-semibold text-highlighted">
-							{{ selected.name }}
-						</h2>
-						<p class="mt-1 font-mono text-xs text-dimmed">{{ selected._id }}</p>
-					</div>
-					<UBadge color="neutral" variant="subtle" class="shrink-0">
-						{{
-							$t('dms_automation.templates.usedInN', {
-								n: selected.usageCount ?? 0,
-							})
-						}}
-					</UBadge>
-				</div>
-
-				<div class="flex flex-col gap-6 px-5 py-4 sm:px-6">
-					<div class="flex flex-col gap-3">
-						<UFormField
-							:label="$t('dms_automation.templates.form.name')"
-							required
-						>
-							<UInput v-model="formName" class="w-full" />
-						</UFormField>
-						<UFormField
-							:label="$t('dms_automation.templates.form.description')"
-						>
-							<UTextarea v-model="formDescription" class="w-full" :rows="3" />
-						</UFormField>
-						<UFormField
-							:label="$t('dms_automation.templates.form.icon')"
-							:help="$t('dms_automation.templates.form.iconHelp')"
-						>
-							<UInput
-								v-model="formIcon"
-								:placeholder="DEFAULT_ICON"
-								class="w-full"
-							/>
-						</UFormField>
-						<UAlert
-							v-if="saveError"
-							color="error"
-							variant="subtle"
-							icon="i-ph-warning"
-							:title="$t('dms_automation.templates.saveError')"
-							:description="saveError"
-						/>
-						<div class="flex justify-end gap-2">
-							<UButton
-								color="primary"
-								icon="i-ph-floppy-disk"
-								:loading="saving"
-								@click="onSave"
-							>
-								{{ $t('dms_automation.templates.save') }}
-							</UButton>
-						</div>
-					</div>
-
-					<div class="flex flex-col gap-2">
-						<div class="flex items-center justify-between">
-							<div class="text-sm font-semibold text-highlighted">
-								{{ $t('dms_automation.templates.ports.title') }}
-							</div>
-							<UButton
-								variant="outline"
-								color="neutral"
-								icon="i-ph-pencil-simple"
-								size="sm"
-								@click="onEditSubgraph"
-							>
-								{{ $t('dms_automation.templates.editSubgraph') }}
-							</UButton>
-						</div>
-						<p class="text-xs text-muted">
-							{{ $t('dms_automation.templates.ports.editHint') }}
-						</p>
-						<div
-							v-if="(selected.ports ?? []).length === 0"
-							class="text-sm text-dimmed"
-						>
-							{{ $t('dms_automation.templates.ports.empty') }}
-						</div>
-						<div v-else class="overflow-hidden rounded-lg border border-default">
-							<table class="w-full text-sm">
-								<thead>
-									<tr class="border-b border-default bg-muted">
-										<th class="px-4 py-2.5 text-left text-xs font-semibold text-dimmed">
-											{{ $t('dms_automation.templates.ports.col.kind') }}
-										</th>
-										<th class="px-4 py-2.5 text-left text-xs font-semibold text-dimmed">
-											{{ $t('dms_automation.templates.ports.col.direction') }}
-										</th>
-										<th class="px-4 py-2.5 text-left text-xs font-semibold text-dimmed">
-											{{ $t('dms_automation.templates.ports.col.name') }}
-										</th>
-										<th class="px-4 py-2.5 text-left text-xs font-semibold text-dimmed">
-											{{ $t('dms_automation.templates.ports.col.type') }}
-										</th>
-									</tr>
-								</thead>
-								<tbody>
-									<tr
-										v-for="(p, idx) in selected.ports"
-										:key="portRowKey(p, idx)"
-										class="border-b border-default/60 last:border-0"
-									>
-										<td class="px-4 py-2.5">
-											<UBadge
-												:color="p.kind === 'trigger' ? 'primary' : 'neutral'"
-												variant="subtle"
-											>
-												{{ p.kind }}
-											</UBadge>
-										</td>
-										<td class="whitespace-nowrap px-4 py-2.5 text-muted">
-											{{ p.direction }}
-										</td>
-										<td class="px-4 py-2.5 font-mono text-highlighted">
-											{{ p.name }}
-										</td>
-										<td class="whitespace-nowrap px-4 py-2.5 font-mono text-primary">
-											{{ schemaTypeOf(p) }}
-										</td>
-									</tr>
-								</tbody>
-							</table>
-						</div>
-					</div>
-
-					<div class="flex flex-col gap-2">
-						<div class="text-sm font-semibold text-highlighted">
-							{{ $t('dms_automation.templates.usages.title') }}
-						</div>
-						<UAlert
-							v-if="usagesError"
-							color="error"
-							variant="subtle"
-							icon="i-ph-warning"
-							:title="$t('dms_automation.templates.usagesError')"
-							:description="usagesError"
-						/>
-						<div v-else-if="usagesLoading" class="text-sm text-dimmed">
-							Loading…
-						</div>
-						<div v-else-if="usages.length === 0" class="text-sm text-dimmed">
-							{{ $t('dms_automation.templates.usages.empty') }}
-						</div>
-						<ul v-else class="flex flex-col">
-							<li
-								v-for="(u, idx) in usages"
-								:key="`${u.procedureId}-${u.nodeId}-${idx}`"
-								class="flex items-center gap-3 border-b border-default/60 py-2 last:border-0"
-							>
-								<UIcon name="i-ph-puzzle-piece" class="size-4 shrink-0 text-dimmed" />
-								<DmsLink
-									:to="procedureLink(u.procedureId)"
-									class="truncate text-highlighted hover:text-primary hover:underline"
-								>
-									{{ procedureLabel(u.procedureId) }}
-								</DmsLink>
-								<span class="truncate font-mono text-xs text-dimmed">
-									{{ u.nodeId }}
-								</span>
-							</li>
-						</ul>
-					</div>
-
-					<div class="flex justify-end border-t border-default pt-4">
-						<UButton
-							color="error"
-							variant="subtle"
-							icon="i-ph-trash"
-							@click="openDelete"
-						>
-							{{ $t('dms_automation.templates.delete') }}
-						</UButton>
-					</div>
-				</div>
-			</DmsCard>
-
-			<DmsCard
-				v-else
-				class="flex min-h-[16rem] items-center justify-center text-center"
-			>
-				<div class="flex flex-col items-center gap-3 text-dimmed">
-					<UIcon name="i-ph-package" class="size-8" />
-					<p class="max-w-xs text-sm">
-						{{ $t('dms_automation.templates.empty') }}
-					</p>
-				</div>
-			</DmsCard>
-		</div>
-
-		<UModal
-			v-model:open="deleteOpen"
-			:title="$t('dms_automation.templates.deleteConfirm.title')"
-		>
-			<template #body>
-				<div class="flex flex-col gap-3">
-					<p class="text-default text-sm">
-						{{
-							$t(
-								'dms_automation.templates.deleteConfirm.message',
-								{ name: selected?.name ?? '' },
-							)
-						}}
-					</p>
-					<UAlert
-						v-if="(selected?.usageCount ?? 0) > 0"
-						color="warning"
-						variant="subtle"
-						icon="i-ph-warning"
-						:title="
-							$t(
-								'dms_automation.templates.deleteConfirm.usageWarningTitle',
-							)
-						"
-						:description="
-							$t(
-								'dms_automation.templates.deleteConfirm.usageWarning',
-								{ n: selected?.usageCount ?? 0 },
-							)
-						"
-					/>
-					<UAlert
-						v-if="deleteError"
-						color="error"
-						variant="subtle"
-						icon="i-ph-warning"
-						:title="$t('dms_automation.templates.deleteError')"
-						:description="deleteError"
-					/>
-				</div>
-			</template>
-			<template #footer>
-				<div class="flex w-full justify-end gap-2">
-					<UButton
-						:label="$t('dms_automation.templates.deleteConfirm.cancel')"
-						variant="outline"
-						color="neutral"
-						:disabled="deleting"
-						@click="deleteOpen = false"
-					/>
-					<UButton
-						v-if="(selected?.usageCount ?? 0) > 0"
-						color="error"
-						icon="i-ph-trash"
-						:loading="deleting"
-						@click="confirmDelete(true)"
-					>
-						{{ $t('dms_automation.templates.forceDelete') }}
-					</UButton>
-					<UButton
-						v-else
-						color="error"
-						icon="i-ph-trash"
-						:loading="deleting"
-						@click="confirmDelete(false)"
-					>
+				<div class="flex flex-wrap items-center justify-between gap-3">
+					<p class="text-xs text-muted">{{ $t('dms_automation.templates.deleteHint') }}</p>
+					<UButton color="error" variant="soft" icon="i-ph-trash" @click="onDelete">
 						{{ $t('dms_automation.templates.delete') }}
 					</UButton>
 				</div>
-			</template>
-		</UModal>
+			</div>
+		</div>
 	</div>
 </template>

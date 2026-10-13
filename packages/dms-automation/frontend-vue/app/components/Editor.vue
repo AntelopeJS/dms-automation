@@ -1,9 +1,25 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { type RunDetail, type TraceStep, useAutomationRuns } from '../composables/useAutomationRuns'
+import type { NodeRunState } from './Editor/nodes/GenericNode.vue'
+import type { DockIssue, DockRun, DockTab } from './Editor/BottomDock.vue'
+import type { ProcedureSummaryRow } from './Editor/ProcedureSwitcher.vue'
+import { describeDateTime, describeDuration, describeTime, stepTitle, type TriggerSummary, type WordedTrigger } from '../utils/describe'
 import type { BreadcrumbItem } from '@nuxt/ui'
-import type { NodeKindEntry } from '../composables/useAutomationNodeKinds'
-import { type ListEnvelope, newId, unwrapList } from '../utils/automation'
-import type { GroupPort } from '../composables/useGraphConnect'
+import type { NodeKindEntry, TemplateSummary } from '../composables/useAutomationNodeKinds'
+import { newId, queryString } from '../utils/automation'
+import type {
+	ActionType,
+	DataEdge,
+	DataNodeType,
+	GraphNode,
+	GroupPort,
+	JsonSchema,
+	JsonSchemaProperty,
+	ProcedureGraph,
+	TriggerEdge,
+	TriggerType,
+} from '../composables/useGraphConnect'
 
 // Editor mode.
 //
@@ -17,74 +33,47 @@ import type { GroupPort } from '../composables/useGraphConnect'
 //   PUT /api/automation/templates/:id. Run, procedure list, and enabled toggle
 //   are hidden.
 //
-// Mode is resolved from props first (so a host page can hard-wire it) and
-// otherwise from the route query: `?template=<id>` switches into template mode.
+// Mode is resolved from the route query: `?template=<id>` switches into
+// template mode.
 // This keeps the route wiring trivial (the Templates catalog navigates
 // to `/modules/automation/builder?template=<id>`) without needing a
 // dedicated page.
 const props = withDefaults(
 	defineProps<{
-		mode?: 'procedure' | 'template'
-		entityId?: string
+		apiUrl?: string
+		runsUrl?: string
+		traceUrl?: string
 	}>(),
-	{ mode: undefined, entityId: undefined },
+	{
+		apiUrl: '/api/automation',
+		runsUrl: '/modules/automation/runs',
+		traceUrl: '/modules/automation/trace',
+	},
 )
 
 const route = useDmsRoute()
+const router = useDmsRouter()
+const { t, te, locale } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
+const { processI18n } = useTranslation()
+const { processText } = useComposedText()
+// Shortcut hints print ⌘ on macOS and Ctrl elsewhere, like the rest of the DMS.
+const { formatShortcut } = useKeyboardPlatform()
 
-const templateQueryId = computed<string | null>(() => {
-	const q = route.query.template
-	if (typeof q === 'string' && q.length > 0) return q
-	if (Array.isArray(q) && typeof q[0] === 'string' && q[0]!.length > 0) return q[0]!
-	return null
-})
-
-const editorMode = computed<'procedure' | 'template'>(() => {
-	if (props.mode) return props.mode
-	if (templateQueryId.value) return 'template'
-	return 'procedure'
-})
-
-const editorTemplateId = computed<string | null>(() => {
-	if (editorMode.value !== 'template') return null
-	return props.entityId ?? templateQueryId.value
-})
-
-interface GraphNode {
-	id: string
-	// Node kind is a free-form string keyed off the backend kind registry
-	// (`/api/automation/node-kinds`); the few kinds with bespoke Vue
-	// components (group / groupInput / groupOutput) are compared as
-	// literals where needed.
-	kind: string
-	typeId?: string
-	config: Record<string, unknown>
-	position: { x: number; y: number }
-	// Group-only extras — present iff kind === 'group'.
-	ports?: GroupPort[]
-	templateId?: string
-	subgraph?: ProcedureGraph
+/** The builder's own path, without the query its URL may carry. */
+function builderPath(): string {
+	return route.path.split('?')[0] ?? route.path
 }
 
-interface TriggerEdge {
-	id: string
-	from: { node: string; branch?: string }
-	// `to.branch` carries the target's trigger-in port name when the target is
-	// a group node or groupOutput sentinel — see src/types/graph.ts.
-	to: { node: string; branch?: string }
+function queryValue(key: string): string | null {
+	return queryString(route.query[key])
 }
 
-interface DataEdge {
-	id: string
-	from: { node: string; port: string }
-	to: { node: string; field: string }
-}
+const templateQueryId = computed(() => queryValue('template'))
 
-interface ProcedureGraph {
-	nodes: GraphNode[]
-	triggerEdges: TriggerEdge[]
-	dataEdges: DataEdge[]
-}
+const editorMode = computed<'procedure' | 'template'>(() => (templateQueryId.value ? 'template' : 'procedure'))
+
+const editorTemplateId = computed<string | null>(() => (editorMode.value === 'template' ? templateQueryId.value : null))
 
 interface ProcedureRecord {
 	_id: string
@@ -92,65 +81,37 @@ interface ProcedureRecord {
 	description: string
 	enabled: boolean
 	graph: ProcedureGraph
-}
-
-interface ProcedureApiRecord {
-	_id: string
-	name: string
-	description?: string
-	enabled: boolean
-	graph: string | ProcedureGraph
-}
-
-interface JsonSchemaProperty {
-	type?: string
-	[key: string]: unknown
-}
-
-interface JsonSchema {
-	type?: string
-	properties?: Record<string, JsonSchemaProperty>
-	[key: string]: unknown
-}
-
-interface TriggerType {
-	id: string
-	name: string
-	description?: string
-	icon?: string
-	configSchema?: JsonSchema
-	outputSchema?: JsonSchema
-}
-
-interface ActionType {
-	id: string
-	name: string
-	description?: string
-	icon?: string
-	inputSchema?: JsonSchema
-	outputSchema?: JsonSchema
-}
-
-interface DataNodeType {
-	id: string
-	category: string
-	name: string
-	description: string
-	icon: string
-	inputSchema: JsonSchema
-	outputSchema: JsonSchema
-	// Kept in sync with the canonical DataNodeType (useGraphConnect.ts).
-	configSchema?: JsonSchema
+	// The graph's version (it moves with the graph only), and the revision
+	// (it moves with every write: a save, a pause from the list). A save sends
+	// the revision it started from back, so the server refuses to overwrite
+	// what was written elsewhere in the meantime.
+	version?: number
+	revision?: number
 }
 
 const { $authFetch } = useAuthFetch()
 const toast = useToast()
+// Composables are called before the first `await` of this setup: after it,
+// the component instance they inject from is gone.
+const { confirm } = useConfirm()
+const { confirmFrom } = useConfirmFrom()
+const runsApi = useAutomationRuns(props.apiUrl)
+// Leaving the page with unsaved changes goes through the DMS leave guard.
+const unsavedDraft = ref(false)
+useUnsavedChanges({ dirty: unsavedDraft })
 
 const procedures = ref<ProcedureRecord[]>([])
 const selectedId = ref<string | null>(null)
-const showProcedures = ref(false)
+const switcherOpen = ref(false)
+const newProcedureOpen = ref(false)
+const runNowOpen = ref(false)
 const loading = ref(false)
 const loadError = ref<string | null>(null)
+// The `?selected=` of a procedure that no longer exists: the builder says so
+// instead of opening another one.
+const missingProcedureId = ref<string | null>(null)
+// `?template=` names a template that no longer exists.
+const templateNotFound = ref(false)
 const saving = ref(false)
 const running = ref(false)
 
@@ -160,6 +121,8 @@ const running = ref(false)
 // handle sets. We pipe them through `currentParentGroupPorts` so GraphCanvas
 // renders them identically to how it renders a nested group's sentinels.
 const templatePorts = ref<GroupPort[]>([])
+// Kept as loaded: saving the template from the editor must not reset its icon.
+const templateIcon = ref<string>('i-ph-package')
 const templateLoadKey = ref<string | null>(null)
 
 const triggerTypes = ref<TriggerType[]>([])
@@ -178,26 +141,13 @@ const nodeKinds = ref<NodeKindEntry[]>([])
 // the client (id, name, icon, ports). The list endpoint still returns full
 // rows (description, usageCount, hydrated subgraph); the `.map()` below
 // simply discards the extra fields after the fetch.
-interface TemplatePaletteRow {
-	_id: string
-	name: string
-	icon?: string
-	ports: GroupPort[]
-}
-interface TemplateListResponse {
-	results?: TemplatePaletteRow[]
-	items?: TemplatePaletteRow[]
-}
-const templates = ref<TemplatePaletteRow[]>([])
+const templates = ref<TemplateSummary[]>([])
 const templatesLoadError = ref<string | null>(null)
 
 async function loadTemplates() {
 	try {
-		const data = await $authFetch<
-			TemplatePaletteRow[] | TemplateListResponse
-		>('/api/automation/templates')
-		const list = unwrapList<TemplatePaletteRow>(data)
-		templates.value = list.map((t) => ({
+		const { results } = await $authFetch<{ results: TemplateSummary[] }>('/api/automation/templates')
+		templates.value = results.map((t) => ({
 			_id: t._id,
 			name: t.name,
 			icon: t.icon,
@@ -205,7 +155,7 @@ async function loadTemplates() {
 		}))
 		templatesLoadError.value = null
 	} catch (e) {
-		templatesLoadError.value = (e as Error).message ?? 'Failed to load templates'
+		templatesLoadError.value = describeApiError(e)
 		templates.value = []
 	}
 }
@@ -214,8 +164,31 @@ async function loadTemplates() {
 // server's cycle check would still catch any reference cycle, but blocking
 // it at the UI level keeps the UX cleaner — the user can't even attempt
 // to drop a template (including the one currently open) into itself.
-const palettesTemplates = computed<TemplatePaletteRow[] | undefined>(() =>
+const palettesTemplates = computed<TemplateSummary[] | undefined>(() =>
 	editorMode.value === 'template' ? undefined : templates.value,
+)
+
+// Triggers live at the top level of a procedure: the palette offers none
+// inside a group or a template.
+const paletteTriggerTypes = computed<TriggerType[]>(() =>
+	editorMode.value === 'template' || subgraphPath.value.length > 1 ? [] : triggerTypes.value,
+)
+
+// The inspector (or the template's ports): docked beside the canvas from lg
+// (the palette starts folded below xl, so the canvas keeps most of the
+// width), floating over it on narrower screens.
+const ASIDE_CLASS =
+	'absolute inset-y-0 right-0 z-10 flex w-80 max-w-full flex-col border-l border-default bg-default shadow-lg lg:relative lg:z-auto lg:shrink-0 lg:shadow-none'
+
+// Which graph the canvas shows (procedure or template, then the groups
+// entered): the canvas fits a new one into view.
+const canvasViewKey = computed(() => [selectedId.value ?? '', ...subgraphPath.value.slice(1).map((segment) => segment.id)].join('/'))
+
+// Back to the Library's Templates tab, on the template being edited.
+const libraryBackUrl = computed(() =>
+	editorTemplateId.value && !templateNotFound.value
+		? `/modules/automation/library?tab=templates&template=${editorTemplateId.value}`
+		: '/modules/automation/library?tab=templates',
 )
 
 const selectedNodeId = ref<string | null>(null)
@@ -252,6 +225,8 @@ interface ProcedureSnapshot {
 	name: string
 	enabled: boolean
 	graph: ProcedureGraph
+	// Template mode only: the template's outer ports, edited at its root.
+	ports?: GroupPort[]
 }
 
 const graphHistory = ref<ProcedureGraph[]>([])
@@ -264,12 +239,15 @@ function cloneGraph(g: ProcedureGraph): ProcedureGraph {
 }
 
 function takeSnapshot(p: ProcedureRecord): ProcedureSnapshot {
-	return { name: p.name, enabled: p.enabled, graph: cloneGraph(p.graph) }
+	return {
+		name: p.name,
+		enabled: p.enabled,
+		graph: cloneGraph(p.graph),
+		...(editorMode.value === 'template' ? { ports: templatePorts.value.map((port) => ({ ...port })) } : {}),
+	}
 }
 
-// Strip per-node position so pure drag-to-reposition doesn't add an undo
-// step on every pixel. The drag's final position still gets saved by Apply
-// and reverted by Cancel because savedSnapshot keeps the full graph.
+// Strip per-node position: a drag is told apart from a structural change.
 function structuralKey(g: ProcedureGraph): string {
 	return JSON.stringify({
 		nodes: g.nodes.map(({ position: _pos, ...rest }) => rest),
@@ -278,10 +256,60 @@ function structuralKey(g: ProcedureGraph): string {
 	})
 }
 
-function pushHistory(g: ProcedureGraph) {
+/**
+ * What a change does, when it is one a burst of changes repeats: the same
+ * nodes moved ("move:a,b"), or the same settings of one node edited
+ * ("edit:a:url"), at any depth of groups. `null` for anything else.
+ */
+function repeatableChangeKey(before: ProcedureGraph, after: ProcedureGraph): string | null {
+	if (JSON.stringify([before.triggerEdges, before.dataEdges]) !== JSON.stringify([after.triggerEdges, after.dataEdges])) return null
+	if (before.nodes.length !== after.nodes.length) return null
+	const moved: string[] = []
+	let edited: string | null = null
+	for (let i = 0; i < after.nodes.length; i++) {
+		const a = before.nodes[i]! as GraphNode & Record<string, unknown>
+		const b = after.nodes[i]! as GraphNode & Record<string, unknown>
+		if (a.id !== b.id) return null
+		const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k]))
+		if (keys.length === 0) continue
+		if (keys.length === 1 && keys[0] === 'position') {
+			moved.push(a.id)
+			continue
+		}
+		if (edited) return null
+		if (keys.length === 1 && keys[0] === 'subgraph' && a.subgraph && b.subgraph) {
+			const inner = repeatableChangeKey(a.subgraph, b.subgraph)
+			if (!inner) return null
+			edited = `${a.id}/${inner}`
+			continue
+		}
+		if (!keys.every((k) => k === 'config' || k === 'label')) return null
+		const fields = Object.keys({ ...a.config, ...b.config }).filter((k) => JSON.stringify(a.config?.[k]) !== JSON.stringify(b.config?.[k]))
+		edited = `${a.id}:${[...fields, ...(keys.includes('label') ? ['label'] : [])].join(',')}`
+	}
+	if (edited) return moved.length ? null : `edit:${edited}`
+	return moved.length ? `move:${moved.join(',')}` : null
+}
+
+// A drag emits a graph per frame and a text field one per keystroke: the
+// changes of one burst make one undo step (the last one is replaced while
+// the same nodes move, or the same field is typed in, without a pause).
+const HISTORY_MERGE_MS = 1000
+let lastChange: { key: string | null; at: number } = { key: null, at: 0 }
+
+function pushHistory(g: ProcedureGraph, merge = false) {
 	const current = graphHistory.value[graphHistoryIndex.value]
-	if (current && structuralKey(current) === structuralKey(g)) return
+	if (current && JSON.stringify(current) === JSON.stringify(g)) return
+	const key = merge && current ? repeatableChangeKey(current, g) : null
+	const now = Date.now()
+	const sameBurst = key !== null && key === lastChange.key && now - lastChange.at < HISTORY_MERGE_MS
+	lastChange = { key, at: now }
+	// A new action, a drag included, drops what Redo could bring back.
 	graphHistory.value = graphHistory.value.slice(0, graphHistoryIndex.value + 1)
+	if (sameBurst) {
+		graphHistory.value[graphHistoryIndex.value] = cloneGraph(g)
+		return
+	}
 	graphHistory.value.push(cloneGraph(g))
 	graphHistoryIndex.value = graphHistory.value.length - 1
 	if (graphHistory.value.length > HISTORY_LIMIT) {
@@ -291,6 +319,7 @@ function pushHistory(g: ProcedureGraph) {
 }
 
 function initHistoryAndSaved() {
+	lastChange = { key: null, at: 0 }
 	if (selected.value) {
 		graphHistory.value = [cloneGraph(selected.value.graph)]
 		graphHistoryIndex.value = 0
@@ -302,66 +331,43 @@ function initHistoryAndSaved() {
 	}
 }
 
-function emptyGraph(): ProcedureGraph {
-	return {
-		nodes: [
-			{
-				id: 'trigger-1',
-				kind: 'trigger',
-				typeId: 'manual',
-				config: {},
-				position: { x: 100, y: 100 },
-			},
-		],
-		triggerEdges: [],
-		dataEdges: [],
-	}
-}
-
-function parseGraph(g: string | ProcedureGraph | undefined | null): ProcedureGraph {
-	if (!g) return emptyGraph()
-	if (typeof g === 'string') {
-		try {
-			const parsed = JSON.parse(g) as ProcedureGraph
-			return parsed && Array.isArray(parsed.nodes) ? parsed : emptyGraph()
-		} catch {
-			return emptyGraph()
-		}
-	}
-	return g
-}
-
-function normalize(r: ProcedureApiRecord): ProcedureRecord {
-	return {
-		_id: r._id,
-		name: r.name,
-		description: r.description ?? '',
-		enabled: !!r.enabled,
-		graph: parseGraph(r.graph),
-	}
-}
+const PROCEDURES_PAGE_SIZE = 200
 
 async function loadList() {
 	loading.value = true
 	loadError.value = null
 	try {
-		const data = await $authFetch<
-			ProcedureApiRecord[] | ListEnvelope<ProcedureApiRecord>
-		>('/api/automation/procedures')
-		const list = unwrapList<ProcedureApiRecord>(data)
-		procedures.value = list.map(normalize)
+		// The API serves pages of PROCEDURES_PAGE_SIZE at most: read them all.
+		const list: ProcedureRecord[] = []
+		for (let page = 0; ; page++) {
+			const { results } = await $authFetch<{ results: ProcedureRecord[] }>(
+				`/api/automation/procedures?limit=${PROCEDURES_PAGE_SIZE}&page=${page}`,
+			)
+			list.push(...results)
+			if (results.length < PROCEDURES_PAGE_SIZE) break
+		}
+		procedures.value = list
 		if (
 			selectedId.value &&
 			!procedures.value.some((p) => p._id === selectedId.value)
 		) {
 			selectedId.value = null
 		}
+		const requested = queryValue('selected')
+		if (requested && procedures.value.some((p) => p._id === requested)) {
+			selectedId.value = requested
+		} else if (requested && !selectedId.value) {
+			// A link to a deleted procedure opens none: the builder says so
+			// and offers the switcher (see onMounted).
+			missingProcedureId.value = requested
+			return
+		}
 		if (!selectedId.value && procedures.value.length > 0) {
 			const first = procedures.value[0]
 			selectedId.value = first ? first._id : null
 		}
 	} catch (e) {
-		loadError.value = (e as Error).message ?? 'Failed to load procedures'
+		loadError.value = describeApiError(e)
 	} finally {
 		loading.value = false
 	}
@@ -369,21 +375,9 @@ async function loadList() {
 
 async function loadTypeCatalogs() {
 	try {
-		triggerTypes.value = unwrapList<TriggerType>(
-			await $authFetch<TriggerType[] | ListEnvelope<TriggerType>>(
-				'/api/automation/trigger-types',
-			),
-		)
-		actionTypes.value = unwrapList<ActionType>(
-			await $authFetch<ActionType[] | ListEnvelope<ActionType>>(
-				'/api/automation/action-types',
-			),
-		)
-		dataNodeTypes.value = unwrapList<DataNodeType>(
-			await $authFetch<DataNodeType[] | ListEnvelope<DataNodeType>>(
-				'/api/automation/data-node-types',
-			),
-		)
+		triggerTypes.value = await $authFetch<TriggerType[]>('/api/automation/trigger-types')
+		actionTypes.value = await $authFetch<ActionType[]>('/api/automation/action-types')
+		dataNodeTypes.value = await $authFetch<DataNodeType[]>('/api/automation/data-node-types')
 		nodeKinds.value = await useAutomationNodeKinds().list()
 	} catch {
 		// Catalogs are optional for editing — silently ignore.
@@ -395,18 +389,18 @@ interface AutomationTemplateApi {
 	name: string
 	description?: string
 	icon?: string
-	ports?: GroupPort[]
-	subgraph?: string | ProcedureGraph
+	ports: GroupPort[]
+	subgraph: ProcedureGraph
 }
 
 async function loadTemplate(id: string) {
 	loading.value = true
 	loadError.value = null
 	try {
+		templateNotFound.value = false
 		const tpl = await $authFetch<AutomationTemplateApi>(
 			`/api/automation/templates/${id}`,
 		)
-		const subgraph = parseGraph(tpl.subgraph)
 		// Adapt the template into the ProcedureRecord shape so the rest of
 		// the editor (history, dirty-tracking, sentinel sync, group toolbar)
 		// keeps working unchanged. `enabled` is meaningless for templates;
@@ -416,16 +410,20 @@ async function loadTemplate(id: string) {
 			name: tpl.name,
 			description: tpl.description ?? '',
 			enabled: true,
-			graph: subgraph,
+			graph: tpl.subgraph,
 		}
 		procedures.value = [adapted]
 		selectedId.value = adapted._id
+		templateIcon.value = tpl.icon || 'i-ph-package'
 		templatePorts.value = Array.isArray(tpl.ports)
 			? tpl.ports.map((p) => ({ ...p }))
 			: []
 		templateLoadKey.value = id
 	} catch (e) {
-		loadError.value = (e as Error).message ?? 'Failed to load template'
+		// Worded for users, the same on the server and in the browser (the
+		// raw fetch error names an internal URL that differs between them).
+		templateNotFound.value = apiErrorStatus(e) === 404
+		loadError.value = templateNotFound.value ? t('dms_automation.editor.templateNotFound') : describeApiError(e)
 		procedures.value = []
 		selectedId.value = null
 		templatePorts.value = []
@@ -439,7 +437,8 @@ if (editorMode.value === 'template') {
 	if (id) {
 		await loadTemplate(id)
 	} else {
-		loadError.value = 'No template id provided'
+		templateNotFound.value = true
+		loadError.value = t('dms_automation.editor.templateNotFound')
 	}
 } else {
 	await loadList()
@@ -613,7 +612,7 @@ function onGraphUpdate(g: ProcedureGraph) {
 		// At procedure root — write straight through, same as before
 		// subgraph navigation existed.
 		selected.value.graph = g
-		pushHistory(g)
+		pushHistory(g, true)
 		return
 	}
 	// At a deeper level — `g` is the subgraph of the deepest group node.
@@ -654,7 +653,7 @@ function onGraphUpdate(g: ProcedureGraph) {
 		}
 	}
 	selected.value.graph = rootGraph
-	pushHistory(rootGraph)
+	pushHistory(rootGraph, true)
 }
 
 const canUndo = computed<boolean>(
@@ -673,6 +672,7 @@ const isDirty = computed<boolean>(() => {
 
 function onUndo() {
 	if (!canUndo.value || !selected.value) return
+	lastChange = { key: null, at: 0 }
 	graphHistoryIndex.value--
 	const g = graphHistory.value[graphHistoryIndex.value]
 	if (g) selected.value.graph = cloneGraph(g)
@@ -680,6 +680,7 @@ function onUndo() {
 
 function onRedo() {
 	if (!canRedo.value || !selected.value) return
+	lastChange = { key: null, at: 0 }
 	graphHistoryIndex.value++
 	const g = graphHistory.value[graphHistoryIndex.value]
 	if (g) selected.value.graph = cloneGraph(g)
@@ -691,7 +692,12 @@ function onCancel() {
 	selected.value.name = snap.name
 	selected.value.enabled = snap.enabled
 	selected.value.graph = cloneGraph(snap.graph)
+	if (snap.ports) templatePorts.value = snap.ports.map((port) => ({ ...port }))
 	pushHistory(selected.value.graph)
+	// A refused save is answered by the draft it refused: discarding it
+	// clears the banner, and the name, outside the graph, is checked again.
+	saveBlocked.value = false
+	void validateDraft()
 }
 
 const selectedNode = computed<GraphNode | null>(() => {
@@ -728,20 +734,11 @@ const graphCanvasRef = ref<{
 	addTemplateInstance: (template: { _id: string; name: string; icon?: string; ports: GroupPort[] }) => void
 } | null>(null)
 
-// Runs panel (toolbar button + right slideover). Kept so onRun can refresh the
-// list and its trigger badge once a run has been queued.
-const runsDrawerRef = ref<{ reload: () => void } | null>(null)
-
 function onPaletteAddNode(payload: { kind: string; typeId?: string }) {
 	graphCanvasRef.value?.addNode(payload.kind, payload.typeId)
 }
 function onPaletteAddTemplate(template: { _id: string; name: string; icon?: string; ports: GroupPort[] }) {
 	graphCanvasRef.value?.addTemplateInstance(template)
-}
-
-function onProcedurePicked(id: string | null) {
-	selectedId.value = id
-	if (id) showProcedures.value = false
 }
 
 watch(selectedId, () => {
@@ -760,6 +757,11 @@ watch(templateQueryId, async (id) => {
 	await loadTemplate(id)
 })
 
+/** A group's name: its step name, else the name it was created with. */
+function groupName(node: GraphNode): string {
+	return node.label || (node.config?.name as string | undefined) || t('dms_automation.editor.groupDefaultName')
+}
+
 function onGroupEnter(payload: { id: string }) {
 	const g = currentGraph.value
 	if (!g) return
@@ -769,8 +771,7 @@ function onGroupEnter(payload: { id: string }) {
 	// stop at this segment and the watcher would prune it back. Bail early so
 	// the path doesn't briefly include a doomed segment.
 	if (node.templateId && !node.subgraph) return
-	const name =
-		(node.config?.name as string | undefined) ?? 'Group'
+	const name = groupName(node)
 	subgraphPath.value = [
 		...subgraphPath.value,
 		{ kind: 'group', id: node.id, name },
@@ -1468,12 +1469,9 @@ function createGroupFromSelection() {
 	const ids = selectedNodeIds.value.slice()
 	if (ids.length === 0) return
 
-	// Default name; window.prompt is intentionally lo-fi for v1. A modal
-	// could replace this later, but it keeps the change scope tight.
-	const inputName =
-		typeof window !== 'undefined'
-			? (window.prompt('Group name', 'Group') ?? '').trim() || 'Group'
-			: 'Group'
+	// The group gets a default name, then the inspector opens on it with its
+	// name field focused: renaming is one keystroke away, nothing blocks.
+	const inputName = t('dms_automation.editor.groupDefaultName')
 
 	const selection = new Set(ids)
 	const groupId = newId()
@@ -1570,15 +1568,18 @@ function createGroupFromSelection() {
 	selectedNodeId.value = groupId
 
 	onGraphUpdate(nextGraph)
+	void focusInspectorName()
 }
 
-const canRun = computed<boolean>(() => {
-	const g = selected.value?.graph
-	if (!g) return false
-	return g.nodes.some(
-		(n) => n.kind === 'trigger' && n.typeId === 'manual',
-	)
-})
+const inspectorRef = ref<HTMLElement | null>(null)
+
+/** Focuses the inspector's first field, the step name, and selects its text. */
+async function focusInspectorName() {
+	await nextTick()
+	const input = inspectorRef.value?.querySelector('input')
+	input?.focus()
+	input?.select()
+}
 
 const procedureName = computed<string>({
 	get: () => selected.value?.name ?? '',
@@ -1587,6 +1588,15 @@ const procedureName = computed<string>({
 	},
 })
 
+// Titles and toasts about what is stored name it as stored, not as the
+// draft spells it (possibly blank) at that moment.
+const savedName = computed<string>(() => savedSnapshot.value?.name || selected.value?.name || '')
+
+// The name is the one field outside the graph a save checks: a blank one is
+// said under the name, and Save waits for it.
+const NAME_INPUT_ID = 'builder-procedure-name'
+const nameMissing = computed<boolean>(() => !!selected.value && !selected.value.name.trim())
+
 const procedureEnabled = computed<boolean>({
 	get: () => selected.value?.enabled ?? false,
 	set: (v: boolean) => {
@@ -1594,139 +1604,616 @@ const procedureEnabled = computed<boolean>({
 	},
 })
 
-// Triggers other than `manual` only fire when the procedure is enabled and
-// saved (reconcile activates them); manual still works via Run-now regardless.
-const hasInactiveTriggers = computed<boolean>(() => {
-	const g = selected.value?.graph
-	if (!g || selected.value?.enabled) return false
-	return g.nodes.some(
-		(n) => n.kind === 'trigger' && n.typeId && n.typeId !== 'manual',
-	)
+// ---------------------------------------------------------------------------
+// The builder's bar: state, saving, problems (AU-03, AU-04, AU-16)
+// ---------------------------------------------------------------------------
+
+const summaries = ref<ProcedureSummaryRow[]>([])
+
+async function loadSummaries() {
+	try {
+		summaries.value = await $authFetch<ProcedureSummaryRow[]>(`${props.apiUrl}/procedures/summary`)
+	} catch {
+		summaries.value = []
+	}
+}
+
+const currentSummary = computed(() => summaries.value.find((s) => s.procedureId === selectedId.value) ?? null)
+
+const STATE_TONES = {
+	failing: 'error',
+	degraded: 'warning',
+	healthy: 'success',
+	paused: 'neutral',
+	draft: 'info',
+} as const
+
+/** How many things changed since the last save, for "2 unsaved changes". */
+const changeCount = computed<number>(() => {
+	const current = selected.value
+	const saved = savedSnapshot.value
+	if (!current || !saved) return 0
+	let count = 0
+	if (current.name !== saved.name) count++
+	if (current.enabled !== saved.enabled) count++
+	if (saved.ports && JSON.stringify(saved.ports) !== JSON.stringify(templatePorts.value)) count++
+	const before = new Map(saved.graph.nodes.map((n) => [n.id, JSON.stringify(n)]))
+	const after = new Map(current.graph.nodes.map((n) => [n.id, JSON.stringify(n)]))
+	for (const [id, value] of after) if (before.get(id) !== value) count++
+	for (const id of before.keys()) if (!after.has(id)) count++
+	const edges = (g: ProcedureGraph) => JSON.stringify([g.triggerEdges, g.dataEdges])
+	if (edges(current.graph) !== edges(saved.graph)) count++
+	return count
 })
 
-async function onCreate() {
-	try {
-		const body = {
-			name: 'New procedure',
-			description: '',
-			enabled: false,
-			graph: emptyGraph(),
-		}
-		const res = await $authFetch<{ _id: string }>(
-			'/api/automation/procedures',
-			{ method: 'POST', body },
-		)
-		const created: ProcedureRecord = {
-			_id: res._id,
-			name: body.name,
-			description: body.description,
-			enabled: body.enabled,
-			graph: body.graph,
-		}
-		procedures.value = [created, ...procedures.value]
-		selectedId.value = created._id
-		toast.add({
-			title: 'Procedure created',
-			color: 'success',
-			icon: 'i-ph-check-circle',
-		})
-	} catch (e) {
-		toast.add({
-			title: 'Failed to create procedure',
-			description: (e as Error).message,
-			color: 'error',
-			icon: 'i-ph-warning',
-		})
-	}
+// Problems of the draft, asked of the server (the same validator a save
+// runs) a moment after each change.
+// Each issue carries a `code` (and its `params`) the locale words; its English
+// `message` is the fallback for a code the locale does not know.
+interface GraphIssue {
+	severity: 'error' | 'warning'
+	message: string
+	code?: string
+	params?: Record<string, unknown>
+	nodeId?: string
 }
+const issues = ref<GraphIssue[]>([])
+// The draft's triggers, worded by the server with its problems: the canvas
+// and the test dock name them.
+const draftTriggers = ref<WordedTrigger[]>([])
+let validateTimer: ReturnType<typeof setTimeout> | undefined
+const VALIDATE_DELAY_MS = 500
 
-async function onDelete(id: string) {
-	try {
-		await $authFetch(`/api/automation/procedures/${id}`, {
-			method: 'DELETE',
-		})
-		procedures.value = procedures.value.filter((p) => p._id !== id)
-		if (selectedId.value === id) {
-			const first = procedures.value[0]
-			selectedId.value = first ? first._id : null
-		}
-		toast.add({
-			title: 'Procedure deleted',
-			color: 'success',
-			icon: 'i-ph-check-circle',
-		})
-	} catch (e) {
-		toast.add({
-			title: 'Failed to delete procedure',
-			description: (e as Error).message,
-			color: 'error',
-			icon: 'i-ph-warning',
-		})
-	}
-}
-
-async function onSave() {
-	if (!selected.value) return
-	saving.value = true
+async function validateDraft() {
 	const current = selected.value
+	if (!current || editorMode.value !== 'procedure') {
+		issues.value = []
+		draftTriggers.value = []
+		return
+	}
 	try {
-		if (editorMode.value === 'template') {
-			// Template save — the PUT route's Zod requires name + ports +
-			// subgraph and re-runs validateGraph + cycle detection. We send
-			// the in-memory state verbatim; description/icon are not edited
-			// from the procedure-style editor chrome yet (catalog page owns
-			// metadata edits) so we preserve whatever was loaded.
-			const body = {
-				name: current.name,
-				description: current.description,
-				icon: 'i-ph-package',
-				ports: templatePorts.value.map((p) => ({ ...p })),
-				subgraph: current.graph,
-			}
-			await $authFetch(`/api/automation/templates/${current._id}`, {
-				method: 'PUT',
-				body,
-			})
-			savedSnapshot.value = takeSnapshot(current)
-			toast.add({
-				title: 'Template saved',
-				description: current.name,
-				color: 'success',
-				icon: 'i-ph-check-circle',
-			})
+		const res = await $authFetch<{ issues: typeof issues.value; triggers?: WordedTrigger[] }>(`${props.apiUrl}/procedures/validate`, {
+			method: 'POST',
+			// With the procedure and its name, the server also checks what other
+			// procedures hold (a webhook path, a name).
+			body: { graph: current.graph, enabled: current.enabled, procedureId: current._id, name: current.name },
+		})
+		issues.value = res.issues ?? []
+		draftTriggers.value = res.triggers ?? []
+	} catch {
+		// A graph the schema refuses is reported on save.
+	}
+}
+
+watch(
+	() => (selected.value ? [structuralKey(selected.value.graph), selected.value.name, selected.value.enabled].join('|') : ''),
+	() => {
+		clearTimeout(validateTimer)
+		validateTimer = setTimeout(() => void validateDraft(), VALIDATE_DELAY_MS)
+	},
+	{ immediate: true },
+)
+
+const blockingIssues = computed(() => issues.value.filter((i) => i.severity === 'error'))
+
+/** How the builder names a node: its label, else its type's name. */
+function nodeDisplayName(id: string): string {
+	const node = walkAll(selected.value?.graph).find((n) => n.id === id)
+	if (!node) return id
+	if (node.kind === 'group') return groupName(node)
+	if (node.label) return node.label
+	const typeName =
+		node.kind === 'trigger'
+			? triggerTypes.value.find((x) => x.id === node.typeId)?.name
+			: node.kind === 'action'
+				? actionTypes.value.find((x) => x.id === node.typeId)?.name
+				: node.kind === 'data'
+					? dataNodeTypes.value.find((x) => x.id === node.typeId)?.name
+					: nodeKinds.value.find((k) => k.kind === node.kind)?.meta.ui?.label
+	return typeName ? processI18n(typeName) : (node.config?.name as string | undefined) ?? node.kind
+}
+
+function walkAll(graph: ProcedureGraph | undefined): GraphNode[] {
+	if (!graph) return []
+	return graph.nodes.flatMap((n) => [n, ...walkAll(n.subgraph)])
+}
+
+/** An issue in the user's language. */
+function issueText(issue: GraphIssue): string {
+	const key = `dms_automation.editor.problems.codes.${issue.code}`
+	return issue.code && te(key) ? t(key, issue.params ?? {}) : issue.message
+}
+
+const dockIssues = computed<DockIssue[]>(() =>
+	issues.value.map((issue) => ({
+		...issue,
+		message: issueText(issue),
+		nodeName: issue.nodeId ? nodeDisplayName(issue.nodeId) : undefined,
+	})),
+)
+
+// Code and params travel along: the inspector names a setting as its form does.
+const issuesByNode = computed<Record<string, Omit<GraphIssue, 'nodeId'>>>(() => {
+	const out: Record<string, Omit<GraphIssue, 'nodeId'>> = {}
+	for (const issue of issues.value) {
+		if (!issue.nodeId) continue
+		if (!out[issue.nodeId] || issue.severity === 'error')
+			out[issue.nodeId] = { severity: issue.severity, message: issueText(issue), code: issue.code, params: issue.params }
+	}
+	return out
+})
+
+const dockTab = ref<DockTab>('problems')
+// The dock stays out of the canvas's way until it has something to say: it
+// opens on its own for a problem that blocks enabling (a warning only counts
+// on its tab), and closes again once that is fixed, unless the user has
+// taken it over in between.
+const dockCollapsed = ref(true)
+let dockOpenedForProblems = false
+watch(
+	() => blockingIssues.value.length,
+	(count, before) => {
+		if (count > 0 && !before) {
+			dockTab.value = 'problems'
+			dockCollapsed.value = false
+			dockOpenedForProblems = true
+		} else if (count === 0 && dockOpenedForProblems && dockTab.value === 'problems') {
+			dockCollapsed.value = true
+		}
+	},
+)
+watch([dockTab, dockCollapsed], () => {
+	if (dockCollapsed.value || dockTab.value !== 'problems') dockOpenedForProblems = false
+})
+
+function selectNode(id: string) {
+	// A node inside a group is named by its top-level group in the issues.
+	subgraphPath.value = subgraphPath.value.slice(0, 1)
+	selectedNodeId.value = id
+}
+
+interface ProcedureTriggers {
+	triggers: Array<WordedTrigger & { nextAt: string | null }>
+}
+const savedTriggers = ref<ProcedureTriggers['triggers']>([])
+
+async function loadSavedTriggers() {
+	if (!selectedId.value || editorMode.value !== 'procedure') return
+	try {
+		const res = await $authFetch<ProcedureTriggers>(`${props.apiUrl}/procedures/${selectedId.value}/triggers`)
+		savedTriggers.value = res.triggers
+	} catch {
+		savedTriggers.value = []
+	}
+}
+
+/** The banner of a disabled procedure names what will not fire (AU-16). */
+const pausedBanner = computed(() => {
+	const current = selected.value
+	if (!current || current.enabled || editorMode.value !== 'procedure') return null
+	const triggers = savedTriggers.value.filter((tr) => tr.typeId !== 'manual')
+	if (triggers.length === 0) return null
+	const first = triggers[0]!
+	const what = processText(first.text)
+	const isDraft = currentSummary.value?.status === 'draft'
+	return {
+		title: t(isDraft ? 'dms_automation.editor.paused.draftTitle' : 'dms_automation.editor.paused.title', { name: savedName.value }),
+		description: first.nextAt
+			? t('dms_automation.editor.paused.schedule', {
+					what,
+					next: describeDateTime(first.nextAt, dateTimeFormat, first.timeZone),
+				})
+			: t('dms_automation.editor.paused.other', { what }),
+	}
+})
+
+async function enableNow() {
+	if (!selected.value) return
+	selected.value.enabled = true
+	await onSave()
+}
+
+const saveState = computed(() => {
+	if (saving.value) return t('dms_automation.editor.saving')
+	if (changeCount.value > 0) return t('dms_automation.editor.unsaved', { count: changeCount.value })
+	return t('dms_automation.editor.saved')
+})
+
+// ---------------------------------------------------------------------------
+// Create, delete, export
+// ---------------------------------------------------------------------------
+
+async function onCreated(id: string) {
+	await loadList()
+	await loadSummaries()
+	selectedId.value = id
+	void router.replace(`${builderPath()}?selected=${id}`)
+}
+
+async function onCreate() {
+	if (!(await confirmDiscard())) return
+	newProcedureOpen.value = true
+}
+
+async function onDelete() {
+	const current = selected.value
+	if (!current) return
+	const name = savedName.value
+	// The server words the dialog, as the procedures table's delete does.
+	await confirmFrom(`${props.apiUrl}/procedures/{id}/delete-confirm`, {
+		params: { id: current._id },
+		onConfirm: async () => {
+			await $authFetch(`${props.apiUrl}/procedures/${current._id}`, { method: 'DELETE' })
+			procedures.value = procedures.value.filter((p) => p._id !== current._id)
+			selectedId.value = procedures.value[0]?._id ?? null
+			void router.replace(selectedId.value ? `${builderPath()}?selected=${selectedId.value}` : builderPath())
+			toast.add({ title: t('dms_automation.editor.deleted', { name }), color: 'success', icon: 'i-ph-check-circle' })
+			void loadSummaries()
+		},
+	})
+}
+
+async function onExport() {
+	const current = selected.value
+	if (!current) return
+	const data = await $authFetch<unknown>(`${props.apiUrl}/procedures/${current._id}/export`)
+	const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+	const url = URL.createObjectURL(blob)
+	const link = document.createElement('a')
+	link.href = url
+	link.download = `${current.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'procedure'}.json`
+	link.click()
+	URL.revokeObjectURL(url)
+}
+
+// ---------------------------------------------------------------------------
+// Questions with more than a yes and a no: switching procedure with unsaved
+// changes (AU-04), running the saved version, a save refused for a newer one
+// ---------------------------------------------------------------------------
+
+interface Choice<C extends string> {
+	value: C
+	label: string
+	color?: 'primary' | 'neutral' | 'error' | 'warning'
+	variant?: 'solid' | 'outline' | 'ghost' | 'soft'
+}
+
+interface ChoiceQuestion<C extends string> {
+	title: string
+	description: string
+	choices: Choice<C>[]
+	/** The answer of a dialog closed without choosing (Escape, ✕, a click outside). */
+	dismiss: C
+}
+
+const choiceDialog = ref<ChoiceQuestion<string> & { open: boolean; resolve?: (choice: string) => void }>({
+	open: false,
+	title: '',
+	description: '',
+	choices: [],
+	dismiss: '',
+})
+
+function askChoice<C extends string>(question: ChoiceQuestion<C>): Promise<C> {
+	return new Promise((resolve) => {
+		choiceDialog.value = { ...question, open: true, resolve: resolve as (choice: string) => void }
+	})
+}
+
+/** The dialog opens on its safe answer: Enter keeps the draft, runs nothing. */
+function focusSafeChoice(event: Event) {
+	event.preventDefault()
+	void nextTick(() => document.querySelector<HTMLElement>('[data-safe-choice]')?.focus())
+}
+
+/** Escape, ✕ or a click outside answers the question's `dismiss`. */
+function onChoiceDialogOpen(open: boolean) {
+	if (!open && choiceDialog.value.open) answerChoice(choiceDialog.value.dismiss)
+}
+
+function answerChoice(choice: string) {
+	const resolve = choiceDialog.value.resolve
+	choiceDialog.value = { ...choiceDialog.value, open: false, resolve: undefined }
+	resolve?.(choice)
+}
+
+/** Resolves `true` when the draft may be left: saved, discarded or clean. */
+async function confirmDiscard(): Promise<boolean> {
+	if (!isDirty.value) return true
+	const choice = await askChoice({
+		title: t('dms_automation.editor.leave.title', { name: savedName.value }),
+		description: t('dms_automation.editor.leave.description', { count: changeCount.value }),
+		choices: [
+			{ value: 'discard', label: t('dms_automation.editor.discard'), color: 'error', variant: 'ghost' },
+			{ value: 'stay', label: t('dms_automation.editor.leave.keep'), color: 'neutral', variant: 'outline' },
+			{ value: 'save', label: t('dms_automation.editor.leave.save'), color: 'primary' },
+		],
+		dismiss: 'stay',
+	})
+	if (choice === 'stay') return false
+	if (choice === 'save') return await onSave()
+	onCancel()
+	return true
+}
+
+async function onPickProcedure(id: string) {
+	if (!(await confirmDiscard())) return
+	selectedId.value = id
+	void router.replace(`${builderPath()}?selected=${id}`)
+}
+
+// The template editor guards its draft like the procedure editor.
+watch(isDirty, (dirty) => (unsavedDraft.value = dirty), { immediate: true })
+
+// The DMS leave guard only holds a visit to another path. A visit to the
+// builder itself that remounts it (the sidebar's "Builder", a link with
+// another ?selected=), or that keeps it mounted but opens another procedure,
+// loses the draft just the same: it is held here and run again once the
+// draft is saved or discarded. The builder's own URL updates go through.
+interface PendingVisit {
+	url?: URL
+	method?: string
+	prefetch?: boolean
+	preserveState?: unknown
+	replace?: boolean
+}
+
+function onInertiaBefore(event: Event) {
+	const visit = (event as CustomEvent<{ visit?: PendingVisit }>).detail?.visit
+	if (!visit?.url || visit.prefetch) return
+	if (visit.method && visit.method.toLowerCase() !== 'get') return
+	if (visit.url.pathname !== builderPath() || !isDirty.value) return
+	const keepsPage = visit.preserveState === true
+	if (keepsPage && !opensAnotherProcedure(visit.url.searchParams.get('selected'))) return
+	event.preventDefault()
+	const href = `${visit.url.pathname}${visit.url.search}${visit.url.hash}`
+	void confirmDiscard().then((leave) => {
+		if (leave) void navigateDms(href, { preserveState: keepsPage, replace: visit.replace })
+	})
+}
+
+function opensAnotherProcedure(id: string | null): id is string {
+	return editorMode.value === 'procedure' && !!id && id !== selectedId.value
+}
+
+// Back and Forward between two addresses of the builder: the DMS guard lets
+// them through (same path). Where the browser announces them before they
+// happen (Navigation API), the draft is asked about first and the step is
+// taken again once it is saved or discarded. A browser without it remounts
+// the page on the step: the DMS guard has the same gap.
+interface TraverseEvent extends Event {
+	navigationType?: string
+	destination?: { url: string; key: string; sameDocument: boolean }
+}
+
+interface NavigationLike extends EventTarget {
+	traverseTo: (key: string) => unknown
+}
+
+function browserNavigation(): NavigationLike | undefined {
+	return typeof window === 'undefined' ? undefined : (window as unknown as { navigation?: NavigationLike }).navigation
+}
+
+// Set while the history step the user chose to take is taken again.
+let traverseAllowed = false
+
+function onNavigate(event: Event) {
+	const { navigationType, destination } = event as TraverseEvent
+	if (navigationType !== 'traverse' || !destination) return
+	if (traverseAllowed) {
+		traverseAllowed = false
+		return
+	}
+	if (!destination.sameDocument || !event.cancelable || !isDirty.value) return
+	if (new URL(destination.url).pathname !== builderPath()) return
+	event.preventDefault()
+	void confirmDiscard().then((leave) => {
+		if (!leave) return
+		traverseAllowed = true
+		void browserNavigation()?.traverseTo(destination.key)
+	})
+}
+
+// ?selected= changed while the page stayed mounted (a visit that keeps it,
+// such as a link to the builder from the builder): the builder opens that
+// procedure. A draft is asked about first; keeping it puts the address back.
+watch(
+	() => queryValue('selected'),
+	async (id) => {
+		if (!opensAnotherProcedure(id)) return
+		if (!(await confirmDiscard())) {
+			void router.replace(`${builderPath()}?selected=${selectedId.value}`)
 			return
 		}
-		const body = {
-			name: current.name,
-			description: current.description,
-			enabled: current.enabled,
-			graph: current.graph,
+		if (procedures.value.some((p) => p._id === id)) {
+			selectedId.value = id
+			return
 		}
-		await $authFetch(`/api/automation/procedures/${current._id}`, {
+		missingProcedureId.value = id
+		selectedId.value = null
+		switcherOpen.value = true
+	},
+)
+
+// ---------------------------------------------------------------------------
+// Save
+// ---------------------------------------------------------------------------
+
+interface SaveRefusal {
+	data?: {
+		issues?: Array<
+			| { severity?: string; message?: string; code?: string; params?: Record<string, unknown>; nodeId?: string; path?: unknown[] }
+			| string
+		>
+	}
+}
+
+function issuesOf(error: unknown): GraphIssue[] | null {
+	const raw = (error as SaveRefusal)?.data?.issues
+	if (!Array.isArray(raw)) return null
+	// A field of the body other than the graph (zod issues carry its path) is
+	// not a problem of the graph.
+	if (raw.some((issue) => typeof issue === 'object' && Array.isArray(issue.path) && issue.path[0] !== 'graph')) return null
+	return raw.map((issue) =>
+		typeof issue === 'string'
+			? { severity: 'error' as const, message: issue }
+			: {
+					severity: issue.severity === 'warning' ? 'warning' : 'error',
+					message: issue.message ?? '',
+					code: issue.code,
+					params: issue.params,
+					nodeId: issue.nodeId,
+				},
+	)
+}
+
+/** Save the open procedure (or template). Resolves whether it was saved. */
+async function onSave(): Promise<boolean> {
+	if (!selected.value) return false
+	if (nameMissing.value) {
+		document.getElementById(NAME_INPUT_ID)?.focus()
+		return false
+	}
+	saving.value = true
+	const current = selected.value
+	// What is sent is what counts as saved: a change made while the request
+	// runs stays an unsaved change.
+	const sent = takeSnapshot(current)
+	try {
+		if (editorMode.value === 'template') {
+			await $authFetch(`${props.apiUrl}/templates/${current._id}`, {
+				method: 'PUT',
+				body: {
+					name: sent.name,
+					description: current.description,
+					icon: templateIcon.value,
+					ports: sent.ports ?? [],
+					subgraph: sent.graph,
+				},
+			})
+			savedSnapshot.value = sent
+			toast.add({ title: t('dms_automation.templates.saved', { name: sent.name }), color: 'success', icon: 'i-ph-check-circle' })
+			return true
+		}
+		const res = await $authFetch<{ version: number; revision: number; issues?: GraphIssue[] }>(`${props.apiUrl}/procedures/${current._id}`, {
 			method: 'PUT',
-			body,
+			body: {
+				name: sent.name,
+				description: current.description,
+				enabled: sent.enabled,
+				graph: sent.graph,
+				expectedRevision: current.revision,
+			},
 		})
-		savedSnapshot.value = takeSnapshot(current)
+		current.version = res.version
+		current.revision = res.revision
+		savedSnapshot.value = sent
+		if (res.issues) issues.value = res.issues
 		toast.add({
-			title: 'Procedure saved',
-			description: current.name,
+			title: t('dms_automation.editor.savedToast', { name: sent.name }),
+			description: res.issues?.length ? t('dms_automation.editor.savedWithProblems', { count: res.issues.length }) : undefined,
 			color: 'success',
 			icon: 'i-ph-check-circle',
+			actions: [{ label: t('dms_automation.editor.testRun'), onClick: () => void onTestRun() }],
 		})
+		void loadSummaries()
+		void loadSavedTriggers()
+		return true
 	} catch (e) {
-		toast.add({
-			title:
-				editorMode.value === 'template'
-					? 'Failed to save template'
-					: 'Failed to save procedure',
-			description: (e as Error).message,
-			color: 'error',
-			icon: 'i-ph-warning',
-		})
+		if (editorMode.value === 'procedure' && apiErrorStatus(e) === 409) return await resolveStale(current, e)
+		const refused = issuesOf(e)
+		if (refused) {
+			issues.value = refused
+			saveBlocked.value = true
+			dockTab.value = 'problems'
+			dockCollapsed.value = false
+		} else {
+			toast.add({
+				title: editorMode.value === 'template' ? t('dms_automation.templates.saveError') : t('dms_automation.editor.saveError'),
+				description: describeApiError(e),
+				color: 'error',
+				icon: 'i-ph-warning',
+			})
+		}
+		return false
 	} finally {
 		saving.value = false
 	}
 }
+
+/**
+ * The procedure was saved elsewhere (another tab, a pause from the list)
+ * since this draft was loaded, and the server refused to overwrite it:
+ * reload what is saved now, or overwrite it with the draft.
+ */
+async function resolveStale(current: ProcedureRecord, error: unknown): Promise<boolean> {
+	saving.value = false
+	let latest = (error as { data: { revision: number } }).data.revision
+	const choice = await askChoice({
+		title: t('dms_automation.editor.stale.title', { name: savedName.value }),
+		description: t('dms_automation.editor.stale.description'),
+		choices: [
+			{ value: 'stay', label: t('dms_automation.editor.stale.keep'), color: 'neutral', variant: 'ghost' },
+			{ value: 'reload', label: t('dms_automation.editor.stale.reload'), color: 'neutral', variant: 'outline' },
+			{ value: 'overwrite', label: t('dms_automation.editor.stale.overwrite'), color: 'warning' },
+		],
+		dismiss: 'stay',
+	})
+	if (choice === 'overwrite') {
+		// Overwriting puts the draft's edits over what was saved elsewhere, not
+		// its on/off state over a pause or a resume made elsewhere: unless the
+		// switch was flipped in this draft, the procedure stays as it is now.
+		if (current.enabled === savedSnapshot.value?.enabled) {
+			try {
+				const saved = await $authFetch<{ enabled: boolean; revision: number }>(`${props.apiUrl}/procedures/${current._id}`)
+				current.enabled = saved.enabled
+				latest = saved.revision
+			} catch {
+				// Unreadable: the draft's state is saved, as before.
+			}
+		}
+		current.revision = latest
+		return await onSave()
+	}
+	if (choice === 'reload') await reloadSelected()
+	return false
+}
+
+/** Replaces the draft with the procedure as it is saved now. */
+async function reloadSelected() {
+	const current = selected.value
+	if (!current) return
+	try {
+		const fresh = await $authFetch<ProcedureRecord>(`${props.apiUrl}/procedures/${current._id}`)
+		procedures.value = procedures.value.map((p) => (p._id === fresh._id ? fresh : p))
+		selectedNodeId.value = null
+		initHistoryAndSaved()
+		seedSubgraphPath()
+		saveBlocked.value = false
+		void loadSummaries()
+		void loadSavedTriggers()
+	} catch (e) {
+		toast.add({ title: t('dms_automation.editor.loadProceduresError'), description: describeApiError(e), color: 'error', icon: 'i-ph-warning' })
+	}
+}
+
+/** Set when a save was refused for problems: the banner offers the way out. */
+const saveBlocked = ref(false)
+watch(blockingIssues, (list) => {
+	if (list.length === 0) saveBlocked.value = false
+})
+
+async function saveAsDraft() {
+	if (!selected.value) return
+	selected.value.enabled = false
+	if (await onSave()) saveBlocked.value = false
+}
+
+function goToFirstProblem() {
+	const first = blockingIssues.value.find((i) => i.nodeId) ?? issues.value.find((i) => i.nodeId)
+	if (first?.nodeId) selectNode(first.nodeId)
+}
+
 
 // ---------------------------------------------------------------------------
 // Save-as-template
@@ -1758,15 +2245,21 @@ const saveAsTemplateDescription = ref<string>('')
 const saveAsTemplateIcon = ref<string>('i-ph-package')
 const saveAsTemplateSubmitting = ref<boolean>(false)
 const saveAsTemplateError = ref<string | null>(null)
+const TEMPLATE_NAME_ID = 'save-template-name'
+const TEMPLATE_ROW = { layout: 'form', spacing: 'list', inset: false } as const
+// A missing name shows under its field; what the server refuses (issues, a
+// reference cycle) stays in the banner above the buttons.
+const templateFieldErrors = useFieldErrors({ fields: { name: TEMPLATE_NAME_ID } })
+watch(saveAsTemplateName, () => templateFieldErrors.clear('name'))
 
 function openSaveAsTemplate() {
 	const n = selectedLocalGroupNode.value
 	if (!n) return
-	saveAsTemplateName.value =
-		(n.config?.name as string | undefined) ?? 'Template'
+	saveAsTemplateName.value = groupName(n)
 	saveAsTemplateDescription.value = ''
 	saveAsTemplateIcon.value = 'i-ph-package'
 	saveAsTemplateError.value = null
+	templateFieldErrors.clear()
 	saveAsTemplateSubmitting.value = false
 	saveAsTemplateOpen.value = true
 }
@@ -1800,7 +2293,7 @@ function formatTemplateError(err: unknown): string {
 		}
 		return head
 	}
-	return (err as Error).message ?? 'Failed to save template'
+	return describeApiError(err)
 }
 
 function convertLocalGroupToTemplateInstance(
@@ -1821,11 +2314,11 @@ async function submitSaveAsTemplate() {
 	if (!n) return
 	const name = saveAsTemplateName.value.trim()
 	if (!name) {
-		saveAsTemplateError.value = 'Name is required'
+		await templateFieldErrors.setError('name', t('dms_automation.editor.saveTemplateModal.nameRequired'))
 		return
 	}
 	if (!n.subgraph) {
-		saveAsTemplateError.value = 'Group has no subgraph to save'
+		saveAsTemplateError.value = t('dms_automation.editor.saveTemplateModal.noSubgraph')
 		return
 	}
 	saveAsTemplateSubmitting.value = true
@@ -1842,14 +2335,20 @@ async function submitSaveAsTemplate() {
 			'/api/automation/templates',
 			{ method: 'POST', body },
 		)
+		// The template exists now: the procedure links to it once saved. A
+		// draft with nothing else unsaved is saved at once; one with other
+		// changes is left to the user, who is told.
+		const linkOnly = !isDirty.value
 		convertLocalGroupToTemplateInstance(n.id, created._id)
 		saveAsTemplateOpen.value = false
+		void loadTemplates()
 		toast.add({
-			title: 'Template saved',
-			description: name,
+			title: t('dms_automation.templates.saved', { name }),
+			description: linkOnly ? undefined : t('dms_automation.editor.saveTemplateModal.saveToLink'),
 			color: 'success',
 			icon: 'i-ph-check-circle',
 		})
+		if (linkOnly) await onSave()
 	} catch (e) {
 		saveAsTemplateError.value = formatTemplateError(e)
 	} finally {
@@ -1987,7 +2486,7 @@ function formatForkError(err: unknown): string {
 	}
 	const data = (err as { data?: { error?: string } } | undefined)?.data
 	if (data?.error) return data.error
-	return (err as Error).message ?? 'Failed to fork template instance'
+	return describeApiError(err)
 }
 
 async function submitFork() {
@@ -2004,9 +2503,9 @@ async function submitFork() {
 		convertTemplateInstanceToLocal(target, tpl)
 		forkOpen.value = false
 		toast.add({
-			title: 'Forked to local group',
-			description:
-				(target.node.config?.name as string | undefined) ?? tpl.name,
+			title: t('dms_automation.editor.forked', {
+				name: target.node.label || (target.node.config?.name as string | undefined) || tpl.name,
+			}),
 			color: 'success',
 			icon: 'i-ph-check-circle',
 		})
@@ -2017,11 +2516,12 @@ async function submitFork() {
 	}
 }
 
-// Tab / Shift+Tab / Escape keybindings for subgraph navigation. Tab enters
-// the selected group (if eligible); Shift+Tab and Escape pop one level out.
-// We ignore the key when focus is in an editable field (input, textarea,
-// contenteditable, USelect popovers) so typing a literal Tab in the
-// inspector still works.
+// Keyboard. With Ctrl (⌘ on macOS): S saves, Enter runs a test, P opens the
+// switcher, Z / Shift+Z / Y undo and redo, D duplicates the selected step, C
+// and V copy and paste the selection. Enter enters the selected group, Escape
+// leaves the debug view, then the group, then the selection. Tab is left to
+// the focus. Keys typed in a field, or while a dialog or a menu is open,
+// belong to them.
 function isEditableTarget(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false
 	const tag = target.tagName
@@ -2030,344 +2530,1017 @@ function isEditableTarget(target: EventTarget | null): boolean {
 	return false
 }
 
+// Open overlays only: a closing dialog stays in the page while it animates
+// out, and a non-modal card (the DMS star prompt) has no state at all.
+const OVERLAY_SELECTOR = ':is([role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"])[data-state="open"]'
+
+function isOverlayOpen(): boolean {
+	return (
+		saveAsTemplateOpen.value ||
+		forkOpen.value ||
+		switcherOpen.value ||
+		runNowOpen.value ||
+		newProcedureOpen.value ||
+		choiceDialog.value.open ||
+		document.querySelector(OVERLAY_SELECTOR) !== null
+	)
+}
+
+/**
+ * Blurs the focused field so it commits what is typed in it (a JSON setting
+ * or the step name only do on blur), and returns it to focus again after.
+ */
+async function commitFocusedField(): Promise<HTMLElement | null> {
+	const field = document.activeElement
+	if (!(field instanceof HTMLElement) || !isEditableTarget(field)) return null
+	field.blur()
+	await nextTick()
+	return field
+}
+
+async function saveFromKeyboard() {
+	const field = await commitFocusedField()
+	if (isDirty.value) await onSave()
+	field?.focus()
+}
+
+async function testRunFromKeyboard() {
+	const field = await commitFocusedField()
+	await onTestRun()
+	field?.focus()
+}
+
+// Ctrl+C / Ctrl+V: the selected steps and the wires between them, pasted as
+// new steps beside the originals, in this graph or another one.
+let clipboard: ProcedureGraph | null = null
+
+function copySelection(): boolean {
+	const g = currentGraph.value
+	const ids = new Set(selectedNodeIds.value.length > 0 ? selectedNodeIds.value : selectedNodeId.value ? [selectedNodeId.value] : [])
+	if (!g || ids.size === 0) return false
+	const nodes = g.nodes.filter((n) => ids.has(n.id) && n.kind !== 'groupInput' && n.kind !== 'groupOutput')
+	if (nodes.length === 0) return false
+	const kept = new Set(nodes.map((n) => n.id))
+	clipboard = cloneGraph({
+		nodes,
+		triggerEdges: g.triggerEdges.filter((e) => kept.has(e.from.node) && kept.has(e.to.node)),
+		dataEdges: g.dataEdges.filter((e) => kept.has(e.from.node) && kept.has(e.to.node)),
+	})
+	return true
+}
+
+function pasteClipboard(): boolean {
+	const g = currentGraph.value
+	if (!g || !clipboard || isCurrentGraphReadOnly.value) return false
+	// Triggers only live at the top level of a procedure.
+	const triggersAllowed = editorMode.value === 'procedure' && subgraphPath.value.length <= 1
+	// Each paste lands one step further, like Duplicate.
+	clipboard.nodes = clipboard.nodes.map((n) => ({ ...n, position: { x: n.position.x + 40, y: n.position.y + 60 } }))
+	const source = cloneGraph(clipboard)
+	const nodes = source.nodes.filter((n) => triggersAllowed || n.kind !== 'trigger')
+	if (nodes.length === 0) return false
+	const ids = new Map(nodes.map((n) => [n.id, newId()]))
+	const idOf = (id: string) => ids.get(id)!
+	const pasted = nodes.map((n) => ({ ...n, id: idOf(n.id) }))
+	const triggerEdges = source.triggerEdges
+		.filter((e) => ids.has(e.from.node) && ids.has(e.to.node))
+		.map((e) => ({ ...e, id: newId(), from: { ...e.from, node: idOf(e.from.node) }, to: { ...e.to, node: idOf(e.to.node) } }))
+	const dataEdges = source.dataEdges
+		.filter((e) => ids.has(e.from.node) && ids.has(e.to.node))
+		.map((e) => ({ ...e, id: newId(), from: { ...e.from, node: idOf(e.from.node) }, to: { ...e.to, node: idOf(e.to.node) } }))
+	onGraphUpdate({
+		...g,
+		nodes: [...g.nodes, ...pasted],
+		triggerEdges: [...g.triggerEdges, ...triggerEdges],
+		dataEdges: [...g.dataEdges, ...dataEdges],
+	})
+	selectedNodeId.value = pasted.at(-1)!.id
+	return true
+}
+
+/** The editing shortcuts, on the canvas: whatever is not typed in a field. */
+function onEditShortcut(ev: KeyboardEvent, key: string): boolean {
+	if (isEditableTarget(ev.target)) return false
+	if (key === 'z' || key === 'y') {
+		if (key === 'y' || ev.shiftKey) onRedo()
+		else onUndo()
+		return true
+	}
+	if (key === 'd') {
+		const node = selectedNode.value
+		if (node && node.kind !== 'groupInput' && node.kind !== 'groupOutput') onDuplicateNode({ id: node.id })
+		return true
+	}
+	// A text selected on the page is copied as text.
+	if (key === 'c') return !window.getSelection()?.toString() && copySelection()
+	if (key === 'v') return pasteClipboard()
+	return false
+}
+
+// Listened to in the capture phase, so a focused field (a select opens on
+// Enter) never sees a shortcut meant for the builder.
+function onShortcut(ev: KeyboardEvent): boolean {
+	if (!(ev.metaKey || ev.ctrlKey) || ev.altKey) return false
+	const key = ev.key.toLowerCase()
+	// The browser's "Save page" is never what Ctrl+S means here.
+	if (key === 's') ev.preventDefault()
+	if (isOverlayOpen()) return false
+	if (['s', 'enter', 'p'].includes(key)) ev.stopPropagation()
+	if (key === 's') {
+		void saveFromKeyboard()
+		return true
+	}
+	if (key === 'enter' && editorMode.value === 'procedure') {
+		ev.preventDefault()
+		void testRunFromKeyboard()
+		return true
+	}
+	if (key === 'p' && editorMode.value === 'procedure') {
+		ev.preventDefault()
+		switcherOpen.value = true
+		return true
+	}
+	if (onEditShortcut(ev, key)) {
+		ev.preventDefault()
+		ev.stopPropagation()
+		return true
+	}
+	return false
+}
+
+/** Enter belongs to a focused button or link; elsewhere it enters a group. */
+function isActivatable(target: EventTarget | null): boolean {
+	return target instanceof Element && target.closest('button, a[href], [role="button"], [role="tab"], [role="menuitem"], [role="option"]') !== null
+}
+
 function onKeyDown(ev: KeyboardEvent) {
-	if (isEditableTarget(ev.target)) return
-	// Modal / drawer open → don't hijack keys.
-	if (saveAsTemplateOpen.value || forkOpen.value || showProcedures.value) return
-	if (ev.key === 'Tab' && !ev.shiftKey) {
-		if (!canEnterGroup.value) return
+	if (onShortcut(ev)) return
+	if (isEditableTarget(ev.target) || isOverlayOpen()) return
+	if (ev.key === 'Enter' && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+		if (!canEnterGroup.value || isActivatable(ev.target)) return
 		ev.preventDefault()
 		enterSelectedGroup()
 		return
 	}
-	if ((ev.key === 'Tab' && ev.shiftKey) || ev.key === 'Escape') {
-		if (subgraphPath.value.length <= 1) return
+	if (ev.key !== 'Escape') return
+	if (overlayRun.value && subgraphPath.value.length <= 1) {
+		ev.preventDefault()
+		exitDebug()
+	} else if (subgraphPath.value.length > 1) {
 		ev.preventDefault()
 		exitSubgraph()
+	} else if (selectedNodeId.value) {
+		ev.preventDefault()
+		selectedNodeId.value = null
 	}
 }
 
 onMounted(() => {
 	if (typeof window === 'undefined') return
-	window.addEventListener('keydown', onKeyDown)
+	window.addEventListener('keydown', onKeyDown, { capture: true })
+	document.addEventListener('inertia:before', onInertiaBefore)
+	browserNavigation()?.addEventListener('navigate', onNavigate)
 })
 onBeforeUnmount(() => {
 	if (typeof window === 'undefined') return
-	window.removeEventListener('keydown', onKeyDown)
+	window.removeEventListener('keydown', onKeyDown, { capture: true })
+	document.removeEventListener('inertia:before', onInertiaBefore)
+	browserNavigation()?.removeEventListener('navigate', onNavigate)
 })
 
-async function onRun() {
-	if (!selected.value) return
-	running.value = true
-	const id = selected.value._id
+// ---------------------------------------------------------------------------
+// Runs over the canvas: Test run of the draft, debugging a stored run (AU-05)
+// ---------------------------------------------------------------------------
+
+const recentRuns = ref<DockRun[]>([])
+
+async function loadRecentRuns() {
+	if (!selectedId.value || editorMode.value !== 'procedure') return
 	try {
-		const res = await $authFetch<{ runId: string }>(
-			`/api/automation/procedures/${id}/run`,
-			{ method: 'POST', body: {} },
-		)
-		toast.add({
-			title: 'Run started',
-			description: res.runId ? `runId: ${res.runId}` : id,
-			color: 'success',
-			icon: 'i-ph-play-circle',
-		})
-		// Reflect the freshly-queued run in the runs panel and its trigger badge.
-		runsDrawerRef.value?.reload()
-	} catch (e) {
-		toast.add({
-			title: 'Failed to start run',
-			description: (e as Error).message,
-			color: 'error',
-			icon: 'i-ph-warning',
-		})
-	} finally {
-		running.value = false
+		const list = await $authFetch<DockRun[]>(`${props.apiUrl}/procedures/${selectedId.value}/runs?limit=8`)
+		recentRuns.value = Array.isArray(list) ? list.slice(0, 8) : []
+	} catch {
+		recentRuns.value = []
 	}
 }
+
+/** The run shown over the canvas, and whether it is a test of the draft. */
+const overlayRun = ref<RunDetail | null>(null)
+const overlayIsTest = ref(false)
+const testing = ref(false)
+const testPayload = ref('{}')
+const testPayloadSource = ref<string | null>(null)
+// The trigger a Test run starts from, chosen in the dock (see the watch on
+// the draft's triggers at the end).
+const testTriggerNodeId = ref<string | undefined>(undefined)
+
+async function loadTestPayload() {
+	if (!selectedId.value || editorMode.value !== 'procedure') return
+	const query = testTriggerNodeId.value ? `?triggerNodeId=${encodeURIComponent(testTriggerNodeId.value)}` : ''
+	try {
+		const res = await $authFetch<{ last: { runId: string; payload: unknown } | null }>(
+			`${props.apiUrl}/procedures/${selectedId.value}/last-payload${query}`,
+		)
+		testPayload.value = JSON.stringify(res.last?.payload ?? {}, null, 2)
+		testPayloadSource.value = res.last?.runId ?? null
+	} catch {
+		testPayload.value = '{}'
+		testPayloadSource.value = null
+	}
+}
+
+const runStates = computed<Record<string, NodeRunState> | undefined>(() => {
+	const run = overlayRun.value
+	if (!run || subgraphPath.value.length > 1) return undefined
+	const out: Record<string, NodeRunState> = {}
+	for (const step of run.trace.steps) {
+		const id = step.nodeId.split('__')[0]!
+		const previous = out[id]
+		const status = step.status === 'failed' ? 'failed' : 'ok'
+		if (!previous || status === 'failed') {
+			out[id] = { status, durationMs: (previous?.durationMs ?? 0) + (step.durationMs ?? 0) }
+		}
+	}
+	for (const skipped of run.trace.skipped) out[skipped.nodeId] = { status: 'skipped' }
+	return out
+})
+
+const overlaySteps = computed<TraceStep[] | null>(() => (overlayIsTest.value ? (overlayRun.value?.trace.steps ?? null) : null))
+
+// The dock's "Test run" tab only exists while a test run is on screen.
+watch(overlaySteps, (steps) => {
+	if (!steps && dockTab.value === 'test') dockTab.value = 'problems'
+})
+
+/** The step of the selected node in the run on screen, for the inspector. */
+const selectedRunStep = computed<TraceStep | null>(() => {
+	const id = selectedNodeId.value
+	const steps = overlayRun.value?.trace.steps ?? []
+	if (!id) return null
+	const own = steps.filter((s) => s.nodeId === id || s.nodeId.startsWith(`${id}__`))
+	return own.find((s) => s.status === 'failed') ?? own.at(-1) ?? null
+})
+
+const overlayLabel = computed(() => {
+	const run = overlayRun.value
+	if (!run) return ''
+	const when = describeTime(run.startedAt, dateTimeFormat)
+	return overlayIsTest.value
+		? t('dms_automation.editor.debug.testLabel', { when })
+		: t('dms_automation.editor.debug.runLabel', { run: run._id.slice(-6), when })
+})
+
+/** A real run of an older version than the one open says so. */
+const overlayDescription = computed(() => {
+	const run = overlayRun.value
+	const version = selected.value?.version
+	if (!run || overlayIsTest.value || !run.procedureVersion || !version || run.procedureVersion === version) return overlayLabel.value
+	return `${overlayLabel.value} · ${t('dms_automation.editor.debug.olderVersion', { run: run.procedureVersion, current: version })}`
+})
+
+const overlaySummary = computed(() => {
+	const run = overlayRun.value
+	if (!run) return ''
+	const duration = describeDuration(run.durationMs, locale.value)
+	if (run.status === 'failed') {
+		const step = stepTitle(run.failedStep, processI18n)
+		return step
+			? t('dms_automation.editor.debug.failedAt', { step, duration })
+			: t('dms_automation.editor.debug.failed', { duration })
+	}
+	return t('dms_automation.editor.debug.passed', { duration })
+})
+
+/** Shows a stored run over the canvas; a test run is told by its kind. */
+function displayRun(run: RunDetail) {
+	overlayRun.value = run
+	overlayIsTest.value = run.kind === 'test'
+	if (run.failedNodeId) selectNode(run.failedNodeId.split('__')[0]!)
+}
+
+async function showRun(runId: string): Promise<RunDetail> {
+	const run = await runsApi.getRun(runId)
+	displayRun(run)
+	return run
+}
+
+/**
+ * `?run=`: the run is shown over the procedure it ran, which the builder
+ * opens if another one is asked; a run that no longer exists is said.
+ */
+async function openRunFromUrl(runId: string) {
+	const notFound = () => {
+		toast.add({ title: t('dms_automation.editor.debug.runNotFound'), color: 'warning', icon: 'i-ph-warning' })
+		exitDebug()
+	}
+	let run: RunDetail
+	try {
+		run = await runsApi.getRun(runId)
+	} catch {
+		notFound()
+		return
+	}
+	if (run.procedureId !== selectedId.value) {
+		if (!procedures.value.some((p) => p._id === run.procedureId)) {
+			notFound()
+			return
+		}
+		selectedId.value = run.procedureId
+		// Switching clears the run on screen: show this one after it.
+		await nextTick()
+	}
+	displayRun(run)
+}
+
+function exitDebug() {
+	overlayRun.value = null
+	overlayIsTest.value = false
+	if (queryValue('run')) void router.replace(`${builderPath()}?selected=${selectedId.value}`)
+}
+
+async function onTestRun() {
+	const current = selected.value
+	// One test at a time: Ctrl+Enter pressed again waits for it.
+	if (!current || editorMode.value !== 'procedure' || testing.value) return
+	let payload: unknown
+	try {
+		payload = JSON.parse(testPayload.value || 'null')
+	} catch {
+		dockTab.value = 'payload'
+		dockCollapsed.value = false
+		toast.add({ title: t('dms_automation.editor.dock.invalidJson'), color: 'error', icon: 'i-ph-warning' })
+		return
+	}
+	testing.value = true
+	// The previous result leaves the canvas while this test runs.
+	overlayRun.value = null
+	overlayIsTest.value = false
+	try {
+		const res = await $authFetch<{ runId: string }>(`${props.apiUrl}/procedures/${current._id}/test`, {
+			method: 'POST',
+			body: { graph: current.graph, payload, triggerNodeId: testTriggerNodeId.value },
+		})
+		await showRun(res.runId)
+		dockTab.value = 'test'
+		dockCollapsed.value = false
+		void loadRecentRuns()
+	} catch (e) {
+		const refused = issuesOf(e)
+		if (refused) {
+			issues.value = refused
+			dockTab.value = 'problems'
+			dockCollapsed.value = false
+		}
+		toast.add({ title: t('dms_automation.editor.testRunError'), description: describeApiError(e), color: 'error', icon: 'i-ph-warning' })
+	} finally {
+		testing.value = false
+	}
+}
+
+/** Run now runs the saved graph: with unsaved changes, say so first. */
+async function openRunNow() {
+	if (!selected.value) return
+	if (isDirty.value) {
+		// Closing the question (Escape, ✕, a click outside) runs nothing.
+		const choice = await askChoice({
+			title: t('dms_automation.editor.runSaved.title'),
+			description: t('dms_automation.editor.runSaved.description', { count: changeCount.value }),
+			choices: [
+				{ value: 'cancel', label: t('dms_automation.common.cancel'), color: 'neutral', variant: 'ghost' },
+				{ value: 'test', label: t('dms_automation.editor.runSaved.testDraft'), color: 'neutral', variant: 'outline' },
+				{ value: 'saved', label: t('dms_automation.editor.runSaved.runSaved'), color: 'warning' },
+			],
+			dismiss: 'cancel',
+		})
+		if (choice === 'cancel') return
+		if (choice === 'test') {
+			await onTestRun()
+			return
+		}
+	}
+	runNowOpen.value = true
+}
+
+/** A run of the saved version ended: show it, and say how it went. */
+async function onRunStarted(runId: string) {
+	const name = savedName.value
+	const trace = { label: t('dms_automation.runs.trace'), onClick: () => void router.push(`${props.traceUrl}?run=${runId}`) }
+	void loadRecentRuns()
+	void loadSummaries()
+	let run: RunDetail
+	try {
+		run = await showRun(runId)
+	} catch {
+		toast.add({ title: t('dms_automation.editor.runStarted', { name }), color: 'neutral', icon: 'i-ph-play-circle', actions: [trace] })
+		return
+	}
+	const step = stepTitle(run.failedStep, processI18n)
+	const failed = run.status === 'failed'
+	toast.add({
+		title: failed
+			? step
+				? t('dms_automation.editor.runFailedAt', { name, step })
+				: t('dms_automation.editor.runFailed', { name })
+			: t('dms_automation.editor.runSucceeded', { name }),
+		color: failed ? 'error' : 'success',
+		icon: failed ? 'i-ph-x-circle' : 'i-ph-check-circle',
+		actions: [trace],
+	})
+}
+
+/**
+ * Debugging a real run: once the fix is saved, run it again with the payload
+ * it received, on the saved version, and show the new run in its place.
+ */
+async function rerunOverlay() {
+	const run = overlayRun.value
+	if (!run || overlayIsTest.value) return
+	let newRunId: string | null = null
+	const confirmed = await confirm({
+		title: t('dms_automation.runs.rerunConfirmTitle'),
+		description: t('dms_automation.runs.rerunConfirmDescription'),
+		color: 'warning',
+		icon: 'i-ph-arrow-clockwise',
+		confirmLabel: t('dms_automation.runs.rerun'),
+		onConfirm: async () => {
+			newRunId = (await runsApi.rerun(run._id)).runId
+		},
+	})
+	if (!confirmed || !newRunId) return
+	await onRunStarted(newRunId)
+	if (queryValue('run')) void router.replace(`${builderPath()}?selected=${selectedId.value}&run=${newRunId}`)
+}
+
+function openTrace(runId: string) {
+	void router.push(`${props.traceUrl}?run=${runId}`)
+}
+
+// ---------------------------------------------------------------------------
+// Node actions from the inspector
+// ---------------------------------------------------------------------------
+
+function onDuplicateNode(payload: { id: string }) {
+	const g = currentGraph.value
+	if (!g || isCurrentGraphReadOnly.value) return
+	const node = g.nodes.find((n) => n.id === payload.id)
+	if (!node) return
+	const copy: GraphNode = {
+		...cloneGraph({ nodes: [node], triggerEdges: [], dataEdges: [] }).nodes[0]!,
+		id: newId(),
+		position: { x: node.position.x + 40, y: node.position.y + 60 },
+	}
+	onGraphUpdate({ ...g, nodes: [...g.nodes, copy] })
+	selectedNodeId.value = copy.id
+}
+
+/** Put a Retry in front of a step: it now runs inside the Retry's body. */
+function onWrapInRetry(payload: { id: string }) {
+	const g = currentGraph.value
+	if (!g || isCurrentGraphReadOnly.value) return
+	const node = g.nodes.find((n) => n.id === payload.id)
+	if (!node) return
+	const retry: GraphNode = {
+		id: newId(),
+		kind: 'retry',
+		config: { maxAttempts: 3 },
+		position: { x: node.position.x - 40, y: node.position.y - 140 },
+	}
+	const triggerEdges = g.triggerEdges.map((e) => {
+		if (e.to.node === node.id) return { ...e, to: { ...e.to, node: retry.id } }
+		if (e.from.node === node.id && (!e.from.branch || e.from.branch === 'main')) {
+			return { ...e, from: { node: retry.id, branch: 'main' } }
+		}
+		return e
+	})
+	triggerEdges.push({ id: newId(), from: { node: retry.id, branch: 'body' }, to: { node: node.id } })
+	onGraphUpdate({ ...g, nodes: [...g.nodes, retry], triggerEdges })
+	selectedNodeId.value = retry.id
+}
+
+// ---------------------------------------------------------------------------
+// Loading what the bar and the dock show, per procedure
+// ---------------------------------------------------------------------------
+
+watch(
+	selectedId,
+	(id) => {
+		if (id) missingProcedureId.value = null
+		overlayRun.value = null
+		void loadSavedTriggers()
+		void loadRecentRuns()
+		void loadTestPayload()
+	},
+	{ immediate: true },
+)
+
+/** `?path=g1,g2`: the groups to enter, outermost first, before `?node=`. */
+function enterPathFromUrl(): boolean {
+	const ids = (queryValue('path') ?? '').split(',').filter(Boolean)
+	for (const id of ids) {
+		const depth = subgraphPath.value.length
+		onGroupEnter({ id })
+		if (subgraphPath.value.length === depth) break
+	}
+	return subgraphPath.value.length > 1
+}
+
+onMounted(async () => {
+	await loadSummaries()
+	if (missingProcedureId.value) switcherOpen.value = true
+	const runId = queryValue('run')
+	if (runId) await openRunFromUrl(runId)
+	const nodeId = queryValue('node')
+	if (nodeId) {
+		if (enterPathFromUrl()) selectedNodeId.value = nodeId
+		else selectNode(nodeId)
+	}
+	// The URL names the procedure on screen, to share or reload it.
+	if (editorMode.value === 'procedure' && selectedId.value && queryValue('selected') !== selectedId.value) {
+		void router.replace({ path: builderPath(), query: { ...route.query, selected: selectedId.value } })
+	}
+})
+
+const selectedTriggerSummaries = computed<TriggerSummary[]>(() =>
+	(selected.value?.graph.nodes ?? [])
+		.filter((n) => n.kind === 'trigger' && n.typeId)
+		.map((n) => ({
+			nodeId: n.id,
+			typeId: n.typeId!,
+			typeName: triggerTypes.value.find((x) => x.id === n.typeId)?.name ?? n.typeId!,
+			path: typeof n.config?.path === 'string' ? n.config.path : undefined,
+			method: typeof n.config?.method === 'string' ? n.config.method : undefined,
+			cron: typeof n.config?.cron === 'string' ? n.config.cron : undefined,
+		})),
+)
+
+// A draft trigger as the server words it, its type's name until it has.
+function triggerLabel(trigger: TriggerSummary): string {
+	const worded = draftTriggers.value.find((tr) => tr.nodeId === trigger.nodeId)
+	return worded ? processText(worded.text) : processI18n(trigger.typeName)
+}
+
+// Test run starts from the trigger picked in the dock: the manual one, else
+// the first, until the user picks another; its last real payload prefills
+// the test payload.
+const testTriggerItems = computed(() =>
+	selectedTriggerSummaries.value.map((trigger) => ({ label: triggerLabel(trigger), value: trigger.nodeId ?? '' })),
+)
+watch(
+	selectedTriggerSummaries,
+	(triggers) => {
+		if (triggers.some((trigger) => trigger.nodeId === testTriggerNodeId.value)) return
+		testTriggerNodeId.value = triggers.find((trigger) => trigger.typeId === 'manual')?.nodeId ?? triggers[0]?.nodeId
+	},
+	{ immediate: true },
+)
+watch(testTriggerNodeId, () => void loadTestPayload())
+
+// Below xl the inspector floats over the canvas instead of narrowing it; the
+// palette can be put away. Remembered per browser.
+const PALETTE_HIDDEN_KEY = 'dms-automation:builder-palette-hidden'
+const PALETTE_FOLDED_BELOW_PX = 1280
+const paletteHidden = ref(false)
+onMounted(() => {
+	// Folded by default below xl, where it would leave the canvas too little.
+	let stored: string | null = null
+	try {
+		stored = window.localStorage.getItem(PALETTE_HIDDEN_KEY)
+	} catch {
+		// Storage blocked: the default for the width applies.
+	}
+	paletteHidden.value = stored === null ? window.innerWidth < PALETTE_FOLDED_BELOW_PX : stored === '1'
+})
+function togglePalette() {
+	paletteHidden.value = !paletteHidden.value
+	try {
+		window.localStorage.setItem(PALETTE_HIDDEN_KEY, paletteHidden.value ? '1' : '0')
+	} catch {
+		// Storage blocked: the choice lasts until the page is left.
+	}
+}
+
+// Template mode: the template's own ports are edited at its root, where its
+// Group input / Group output steps show them. Shown when no step, or
+// one of those two, is selected.
+const showTemplatePorts = computed<boolean>(
+	() =>
+		editorMode.value === 'template' &&
+		subgraphPath.value.length <= 1 &&
+		(!selectedNode.value || selectedNode.value.kind === 'groupInput' || selectedNode.value.kind === 'groupOutput'),
+)
+
+function onTemplatePortsUpdate(next: GroupPort[]) {
+	const root = selected.value?.graph
+	if (!root) return
+	// The root graph is the template's subgraph: renames and removals go
+	// through the same path as a group's ports.
+	const template: GraphNode = {
+		id: '',
+		kind: 'group',
+		config: {},
+		position: { x: 0, y: 0 },
+		ports: next.map((p) => ({ ...p })),
+		subgraph: cloneGraph(root),
+	}
+	const renames = detectPortRenames(templatePorts.value, next)
+	const gi = template.subgraph!.nodes.find((n) => n.kind === 'groupInput')
+	const go = template.subgraph!.nodes.find((n) => n.kind === 'groupOutput')
+	const inRenames = renames.filter((r) => r.direction === 'in')
+	const outRenames = renames.filter((r) => r.direction === 'out')
+	if (gi && inRenames.length > 0) applyPortRenamesToEdges(template.subgraph!.triggerEdges, template.subgraph!.dataEdges, gi.id, inRenames, true)
+	if (go && outRenames.length > 0) applyPortRenamesToEdges(template.subgraph!.triggerEdges, template.subgraph!.dataEdges, go.id, outRenames, true)
+	syncSentinels(template)
+	templatePorts.value = template.ports!
+	onGraphUpdate(template.subgraph!)
+}
+
+
 </script>
 
 <template>
 	<!--
-		The page (src/pages/builder.ts) renders the native dms header
-		(icon / title / description), so the editor doesn't repeat one here.
-		The page fills the panel (`fillHeight`): the editor takes the height
-		left under that header, and the `min-h-0` / `flex-1` chain below passes
-		it down to the canvas, which pans inside it instead of growing.
+		The builder is one tool: the page hides its header (src/pages/builder.ts)
+		and the editor fills the panel. One bar holds the procedure's identity,
+		state and actions; the palette, the canvas and the inspector share the
+		height; the dock under them lists problems, runs and the test payload.
 	-->
-	<div class="flex min-h-0 flex-1 flex-col gap-4">
-		<UAlert
-			v-if="loadError"
-			color="error"
-			variant="subtle"
-			icon="i-ph-warning"
-			:title="
-				editorMode === 'template'
-					? $t('dms_automation.editor.loadTemplateError')
-					: $t('dms_automation.editor.loadProceduresError')
-			"
-			:description="loadError"
-		/>
-
-		<DmsCard :padded="false">
-			<div class="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5">
-				<UButton
-					v-if="editorMode === 'procedure'"
-					icon="i-ph-list-bullets"
-					variant="outline"
-					color="neutral"
-					@click="showProcedures = true"
-				>
-					{{ $t('dms_automation.editor.procedures') }}
+	<div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-default bg-default">
+		<header class="flex min-h-13 flex-wrap items-center gap-2 border-b border-default px-3 py-2">
+			<template v-if="editorMode === 'procedure'">
+				<UTooltip :text="$t('dms_automation.editor.switcher.title')" :kbds="['meta', 'p']">
+					<UButton
+						icon="i-ph-flow-arrow"
+						variant="ghost"
+						color="neutral"
+						:aria-label="$t('dms_automation.editor.switcher.title')"
+						@click="switcherOpen = true"
+					/>
+				</UTooltip>
+			</template>
+			<template v-else>
+				<UButton icon="i-ph-arrow-left" variant="ghost" color="neutral" :to="libraryBackUrl">
+					{{ $t('dms_automation.library.title') }}
 				</UButton>
-				<UInput
-					v-if="selected"
-					v-model="procedureName"
-					:placeholder="
-						editorMode === 'template'
-							? $t('dms_automation.editor.templateName')
-							: $t('dms_automation.editor.procedureName')
-					"
-					class="min-w-[200px] flex-1"
-				/>
-				<div
-					v-if="selected && editorMode === 'procedure'"
-					class="flex items-center gap-2"
-				>
-					<span class="text-sm text-muted">{{ $t('dms_automation.editor.enabled') }}</span>
-					<USwitch v-model="procedureEnabled" />
-				</div>
+				<UBadge color="info" variant="subtle">{{ $t('dms_automation.editor.templateBadge') }}</UBadge>
+			</template>
+			<UTooltip v-if="selected && currentGraph && !isCurrentGraphReadOnly" :text="paletteHidden ? $t('dms_automation.editor.showBlocks') : $t('dms_automation.editor.hideBlocks')">
 				<UButton
-					v-if="selected && editorMode === 'procedure'"
-					color="success"
-					icon="i-ph-play"
-					variant="solid"
-					:disabled="!canRun"
-					:loading="running"
-					@click="onRun"
-				>
-					{{ $t('dms_automation.editor.runNow') }}
-				</UButton>
-				<DmsAutomationRunsDrawer
-					v-if="selected && editorMode === 'procedure'"
-					ref="runsDrawerRef"
-					:procedure-id="selectedId"
-					:procedure-name="procedureName"
-				/>
-				<div
-					v-if="!selected && editorMode === 'procedure'"
-					class="text-sm text-dimmed"
-				>
-					{{ $t('dms_automation.editor.noProcedure') }}
-				</div>
-				<div
-					v-if="!selected && editorMode === 'template'"
-					class="text-sm text-dimmed"
-				>
-					{{ $t('dms_automation.editor.templateNotLoaded') }}
-				</div>
-				<UButton
-					class="ml-auto"
-					color="neutral"
-					variant="outline"
-					icon="i-ph-arrows-clockwise"
-					:loading="loading"
-					@click="
-						editorMode === 'template' && editorTemplateId
-							? loadTemplate(editorTemplateId)
-							: loadList()
-					"
-				>
-					{{ $t('dms_automation.common.refresh') }}
-				</UButton>
-			</div>
-		</DmsCard>
-
-		<div v-if="selected" class="flex min-h-0 flex-1 flex-col gap-4">
-			<UAlert
-				v-if="hasInactiveTriggers && editorMode === 'procedure'"
-				color="warning"
-				variant="subtle"
-				icon="i-ph-warning"
-				:title="$t('dms_automation.editor.disabledTitle')"
-				:description="$t('dms_automation.editor.disabledDescription')"
-				:actions="[
-					{
-						label: $t('dms_automation.editor.enableAndSave'),
-						color: 'warning',
-						variant: 'solid',
-						loading: saving,
-						onClick: () => {
-							procedureEnabled = true
-							onSave()
-						},
-					},
-				]"
-			/>
-			<div
-				v-if="subgraphPath.length > 1"
-				class="flex items-center justify-between gap-3 rounded-lg border border-default bg-elevated px-3 py-2"
-			>
-				<UBreadcrumb
-					:items="breadcrumbItems"
-					:ui="{ linkLabel: 'first-letter:uppercase' }"
-				/>
-				<UButton
-					v-if="subgraphPath.length > 1"
-					size="xs"
+					:icon="paletteHidden ? 'i-ph-sidebar-simple' : 'i-ph-sidebar-simple-fill'"
 					variant="ghost"
 					color="neutral"
-					icon="i-ph-arrow-up-left"
-					@click="exitSubgraph"
+					:aria-label="paletteHidden ? $t('dms_automation.editor.showBlocks') : $t('dms_automation.editor.hideBlocks')"
+					:aria-pressed="!paletteHidden"
+					@click="togglePalette"
+				/>
+			</UTooltip>
+			<UInput
+				v-if="selected"
+				:id="NAME_INPUT_ID"
+				v-model="procedureName"
+				variant="ghost"
+				:color="nameMissing ? 'error' : undefined"
+				:highlight="nameMissing"
+				:placeholder="editorMode === 'template' ? $t('dms_automation.editor.templateName') : $t('dms_automation.editor.procedureName')"
+				:aria-label="editorMode === 'template' ? $t('dms_automation.editor.templateName') : $t('dms_automation.editor.procedureName')"
+				:aria-invalid="nameMissing || undefined"
+				:aria-describedby="nameMissing ? `${NAME_INPUT_ID}-error` : undefined"
+				class="min-w-[12rem] max-w-sm flex-1 font-medium"
+			/>
+			<DmsFieldError v-if="nameMissing" :id="`${NAME_INPUT_ID}-error`" :message="$t('dms_automation.editor.nameRequired')" />
+			<DmsStatusPill
+				v-if="currentSummary && editorMode === 'procedure'"
+				:tone="STATE_TONES[currentSummary.status]"
+				:label="$t(`dms_automation.procedures.status.${currentSummary.status}`)"
+				size="sm"
+			/>
+			<label v-if="selected && editorMode === 'procedure'" class="flex items-center gap-2 text-sm text-muted">
+				<USwitch v-model="procedureEnabled" size="sm" />
+				{{ procedureEnabled ? $t('dms_automation.editor.enabled') : $t('dms_automation.editor.disabled') }}
+			</label>
+			<span v-if="selected" class="ml-1 inline-flex items-center gap-1 whitespace-nowrap text-xs" :class="changeCount > 0 ? 'text-warning' : 'text-dimmed'">
+				<UIcon :name="changeCount > 0 ? 'i-ph-circle-fill' : 'i-ph-check'" class="size-2.5 shrink-0" />
+				{{ saveState }}
+			</span>
+			<div class="ml-auto flex flex-wrap items-center gap-2">
+				<UButton
+					v-if="selected"
+					variant="ghost"
+					color="neutral"
+					:disabled="!isDirty || saving"
+					@click="onCancel"
 				>
-					{{ $t('dms_automation.editor.exitSubgraph') }}
+					{{ $t('dms_automation.editor.discard') }}
 				</UButton>
+				<template v-if="selected && editorMode === 'procedure'">
+					<UButton variant="outline" color="neutral" icon="i-ph-play" @click="openRunNow">
+						{{ $t('dms_automation.editor.runNowButton') }}
+					</UButton>
+					<UButton variant="outline" color="neutral" icon="i-ph-flask" :loading="testing" @click="onTestRun">
+						{{ $t('dms_automation.editor.testRun') }}
+						<UKbd :value="formatShortcut(['meta', '↵'])" size="sm" class="ml-1" />
+					</UButton>
+				</template>
+				<UButton v-if="selected" color="primary" icon="i-ph-floppy-disk" :disabled="!isDirty || nameMissing" :loading="saving" @click="onSave">
+					{{ $t('dms_automation.common.save') }}
+					<UKbd :value="formatShortcut(['meta', 's'])" size="sm" class="ml-1" />
+				</UButton>
+				<UDropdownMenu
+					v-if="selected && editorMode === 'procedure'"
+					:items="[
+						[
+							{ label: $t('dms_automation.newProcedure.title'), icon: 'i-ph-plus', onSelect: onCreate },
+							{ label: $t('dms_automation.editor.exportJson'), icon: 'i-ph-download-simple', onSelect: onExport },
+							{ label: $t('dms_automation.editor.viewRuns'), icon: 'i-ph-list-bullets', to: `${runsUrl}?procedure=${selectedId}` },
+						],
+						[{ label: $t('dms_automation.editor.delete'), icon: 'i-ph-trash', color: 'error', onSelect: onDelete }],
+					]"
+				>
+					<UButton icon="i-ph-dots-three" variant="ghost" color="neutral" :aria-label="$t('dms_automation.editor.more')" />
+				</UDropdownMenu>
 			</div>
-			<UAlert
+		</header>
+
+		<div class="flex flex-col gap-2 empty:hidden" :class="loadError || saveBlocked || pausedBanner || overlayRun || testing || isCurrentGraphReadOnly ? 'border-b border-default p-2' : ''">
+			<DmsBanner
+				v-if="loadError"
+				size="sm"
+				tone="error"
+				icon="i-ph-warning"
+				:title="editorMode === 'template' ? $t('dms_automation.editor.loadTemplateError') : $t('dms_automation.editor.loadProceduresError')"
+				:description="loadError"
+			>
+				<template v-if="templateNotFound" #actions>
+					<UButton size="xs" color="error" variant="soft" icon="i-ph-arrow-left" :to="libraryBackUrl">{{ $t('dms_automation.editor.backToTemplates') }}</UButton>
+				</template>
+			</DmsBanner>
+			<DmsBanner
+				v-if="saveBlocked && blockingIssues.length"
+				size="sm"
+				tone="error"
+				icon="i-ph-warning-octagon"
+				:title="$t('dms_automation.editor.problems.title', { count: blockingIssues.length })"
+				:description="$t('dms_automation.editor.problems.description')"
+			>
+				<template #actions>
+					<UButton size="xs" color="error" variant="soft" @click="goToFirstProblem">{{ $t('dms_automation.editor.problems.first') }}</UButton>
+					<UButton size="xs" color="neutral" variant="outline" :loading="saving" @click="saveAsDraft">{{ $t('dms_automation.editor.problems.saveDraft') }}</UButton>
+				</template>
+			</DmsBanner>
+			<DmsBanner v-if="pausedBanner && !saveBlocked" size="sm" tone="warning" icon="i-ph-pause-circle" :title="pausedBanner.title" :description="pausedBanner.description">
+				<template #actions>
+					<UButton size="xs" color="warning" variant="soft" :loading="saving" :disabled="blockingIssues.length > 0" @click="enableNow">
+						{{ $t('dms_automation.editor.paused.enable') }}
+					</UButton>
+				</template>
+			</DmsBanner>
+			<DmsBanner
+				v-if="testing"
+				size="sm"
+				tone="info"
+				icon="i-ph-flask"
+				:title="$t('dms_automation.editor.debug.testing')"
+				:description="$t('dms_automation.editor.debug.testingHint')"
+			/>
+			<DmsBanner
+				v-if="overlayRun && !testing"
+				size="sm"
+				:tone="overlayRun.status === 'failed' ? 'error' : 'success'"
+				:icon="overlayRun.status === 'failed' ? 'i-ph-bug' : 'i-ph-check-circle'"
+				:title="overlaySummary"
+				:description="overlayDescription"
+			>
+				<template #actions>
+					<UTooltip v-if="!overlayIsTest" :text="isDirty ? $t('dms_automation.editor.debug.rerunSaveFirst') : $t('dms_automation.editor.debug.rerunHint')">
+						<UButton size="xs" variant="soft" color="neutral" icon="i-ph-arrow-clockwise" :disabled="isDirty" @click="rerunOverlay">
+							{{ $t('dms_automation.runs.rerunWithPayload') }}
+						</UButton>
+					</UTooltip>
+					<UButton v-if="overlayIsTest" size="xs" variant="soft" color="neutral" icon="i-ph-arrow-clockwise" :loading="testing" @click="onTestRun">
+						{{ $t('dms_automation.editor.debug.again') }}
+					</UButton>
+					<UButton size="xs" variant="ghost" color="neutral" icon="i-ph-path" @click="openTrace(overlayRun._id)">
+						{{ $t('dms_automation.runs.trace') }}
+					</UButton>
+					<UButton size="xs" variant="ghost" color="neutral" @click="exitDebug">
+						{{ $t('dms_automation.editor.debug.exit') }}
+						<UKbd value="Esc" size="sm" class="ml-1" />
+					</UButton>
+				</template>
+			</DmsBanner>
+			<DmsBanner
 				v-if="isCurrentGraphReadOnly"
-				color="info"
-				variant="subtle"
+				size="sm"
+				tone="info"
 				icon="i-ph-link"
 				:title="$t('dms_automation.editor.linkedTitle')"
 				:description="$t('dms_automation.editor.linkedDescription')"
-				:actions="canForkToLocal ? [
-					{
-						label: $t('dms_automation.editor.forkToEdit'),
-						color: 'info',
-						variant: 'solid',
-						icon: 'i-ph-git-fork',
-						onClick: openFork,
-					},
-				] : []"
-			/>
-			<div class="flex min-h-0 flex-1 gap-4">
-				<DmsAutomationBuilderPalette
-					v-if="currentGraph && !isCurrentGraphReadOnly"
-					:node-kinds="nodeKinds"
-					:trigger-types="triggerTypes"
-					:action-types="actionTypes"
-					:data-node-types="dataNodeTypes"
-					:templates="palettesTemplates"
-					class="w-60 shrink-0"
-					@add-node="onPaletteAddNode"
-					@add-template="onPaletteAddTemplate"
-				/>
-				<div class="h-full min-w-0 flex-1">
-					<DmsClientOnly>
-						<DmsAutomationGraphCanvas
-							v-if="currentGraph"
-							ref="graphCanvasRef"
-							:graph="currentGraph"
-					:trigger-types="triggerTypes"
-					:action-types="actionTypes"
-					:data-node-types="dataNodeTypes"
-					:node-kinds="nodeKinds"
-					:can-undo="canUndo"
-					:can-redo="canRedo"
-					:is-dirty="isDirty"
-					:applying="saving"
-					:parent-group-ports="currentParentGroupPorts"
-					:read-only="isCurrentGraphReadOnly"
-					@update:graph="onGraphUpdate"
-					@select:node="onSelectNode"
-					@selection-change="onSelectionChange"
-					@undo="onUndo"
-					@redo="onRedo"
-					@cancel="onCancel"
-					@apply="onSave"
-					@group:enter="onGroupEnter"
-				>
-					<template
-						v-if="canGroupSelection || canSaveAsTemplate || canForkToLocal || canEnterGroup"
-						#groupActions
-					>
-						<UButton
-							v-if="canEnterGroup"
-							size="sm"
-							color="primary"
-							icon="i-ph-arrow-square-in"
-							variant="ghost"
-							@click="enterSelectedGroup"
-						>
-							{{ $t('dms_automation.editor.enterGroup') }}
-						</UButton>
-						<UButton
-							v-if="canGroupSelection"
-							size="sm"
-							color="primary"
-							icon="i-ph-package"
-							variant="ghost"
-							@click="createGroupFromSelection"
-						>
-							{{ $t('dms_automation.editor.groupSelection', { n: selectedNodeIds.length }) }}
-						</UButton>
-						<UButton
-							v-if="canSaveAsTemplate"
-							size="sm"
-							color="primary"
-							icon="i-ph-floppy-disk"
-							variant="ghost"
-							@click="openSaveAsTemplate"
-						>
-							{{ $t('dms_automation.editor.saveAsTemplate') }}
-						</UButton>
-						<UButton
-							v-if="canForkToLocal"
-							size="sm"
-							color="primary"
-							icon="i-ph-git-fork"
-							variant="ghost"
-							@click="openFork"
-						>
-							{{ $t('dms_automation.editor.forkToLocal') }}
-						</UButton>
-					</template>
-					<template v-if="selectedNode" #inspector>
-						<DmsAutomationNodeInspector
-							:node="selectedNode"
-							:data-edges="selected.graph.dataEdges"
-							:trigger-type="selectedNodeTriggerType"
-							:action-type="selectedNodeActionType"
-							:trigger-types="triggerTypes"
-							:action-types="actionTypes"
-							:data-node-types="dataNodeTypes"
-							:node-kinds="nodeKinds"
-							:read-only="isCurrentGraphReadOnly"
-							@update:node="onUpdateNode"
-							@unwire="onUnwireField"
-							@ports:update="onPortsUpdate"
-							@group:enter="onGroupEnter"
-							@delete:node="onDeleteNode"
-						/>
-					</template>
-				</DmsAutomationGraphCanvas>
-				<template #fallback>
-					<div
-						class="flex h-full items-center justify-center rounded-lg border border-default text-sm text-dimmed"
-					>
-						{{ $t('dms_automation.editor.loading') }}
-					</div>
+			>
+				<template v-if="canForkToLocal" #actions>
+					<UButton size="xs" color="info" variant="soft" icon="i-ph-git-fork" @click="openFork">
+						{{ $t('dms_automation.editor.forkToEdit') }}
+					</UButton>
 				</template>
-				</DmsClientOnly>
-				</div>
-			</div>
+			</DmsBanner>
 		</div>
 
-		<USlideover
+		<DmsEmptyState
+			v-if="!selected && !loading && editorMode === 'procedure' && missingProcedureId"
+			class="m-auto"
+			size="lg"
+			icon="i-ph-question"
+			:title="$t('dms_automation.editor.missingTitle')"
+			:description="$t('dms_automation.editor.missingDescription')"
+			:actions="[
+				{ label: $t('dms_automation.editor.missingPick'), icon: 'i-ph-flow-arrow', onClick: () => (switcherOpen = true) },
+				{ label: $t('dms_automation.newProcedure.title'), icon: 'i-ph-plus', variant: 'outline', onClick: () => (newProcedureOpen = true) },
+			]"
+		/>
+		<DmsEmptyState
+			v-else-if="!selected && !loading && editorMode === 'procedure'"
+			class="m-auto"
+			size="lg"
+			icon="i-ph-flow-arrow"
+			:title="$t('dms_automation.editor.noProcedureTitle')"
+			:description="$t('dms_automation.editor.noProcedure')"
+			:actions="[{ label: $t('dms_automation.newProcedure.title'), icon: 'i-ph-plus', onClick: () => (newProcedureOpen = true) }]"
+		/>
+
+		<div v-if="selected" class="relative flex min-h-0 flex-1">
+			<DmsAutomationBuilderPalette
+				v-if="currentGraph && !isCurrentGraphReadOnly && !paletteHidden"
+				:node-kinds="nodeKinds"
+				:trigger-types="paletteTriggerTypes"
+				:action-types="actionTypes"
+				:data-node-types="dataNodeTypes"
+				:templates="palettesTemplates"
+				class="w-60 shrink-0 border-r border-default"
+				@add-node="onPaletteAddNode"
+				@add-template="onPaletteAddTemplate"
+			/>
+			<div class="h-full min-w-0 flex-1">
+				<DmsClientOnly>
+					<DmsAutomationGraphCanvas
+						v-if="currentGraph"
+						ref="graphCanvasRef"
+						:graph="currentGraph"
+						:trigger-types="triggerTypes"
+						:action-types="actionTypes"
+						:data-node-types="dataNodeTypes"
+						:node-kinds="nodeKinds"
+						:can-undo="canUndo"
+						:can-redo="canRedo"
+						:parent-group-ports="currentParentGroupPorts"
+						:read-only="isCurrentGraphReadOnly"
+						:run-states="runStates"
+						:issues="subgraphPath.length <= 1 ? issuesByNode : undefined"
+						:selected-node-id="selectedNodeId"
+						:view-key="canvasViewKey"
+						:covered-by="inspectorRef"
+						:triggers="draftTriggers"
+						class="[&_.graph-canvas-wrap]:rounded-none [&_.graph-canvas-wrap]:border-0"
+						@update:graph="onGraphUpdate"
+						@select:node="onSelectNode"
+						@selection-change="onSelectionChange"
+						@undo="onUndo"
+						@redo="onRedo"
+						@group:enter="onGroupEnter"
+					>
+						<template #breadcrumb>
+							<div class="flex items-center gap-2 rounded-lg border border-default bg-elevated/90 px-2 py-1 shadow-sm">
+								<UBreadcrumb :items="breadcrumbItems" />
+								<UButton
+									v-if="subgraphPath.length > 1"
+									size="xs"
+									variant="ghost"
+									color="neutral"
+									icon="i-ph-arrow-up-left"
+									@click="exitSubgraph"
+								>
+									{{ $t('dms_automation.editor.exitSubgraph') }}
+								</UButton>
+							</div>
+						</template>
+						<template
+							v-if="canGroupSelection || canSaveAsTemplate || canForkToLocal || canEnterGroup"
+							#groupActions
+						>
+							<span v-if="selectedNodeIds.length > 1" class="px-1 text-xs text-muted">
+								{{ $t('dms_automation.editor.selected', { count: selectedNodeIds.length }) }}
+							</span>
+							<UButton v-if="canEnterGroup" size="sm" color="primary" icon="i-ph-arrow-square-in" variant="ghost" @click="enterSelectedGroup">
+								{{ $t('dms_automation.editor.enterGroup') }}
+							</UButton>
+							<UButton v-if="canGroupSelection" size="sm" color="primary" icon="i-ph-stack" variant="ghost" @click="createGroupFromSelection">
+								{{ $t('dms_automation.editor.groupSelection', { n: selectedNodeIds.length }) }}
+							</UButton>
+							<UButton v-if="canSaveAsTemplate" size="sm" color="primary" icon="i-ph-floppy-disk" variant="ghost" @click="openSaveAsTemplate">
+								{{ $t('dms_automation.editor.saveAsTemplate') }}
+							</UButton>
+							<UButton v-if="canForkToLocal" size="sm" color="primary" icon="i-ph-git-fork" variant="ghost" @click="openFork">
+								{{ $t('dms_automation.editor.forkToLocal') }}
+							</UButton>
+						</template>
+					</DmsAutomationGraphCanvas>
+					<template #fallback>
+						<div class="flex h-full items-center justify-center text-sm text-dimmed">
+							{{ $t('dms_automation.editor.loading') }}
+						</div>
+					</template>
+				</DmsClientOnly>
+			</div>
+			<aside v-if="showTemplatePorts" ref="inspectorRef" :class="ASIDE_CLASS">
+				<div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+					<p class="text-xs text-muted">{{ $t('dms_automation.editor.templatePortsHint') }}</p>
+					<DmsAutomationGroupPortEditor :ports="templatePorts" @ports:update="onTemplatePortsUpdate" />
+				</div>
+			</aside>
+			<aside v-else-if="selectedNode" ref="inspectorRef" :class="ASIDE_CLASS">
+				<DmsAutomationNodeInspector
+					:node="selectedNode"
+					:data-edges="currentGraph?.dataEdges ?? []"
+					:trigger-type="selectedNodeTriggerType"
+					:action-type="selectedNodeActionType"
+					:data-node-types="dataNodeTypes"
+					:node-kinds="nodeKinds"
+					:read-only="isCurrentGraphReadOnly"
+					:run-step="subgraphPath.length <= 1 ? selectedRunStep : null"
+					:run-label="overlayLabel"
+					:run-trace-url="overlayRun ? `${traceUrl}?run=${overlayRun._id}` : undefined"
+					:issue="issuesByNode[selectedNode.id] ?? null"
+					:node-name="nodeDisplayName"
+					:saved-triggers="savedTriggers"
+					@update:node="onUpdateNode"
+					@unwire="onUnwireField"
+					@ports:update="onPortsUpdate"
+					@group:enter="onGroupEnter"
+					@delete:node="onDeleteNode"
+					@duplicate:node="onDuplicateNode"
+					@wrap:retry="onWrapInRetry"
+					@close="selectedNodeId = null"
+				/>
+			</aside>
+		</div>
+
+		<DmsAutomationBottomDock
+			v-if="selected && editorMode === 'procedure'"
+			v-model:tab="dockTab"
+			v-model:payload="testPayload"
+			v-model:collapsed="dockCollapsed"
+			:issues="dockIssues"
+			:runs="recentRuns"
+			:test-steps="overlaySteps"
+			:payload-source="testPayloadSource"
+			:triggers="testTriggerItems"
+			v-model:trigger="testTriggerNodeId"
+			:runs-url="`${runsUrl}?procedure=${selectedId}`"
+			@select-node="selectNode"
+			@open-trace="openTrace"
+		/>
+
+		<DmsAutomationProcedureSwitcher
 			v-if="editorMode === 'procedure'"
-			v-model:open="showProcedures"
-			side="left"
-			:title="$t('dms_automation.editor.procedures')"
+			v-model:open="switcherOpen"
+			:procedures="summaries"
+			:current-id="selectedId"
+			proceduresUrl="/modules/automation/procedures"
+			@pick="onPickProcedure"
+			@create="onCreate"
+		/>
+		<DmsAutomationNewProcedureDialog v-model:open="newProcedureOpen" :api-url="apiUrl" @created="onCreated" />
+		<DmsAutomationRunNowDialog
+			v-if="selected && editorMode === 'procedure'"
+			v-model:open="runNowOpen"
+			:api-url="apiUrl"
+			:procedure-id="selected._id"
+			:procedure-name="savedName"
+			:triggers="savedTriggers"
+			@started="onRunStarted"
+		/>
+
+		<UModal
+			:open="choiceDialog.open"
+			:title="choiceDialog.title"
+			:content="{ onOpenAutoFocus: focusSafeChoice }"
+			@update:open="onChoiceDialogOpen"
 		>
 			<template #body>
-				<DmsAutomationProcedureList
-					:procedures="procedures"
-					:model-value="selectedId"
-					@update:model-value="onProcedurePicked"
-					@create="onCreate"
-					@delete="onDelete"
-				/>
+				<p class="text-sm text-toned">{{ choiceDialog.description }}</p>
 			</template>
-		</USlideover>
+			<template #footer>
+				<div class="flex w-full justify-end gap-2">
+					<UButton
+						v-for="choice in choiceDialog.choices"
+						:key="choice.value"
+						:color="choice.color ?? 'neutral'"
+						:variant="choice.variant ?? 'solid'"
+						:data-safe-choice="choice.value === choiceDialog.dismiss || undefined"
+						@click="answerChoice(choice.value)"
+					>
+						{{ choice.label }}
+					</UButton>
+				</div>
+			</template>
+		</UModal>
 
 		<UModal
 			v-model:open="saveAsTemplateOpen"
@@ -2375,47 +3548,64 @@ async function onRun() {
 		>
 			<template #body>
 				<div class="flex flex-col gap-3">
-					<UFormField
+					<DmsFieldRow
+						v-bind="TEMPLATE_ROW"
 						:label="$t('dms_automation.editor.saveTemplateModal.name')"
+						:label-for="TEMPLATE_NAME_ID"
 						required
 					>
-						<UInput
-							v-model="saveAsTemplateName"
-							:placeholder="$t('dms_automation.editor.saveTemplateModal.namePlaceholder')"
-							class="w-full"
-							:disabled="saveAsTemplateSubmitting"
-						/>
-					</UFormField>
-					<UFormField
+						<div class="grid gap-1.5">
+							<DmsInputText
+								:id="TEMPLATE_NAME_ID"
+								v-model="saveAsTemplateName"
+								:placeholder="$t('dms_automation.editor.saveTemplateModal.namePlaceholder')"
+								class="w-full"
+								:disabled="saveAsTemplateSubmitting"
+								v-bind="templateFieldErrors.aria('name')"
+							/>
+							<DmsFieldError :id="templateFieldErrors.errorId('name')" :message="templateFieldErrors.errors.name" />
+						</div>
+					</DmsFieldRow>
+					<DmsFieldRow
+						v-bind="TEMPLATE_ROW"
 						:label="$t('dms_automation.editor.saveTemplateModal.description')"
+						label-for="save-template-description"
 					>
-						<UTextarea
+						<DmsTextarea
+							id="save-template-description"
 							v-model="saveAsTemplateDescription"
 							:placeholder="$t('dms_automation.editor.saveTemplateModal.descriptionPlaceholder')"
 							class="w-full"
 							:rows="3"
 							:disabled="saveAsTemplateSubmitting"
 						/>
-					</UFormField>
-					<UFormField
-						:label="$t('dms_automation.editor.saveTemplateModal.icon')"
-						:help="$t('dms_automation.editor.saveTemplateModal.iconHelp')"
-					>
-						<UInput
-							v-model="saveAsTemplateIcon"
-							placeholder="i-ph-package"
-							class="w-full"
-							:disabled="saveAsTemplateSubmitting"
-						/>
-					</UFormField>
-					<UAlert
+					</DmsFieldRow>
+					<DmsFieldRow v-bind="TEMPLATE_ROW" :label="$t('dms_automation.editor.saveTemplateModal.icon')">
+						<DmsAutomationIconPicker v-model="saveAsTemplateIcon" />
+					</DmsFieldRow>
+					<div v-if="selectedLocalGroupNode?.ports?.length" class="flex flex-col gap-1">
+						<span class="text-xs font-medium text-highlighted">{{ $t('dms_automation.editor.saveTemplateModal.ports') }}</span>
+						<div class="overflow-hidden rounded-md border border-default">
+							<div
+								v-for="port in selectedLocalGroupNode.ports"
+								:key="`${port.direction}-${port.kind}-${port.name}`"
+								class="flex items-center gap-2 border-b border-default px-2 py-1 font-mono text-xs last:border-0"
+							>
+								<UBadge size="sm" variant="subtle" :color="port.kind === 'trigger' ? 'info' : 'success'">{{ $t(`dms_automation.templates.ports.kind.${port.kind}`) }}</UBadge>
+								<span class="text-muted">{{ $t(`dms_automation.templates.ports.direction.${port.direction}`) }}</span>
+								<span class="text-highlighted">{{ port.name }}</span>
+								<span v-if="port.schema?.type" class="ml-auto text-dimmed">{{ port.schema.type }}</span>
+							</div>
+						</div>
+					</div>
+					<DmsBanner
 						v-if="saveAsTemplateError"
-						color="error"
-						variant="subtle"
-						icon="i-ph-warning"
+						size="sm"
+						tone="error"
 						:title="$t('dms_automation.editor.saveTemplateModal.error')"
 						:description="saveAsTemplateError"
 					/>
+					<DmsFormRequiredLegend />
 				</div>
 			</template>
 			<template #footer>
@@ -2446,11 +3636,10 @@ async function onRun() {
 					<p class="text-sm text-toned">
 						{{ $t('dms_automation.editor.forkModal.body') }}
 					</p>
-					<UAlert
+					<DmsBanner
 						v-if="forkError"
-						color="error"
-						variant="subtle"
-						icon="i-ph-warning"
+						size="sm"
+						tone="error"
 						:title="$t('dms_automation.editor.forkModal.error')"
 						:description="forkError"
 					/>

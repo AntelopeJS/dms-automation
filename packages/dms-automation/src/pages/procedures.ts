@@ -2,7 +2,25 @@ import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
 import { TableView } from "@antelopejs/interface-dms/base/table-view";
 import { ProceduresTableAPI } from "../data/procedures-table";
+import {
+  API_URL,
+  BUILDER_URL,
+  importProcedureButton,
+  newProcedureButton,
+  RUNS_URL,
+  TRACE_URL,
+} from "./shared";
 import "./category";
+
+function stateTab(state: string, icon: string, navBadge = false) {
+  return {
+    id: state,
+    label: `$dms_automation.procedures.tabs.${state}`,
+    icon,
+    filter: { accessorKey: "status", value: state, mode: "is" },
+    navBadge,
+  };
+}
 
 @RegisterPage()
 export class ProceduresPageController extends PageController(
@@ -13,34 +31,51 @@ export class ProceduresPageController extends PageController(
     description: "$dms_automation.procedures.description",
     icon: "i-ph-flow-arrow",
     module: "automation",
-    order: 1,
+    order: 3,
   },
-  DefaultLayout({ fullWidth: true }),
+  DefaultLayout({
+    headerActions: [importProcedureButton(), newProcedureButton()],
+  }),
 ) {
   static table = TableView(ProceduresTableAPI, {
+    // The tab says which procedures are listed, the counter how many.
     caption: "$dms_automation.procedures.title",
     labelKey: "name",
     rowIdKey: "procedureId",
-    defaultSort: { field: "lastRunAt", desc: true },
-    customButtons: [
-      {
-        label: "$dms_automation.procedures.newProcedure",
-        icon: "i-ph-plus",
-        color: "primary",
-        target: { type: "page", url: "/modules/automation/builder" },
-      },
+    searchPlaceholder: "$dms_automation.procedures.search",
+    quickFilters: [{ field: "triggerTypes", icon: "i-ph-lightning" }],
+    // The states move with every run and every change of a procedure.
+    realtimeTopic: ["automation.procedures", "automation.runs"],
+    tabs: [
+      // The failing tab publishes its count as the menu badge of the page.
+      stateTab("failing", "i-ph-x-circle", true),
+      stateTab("degraded", "i-ph-warning"),
+      stateTab("healthy", "i-ph-check-circle"),
+      stateTab("paused", "i-ph-pause-circle"),
+      stateTab("draft", "i-ph-pencil-simple-line"),
     ],
-    // Procedures aren't form-editable (the graph is built in the visual
-    // Builder), so the auto-generated read-only view sub-page is useless.
-    // Redirect the `details` navigation (row click + row-menu entry) to the
-    // Builder instead: `customPage` skips registering the generated view
-    // sub-page, and the absolute urlSlug is used verbatim by the frontend
-    // with `:id` substituted.
+    footer: {
+      countLabel: "$dms_automation.procedures.count",
+      hint: "$dms_automation.procedures.openHint",
+    },
+    emptyStates: {
+      firstRun: {
+        title: "$dms_automation.procedures.empty",
+        description: "$dms_automation.procedures.emptyHint",
+        icon: "i-ph-flow-arrow",
+      },
+      filtered: {
+        title: "$dms_automation.procedures.noMatch",
+        description: "$dms_automation.procedures.noMatchHint",
+        icon: "i-ph-magnifying-glass",
+      },
+    },
+    // Procedures are built in the builder, not in a form: a row opens it.
     formContainer: {
       type: "page",
       pages: {
-        view: {
-          urlSlug: "/modules/automation/builder?selected=:id",
+        details: {
+          urlSlug: `${BUILDER_URL}?selected=:id`,
           customPage: true,
         },
         new: { customPage: true },
@@ -48,27 +83,83 @@ export class ProceduresPageController extends PageController(
       },
     },
     rowActions: {
-      // Disable the native add/edit/duplicate/copy-link actions and keep only
-      // delete plus the custom run action. `details` stays on: it now opens the
-      // Builder (see formContainer above), and it's also what makes the
-      // TableView apply the standard full-row hover highlight (the UTable only
-      // enables it when details or edit is enabled).
       add: false,
       edit: false,
       duplicate: false,
       copyLink: false,
-      details: true,
-      delete: true,
+      details: { label: "$dms_automation.procedures.openInBuilder" },
       hasSelection: false,
+      delete: {
+        isEnabled: true,
+        confirm: { from: `${API_URL}/procedures/{procedureId}/delete-confirm` },
+      },
       custom: [
         {
           label: "$dms_automation.procedures.runNow",
           icon: "i-ph-play",
+          rule: { field: "status", notIn: ["draft"] },
           target: {
             type: "api",
-            url: "/api/automation/procedures/{procedureId}/run",
+            url: `${API_URL}/procedures/{procedureId}/run-now`,
             method: "POST",
-            successMessage: "$dms_automation.procedures.runStarted",
+            successMessage: "$dms_automation.procedures.runFinished",
+          },
+          confirm: {
+            title: "$dms_automation.procedures.runNowConfirmTitle",
+            description: "$dms_automation.procedures.runNowConfirmHint",
+            icon: "i-ph-play",
+            color: "warning",
+            confirmLabel: "$dms_automation.procedures.runNow",
+          },
+        },
+        {
+          label: "$dms_automation.procedures.pause",
+          icon: "i-ph-pause",
+          rule: { field: "enabled", equals: true },
+          target: {
+            type: "api",
+            url: `${API_URL}/procedures/{procedureId}/enabled`,
+            method: "PUT",
+            body: { enabled: false },
+            successMessage: "$dms_automation.procedures.pausedNamed",
+          },
+        },
+        {
+          label: "$dms_automation.procedures.resume",
+          icon: "i-ph-play-circle",
+          rule: {
+            and: [
+              { field: "enabled", equals: false },
+              { field: "status", notEquals: "draft" },
+            ],
+          },
+          target: {
+            type: "api",
+            url: `${API_URL}/procedures/{procedureId}/enabled`,
+            method: "PUT",
+            body: { enabled: true },
+            successMessage: "$dms_automation.procedures.resumedNamed",
+          },
+        },
+        {
+          label: "$dms_automation.procedures.openLastRun",
+          icon: "i-ph-path",
+          rule: { field: "lastRunId", notEquals: null },
+          target: { type: "page", url: `${TRACE_URL}?run={lastRunId}` },
+        },
+        {
+          label: "$dms_automation.procedures.viewRuns",
+          icon: "i-ph-list-bullets",
+          target: { type: "page", url: `${RUNS_URL}?procedure={procedureId}` },
+        },
+        {
+          label: "$dms_automation.procedures.duplicate",
+          icon: "i-ph-copy",
+          target: {
+            type: "api",
+            url: `${API_URL}/procedures/{procedureId}/duplicate`,
+            method: "POST",
+            successMessage: "$dms_automation.procedures.duplicated",
           },
         },
       ],

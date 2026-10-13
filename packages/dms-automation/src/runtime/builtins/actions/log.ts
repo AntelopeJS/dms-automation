@@ -25,9 +25,8 @@ const channelByLevel: Record<LogLevelName, (...args: unknown[]) => void> = {
 
 export const logAction: ActionType<LogInput, LogOutput> = {
   id: "log.message",
-  name: "Log",
-  description:
-    "Emit a message (and optional value) to the dms-automation log channel, tagged with run + node id",
+  name: "$dms_automation.types.log.name",
+  description: "$dms_automation.types.log.description",
   icon: "i-ph-terminal",
   inputSchema: {
     type: "object",

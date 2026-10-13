@@ -16,34 +16,63 @@ import { z } from "zod";
 import {
   AutomationTemplateModel,
   type AutomationTemplateRow,
+  type TemplateNesting,
   type TemplateUsage,
+  templateInstancesOf,
 } from "../db/models/automation_template.model";
 import { ProcedureModel } from "../db/models/procedure.model";
 import { BuilderPageController } from "../pages/builder";
-import type { TemplateCache } from "../runtime/resolveSubgraph";
+import { TEMPLATES_TOPIC } from "../pages/library";
+import { notifyTopic } from "../realtime";
+import {
+  forkTemplateInstances,
+  type TemplateCache,
+} from "../runtime/resolveSubgraph";
 import { subscriptions } from "../runtime/subscriptions";
 import { findTemplateRefCycle } from "../runtime/validateTemplate";
-import { DATABASE_NAME, FETCH_ALL_LIMIT } from "../types/constants";
-import {
-  type GraphNode,
-  type GroupPort,
-  type ProcedureGraph,
-  walkNodesRecursive,
-} from "../types/graph";
+import { DATABASE_NAME } from "../types/constants";
+import type { GroupPort, ProcedureGraph } from "../types/graph";
 import type { Paginated } from "../types/pagination";
 import {
   groupPortSchema,
   parseAndValidate,
   procedureGraphSchema,
 } from "./graphSchema";
+import { pageParams } from "./requests";
+
+/** An Iconify name, `i-<set>-<icon>`; empty keeps the default icon. */
+const ICON_PATTERN = /^i-[a-z0-9]+-[a-z0-9-]+$/;
 
 const templateBodySchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  icon: z.string().optional(),
-  ports: z.array(groupPortSchema),
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  icon: z
+    .string()
+    .regex(ICON_PATTERN, "expected an icon name like i-ph-package")
+    .or(z.literal(""))
+    .optional(),
+  ports: z.array(groupPortSchema).superRefine((ports, ctx) => {
+    const seen = new Set<string>();
+    for (const [index, port] of ports.entries()) {
+      const key = `${port.direction}/${port.kind}/${port.name}`;
+      if (seen.has(key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [index, "name"],
+          message: `duplicate port ${key}`,
+        });
+      }
+      seen.add(key);
+    }
+  }),
   subgraph: procedureGraphSchema,
 });
+
+/**
+ * Templates are few and every caller wants them all (the library, the
+ * builder's palette), so a page holds up to 1000 of them by default.
+ */
+const TEMPLATE_PAGE_SIZES = { defaultSize: 1000, maxSize: 1000 };
 
 interface ParsedTemplateBody {
   name: string;
@@ -65,9 +94,8 @@ async function buildTemplateRefLookup(candidate?: {
   subgraph: ProcedureGraph;
 }): Promise<TemplateCache> {
   const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
-  const all = await templateModel.list({ page: 0, limit: FETCH_ALL_LIMIT });
   const byId = new Map<string, { subgraph: ProcedureGraph }>();
-  for (const t of all.results) {
+  for (const t of await templateModel.listAll()) {
     byId.set(t._id, { subgraph: t.subgraph });
   }
   if (candidate) {
@@ -80,29 +108,84 @@ async function buildTemplateRefLookup(candidate?: {
   };
 }
 
-// Count usages per templateId via a single procedures scan (avoids N round-trips
-// through `findUsages`). Reuses the shared `walkNodesRecursive` (also used by
-// `AutomationTemplateModel.findUsages`) so nested group instances are tallied.
-async function computeUsageCounts(): Promise<Map<string, number>> {
+// How many procedures and other templates place each template, via a single
+// scan of both (avoids N round-trips through `findUsages`). An owner placing
+// a template twice counts once, as the library's catalogs count procedures.
+async function computeUsageCounts(
+  templates: AutomationTemplateRow[],
+): Promise<Map<string, number>> {
   const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
-  const procs = await procedureModel.list({ page: 0, limit: FETCH_ALL_LIMIT });
-  const counts = new Map<string, number>();
-  for (const p of procs.results) {
-    let graph: ProcedureGraph;
+  const graphs: ProcedureGraph[] = templates.map((t) => t.subgraph);
+  for (const p of await procedureModel.getAll()) {
     try {
-      graph = JSON.parse(p.graph) as ProcedureGraph;
+      graphs.push(JSON.parse(p.graph) as ProcedureGraph);
     } catch {
       continue;
     }
-    for (const node of walkNodesRecursive(graph)) {
-      if (node.kind !== "group") continue;
-      const templateId = (node as GraphNode & { templateId?: string })
-        .templateId;
-      if (!templateId) continue;
-      counts.set(templateId, (counts.get(templateId) ?? 0) + 1);
+  }
+  const counts = new Map<string, number>();
+  for (const graph of graphs) {
+    const placed = new Set<string>();
+    for (const { node } of templateInstancesOf(graph)) {
+      placed.add(node.templateId);
     }
+    for (const id of placed) counts.set(id, (counts.get(id) ?? 0) + 1);
   }
   return counts;
+}
+
+/** Where a template is placed: in procedures, and in other templates. */
+interface TemplateUsages {
+  procedures: TemplateUsage[];
+  templates: TemplateNesting[];
+}
+
+async function usagesOf(id: string): Promise<TemplateUsages> {
+  const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
+  const [procedures, templates] = await Promise.all([
+    templateModel.findUsages(id),
+    templateModel.findNestings(id),
+  ]);
+  return { procedures, templates };
+}
+
+function usageTotal(usages: TemplateUsages): number {
+  return usages.procedures.length + usages.templates.length;
+}
+
+/** 409 when another template already has this name, whatever its case. */
+async function assertNameFree(name: string, exceptId?: string): Promise<void> {
+  const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
+  const wanted = name.toLocaleLowerCase();
+  const taken = (await templateModel.listAll()).some(
+    (t) => t._id !== exceptId && t.name.trim().toLocaleLowerCase() === wanted,
+  );
+  if (taken) {
+    throw new HTTPResult(409, {
+      error: `a template named "${name}" already exists`,
+      code: "name-taken",
+    });
+  }
+}
+
+/**
+ * Turn the instances of `template` that other templates place into local
+ * groups holding a copy of its graph, so those templates keep working once it
+ * is gone.
+ */
+async function forkNestings(
+  nestings: TemplateNesting[],
+  template: AutomationTemplateRow,
+): Promise<void> {
+  const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
+  for (const hostId of new Set(nestings.map((n) => n.templateId))) {
+    const host = await templateModel.getById(hostId);
+    if (!host || forkTemplateInstances(host.subgraph, template) === 0) {
+      continue;
+    }
+    await templateModel.updateById(hostId, { subgraph: host.subgraph });
+    await subscriptions.onTemplateChange(hostId);
+  }
 }
 
 interface TemplateWithUsage extends AutomationTemplateRow {
@@ -133,13 +216,13 @@ export class TemplatesController extends Controller(
     @Parameter("page", "query") page?: string,
     @Parameter("limit", "query") limit?: string,
   ): Promise<Paginated<TemplateWithUsage>> {
+    const query = pageParams(page, limit, TEMPLATE_PAGE_SIZES);
     const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
-    const pageNum = page ? Number(page) : 0;
-    const limitNum = limit ? Number(limit) : 20;
-    const [listed, usageCounts] = await Promise.all([
-      templateModel.list({ page: pageNum, limit: limitNum }),
-      computeUsageCounts(),
+    const [listed, all] = await Promise.all([
+      templateModel.list(query),
+      templateModel.listAll(),
     ]);
+    const usageCounts = await computeUsageCounts(all);
     return {
       ...listed,
       results: listed.results.map((t) => ({
@@ -168,6 +251,7 @@ export class TemplatesController extends Controller(
     @JSONBody() body: unknown,
   ): Promise<AutomationTemplateRow> {
     const data = parseTemplateBody(body);
+    await assertNameFree(data.name);
     const lookup = await buildTemplateRefLookup({
       id: POST_CANDIDATE_ID,
       subgraph: data.subgraph,
@@ -192,6 +276,7 @@ export class TemplatesController extends Controller(
       subgraph: data.subgraph,
     });
     await subscriptions.onTemplateChange(created._id);
+    notifyTopic(TEMPLATES_TOPIC, "created", { id: created._id });
     return created;
   }
 
@@ -207,6 +292,7 @@ export class TemplatesController extends Controller(
     if (!existing) {
       throw new HTTPResult(404, { error: `template "${id}" not found` });
     }
+    await assertNameFree(data.name, id);
     const lookup = await buildTemplateRefLookup({
       id,
       subgraph: data.subgraph,
@@ -226,6 +312,7 @@ export class TemplatesController extends Controller(
       subgraph: data.subgraph,
     });
     await subscriptions.onTemplateChange(id);
+    notifyTopic(TEMPLATES_TOPIC, "updated", { id });
     return updated;
   }
 
@@ -240,12 +327,13 @@ export class TemplatesController extends Controller(
     if (!existing) {
       throw new HTTPResult(404, { error: `template "${id}" not found` });
     }
-    const usages = await templateModel.findUsages(id);
+    const usages = await usagesOf(id);
     const forced = force === "1" || force === "true";
-    if (usages.length > 0 && !forced) {
+    if (usageTotal(usages) > 0 && !forced) {
       throw new HTTPResult(409, {
         error: "template has usages; pass ?force=1 to fork them",
-        usages,
+        code: "in-use",
+        ...usages,
       });
     }
     if (forced) {
@@ -253,28 +341,47 @@ export class TemplatesController extends Controller(
       // templateCache to deep-clone the subgraph. onTemplateDelete() below
       // removes the cache entry; doing it the other way around leaves
       // dangling references.
-      for (const usage of usages) {
-        await subscriptions.forkUsageToLocal(usage.procedureId, usage.nodeId);
+      for (const usage of usages.procedures) {
+        await subscriptions.forkUsageToLocal(
+          usage.procedureId,
+          usage.nodeId,
+          usage.groupPath,
+        );
       }
+      await forkNestings(usages.templates, existing);
+      if (usages.procedures.length > 0) {
+        // Forking rewrote those procedures' graphs in the DB. Propagate a
+        // procedure change so this instance AND peers refresh their live
+        // graph for the forked procedures.
+        await subscriptions.onProcedureChange();
+      }
+    }
+    // A usage left behind would fail its procedure at the next run, with the
+    // template's graph gone: keep the template, and name what is left.
+    const left = await usagesOf(id);
+    if (usageTotal(left) > 0) {
+      throw new HTTPResult(409, {
+        error:
+          "some usages could not be turned into local groups; the template was kept",
+        code: "fork-incomplete",
+        ...left,
+      });
     }
     await templateModel.deleteById(id);
     await subscriptions.onTemplateDelete(id);
-    if (forced && usages.length > 0) {
-      // Forking rewrote those procedures' graphs in the DB. onTemplateDelete's
-      // revalidate finds no usages now (they're forked), so it won't reconcile
-      // them — propagate a procedure change so this instance AND peers refresh
-      // their live graph for the forked procedures.
-      await subscriptions.onProcedureChange();
-    }
-    return { _id: id, forked: forced ? usages.length : 0 };
+    notifyTopic(TEMPLATES_TOPIC, "deleted", { id });
+    return { _id: id, forked: forced ? usageTotal(usages) : 0 };
   }
 
   @Get("/:id/usages")
   async usages(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
-  ): Promise<TemplateUsage[]> {
+  ): Promise<TemplateUsages> {
     const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
-    return await templateModel.findUsages(id);
+    if (!(await templateModel.getById(id))) {
+      throw new HTTPResult(404, { error: `template "${id}" not found` });
+    }
+    return await usagesOf(id);
   }
 }

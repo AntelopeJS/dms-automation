@@ -13,9 +13,18 @@ async function execute(
   if (ports.length === 0) {
     ctx.log("warn", "parallel has no configured ports; nothing to run");
   }
-  // Promise.all rethrows the first rejection: any branch throwing aborts
-  // the parallel as a whole.
-  await Promise.all(ports.map((p) => ctx.fireTrigger(p)));
+  // Every branch runs to its end, even when another fails: a branch left
+  // running would outlive its run. The first failure then fails the
+  // parallel as a whole.
+  const failures: unknown[] = [];
+  await Promise.all(
+    ports.map((p) =>
+      ctx.fireTrigger(p).catch((err: unknown) => {
+        failures.push(err);
+      }),
+    ),
+  );
+  if (failures.length > 0) throw failures[0];
   // `main` auto-propagates after all configured ports settle.
 }
 
@@ -39,7 +48,9 @@ nodeKinds.register("parallel", execute, {
     defaultConfig: { ports: ["a", "b"] },
     configSchema: {
       type: "object",
-      properties: { ports: { type: "array", items: { type: "string" } } },
+      properties: {
+        ports: { type: "array", title: "Branches", items: { type: "string" } },
+      },
     },
   },
 });

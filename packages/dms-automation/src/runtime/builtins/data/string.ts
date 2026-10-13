@@ -17,12 +17,33 @@ const resultBool = { type: "boolean" };
 const resultNum = { type: "number" };
 const resultArr = { type: "array", items: { type: "string" } };
 
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+
+/**
+ * The characters of `s` as a reader counts them: an emoji or an accented
+ * letter is one character, where `s.length` counts UTF-16 code units and
+ * `substring` can cut one in half.
+ */
+function characters(s: string): string[] {
+  return Array.from(graphemes.segment(s), (g) => g.segment);
+}
+
+/** `substring` semantics (clamped, swapped when reversed) over characters. */
+function slice(s: string, start: number, end: number | undefined): string {
+  const chars = characters(s);
+  const clamp = (n: number): number =>
+    Number.isNaN(n) ? 0 : Math.min(Math.max(Math.trunc(n), 0), chars.length);
+  const from = clamp(start);
+  const to = end === undefined ? chars.length : clamp(end);
+  return chars.slice(Math.min(from, to), Math.max(from, to)).join("");
+}
+
 export const stringNodes: DataNodeType[] = [
   {
     id: "string.concat",
     category: "string",
-    name: "Concat",
-    description: "a + b as strings",
+    name: "$dms_automation.types.string.concat.name",
+    description: "$dms_automation.types.string.concat.description",
     icon: "i-ph-text-aa",
     inputSchema: { type: "object", properties: { a: strProp, b: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
@@ -34,20 +55,20 @@ export const stringNodes: DataNodeType[] = [
   {
     id: "string.length",
     category: "string",
-    name: "Length",
-    description: "character length of s",
+    name: "$dms_automation.types.string.length.name",
+    description: "$dms_automation.types.string.length.description",
     icon: "i-ph-ruler",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultNum } },
     evaluate: (i) => ({
-      result: String((i as { s: unknown }).s ?? "").length,
+      result: characters(String((i as { s: unknown }).s ?? "")).length,
     }),
   },
   {
     id: "string.substring",
     category: "string",
-    name: "Substring",
-    description: "s.substring(start, end)",
+    name: "$dms_automation.types.string.substring.name",
+    description: "$dms_automation.types.string.substring.description",
     icon: "i-ph-text-columns",
     inputSchema: {
       type: "object",
@@ -58,12 +79,13 @@ export const stringNodes: DataNodeType[] = [
       const { s, start, end } = i as {
         s: unknown;
         start: number;
-        end?: number;
+        end?: number | null;
       };
       return {
-        result: String(s ?? "").substring(
+        result: slice(
+          String(s ?? ""),
           Number(start),
-          end === undefined ? undefined : Number(end),
+          end === undefined || end === null ? undefined : Number(end),
         ),
       };
     },
@@ -71,8 +93,8 @@ export const stringNodes: DataNodeType[] = [
   {
     id: "string.toLowerCase",
     category: "string",
-    name: "Lowercase",
-    description: "s.toLowerCase()",
+    name: "$dms_automation.types.string.toLowerCase.name",
+    description: "$dms_automation.types.string.toLowerCase.description",
     icon: "i-ph-text-aa",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
@@ -83,8 +105,8 @@ export const stringNodes: DataNodeType[] = [
   {
     id: "string.toUpperCase",
     category: "string",
-    name: "Uppercase",
-    description: "s.toUpperCase()",
+    name: "$dms_automation.types.string.toUpperCase.name",
+    description: "$dms_automation.types.string.toUpperCase.description",
     icon: "i-ph-text-aa",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
@@ -95,8 +117,8 @@ export const stringNodes: DataNodeType[] = [
   {
     id: "string.trim",
     category: "string",
-    name: "Trim",
-    description: "remove surrounding whitespace",
+    name: "$dms_automation.types.string.trim.name",
+    description: "$dms_automation.types.string.trim.description",
     icon: "i-ph-broom",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
@@ -107,8 +129,8 @@ export const stringNodes: DataNodeType[] = [
   {
     id: "string.split",
     category: "string",
-    name: "Split",
-    description: "s.split(separator)",
+    name: "$dms_automation.types.string.split.name",
+    description: "$dms_automation.types.string.split.description",
     icon: "i-ph-scissors",
     inputSchema: {
       type: "object",
@@ -123,8 +145,8 @@ export const stringNodes: DataNodeType[] = [
   {
     id: "string.replace",
     category: "string",
-    name: "Replace",
-    description: "replace all occurrences",
+    name: "$dms_automation.types.string.replace.name",
+    description: "$dms_automation.types.string.replace.description",
     icon: "i-ph-pencil-simple",
     inputSchema: {
       type: "object",
@@ -147,8 +169,8 @@ export const stringNodes: DataNodeType[] = [
   {
     id: "string.includes",
     category: "string",
-    name: "Includes",
-    description: "s contains search",
+    name: "$dms_automation.types.string.includes.name",
+    description: "$dms_automation.types.string.includes.description",
     icon: "i-ph-magnifying-glass",
     inputSchema: {
       type: "object",

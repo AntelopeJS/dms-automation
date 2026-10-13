@@ -6,3 +6,4 @@ import "./node-kinds";
 import "./runs";
 import "./stats";
 import "./templates";
+import "./library";

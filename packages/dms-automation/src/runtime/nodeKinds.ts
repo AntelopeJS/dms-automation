@@ -73,7 +73,7 @@ export interface NodeCtx {
   resolveInputs(): Record<string, unknown>;
 }
 
-export type NodeExecute = (
+type NodeExecute = (
   node: GraphNode,
   inputs: Record<string, unknown>,
   ctx: NodeCtx,
@@ -105,7 +105,7 @@ export interface NodeKindMeta {
   ui?: NodeKindUI;
 }
 
-export interface PortRef {
+interface PortRef {
   name: string;
   type?: string;
 }
@@ -120,7 +120,7 @@ export interface PortRef {
  * The frontend resolves these into the final {triggerOuts, dataIns,
  * dataOuts} arrays for a given node instance.
  */
-export interface NodeKindUI {
+interface NodeKindUI {
   label: string;
   icon?: string;
   hasTriggerIn: boolean;
@@ -173,7 +173,7 @@ interface NodeKindEntry {
   meta: NodeKindMeta;
 }
 
-export class NodeKindRegistry {
+class NodeKindRegistry {
   private entries = new Map<string, NodeKindEntry>();
 
   register(kind: string, execute: NodeExecute, meta: NodeKindMeta): void {

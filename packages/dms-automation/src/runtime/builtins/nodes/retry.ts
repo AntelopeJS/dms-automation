@@ -51,7 +51,7 @@ nodeKinds.register("retry", execute, {
     defaultConfig: { maxAttempts: 3 },
     configSchema: {
       type: "object",
-      properties: { maxAttempts: { type: "number" } },
+      properties: { maxAttempts: { type: "number", minimum: 1 } },
     },
   },
 });
