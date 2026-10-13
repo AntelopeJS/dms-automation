@@ -185,8 +185,8 @@ const canvasViewKey = computed(() => [selectedId.value ?? '', ...subgraphPath.va
 // Back to the Library's Templates tab, on the template being edited.
 const libraryBackUrl = computed(() =>
 	editorTemplateId.value && !templateNotFound.value
-		? `/modules/automation/library?tab=3&template=${editorTemplateId.value}`
-		: '/modules/automation/library?tab=3',
+		? `/modules/automation/library?tab=templates&template=${editorTemplateId.value}`
+		: '/modules/automation/library?tab=templates',
 )
 
 const selectedNodeId = ref<string | null>(null)
