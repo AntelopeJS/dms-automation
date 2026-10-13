@@ -27,6 +27,7 @@ import {
 import { parseGraphSafe } from "../runtime/describe";
 import { subscriptions } from "../runtime/subscriptions";
 import { stepDurations, traceOf } from "../runtime/trace";
+import { triggerText } from "../runtime/wording";
 import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
 import type { ProcedureGraph } from "../types/graph";
 import type { RunLog } from "../types/runLog";
@@ -399,6 +400,7 @@ export class RunsController extends Controller("/api/automation/runs") {
       graph: graph ?? null,
       graphOutdated: outdated,
       trigger: run.triggerSummary ?? null,
+      triggerText: triggerText(run.triggerSummary),
       failedStep: run.failedStep ?? null,
       trace,
       usualDurationMs: history.usualDurationMs,

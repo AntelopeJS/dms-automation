@@ -3,10 +3,11 @@ import type { StepName, TriggerSummary } from "./describe";
 import { scheduleTimeZone } from "./schedule";
 
 /**
- * The texts the table cells draw for a trigger or a step, composed in the
- * reader's language by the DMS: the server sends i18n keys and raw values,
- * never a finished sentence. The builder and the trace word the same objects
- * client-side (`frontend-vue/app/utils/describe.ts`); both must stay in step.
+ * The texts the pages draw for a trigger or a step, composed in the reader's
+ * language by the DMS: the server sends i18n keys and raw values, never a
+ * finished sentence. The only wording of triggers and schedules: the table
+ * cells use it, and the routes the builder, the trace and the library read
+ * send it next to the trigger they describe.
  */
 
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -115,15 +116,23 @@ export function cronText(
 
 /**
  * What starts a procedure or a run, in a few words: the webhook's method and
- * path, the schedule in words, or the trigger's name.
+ * path, the schedule in words (in the zone the summary names, else the
+ * server's), or the trigger's name.
  */
 export function triggerText(
   trigger: TriggerSummary | null | undefined,
 ): BlockText {
   if (!trigger) return "$dms_automation.trigger.none";
   if (trigger.path) return `${trigger.method ?? "POST"} ${trigger.path}`;
-  if (trigger.cron) return cronText(trigger.cron);
+  if (trigger.cron) return cronText(trigger.cron, trigger.timeZone);
   return trigger.typeName;
+}
+
+/** A trigger with the text it reads as, for a page that lists it. */
+export function withTriggerText<T extends TriggerSummary>(
+  trigger: T,
+): T & { text: BlockText } {
+  return { ...trigger, text: triggerText(trigger) };
 }
 
 /**

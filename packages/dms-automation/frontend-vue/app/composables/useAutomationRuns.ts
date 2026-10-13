@@ -135,6 +135,8 @@ export interface RunDetail {
   graph: GraphLite | null;
   graphOutdated?: boolean;
   trigger: TriggerSummary | null;
+  /** What started the run, worded by the server. */
+  triggerText: BlockText;
   failedStep: StepName | null;
   trace: {
     steps: TraceStep[];

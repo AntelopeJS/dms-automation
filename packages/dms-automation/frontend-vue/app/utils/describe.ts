@@ -1,7 +1,9 @@
 /**
- * Wording of automation objects the backend sends structured: a trigger, a
- * schedule, a step, a duration. Every function takes the translator, so cells,
- * cards and the builder say the same thing in the reader's language.
+ * Wording of automation objects the backend sends structured: a step, a
+ * duration, a date. Every function takes the translator, so cells, cards and
+ * the builder say the same thing in the reader's language. Triggers and
+ * schedules are worded by the server, which sends their text next to them
+ * (`src/runtime/wording.ts`), written with `useComposedText().processText`.
  */
 
 /** `processI18n` of the DMS translation composable. */
@@ -22,120 +24,17 @@ export interface TriggerSummary {
   timeZone?: string;
 }
 
+/** A trigger with the text the server words it as. */
+export interface WordedTrigger extends TriggerSummary {
+  text: BlockText;
+}
+
 /** A step, named by its label or the name of its type. */
 export interface StepName {
   nodeId: string;
   label?: string;
   typeName?: string;
   kind?: string;
-}
-
-const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-const NUMBER = /^\d+$/;
-const EVERY_N = /^\*\/(\d+)$/;
-const TWO_DIGITS = 2;
-
-function pad(value: string): string {
-  return value.padStart(TWO_DIGITS, "0");
-}
-
-/** A clock time, with the zone it is in when known: "02:00 (UTC)". */
-function timeOf(hour: string, minute: string, timeZone?: string): string {
-  const time = `${pad(hour)}:${pad(minute)}`;
-  return timeZone ? `${time} (${timeZone})` : time;
-}
-
-type CronFields = [string, string, string, string, string];
-
-/**
- * A cron expression split in its five fields (minute to day of week), with
- * its seconds field: "0" when it has none.
- */
-function cronFields(
-  expression: string,
-): { seconds: string; fields: CronFields } | null {
-  const parts = expression.trim().split(/\s+/);
-  if (parts.length === 6)
-    return { seconds: parts[0]!, fields: parts.slice(1) as CronFields };
-  return parts.length === 5
-    ? { seconds: "0", fields: parts as CronFields }
-    : null;
-}
-
-function weekdayName(field: string, t: Translate): string | null {
-  if (!NUMBER.test(field)) return null;
-  const day = WEEKDAYS[Number(field) % WEEKDAYS.length];
-  return day ? t(`$dms_automation.cron.days.${day}`) : null;
-}
-
-/** The shapes that fire several times a minute: every second, every N seconds. */
-function describeSeconds(
-  seconds: string,
-  fields: CronFields,
-  t: Translate,
-): string | null {
-  if (fields.some((field) => field !== "*")) return null;
-  if (seconds === "*") return t("$dms_automation.cron.everySecond");
-  const n = EVERY_N.exec(seconds)?.[1];
-  return n ? t("$dms_automation.cron.everySeconds", { n }) : null;
-}
-
-/**
- * A cron expression in words for the common shapes ("Every 15 minutes",
- * "Every day at 02:00 (UTC)", "Mondays at 09:00"), the expression itself
- * otherwise. Clock times name `timeZone` when it is given: the server's,
- * where the schedule fires.
- */
-export function describeCron(
-  expression: string,
-  t: Translate,
-  timeZone?: string,
-): string {
-  const parsed = cronFields(expression);
-  if (!parsed) return expression;
-  const { seconds, fields } = parsed;
-  if (!NUMBER.test(seconds) || Number(seconds) !== 0) {
-    return describeSeconds(seconds, fields, t) ?? expression;
-  }
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = fields;
-  const anyDate = dayOfMonth === "*" && month === "*";
-  if (minute === "*" && hour === "*" && anyDate && dayOfWeek === "*") {
-    return t("$dms_automation.cron.everyMinute");
-  }
-  const everyMinutes = EVERY_N.exec(minute);
-  if (everyMinutes && hour === "*" && anyDate && dayOfWeek === "*") {
-    return t("$dms_automation.cron.everyMinutes", { n: everyMinutes[1] });
-  }
-  if (!NUMBER.test(minute)) return expression;
-  if (hour === "*" && anyDate && dayOfWeek === "*") {
-    return t("$dms_automation.cron.hourly", { minute: pad(minute) });
-  }
-  const everyHours = EVERY_N.exec(hour);
-  if (everyHours && anyDate && dayOfWeek === "*") {
-    return Number(minute) === 0
-      ? t("$dms_automation.cron.everyHours", { n: everyHours[1] })
-      : t("$dms_automation.cron.everyHoursAt", {
-          n: everyHours[1],
-          minute: pad(minute),
-        });
-  }
-  if (!NUMBER.test(hour) || !anyDate) return expression;
-  const time = timeOf(hour, minute, timeZone);
-  if (dayOfWeek === "*") return t("$dms_automation.cron.daily", { time });
-  if (dayOfWeek === "1-5") return t("$dms_automation.cron.weekdays", { time });
-  const day = weekdayName(dayOfWeek, t);
-  return day ? t("$dms_automation.cron.weekly", { day, time }) : expression;
-}
-
-/** What starts a procedure, in a few words. */
-export function describeTrigger(
-  trigger: TriggerSummary | null | undefined,
-  t: Translate,
-): string {
-  if (!trigger) return t("$dms_automation.trigger.none");
-  if (trigger.path) return `${trigger.method ?? "POST"} ${trigger.path}`;
-  if (trigger.cron) return describeCron(trigger.cron, t, trigger.timeZone);
-  return t(trigger.typeName);
 }
 
 /** A step's name: its label, else its type's name, else its id. */
@@ -292,23 +191,23 @@ export function parsePayload(raw: unknown): unknown {
 }
 
 /**
- * What a node does, in one line, from its settings (AU-10). A schedule's clock
- * time names `timeZone` when it is given (the server's, see `TriggerSummary`).
+ * What a node does, in one line, from its settings (AU-10). A schedule reads
+ * as `scheduleText`, its words as the server writes them, else as its cron
+ * expression.
  */
 export function summarizeNode(
   kind: string,
   typeId: string | undefined,
   config: Record<string, unknown> | undefined,
   t: Translate,
-  timeZone?: string,
+  scheduleText?: string,
 ): string {
   const c = config ?? {};
   const text = (key: string) =>
     typeof c[key] === "string" ? (c[key] as string) : "";
   if (kind === "trigger") {
     if (text("path")) return `${text("method") || "POST"} ${text("path")}`;
-    if (text("cron")) return describeCron(text("cron"), t, timeZone);
-    return "";
+    return text("cron") ? (scheduleText ?? text("cron")) : "";
   }
   if (text("url")) return `${text("method") || "GET"} ${shortUrl(text("url"))}`;
   if (kind === "delay" && c.ms !== undefined)

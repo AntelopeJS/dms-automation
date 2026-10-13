@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, markRaw, nextTick, ref, watch } from 'vue'
 import { newId } from '../../utils/automation'
-import { roleOf, summarizeNode } from '../../utils/describe'
+import { roleOf, summarizeNode, type WordedTrigger } from '../../utils/describe'
 import type { NodeRunState } from './nodes/GenericNode.vue'
 // The canvas chrome (dotted DMS background, zoom controls, themed
 // node/handle/edge styling, pan/zoom + fit-view) now comes from the shared
@@ -102,8 +102,8 @@ const props = defineProps<{
 	 * screens): fitting and centring keep the nodes out from under it.
 	 */
 	coveredBy?: HTMLElement | null
-	/** The saved graph's triggers: a schedule names the server's time zone. */
-	savedTriggers?: Array<{ cron?: string; timeZone?: string }>
+	/** The draft's triggers, worded by the server: a schedule reads in words. */
+	triggers?: WordedTrigger[]
 }>()
 
 interface NodeIssue {
@@ -132,6 +132,7 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const { processI18n } = useTranslation()
+const { processText } = useComposedText()
 const { t, te } = useI18n()
 
 // Fit view never zooms past 100% (a lone trigger would fill the canvas) and
@@ -197,9 +198,12 @@ function lookupTypeBySpec(spec: NodeKindUI, typeId: string | undefined) {
 	return null
 }
 
-// A schedule says the time zone it fires in, the server's (known once a
-// schedule is saved).
-const scheduleTimeZone = computed(() => props.savedTriggers?.find((tr) => tr.timeZone)?.timeZone)
+// A schedule in words, once the server has worded its current expression.
+function scheduleTextOf(node: AppGraphNode): string | undefined {
+	const cron = node.config?.cron
+	const worded = props.triggers?.find((tr) => tr.nodeId === node.id && tr.cron === cron)
+	return worded ? processText(worded.text) : undefined
+}
 
 // The validator's problem on a node, in the reader's language (its English
 // message when this version has no text for the code).
@@ -260,7 +264,7 @@ function dataFor(node: AppGraphNode) {
 			typeName: label,
 			role: roleOf(node.kind, spec.category),
 			module,
-			summary: summarizeNode(node.kind, node.typeId, node.config, processI18n, scheduleTimeZone.value),
+			summary: summarizeNode(node.kind, node.typeId, node.config, processI18n, scheduleTextOf(node)),
 			run: props.runStates?.[node.id] ?? null,
 			issue: issueOf(node.id),
 			icon,

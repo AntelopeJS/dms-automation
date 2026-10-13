@@ -25,6 +25,7 @@ import { changesExecution } from "../runtime/graphVersion";
 import { nextOccurrence } from "../runtime/schedule";
 import { subscriptions } from "../runtime/subscriptions";
 import { withFreeWebhookPaths } from "../runtime/webhookRoutes";
+import { withTriggerText } from "../runtime/wording";
 import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import { isProductionRun } from "../types/runLog";
@@ -160,6 +161,19 @@ function copyNameOf(name: string): string {
   return `${name.slice(0, MAX_NAME_LENGTH - suffix.length)}${suffix}`;
 }
 
+/**
+ * The triggers of a saved graph, each with its text and, for a schedule, the
+ * next time it fires.
+ */
+export function savedTriggersOf(graph: ProcedureGraph, from = new Date()) {
+  return triggersOf(graph).map((trigger) => ({
+    ...withTriggerText(trigger),
+    nextAt: trigger.cron
+      ? (nextOccurrence(trigger.cron, from)?.toISOString() ?? null)
+      : null,
+  }));
+}
+
 @AuthOwnerOnly()
 export class ProceduresController extends Controller(
   "/api/automation/procedures",
@@ -186,7 +200,8 @@ export class ProceduresController extends Controller(
    * The problems of a draft graph, for the builder's Problems dock: as for an
    * enabled procedure when `enabled` is set (a missing setting then blocks).
    * With the procedure's id and name, a webhook path or a name another
-   * procedure already uses is reported too.
+   * procedure already uses is reported too. With the draft's triggers and
+   * their text, for the canvas and the test dock.
    */
   @Post("/validate")
   async validate(@AuthRawUser() _user: User, @JSONBody() body: unknown) {
@@ -195,7 +210,10 @@ export class ProceduresController extends Controller(
       body,
     );
     const target = { procedureId, name };
-    return { issues: await saveIssues(graph, enabled ?? false, target) };
+    return {
+      issues: await saveIssues(graph, enabled ?? false, target),
+      triggers: triggersOf(graph).map(withTriggerText),
+    };
   }
 
   /**
@@ -489,13 +507,7 @@ export class ProceduresController extends Controller(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
   ) {
-    const graph = graphOf(await loadProcedure(id));
-    return {
-      triggers: triggersOf(graph).map((t) => ({
-        ...t,
-        nextAt: t.cron ? (nextOccurrence(t.cron)?.toISOString() ?? null) : null,
-      })),
-    };
+    return { triggers: savedTriggersOf(graphOf(await loadProcedure(id))) };
   }
 
   @Get("/:id/runs")

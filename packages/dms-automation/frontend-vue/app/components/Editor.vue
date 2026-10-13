@@ -4,7 +4,7 @@ import { type RunDetail, type TraceStep, useAutomationRuns } from '../composable
 import type { NodeRunState } from './Editor/nodes/GenericNode.vue'
 import type { DockIssue, DockRun, DockTab } from './Editor/BottomDock.vue'
 import type { ProcedureSummaryRow } from './Editor/ProcedureSwitcher.vue'
-import { describeDateTime, describeDuration, describeTime, describeTrigger, stepTitle, type TriggerSummary } from '../utils/describe'
+import { describeDateTime, describeDuration, describeTime, stepTitle, type TriggerSummary, type WordedTrigger } from '../utils/describe'
 import type { BreadcrumbItem } from '@nuxt/ui'
 import type { NodeKindEntry, TemplateSummary } from '../composables/useAutomationNodeKinds'
 import { newId, queryString } from '../utils/automation'
@@ -56,6 +56,7 @@ const router = useDmsRouter()
 const { t, te, locale } = useI18n()
 const { dateTimeFormat } = useRegionalFormat()
 const { processI18n } = useTranslation()
+const { processText } = useComposedText()
 // Shortcut hints print ⌘ on macOS and Ctrl elsewhere, like the rest of the DMS.
 const { formatShortcut } = useKeyboardPlatform()
 
@@ -1657,6 +1658,9 @@ interface GraphIssue {
 	nodeId?: string
 }
 const issues = ref<GraphIssue[]>([])
+// The draft's triggers, worded by the server with its problems: the canvas
+// and the test dock name them.
+const draftTriggers = ref<WordedTrigger[]>([])
 let validateTimer: ReturnType<typeof setTimeout> | undefined
 const VALIDATE_DELAY_MS = 500
 
@@ -1664,16 +1668,18 @@ async function validateDraft() {
 	const current = selected.value
 	if (!current || editorMode.value !== 'procedure') {
 		issues.value = []
+		draftTriggers.value = []
 		return
 	}
 	try {
-		const res = await $authFetch<{ issues: typeof issues.value }>(`${props.apiUrl}/procedures/validate`, {
+		const res = await $authFetch<{ issues: typeof issues.value; triggers?: WordedTrigger[] }>(`${props.apiUrl}/procedures/validate`, {
 			method: 'POST',
 			// With the procedure and its name, the server also checks what other
 			// procedures hold (a webhook path, a name).
 			body: { graph: current.graph, enabled: current.enabled, procedureId: current._id, name: current.name },
 		})
 		issues.value = res.issues ?? []
+		draftTriggers.value = res.triggers ?? []
 	} catch {
 		// A graph the schema refuses is reported on save.
 	}
@@ -1767,7 +1773,7 @@ function selectNode(id: string) {
 }
 
 interface ProcedureTriggers {
-	triggers: Array<TriggerSummary & { nextAt: string | null }>
+	triggers: Array<WordedTrigger & { nextAt: string | null }>
 }
 const savedTriggers = ref<ProcedureTriggers['triggers']>([])
 
@@ -1788,7 +1794,7 @@ const pausedBanner = computed(() => {
 	const triggers = savedTriggers.value.filter((tr) => tr.typeId !== 'manual')
 	if (triggers.length === 0) return null
 	const first = triggers[0]!
-	const what = describeTrigger(first, processI18n)
+	const what = processText(first.text)
 	const isDraft = currentSummary.value?.status === 'draft'
 	return {
 		title: t(isDraft ? 'dms_automation.editor.paused.draftTitle' : 'dms_automation.editor.paused.title', { name: savedName.value }),
@@ -3067,11 +3073,17 @@ const selectedTriggerSummaries = computed<TriggerSummary[]>(() =>
 		})),
 )
 
+// A draft trigger as the server words it, its type's name until it has.
+function triggerLabel(trigger: TriggerSummary): string {
+	const worded = draftTriggers.value.find((tr) => tr.nodeId === trigger.nodeId)
+	return worded ? processText(worded.text) : processI18n(trigger.typeName)
+}
+
 // Test run starts from the trigger picked in the dock: the manual one, else
 // the first, until the user picks another; its last real payload prefills
 // the test payload.
 const testTriggerItems = computed(() =>
-	selectedTriggerSummaries.value.map((trigger) => ({ label: describeTrigger(trigger, processI18n), value: trigger.nodeId ?? '' })),
+	selectedTriggerSummaries.value.map((trigger) => ({ label: triggerLabel(trigger), value: trigger.nodeId ?? '' })),
 )
 watch(
 	selectedTriggerSummaries,
@@ -3384,7 +3396,7 @@ function onTemplatePortsUpdate(next: GroupPort[]) {
 						:selected-node-id="selectedNodeId"
 						:view-key="canvasViewKey"
 						:covered-by="inspectorRef"
-						:saved-triggers="savedTriggers"
+						:triggers="draftTriggers"
 						class="[&_.graph-canvas-wrap]:rounded-none [&_.graph-canvas-wrap]:border-0"
 						@update:graph="onGraphUpdate"
 						@select:node="onSelectNode"

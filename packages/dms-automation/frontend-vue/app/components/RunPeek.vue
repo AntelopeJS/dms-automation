@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { builderRunUrl, opensInBuilder, type RunDetail, useAutomationRuns } from '../composables/useAutomationRuns'
 import { useRunActions } from '../composables/useRunActions'
-import { describeDateTime, describeDuration, describeTrigger } from '../utils/describe'
+import { describeDateTime, describeDuration } from '../utils/describe'
 
 // The quick look at a run, in the run history's side panel: what it did, where
 // it failed, the path it took and its payload, with the next actions. The DMS
@@ -16,7 +16,7 @@ const props = defineProps<{
 }>()
 
 const router = useDmsRouter()
-const { processI18n } = useTranslation()
+const { processText } = useComposedText()
 const { t, locale } = useI18n()
 const { dateTimeFormat } = useRegionalFormat()
 const runs = useAutomationRuns(props.apiUrl)
@@ -84,7 +84,7 @@ function go(url: string) {
 					<UBadge v-if="!run.procedure" color="neutral" variant="subtle" size="sm">{{ $t('dms_automation.trace.deleted') }}</UBadge>
 				</div>
 				<p class="text-xs text-muted">
-					{{ when }} · {{ describeDuration(run.durationMs, locale) }} · {{ describeTrigger(run.trigger, processI18n) }}
+					{{ when }} · {{ describeDuration(run.durationMs, locale) }} · {{ processText(run.triggerText) }}
 				</p>
 			</div>
 

@@ -12,7 +12,6 @@ import { useRunActions } from '../composables/useRunActions'
 import {
 	describeDateTime,
 	describeDuration,
-	describeTrigger,
 	type StepName,
 } from '../utils/describe'
 
@@ -30,7 +29,7 @@ const props = defineProps<{
 
 const route = useDmsRoute()
 const router = useDmsRouter()
-const { processI18n } = useTranslation()
+const { processText } = useComposedText()
 const { t, locale } = useI18n()
 const { dateTimeFormat } = useRegionalFormat()
 const runs = useAutomationRuns(props.apiUrl)
@@ -155,7 +154,7 @@ const version = computed(() => {
 // A webhook path can be long: the tile keeps its last segment, the detail
 // line and the header say it whole.
 function shortTrigger(r: RunDetail): string {
-	const full = describeTrigger(r.trigger, processI18n)
+	const full = processText(r.triggerText)
 	const path = r.trigger?.path
 	if (!path) return full
 	const segments = path.split('/').filter(Boolean)
@@ -166,7 +165,7 @@ const stats = computed(() => {
 	const r = run.value
 	if (!r) return []
 	const delta = durationDelta.value
-	const trigger = describeTrigger(r.trigger, processI18n)
+	const trigger = processText(r.triggerText)
 	const triggerShort = shortTrigger(r)
 	const kind = r.kind && r.kind !== 'run' ? t(`dms_automation.runs.kind.${r.kind}`) : ''
 	return [
@@ -319,7 +318,7 @@ function openRun(id: string) {
 							<span class="font-mono text-xs">{{ run._id }}</span>
 							<DmsCopyButton :value="run._id" />
 						</span>
-						<span>{{ $t('dms_automation.trace.startedBy', { time: startedAt, trigger: describeTrigger(run.trigger, processI18n) }) }}</span>
+						<span>{{ $t('dms_automation.trace.startedBy', { time: startedAt, trigger: processText(run.triggerText) }) }}</span>
 						<span v-if="run.instanceId" class="font-mono text-xs text-dimmed" :title="$t('dms_automation.trace.instance')">
 							{{ $t('dms_automation.trace.onInstance', { instance: run.instanceId.slice(0, 8) }) }}
 						</span>

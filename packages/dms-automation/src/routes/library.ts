@@ -10,12 +10,14 @@ import { GetModel } from "@antelopejs/interface-database-decorators";
 import { GetApiBaseUrl } from "@antelopejs/interface-dms/api-base-url";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
+import type { BlockText } from "@antelopejs/interface-dms/base/types";
 import { AutomationTemplateModel } from "../db/models/automation_template.model";
 import { healthByProcedure, loadStatsContext } from "../db/models/stats.model";
 import { labelOf, summarizeTrigger } from "../runtime/describe";
 import { nodeKinds } from "../runtime/nodeKinds";
 import { registry } from "../runtime/registry";
 import { walkPlacedNodes } from "../runtime/resolveSubgraph";
+import { cronText } from "../runtime/wording";
 import { DATABASE_NAME } from "../types/constants";
 import type { GraphNode } from "../types/graph";
 
@@ -63,6 +65,22 @@ interface TypeUsage {
   path?: string;
   cron?: string;
   timeZone?: string;
+  /** The schedule in words, in the zone it fires in. */
+  cronText?: BlockText;
+}
+
+/** What a trigger node is set to: its webhook, or its schedule in words. */
+export function triggerUsageOf(
+  node: GraphNode,
+): Pick<TypeUsage, "method" | "path" | "cron" | "timeZone" | "cronText"> {
+  const { method, path, cron, timeZone } = summarizeTrigger(node);
+  return {
+    method,
+    path,
+    cron,
+    timeZone,
+    cronText: cron ? cronText(cron, timeZone) : undefined,
+  };
 }
 
 @AuthOwnerOnly()
@@ -144,8 +162,7 @@ export class LibraryController extends Controller("/api/automation/library") {
             : null,
         };
         if (node.kind === "trigger") {
-          const { method, path, cron, timeZone } = summarizeTrigger(node);
-          Object.assign(usage, { method, path, cron, timeZone });
+          Object.assign(usage, triggerUsageOf(node));
         }
         (out[entry] ??= []).push(usage);
       }

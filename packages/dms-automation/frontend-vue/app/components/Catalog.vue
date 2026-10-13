@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
-import { describeCron } from '../utils/describe'
 import type { NodeKindEntry, PortRef } from '../composables/useAutomationNodeKinds'
 import type { JsonSchema } from '../composables/useGraphConnect'
 
@@ -42,6 +41,8 @@ interface TypeUsage {
 	path?: string
 	cron?: string
 	timeZone?: string
+	/** The schedule in words, by the server. */
+	cronText?: BlockText
 }
 
 const props = defineProps<{
@@ -76,6 +77,7 @@ const USES_SHOWN = 8
 
 const { $authFetch } = useAuthFetch()
 const { processI18n } = useTranslation()
+const { processText } = useComposedText()
 const { t, te } = useI18n()
 const toast = useToast()
 const { confirm } = useConfirm()
@@ -270,7 +272,7 @@ async function toggleEnabled(enabled: boolean) {
 
 /** Which node of the procedure it is: its label, else the block's name, and where it sits. */
 function where(use: TypeUsage): string {
-	if (use.cron) return describeCron(use.cron, processI18n, use.timeZone)
+	if (use.cronText) return processText(use.cronText)
 	const node = use.nodeLabel ?? processI18n(selected.value?.name ?? '')
 	if (use.viaTemplate) return `${node} · ${t('dms_automation.library.viaTemplate', { name: use.viaTemplate.name })}`
 	if (use.groupPath.length === 0) return node

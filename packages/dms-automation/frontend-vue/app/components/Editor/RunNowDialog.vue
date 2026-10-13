@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { describeTrigger, type TriggerSummary } from '../../utils/describe'
+import type { WordedTrigger } from '../../utils/describe'
 import { redactedHeadersOf } from '../../utils/redactedHeaders'
 
 // "Run now": the saved procedure, run for real with a payload the user can
@@ -10,14 +10,14 @@ const props = defineProps<{
 	apiUrl: string
 	procedureId: string
 	procedureName: string
-	triggers: TriggerSummary[]
+	triggers: WordedTrigger[]
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ (e: 'started', runId: string): void }>()
 
 const { $authFetch } = useAuthFetch()
-const { processI18n } = useTranslation()
+const { processText } = useComposedText()
 const { t } = useI18n()
 
 const triggerNodeId = ref<string | undefined>(undefined)
@@ -34,7 +34,7 @@ const fieldErrors = useFieldErrors({ fields: { payload: PAYLOAD_ID } })
 const redactedHeaders = computed(() => redactedHeadersOf(payload.value))
 
 const triggerItems = computed(() =>
-	props.triggers.map((trigger) => ({ label: describeTrigger(trigger, processI18n), value: trigger.nodeId ?? '' })),
+	props.triggers.map((trigger) => ({ label: processText(trigger.text), value: trigger.nodeId ?? '' })),
 )
 
 async function loadPayload() {
