@@ -37,11 +37,22 @@ export interface NodeKindEntry {
 /** Data type of a block dragged from the builder palette onto the canvas. */
 export const PALETTE_DRAG_TYPE = "application/x-dms-automation-block";
 
+/**
+ * A workspace template as the palette offers it: the fields placing it
+ * needs (the list endpoint serves more).
+ */
+export interface TemplateSummary {
+  _id: string;
+  name: string;
+  icon?: string;
+  ports: GroupPort[];
+}
+
 /** The block being dragged: a node kind (and type), or a workspace template. */
 export interface PaletteBlock {
   kind?: string;
   typeId?: string;
-  template?: { _id: string; name: string; icon?: string; ports: GroupPort[] };
+  template?: TemplateSummary;
 }
 
 export function useAutomationNodeKinds() {

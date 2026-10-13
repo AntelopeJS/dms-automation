@@ -1,4 +1,4 @@
-import type { NodeKindEntry } from "./useAutomationNodeKinds";
+import type { NodeKindEntry, PortRef } from "./useAutomationNodeKinds";
 
 /**
  * Node kind is a free-form string keyed off the runtime kind registry
@@ -12,8 +12,14 @@ export interface GraphNode {
   id: string;
   kind: NodeKind;
   typeId?: string;
+  // The step's name, set in the inspector (a group's falls back to config.name).
+  label?: string;
   config: Record<string, unknown>;
   position: { x: number; y: number };
+  // Group-only extras — present iff kind === 'group'.
+  ports?: GroupPort[];
+  templateId?: string;
+  subgraph?: ProcedureGraph;
 }
 
 export interface TriggerEdge {
@@ -311,11 +317,6 @@ function portsToSyntheticSchema(ports: PortRef[]): JsonSchema {
     properties[p.name] = p.type ? { type: p.type } : {};
   }
   return { properties };
-}
-
-interface PortRef {
-  name: string;
-  type?: string;
 }
 
 // Type-registry schemas have a small set of source schemas

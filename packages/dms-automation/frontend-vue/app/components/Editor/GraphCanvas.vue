@@ -50,21 +50,13 @@ import {
 	type NodeKindEntry,
 	type NodeKindUI,
 	type PaletteBlock,
+	type TemplateSummary,
 } from '../../composables/useAutomationNodeKinds'
 
-// Minimal shape of a workspace template surfaced in the palette. Mirrors the
-// `TemplateRow` interface in Templates.vue but only the fields the palette
-// actually needs (id, name, icon, ports). `ports` is deep-cloned (JSON
-// round-trip) onto each new template-instance group node so future template
-// edits don't retroactively mutate the instance's port list (the resolved
-// subgraph still updates live — that's the live-link model).
-interface TemplateSummary {
-	_id: string
-	name: string
-	icon?: string
-	ports: GroupPort[]
-}
-
+// A template's `ports` are deep-cloned (JSON round-trip) onto each new
+// template-instance group node so future template edits don't retroactively
+// mutate the instance's port list (the resolved subgraph still updates live —
+// that's the live-link model).
 const props = defineProps<{
 	graph: ProcedureGraph
 	triggerTypes: TriggerType[]

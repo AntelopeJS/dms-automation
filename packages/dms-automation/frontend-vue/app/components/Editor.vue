@@ -6,9 +6,20 @@ import type { DockIssue, DockRun, DockTab } from './Editor/BottomDock.vue'
 import type { ProcedureSummaryRow } from './Editor/ProcedureSwitcher.vue'
 import { describeDateTime, describeDuration, describeTime, describeTrigger, stepTitle, type TriggerSummary } from '../utils/describe'
 import type { BreadcrumbItem } from '@nuxt/ui'
-import type { NodeKindEntry } from '../composables/useAutomationNodeKinds'
+import type { NodeKindEntry, TemplateSummary } from '../composables/useAutomationNodeKinds'
 import { newId, queryString } from '../utils/automation'
-import type { GroupPort } from '../composables/useGraphConnect'
+import type {
+	ActionType,
+	DataEdge,
+	DataNodeType,
+	GraphNode,
+	GroupPort,
+	JsonSchema,
+	JsonSchemaProperty,
+	ProcedureGraph,
+	TriggerEdge,
+	TriggerType,
+} from '../composables/useGraphConnect'
 
 // Editor mode.
 //
@@ -62,44 +73,6 @@ const editorMode = computed<'procedure' | 'template'>(() => (templateQueryId.val
 
 const editorTemplateId = computed<string | null>(() => (editorMode.value === 'template' ? templateQueryId.value : null))
 
-interface GraphNode {
-	id: string
-	// Node kind is a free-form string keyed off the backend kind registry
-	// (`/api/automation/node-kinds`); the few kinds with bespoke Vue
-	// components (group / groupInput / groupOutput) are compared as
-	// literals where needed.
-	kind: string
-	typeId?: string
-	// The step's name, set in the inspector (a group's falls back to config.name).
-	label?: string
-	config: Record<string, unknown>
-	position: { x: number; y: number }
-	// Group-only extras — present iff kind === 'group'.
-	ports?: GroupPort[]
-	templateId?: string
-	subgraph?: ProcedureGraph
-}
-
-interface TriggerEdge {
-	id: string
-	from: { node: string; branch?: string }
-	// `to.branch` carries the target's trigger-in port name when the target is
-	// a group node or groupOutput sentinel — see src/types/graph.ts.
-	to: { node: string; branch?: string }
-}
-
-interface DataEdge {
-	id: string
-	from: { node: string; port: string }
-	to: { node: string; field: string }
-}
-
-interface ProcedureGraph {
-	nodes: GraphNode[]
-	triggerEdges: TriggerEdge[]
-	dataEdges: DataEdge[]
-}
-
 interface ProcedureRecord {
 	_id: string
 	name: string
@@ -112,47 +85,6 @@ interface ProcedureRecord {
 	// what was written elsewhere in the meantime.
 	version?: number
 	revision?: number
-}
-
-interface JsonSchemaProperty {
-	type?: string
-	[key: string]: unknown
-}
-
-interface JsonSchema {
-	type?: string
-	properties?: Record<string, JsonSchemaProperty>
-	[key: string]: unknown
-}
-
-interface TriggerType {
-	id: string
-	name: string
-	description?: string
-	icon?: string
-	configSchema?: JsonSchema
-	outputSchema?: JsonSchema
-}
-
-interface ActionType {
-	id: string
-	name: string
-	description?: string
-	icon?: string
-	inputSchema?: JsonSchema
-	outputSchema?: JsonSchema
-}
-
-interface DataNodeType {
-	id: string
-	category: string
-	name: string
-	description: string
-	icon: string
-	inputSchema: JsonSchema
-	outputSchema: JsonSchema
-	// Kept in sync with the canonical DataNodeType (useGraphConnect.ts).
-	configSchema?: JsonSchema
 }
 
 const { $authFetch } = useAuthFetch()
@@ -206,18 +138,12 @@ const nodeKinds = ref<NodeKindEntry[]>([])
 // the client (id, name, icon, ports). The list endpoint still returns full
 // rows (description, usageCount, hydrated subgraph); the `.map()` below
 // simply discards the extra fields after the fetch.
-interface TemplatePaletteRow {
-	_id: string
-	name: string
-	icon?: string
-	ports: GroupPort[]
-}
-const templates = ref<TemplatePaletteRow[]>([])
+const templates = ref<TemplateSummary[]>([])
 const templatesLoadError = ref<string | null>(null)
 
 async function loadTemplates() {
 	try {
-		const { results } = await $authFetch<{ results: TemplatePaletteRow[] }>('/api/automation/templates')
+		const { results } = await $authFetch<{ results: TemplateSummary[] }>('/api/automation/templates')
 		templates.value = results.map((t) => ({
 			_id: t._id,
 			name: t.name,
@@ -235,7 +161,7 @@ async function loadTemplates() {
 // server's cycle check would still catch any reference cycle, but blocking
 // it at the UI level keeps the UX cleaner — the user can't even attempt
 // to drop a template (including the one currently open) into itself.
-const palettesTemplates = computed<TemplatePaletteRow[] | undefined>(() =>
+const palettesTemplates = computed<TemplateSummary[] | undefined>(() =>
 	editorMode.value === 'template' ? undefined : templates.value,
 )
 

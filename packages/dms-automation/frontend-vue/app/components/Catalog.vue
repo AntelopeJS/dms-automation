@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { describeCron } from '../utils/describe'
+import type { NodeKindEntry, PortRef } from '../composables/useAutomationNodeKinds'
+import type { JsonSchema } from '../composables/useGraphConnect'
 
 // One catalog of the library (triggers, actions, data nodes, or the flow and
 // helper blocks): its entries grouped by the module that registered them, and
@@ -9,11 +11,6 @@ import { describeCron } from '../utils/describe'
 // in the URL (`?item=`), so going back to the library lands on it again.
 
 type CatalogKind = 'triggers' | 'actions' | 'dataNodes' | 'flow'
-
-interface JsonSchema {
-	properties?: Record<string, unknown>
-	required?: string[]
-}
 
 interface CatalogEntry {
 	id: string
@@ -27,26 +24,6 @@ interface CatalogEntry {
 	inputSchema?: JsonSchema
 	outputSchema?: JsonSchema
 	enabled?: boolean
-}
-
-interface PortRef {
-	name: string
-	type?: string
-}
-
-/** A plain node kind, as `/node-kinds` lists it. */
-interface NodeKindEntry {
-	kind: string
-	meta: {
-		ui?: {
-			label: string
-			icon?: string
-			category?: string
-			configSchema?: JsonSchema
-			staticDataIns?: PortRef[]
-			staticDataOuts?: PortRef[]
-		}
-	}
 }
 
 type ProcedureState = 'failing' | 'degraded' | 'healthy' | 'paused' | 'draft'
