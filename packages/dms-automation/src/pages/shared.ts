@@ -71,8 +71,10 @@ export function periodSwitch(scope: string) {
 /**
  * Keeps a page declared with `live` in step with `topics`: each event they
  * publish refreshes every block of the page through its Live / Pause. The
- * DMS KPI, chart and top list cards take no realtime topic of their own, and
- * a custom block binds none to its page, so this one binds them.
+ * DMS KPI card takes no realtime topic of its own, and a custom block binds
+ * none to its page, so this one binds them. Chart and top list cards do take
+ * a `realtimeTopic`, but this refresh already reaches them: giving them one
+ * too would read them twice per event.
  */
 export function liveTopics(topics: string[]) {
   return CustomComponent("dms-automation-live-topics")
