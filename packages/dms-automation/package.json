@@ -57,7 +57,7 @@
     "@antelopejs/interface-database": ">=0.1.8 <1.0.0",
     "@antelopejs/interface-database-decorators": ">=0.1.7 <1.0.0",
     "@antelopejs/interface-dms": ">=0.5.13 <1.0.0",
-    "@antelopejs/interface-dms-automation": ">=0.1.1 <0.2.0",
+    "@antelopejs/interface-dms-automation": ">=0.2.0 <0.3.0",
     "defu": "^6.1.4",
     "node-cron": "^4.2.1",
     "zod": "^3.25.76"
