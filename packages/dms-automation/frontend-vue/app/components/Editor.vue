@@ -92,6 +92,7 @@ const toast = useToast()
 // Composables are called before the first `await` of this setup: after it,
 // the component instance they inject from is gone.
 const { confirm } = useConfirm()
+const { confirmFrom } = useConfirmFrom()
 const runsApi = useAutomationRuns(props.apiUrl)
 // Leaving the page with unsaved changes goes through the DMS leave guard.
 const unsavedDraft = ref(false)
@@ -1831,13 +1832,9 @@ async function onDelete() {
 	const current = selected.value
 	if (!current) return
 	const name = savedName.value
-	await confirm({
-		title: t('dms_automation.editor.deleteTitle', { name }),
-		description: current.enabled ? t('dms_automation.editor.deleteEnabled') : t('dms_automation.editor.deleteDisabled'),
-		color: 'error',
-		icon: 'i-ph-trash',
-		confirmLabel: t('dms_automation.editor.delete'),
-		confirmText: current.enabled ? name : undefined,
+	// The server words the dialog, as the procedures table's delete does.
+	await confirmFrom(`${props.apiUrl}/procedures/{id}/delete-confirm`, {
+		params: { id: current._id },
 		onConfirm: async () => {
 			await $authFetch(`${props.apiUrl}/procedures/${current._id}`, { method: 'DELETE' })
 			procedures.value = procedures.value.filter((p) => p._id !== current._id)

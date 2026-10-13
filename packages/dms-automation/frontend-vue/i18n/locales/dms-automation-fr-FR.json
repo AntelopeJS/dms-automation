@@ -164,9 +164,6 @@
         "testLabel": "Test · {when}"
       },
       "delete": "Supprimer la procédure",
-      "deleteDisabled": "Le graphe est supprimé ; son historique reste jusqu’à ce que la rétention l’efface.",
-      "deleteEnabled": "Elle est active : ses déclencheurs s’arrêtent aussitôt. Saisissez son nom pour confirmer.",
-      "deleteTitle": "Supprimer « {name} » ?",
       "deleted": "{name} supprimée",
       "disabled": "Désactivée",
       "discard": "Abandonner les modifications",

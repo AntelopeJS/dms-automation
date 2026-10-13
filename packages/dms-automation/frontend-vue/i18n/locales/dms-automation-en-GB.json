@@ -164,9 +164,6 @@
         "testLabel": "Test run · {when}"
       },
       "delete": "Delete procedure",
-      "deleteDisabled": "The graph is deleted; its run history stays until retention removes it.",
-      "deleteEnabled": "It is enabled: its triggers stop at once. Type its name to confirm.",
-      "deleteTitle": "Delete “{name}”?",
       "deleted": "{name} deleted",
       "disabled": "Disabled",
       "discard": "Discard",
