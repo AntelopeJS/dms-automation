@@ -40,20 +40,6 @@ export class ActionTypesController extends Controller(
     );
   }
 
-  @Get("/:id/config")
-  async getConfig(
-    @AuthRawUser() _user: User,
-    @Parameter("id", "param") id: string,
-  ) {
-    assertRegistered(registry.getAction(id), id);
-    const model = GetModel(ActionTypeConfigModel, DATABASE_NAME);
-    const cfg = await model.getByTypeId(id);
-    if (!cfg) {
-      return { enabled: true, config: "{}" };
-    }
-    return { enabled: cfg.enabled, config: cfg.config };
-  }
-
   @Put("/:id/config")
   async setConfig(
     @AuthUserWithPermission(LibraryPageController) _user: User,

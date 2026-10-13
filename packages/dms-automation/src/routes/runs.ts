@@ -27,31 +27,11 @@ import {
 import { parseGraphSafe } from "../runtime/describe";
 import { subscriptions } from "../runtime/subscriptions";
 import { stepDurations, traceOf } from "../runtime/trace";
-import { DATABASE_NAME, MS_PER_DAY, MS_PER_HOUR } from "../types/constants";
+import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
 import type { ProcedureGraph } from "../types/graph";
 import type { RunLog } from "../types/runLog";
-import { API_MESSAGES, pageParams, refused } from "./requests";
+import { refused } from "./requests";
 import { kpiAnswer } from "./stats";
-
-// Period unit ("h" / "d") to its span in milliseconds.
-const MS_PER_UNIT: Record<"h" | "d", number> = {
-  h: MS_PER_HOUR,
-  d: MS_PER_DAY,
-};
-
-function sinceFromPeriod(period?: string): Date | undefined {
-  if (!period) return undefined;
-  const m = /^(\d+)([hd])$/.exec(period);
-  if (!m) return undefined;
-  const n = Number(m[1]);
-  const unit = m[2] as "h" | "d";
-  return new Date(Date.now() - n * MS_PER_UNIT[unit]);
-}
-
-/** Runs a page of the run list holds when the caller does not say. */
-const DEFAULT_LIST_SIZE = "50";
-
-const PERIOD_PATTERN = /^\d+[hd]$/;
 
 /** Time on each side of a run its usual duration is read over. */
 const USUAL_DURATION_WINDOW_MS = 7 * MS_PER_DAY;
@@ -312,44 +292,6 @@ export function rerunPlanFor(
 
 @AuthOwnerOnly()
 export class RunsController extends Controller("/api/automation/runs") {
-  @Get("")
-  // Each parameter is bound to a request input by its decorator, so
-  // the framework hands them in positionally: an options object is not
-  // expressible here.
-  // oxlint-disable-next-line eslint/max-params
-  async list(
-    @AuthRawUser() _user: User,
-    @Parameter("page", "query") page?: string,
-    @Parameter("limit", "query") limit?: string,
-    @Parameter("procedureId", "query") procedureId?: string,
-    @Parameter("status", "query") status?: string,
-    @Parameter("period", "query") period?: string,
-  ) {
-    const pageQuery = pageParams(page, limit ?? DEFAULT_LIST_SIZE);
-    if (status && status !== "ok" && status !== "failed") {
-      throw refused(
-        400,
-        "status must be ok or failed",
-        `${API_MESSAGES}.invalidBody`,
-      );
-    }
-    if (period && !PERIOD_PATTERN.test(period)) {
-      throw refused(
-        400,
-        "period must read like 24h or 7d",
-        `${API_MESSAGES}.invalidBody`,
-      );
-    }
-    return GetModel(ProcedureRunModel, DATABASE_NAME).listAll({
-      ...pageQuery,
-      procedureId,
-      status,
-      since: sinceFromPeriod(period),
-      // Over-fetch one row so the client can tell whether a next page exists.
-      peek: true,
-    });
-  }
-
   @Get("/kpi/:metric")
   // oxlint-disable-next-line eslint/max-params -- one decorator per query input
   async kpi(

@@ -9,20 +9,15 @@ const MAX_DESCRIPTION_LENGTH = 2000;
 const nameSchema = z.string().trim().min(1).max(MAX_NAME_LENGTH);
 const descriptionSchema = z.string().max(MAX_DESCRIPTION_LENGTH);
 
-export const procedureBodySchema = z.object({
-  name: nameSchema,
-  description: descriptionSchema.optional(),
-  enabled: z.boolean(),
-  graph: procedureGraphSchema,
-});
-
-export type ProcedureBody = z.infer<typeof procedureBodySchema>;
-
 /**
  * A save names the revision it was loaded at: a procedure written since
  * (another tab, a pause from the list) is not overwritten.
  */
-export const procedureUpdateSchema = procedureBodySchema.extend({
+export const procedureUpdateSchema = z.object({
+  name: nameSchema,
+  description: descriptionSchema.optional(),
+  enabled: z.boolean(),
+  graph: procedureGraphSchema,
   expectedRevision: z.number().int(),
 });
 

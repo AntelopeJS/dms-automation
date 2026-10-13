@@ -40,20 +40,6 @@ export class TriggerTypesController extends Controller(
     );
   }
 
-  @Get("/:id/config")
-  async getConfig(
-    @AuthRawUser() _user: User,
-    @Parameter("id", "param") id: string,
-  ) {
-    assertRegistered(registry.getTrigger(id), id);
-    const model = GetModel(TriggerTypeConfigModel, DATABASE_NAME);
-    const cfg = await model.getByTypeId(id);
-    if (!cfg) {
-      return { enabled: true, config: "{}" };
-    }
-    return { enabled: cfg.enabled, config: cfg.config };
-  }
-
   @Put("/:id/config")
   async setConfig(
     @AuthUserWithPermission(LibraryPageController) _user: User,

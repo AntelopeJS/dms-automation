@@ -45,8 +45,6 @@ import {
   importSchema,
   MAX_NAME_LENGTH,
   newProcedureSchema,
-  type ProcedureBody,
-  procedureBodySchema,
   procedureUpdateSchema,
   runNowSchema,
   type Starter,
@@ -280,33 +278,6 @@ export class ProceduresController extends Controller(
     return { _id: copyId };
   }
 
-  @Post("")
-  async create(@AuthRawUser() _user: User, @JSONBody() body: unknown) {
-    const data: ProcedureBody = parseBody(procedureBodySchema, body);
-    const issues = await checkSavable(data.graph, data.enabled, {
-      name: data.name,
-    });
-    const model = GetModel(ProcedureModel, DATABASE_NAME);
-    const now = new Date();
-    const ids = await model.insert({
-      name: data.name,
-      description: data.description ?? "",
-      enabled: data.enabled,
-      graph: JSON.stringify(data.graph),
-      version: 1,
-      revision: 1,
-      created_at: now,
-      updated_at: now,
-    });
-    const id = ids[0];
-    if (!id) {
-      throw new HTTPResult(500, { error: "procedure insert returned no id" });
-    }
-    await subscriptions.onProcedureChange(id);
-    notifyTopic(PROCEDURES_TOPIC, "created", { procedureId: id });
-    return { _id: id, version: 1, revision: 1, issues };
-  }
-
   /**
    * Save a procedure. The save is refused (409 `stale`) when the procedure
    * was written since it was loaded at `expectedRevision`. The version moves
@@ -446,17 +417,6 @@ export class ProceduresController extends Controller(
       await GetModel(ProcedureRunModel, DATABASE_NAME).listForStats(since)
     ).filter((r) => r.procedureId === id && isProductionRun(r.kind));
     return serializeConfirmDialog(deleteDialogOf(procedure, runs.length));
-  }
-
-  /** Run the saved graph of a procedure with a manual trigger (API invoke). */
-  @Post("/:id/run")
-  async run(
-    @AuthRawUser() _user: User,
-    @Parameter("id", "param") id: string,
-    @JSONBody() body: unknown,
-  ) {
-    const runId = await subscriptions.invokeManual(id, body);
-    return { runId };
   }
 
   /**
