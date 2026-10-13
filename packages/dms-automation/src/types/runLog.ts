@@ -53,8 +53,7 @@ export interface LogEntry {
 
 /**
  * The run-log shape persisted with each procedure run. The fire tree
- * carries nested-group / iteration structure that used to live in the
- * removed `RunLogEntry.path` field.
+ * carries the nested-group / iteration structure.
  */
 export interface RunLog {
   fires: FireNode[];

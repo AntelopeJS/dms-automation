@@ -114,8 +114,8 @@ export interface GroupPort {
 /**
  * A group node carries the ports its subgraph exposes, as a sibling field of
  * `config`/`position` — mirrors `GroupNode` on the backend. `ports` is optional
- * here because the value crosses the API: a group saved before it had any port,
- * or a hand-written graph, simply omits it.
+ * here because the value crosses the API: a hand-written (imported) graph may
+ * omit it.
  */
 export interface GroupNode extends GraphNode {
   kind: "group";
