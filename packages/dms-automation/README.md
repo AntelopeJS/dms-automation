@@ -8,7 +8,7 @@
 
 AntelopeJS DMS module that provides a visual automation builder under `/modules/automation`. Author procedures as node graphs (triggers, actions, data nodes), wire trigger and data edges, and run them in response to events such as cron schedules and webhooks.
 
-It runs on `@antelopejs/dms` 0.7.20 (`@antelopejs/interface-dms` 0.5.12) and `@antelopejs/dms-frontend` 0.5.
+It runs on `@antelopejs/dms` 0.7.21 (`@antelopejs/interface-dms` 0.5.13) and `@antelopejs/dms-frontend` 0.5.
 
 ## Pages
 
