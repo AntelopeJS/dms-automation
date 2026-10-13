@@ -68,6 +68,9 @@ globalThis.useI18n = () => ({
   locale: { value: "en" },
 });
 globalThis.useToast = () => ({ add() {} });
+globalThis.useRegionalFormat = () => ({
+  dateTimeFormat: (options) => new Intl.DateTimeFormat("en", options),
+});
 
 const SlotStub = vue.defineComponent({
   inheritAttrs: false,
@@ -289,4 +292,26 @@ test("a webhook endpoint offers no URL to copy until the server's address is kno
   );
   assert.match(full, /loading/);
   assert.doesNotMatch(full, /data-copy|curl/);
+});
+
+test("dates are written through the page's regional format", () => {
+  const { describeDateTime, describeTime } = require(
+    path.join(FRONTEND, "app/utils/describe.ts"),
+  );
+  // As `useRegionalFormat().dateTimeFormat` does for a user who set a time
+  // zone and a 12-hour clock: their settings, unless the text names a zone.
+  const regional = (options) =>
+    new Intl.DateTimeFormat("en-GB", {
+      ...options,
+      timeZone: options.timeZone ?? "America/New_York",
+      hourCycle: "h12",
+    });
+  const date = new Date(Date.UTC(2020, 9, 12, 17, 57));
+  assert.equal(describeDateTime(date, regional), "12 Oct 2020, 1:57 pm");
+  assert.equal(
+    describeDateTime(date, regional, "Europe/Paris"),
+    "12 Oct 2020, 7:57 pm",
+  );
+  assert.equal(describeTime("not a date", regional), "—");
+  assert.equal(describeDateTime(null, regional), "—");
 });

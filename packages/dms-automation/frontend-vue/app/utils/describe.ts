@@ -209,13 +209,21 @@ export function describeRelative(
 }
 
 /**
- * How a locale writes hours: "09:05" on a 24-hour clock, "9:05 AM" on a
+ * Builds the `Intl.DateTimeFormat` a date is written with: the page's
+ * `useRegionalFormat().dateTimeFormat`, which adds the user's Language &
+ * region settings (time zone, clock, date format) to what is asked for. An
+ * explicit `timeZone` wins.
+ */
+export type DateTimeFormatOf = (
+  options: Intl.DateTimeFormatOptions,
+) => Intl.DateTimeFormat;
+
+/**
+ * How the reader writes hours: "09:05" on a 24-hour clock, "9:05 AM" on a
  * 12-hour one (never "09:05 AM").
  */
-function hourStyle(locale: string | undefined): "2-digit" | "numeric" {
-  const { hourCycle } = new Intl.DateTimeFormat(locale, {
-    hour: "numeric",
-  }).resolvedOptions();
+function hourStyle(formatOf: DateTimeFormatOf): "2-digit" | "numeric" {
+  const { hourCycle } = formatOf({ hour: "numeric" }).resolvedOptions();
   return hourCycle === "h23" || hourCycle === "h24" ? "2-digit" : "numeric";
 }
 
@@ -228,41 +236,39 @@ function hourStyle(locale: string | undefined): "2-digit" | "numeric" {
  */
 export function describeDateTime(
   date: string | Date | null | undefined,
-  locale?: string,
+  formatOf: DateTimeFormatOf,
   timeZone?: string,
 ): string {
   if (!date) return "—";
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return "—";
-  const lang = pageLocale(locale);
   const yearOf = (value: Date) =>
-    new Intl.DateTimeFormat("en", { year: "numeric", timeZone }).format(value);
+    formatOf({ year: "numeric", timeZone }).format(value);
   const options: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "numeric",
-    hour: hourStyle(lang),
+    hour: hourStyle(formatOf),
     minute: "2-digit",
     timeZone,
   };
   if (yearOf(d) !== yearOf(new Date())) options.year = "numeric";
-  return new Intl.DateTimeFormat(lang, options).format(d);
+  return formatOf(options).format(d);
 }
 
 /** "14:28" today, else the date and time: "Sep 22, 14:28". */
 export function describeTime(
   date: string | Date | null | undefined,
-  locale?: string,
+  formatOf: DateTimeFormatOf,
 ): string {
   if (!date) return "—";
   const d = new Date(date);
-  if (d.toDateString() !== new Date().toDateString()) {
-    return describeDateTime(d, locale);
-  }
-  const lang = pageLocale(locale);
-  return new Intl.DateTimeFormat(lang, {
-    hour: hourStyle(lang),
-    minute: "2-digit",
-  }).format(d);
+  if (Number.isNaN(d.getTime())) return "—";
+  const dayOf = (value: Date) =>
+    formatOf({ year: "numeric", month: "numeric", day: "numeric" }).format(
+      value,
+    );
+  if (dayOf(d) !== dayOf(new Date())) return describeDateTime(d, formatOf);
+  return formatOf({ hour: hourStyle(formatOf), minute: "2-digit" }).format(d);
 }
 
 /** Pretty JSON for a payload or an output, `null` shown as such. */

@@ -18,6 +18,7 @@ const props = defineProps<{
 const router = useDmsRouter()
 const { processI18n } = useTranslation()
 const { t, locale } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
 const runs = useAutomationRuns(props.apiUrl)
 const { rerun, rerunning } = useRunActions({ apiUrl: props.apiUrl, traceUrl: props.traceUrl })
 
@@ -47,7 +48,7 @@ const procedureName = computed(
 )
 const names = computed(() => new Map((run.value?.trace.steps ?? []).map((s) => [s.nodeId, s.name])))
 
-const when = computed(() => describeDateTime(run.value?.startedAt, locale.value))
+const when = computed(() => describeDateTime(run.value?.startedAt, dateTimeFormat))
 
 const sections = computed(() => [
 	{ label: t('dms_automation.trace.tabs.summary'), value: 'summary' },

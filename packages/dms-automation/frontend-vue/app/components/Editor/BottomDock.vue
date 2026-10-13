@@ -48,6 +48,7 @@ const emit = defineEmits<{
 }>()
 
 const { processI18n } = useTranslation()
+const { dateTimeFormat } = useRegionalFormat()
 
 // Real runs only: a failed test of a draft says nothing of the procedure.
 const failedRuns = computed(() => props.runs.filter((r) => r.status === 'failed' && r.kind !== 'test').length)
@@ -133,7 +134,7 @@ function runLine(run: DockRun): string {
 					<span class="min-w-0 flex-1 truncate" :class="run.status === 'failed' ? 'text-error' : 'text-toned'">{{ runLine(run) }}</span>
 					<UBadge v-if="run.kind === 'test'" size="sm" variant="subtle" color="info">{{ $t('dms_automation.runs.kind.test') }}</UBadge>
 					<span class="font-mono text-muted">{{ describeDuration(durationOf(run)) }}</span>
-					<span class="w-24 text-right font-mono text-dimmed">{{ describeTime(run.startedAt) }}</span>
+					<span class="w-24 text-right font-mono text-dimmed">{{ describeTime(run.startedAt, dateTimeFormat) }}</span>
 				</button>
 				<DmsLink :to="runsUrl" class="block px-3 py-2 text-xs text-primary hover:underline">
 					{{ $t('dms_automation.editor.dock.allRuns') }}

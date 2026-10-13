@@ -44,6 +44,7 @@ const props = defineProps<{
 const { $authFetch } = useAuthFetch()
 const { processI18n } = useTranslation()
 const { t, te } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
 const toast = useToast()
 
 // Read like the DMS cards: over the page's period, on its refreshes, through
@@ -83,7 +84,7 @@ function reason(row: AttentionRow): string {
 			count: row.failed,
 			failed: row.failed,
 			runs: row.runs,
-			when: f ? describeTime(f.startedAt) : '—',
+			when: f ? describeTime(f.startedAt, dateTimeFormat) : '—',
 			error,
 		})
 	}

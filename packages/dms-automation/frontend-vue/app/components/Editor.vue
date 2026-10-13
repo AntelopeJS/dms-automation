@@ -54,6 +54,7 @@ const props = withDefaults(
 const route = useDmsRoute()
 const router = useDmsRouter()
 const { t, te, locale } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
 const { processI18n } = useTranslation()
 // Shortcut hints print ⌘ on macOS and Ctrl elsewhere, like the rest of the DMS.
 const { formatShortcut } = useKeyboardPlatform()
@@ -1794,7 +1795,7 @@ const pausedBanner = computed(() => {
 		description: first.nextAt
 			? t('dms_automation.editor.paused.schedule', {
 					what,
-					next: describeDateTime(first.nextAt, locale.value, first.timeZone),
+					next: describeDateTime(first.nextAt, dateTimeFormat, first.timeZone),
 				})
 			: t('dms_automation.editor.paused.other', { what }),
 	}
@@ -2777,7 +2778,7 @@ const selectedRunStep = computed<TraceStep | null>(() => {
 const overlayLabel = computed(() => {
 	const run = overlayRun.value
 	if (!run) return ''
-	const when = describeTime(run.startedAt, locale.value)
+	const when = describeTime(run.startedAt, dateTimeFormat)
 	return overlayIsTest.value
 		? t('dms_automation.editor.debug.testLabel', { when })
 		: t('dms_automation.editor.debug.runLabel', { run: run._id.slice(-6), when })

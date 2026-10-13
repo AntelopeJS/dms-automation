@@ -32,6 +32,7 @@ const route = useDmsRoute()
 const router = useDmsRouter()
 const { processI18n } = useTranslation()
 const { t, locale } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
 const runs = useAutomationRuns(props.apiUrl)
 const { rerun, rerunning } = useRunActions({ apiUrl: props.apiUrl, traceUrl: props.traceUrl })
 
@@ -88,7 +89,7 @@ const procedureName = computed(
 	() => run.value?.procedure?.name ?? run.value?.procedureName ?? t('dms_automation.feed.deletedProcedure'),
 )
 const failed = computed(() => run.value?.status === 'failed')
-const startedAt = computed(() => describeDateTime(run.value?.startedAt, locale.value))
+const startedAt = computed(() => describeDateTime(run.value?.startedAt, dateTimeFormat))
 const statusLabel = computed(() => (failed.value ? t('dms_automation.runs.status.failed') : t('dms_automation.runs.status.ok')))
 
 useHead({

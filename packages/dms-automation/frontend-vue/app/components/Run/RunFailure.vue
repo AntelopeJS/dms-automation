@@ -9,7 +9,7 @@ import { describeDuration, describeTime, stepTitle } from '../../utils/describe'
 const props = defineProps<{ run: RunDetail; traceUrl: string }>()
 
 const { processI18n } = useTranslation()
-const { locale } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
 
 const step = computed(() => stepTitle(props.run.failedStep, processI18n))
 
@@ -18,7 +18,7 @@ const lastSuccess = computed(() => {
 	return last
 		? {
 				to: `${props.traceUrl}?run=${encodeURIComponent(last.runId)}`,
-				label: processI18n('$dms_automation.trace.lastSuccessAt', { time: describeTime(last.startedAt, locale.value) }),
+				label: processI18n('$dms_automation.trace.lastSuccessAt', { time: describeTime(last.startedAt, dateTimeFormat) }),
 				id: last.runId.slice(0, 8),
 			}
 		: null
