@@ -84,7 +84,7 @@ test("Set variable feeds its value port", async () => {
     {},
   );
   assert.equal(result.status, "ok");
-  assert.deepEqual(outputOf(result, "sv"), { x: 5, value: 5 });
+  assert.deepEqual(outputOf(result, "sv"), { value: 5 });
   assert.equal(outputOf(result, "log").value, 5);
 });
 
