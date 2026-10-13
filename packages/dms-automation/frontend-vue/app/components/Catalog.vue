@@ -27,7 +27,6 @@ interface CatalogEntry {
 	inputSchema?: JsonSchema
 	outputSchema?: JsonSchema
 	enabled?: boolean
-	globalConfig?: string
 }
 
 interface PortRef {
@@ -260,7 +259,7 @@ async function setEnabled(enabled: boolean) {
 	try {
 		await $authFetch(`${props.apiUrl}/${ENDPOINTS[props.kind]}/${encodeURIComponent(entry.id)}/config`, {
 			method: 'PUT',
-			body: { enabled, config: entry.globalConfig ?? '{}' },
+			body: { enabled },
 		})
 		entry.enabled = enabled
 		toast.add({
