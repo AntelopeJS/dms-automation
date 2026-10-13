@@ -138,17 +138,6 @@ export function describeTrigger(
   return t(trigger.typeName);
 }
 
-/** Icon of a trigger type, for the places that only have its summary. */
-export function triggerIcon(
-  trigger: TriggerSummary | null | undefined,
-): string {
-  if (!trigger) return "i-ph-circle-dashed";
-  if (trigger.path) return "i-ph-webhooks-logo";
-  if (trigger.cron) return "i-ph-clock";
-  if (trigger.typeId === "manual") return "i-ph-play";
-  return "i-ph-lightning";
-}
-
 /** A step's name: its label, else its type's name, else its id. */
 export function stepTitle(
   step: StepName | null | undefined,

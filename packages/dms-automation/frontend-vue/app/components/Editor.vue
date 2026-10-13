@@ -22,22 +22,18 @@ import type { GroupPort } from '../composables/useGraphConnect'
 //   PUT /api/automation/templates/:id. Run, procedure list, and enabled toggle
 //   are hidden.
 //
-// Mode is resolved from props first (so a host page can hard-wire it) and
-// otherwise from the route query: `?template=<id>` switches into template mode.
+// Mode is resolved from the route query: `?template=<id>` switches into
+// template mode.
 // This keeps the route wiring trivial (the Templates catalog navigates
 // to `/modules/automation/builder?template=<id>`) without needing a
 // dedicated page.
 const props = withDefaults(
 	defineProps<{
-		mode?: 'procedure' | 'template'
-		entityId?: string
 		apiUrl?: string
 		runsUrl?: string
 		traceUrl?: string
 	}>(),
 	{
-		mode: undefined,
-		entityId: undefined,
 		apiUrl: '/api/automation',
 		runsUrl: '/modules/automation/runs',
 		traceUrl: '/modules/automation/trace',
@@ -70,16 +66,9 @@ const templateQueryId = computed<string | null>(() => {
 	return null
 })
 
-const editorMode = computed<'procedure' | 'template'>(() => {
-	if (props.mode) return props.mode
-	if (templateQueryId.value) return 'template'
-	return 'procedure'
-})
+const editorMode = computed<'procedure' | 'template'>(() => (templateQueryId.value ? 'template' : 'procedure'))
 
-const editorTemplateId = computed<string | null>(() => {
-	if (editorMode.value !== 'template') return null
-	return props.entityId ?? templateQueryId.value
-})
+const editorTemplateId = computed<string | null>(() => (editorMode.value === 'template' ? templateQueryId.value : null))
 
 interface GraphNode {
 	id: string
@@ -3621,8 +3610,6 @@ function onTemplatePortsUpdate(next: GroupPort[]) {
 					:data-edges="currentGraph?.dataEdges ?? []"
 					:trigger-type="selectedNodeTriggerType"
 					:action-type="selectedNodeActionType"
-					:trigger-types="triggerTypes"
-					:action-types="actionTypes"
 					:data-node-types="dataNodeTypes"
 					:node-kinds="nodeKinds"
 					:read-only="isCurrentGraphReadOnly"

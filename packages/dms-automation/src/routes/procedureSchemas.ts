@@ -21,7 +21,7 @@ export const procedureUpdateSchema = z.object({
   expectedRevision: z.number().int(),
 });
 
-export const STARTERS = ["webhook", "schedule.cron", "manual"] as const;
+const STARTERS = ["webhook", "schedule.cron", "manual"] as const;
 
 export type Starter = (typeof STARTERS)[number];
 

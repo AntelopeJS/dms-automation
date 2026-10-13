@@ -4,7 +4,7 @@ import type {
   TriggerType,
 } from "@antelopejs/interface-dms-automation";
 
-export class Registry {
+class Registry {
   private triggers = new Map<string, TriggerType>();
   private actions = new Map<string, ActionType>();
   private dataNodes = new Map<string, DataNodeType>();

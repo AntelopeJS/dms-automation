@@ -120,9 +120,9 @@ export function isGroupNode(node: GraphNode): node is GroupNode {
   return node.kind === "group";
 }
 
-export type ConnectKind = "trigger" | "data";
+type ConnectKind = "trigger" | "data";
 
-export interface ConnectionLike {
+interface ConnectionLike {
   id?: string;
   source: string;
   target: string;
@@ -134,7 +134,7 @@ export interface ConnectionLike {
  * Why a connection is refused. The canvas turns the code into a sentence
  * (`dms_automation.editor.canvas.connect.<code>`), with `params` filled in.
  */
-export type ConnectRefusal =
+type ConnectRefusal =
   | "invalidPorts"
   | "kindMismatch"
   | "selfLoop"
@@ -150,7 +150,7 @@ export type ConnectResult =
 // group's inner subgraph — the sentinel nodes (`groupInput` / `groupOutput`)
 // don't carry ports themselves, so their schemas must be looked up against
 // the parent group. Undefined at the procedure-graph root.
-export interface ConnectContext {
+interface ConnectContext {
   parentGroupPorts?: GroupPort[];
 }
 

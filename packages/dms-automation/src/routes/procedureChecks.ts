@@ -45,7 +45,7 @@ const normalName = (name: string) => name.trim().toLowerCase();
  * Whether another procedure already has this name: allowed, but two
  * procedures of one name are easy to mix up in the lists and the history.
  */
-export async function isNameTaken(
+async function isNameTaken(
   name: string,
   procedureId?: string,
 ): Promise<boolean> {

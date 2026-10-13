@@ -25,7 +25,7 @@ export const groupPortSchema: z.ZodType<GroupPort> = z.object({
   schema: z.record(z.unknown()).optional(),
 });
 
-export const triggerEdgeSchema = z.object({
+const triggerEdgeSchema = z.object({
   id: z.string(),
   from: z.object({ node: z.string(), branch: z.string().optional() }),
   // `to.branch` carries the target's trigger-in port name when the
@@ -33,7 +33,7 @@ export const triggerEdgeSchema = z.object({
   to: z.object({ node: z.string(), branch: z.string().optional() }),
 });
 
-export const dataEdgeSchema = z.object({
+const dataEdgeSchema = z.object({
   id: z.string(),
   from: z.object({ node: z.string(), port: z.string() }),
   to: z.object({ node: z.string(), field: z.string() }),
@@ -82,7 +82,7 @@ export const procedureGraphSchema: z.ZodType<
   })
   .pipe(graphShapeSchema);
 
-export const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
+const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
   z
     .object({
       id: z.string(),

@@ -95,7 +95,7 @@ export function windowOf(
 }
 
 /** A procedure with what its graph says, parsed once. */
-export interface ProcedureFacts {
+interface ProcedureFacts {
   procedure: Procedure;
   graph: ProcedureGraph | undefined;
   triggers: TriggerSummary[];
@@ -188,17 +188,8 @@ export function windowRuns(ctx: StatsContext, window: StatsWindow): StatsRun[] {
   return runsBetween(ctx.runs, window.from, window.to);
 }
 
-/** Production runs inside the compared window, when there is one. */
-export function compareRuns(
-  ctx: StatsContext,
-  window: StatsWindow,
-): StatsRun[] | undefined {
-  if (!window.compareFrom || !window.compareTo) return undefined;
-  return runsBetween(ctx.runs, window.compareFrom, window.compareTo);
-}
-
 /** A bar of the strip of last runs, linking to its trace. */
-export interface RecentRunCell {
+interface RecentRunCell {
   runId: string;
   status: string;
   startedAt: string;

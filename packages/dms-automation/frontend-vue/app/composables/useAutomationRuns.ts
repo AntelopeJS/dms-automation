@@ -71,7 +71,7 @@ export interface RunRef {
   stepDurations: Record<string, number | null>;
 }
 
-export interface GraphNodeLite {
+interface GraphNodeLite {
   id: string;
   kind: string;
   typeId?: string;
@@ -80,7 +80,7 @@ export interface GraphNodeLite {
   position: { x: number; y: number };
 }
 
-export interface GraphLite {
+interface GraphLite {
   nodes: GraphNodeLite[];
   triggerEdges: Array<{
     id: string;
@@ -163,7 +163,7 @@ export interface RerunResult {
  * dialog): its texts are i18n keys filled in with `params`, and `blocked`
  * says why the run cannot be re-run.
  */
-export interface RerunDialog {
+interface RerunDialog {
   title: string;
   description?: string;
   params?: Record<string, unknown>;

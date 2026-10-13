@@ -21,7 +21,7 @@ import {
 import { bucketStarts, runsPerBucket } from "./kpi";
 
 /** The last failure, as the overview links to it. */
-export interface FailureRef {
+interface FailureRef {
   runId: string;
   procedureId: string;
   procedureName: string;
@@ -31,7 +31,7 @@ export interface FailureRef {
 }
 
 /** A failing procedure in the overview's health line. */
-export interface FailingProcedure {
+interface FailingProcedure {
   procedureId: string;
   name: string;
   since: string | null;
@@ -42,12 +42,7 @@ export interface FailingProcedure {
 }
 
 /** What the overview's health line says. */
-export type OverallState =
-  | "empty"
-  | "failing"
-  | "degraded"
-  | "healthy"
-  | "idle";
+type OverallState = "empty" | "failing" | "degraded" | "healthy" | "idle";
 
 export interface HealthHero {
   state: OverallState;
@@ -152,7 +147,7 @@ export function healthHero(ctx: StatsContext, window: StatsWindow): HealthHero {
 }
 
 /** One row of the overview's "Needs attention" list. */
-export interface AttentionRow {
+interface AttentionRow {
   procedureId: string;
   name: string;
   state: ProcedureState;
@@ -398,7 +393,7 @@ export function triggerCounts(ctx: StatsContext): TopListItem[] {
 }
 
 /** A point of a chart series. */
-export interface ChartPoint {
+interface ChartPoint {
   x: string;
   y: number;
 }

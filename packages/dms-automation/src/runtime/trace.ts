@@ -6,7 +6,7 @@ import { type StepName, stepName } from "./describe";
  * How a step of a run ended. `truncated`: its start is in the log but its
  * end was cut from it to keep the run small.
  */
-export type StepStatus = "ok" | "failed" | "running" | "truncated";
+type StepStatus = "ok" | "failed" | "running" | "truncated";
 
 /**
  * One execution of a step in a run, read from its log: when it started
@@ -44,10 +44,10 @@ export interface TraceStep {
  * Why a step of the graph did not run: the branch leading to it was not
  * taken, or the run stopped on a failure before reaching it.
  */
-export type SkipReason = "branch" | "stopped";
+type SkipReason = "branch" | "stopped";
 
 /** A top-level step of the graph that no fire reached. */
-export interface SkippedStep {
+interface SkippedStep {
   nodeId: string;
   name: StepName;
   reason: SkipReason;

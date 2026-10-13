@@ -21,8 +21,6 @@ const props = defineProps<{
 	dataEdges: DataEdge[]
 	triggerType: TriggerType | null
 	actionType: ActionType | null
-	triggerTypes: TriggerType[]
-	actionTypes: ActionType[]
 	dataNodeTypes: DataNodeType[]
 	// Per-NodeKind metadata served by `/api/automation/node-kinds`. The
 	// inspector reads each kind's optional `configSchema` to render its
@@ -558,7 +556,6 @@ function onUnwire(field: string) {
 				</template>
 				<DmsAutomationWiredField
 					v-if="findIncoming(f.name)"
-					:field="f.name"
 					:source="{
 						node: findIncoming(f.name)!.from.node,
 						port: findIncoming(f.name)!.from.port,

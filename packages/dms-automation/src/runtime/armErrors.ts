@@ -30,7 +30,7 @@ export function armErrorFrom(err: unknown): ArmError {
 }
 
 /** The arm errors stored on a procedure, by trigger node id. */
-export function readArmErrors(procedure: Procedure): Record<string, ArmError> {
+function readArmErrors(procedure: Procedure): Record<string, ArmError> {
   if (!procedure.armErrors) return {};
   try {
     return JSON.parse(procedure.armErrors) as Record<string, ArmError>;
