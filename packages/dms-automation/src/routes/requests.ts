@@ -4,8 +4,6 @@ import type { z } from "zod";
 /** Prefix of the i18n keys the routes answer refusals with. */
 export const API_MESSAGES = "$dms_automation.api";
 
-const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 200;
 const NON_NEGATIVE_INT = /^\d+$/;
 
 /**
@@ -39,13 +37,22 @@ export function parseBody<T>(
   return parsed.data;
 }
 
+/** How many rows a page of a list holds when the query does not say, and at most. */
+interface PageSizes {
+  defaultSize: number;
+  maxSize: number;
+}
+
+const DEFAULT_SIZES: PageSizes = { defaultSize: 20, maxSize: 200 };
+
 /**
  * A page of a list from its query: `page` from 0, `limit` rows from 1, a
- * larger limit read as the largest page served (200). Anything else is a 400.
+ * larger limit read as the largest page served. Anything else is a 400.
  */
 export function pageParams(
   page?: string,
   limit?: string,
+  { defaultSize, maxSize }: PageSizes = DEFAULT_SIZES,
 ): { page: number; limit: number } {
   const valid =
     (!page || NON_NEGATIVE_INT.test(page)) &&
@@ -59,6 +66,6 @@ export function pageParams(
   }
   return {
     page: page ? Number(page) : 0,
-    limit: Math.min(limit ? Number(limit) : DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE),
+    limit: Math.min(limit ? Number(limit) : defaultSize, maxSize),
   };
 }

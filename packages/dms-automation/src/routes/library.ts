@@ -15,7 +15,7 @@ import { labelOf, summarizeTrigger } from "../runtime/describe";
 import { nodeKinds } from "../runtime/nodeKinds";
 import { registry } from "../runtime/registry";
 import { walkPlacedNodes } from "../runtime/resolveSubgraph";
-import { DATABASE_NAME, FETCH_ALL_LIMIT } from "../types/constants";
+import { DATABASE_NAME } from "../types/constants";
 import type { GraphNode } from "../types/graph";
 
 /** The palette categories of the plain node kinds the Flow catalog lists. */
@@ -119,12 +119,9 @@ export class LibraryController extends Controller("/api/automation/library") {
     }
     const [ctx, templates] = await Promise.all([
       loadStatsContext(),
-      GetModel(AutomationTemplateModel, DATABASE_NAME).list({
-        page: 0,
-        limit: FETCH_ALL_LIMIT,
-      }),
+      GetModel(AutomationTemplateModel, DATABASE_NAME).listAll(),
     ]);
-    const templateById = new Map(templates.results.map((t) => [t._id, t]));
+    const templateById = new Map(templates.map((t) => [t._id, t]));
     const health = healthByProcedure(ctx);
     const out: Record<string, TypeUsage[]> = {};
     for (const { procedure, graph } of ctx.procedures) {

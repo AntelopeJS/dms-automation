@@ -30,7 +30,7 @@ import {
 } from "../runtime/resolveSubgraph";
 import { subscriptions } from "../runtime/subscriptions";
 import { findTemplateRefCycle } from "../runtime/validateTemplate";
-import { DATABASE_NAME, FETCH_ALL_LIMIT } from "../types/constants";
+import { DATABASE_NAME } from "../types/constants";
 import type { GroupPort, ProcedureGraph } from "../types/graph";
 import type { Paginated } from "../types/pagination";
 import {
@@ -38,6 +38,7 @@ import {
   parseAndValidate,
   procedureGraphSchema,
 } from "./graphSchema";
+import { pageParams } from "./requests";
 
 /** An Iconify name, `i-<set>-<icon>`; empty keeps the default icon. */
 const ICON_PATTERN = /^i-[a-z0-9]+-[a-z0-9-]+$/;
@@ -68,20 +69,10 @@ const templateBodySchema = z.object({
 });
 
 /**
- * Page and size of the list. Templates are few and every caller wants them
- * all (the library, the builder's palette), so a page holds up to
- * `MAX_PAGE_SIZE` of them by default.
+ * Templates are few and every caller wants them all (the library, the
+ * builder's palette), so a page holds up to 1000 of them by default.
  */
-const MAX_PAGE_SIZE = 1000;
-const pageQuerySchema = z.object({
-  page: z.coerce.number().int().min(0).default(0),
-  limit: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_PAGE_SIZE)
-    .default(MAX_PAGE_SIZE),
-});
+const TEMPLATE_PAGE_SIZES = { defaultSize: 1000, maxSize: 1000 };
 
 interface ParsedTemplateBody {
   name: string;
@@ -103,9 +94,8 @@ async function buildTemplateRefLookup(candidate?: {
   subgraph: ProcedureGraph;
 }): Promise<TemplateCache> {
   const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
-  const all = await templateModel.list({ page: 0, limit: FETCH_ALL_LIMIT });
   const byId = new Map<string, { subgraph: ProcedureGraph }>();
-  for (const t of all.results) {
+  for (const t of await templateModel.listAll()) {
     byId.set(t._id, { subgraph: t.subgraph });
   }
   if (candidate) {
@@ -125,9 +115,8 @@ async function computeUsageCounts(
   templates: AutomationTemplateRow[],
 ): Promise<Map<string, number>> {
   const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
-  const procs = await procedureModel.list({ page: 0, limit: FETCH_ALL_LIMIT });
   const graphs: ProcedureGraph[] = templates.map((t) => t.subgraph);
-  for (const p of procs.results) {
+  for (const p of await procedureModel.getAll()) {
     try {
       graphs.push(JSON.parse(p.graph) as ProcedureGraph);
     } catch {
@@ -167,9 +156,8 @@ function usageTotal(usages: TemplateUsages): number {
 /** 409 when another template already has this name, whatever its case. */
 async function assertNameFree(name: string, exceptId?: string): Promise<void> {
   const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
-  const all = await templateModel.list({ page: 0, limit: FETCH_ALL_LIMIT });
   const wanted = name.toLocaleLowerCase();
-  const taken = all.results.some(
+  const taken = (await templateModel.listAll()).some(
     (t) => t._id !== exceptId && t.name.trim().toLocaleLowerCase() === wanted,
   );
   if (taken) {
@@ -228,19 +216,13 @@ export class TemplatesController extends Controller(
     @Parameter("page", "query") page?: string,
     @Parameter("limit", "query") limit?: string,
   ): Promise<Paginated<TemplateWithUsage>> {
-    const query = pageQuerySchema.safeParse({ page, limit });
-    if (!query.success) {
-      throw new HTTPResult(400, {
-        error: "invalid page or limit",
-        issues: query.error.issues,
-      });
-    }
+    const query = pageParams(page, limit, TEMPLATE_PAGE_SIZES);
     const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
     const [listed, all] = await Promise.all([
-      templateModel.list(query.data),
-      templateModel.list({ page: 0, limit: FETCH_ALL_LIMIT }),
+      templateModel.list(query),
+      templateModel.listAll(),
     ]);
-    const usageCounts = await computeUsageCounts(all.results);
+    const usageCounts = await computeUsageCounts(all);
     return {
       ...listed,
       results: listed.results.map((t) => ({
