@@ -69,7 +69,7 @@ async function load() {
 		run.value = null
 		failure.value = statusOf(e) === HTTP_NOT_FOUND
 			? { reason: 'notFound' }
-			: { reason: 'error', message: (e as Error).message }
+			: { reason: 'error', message: describeApiError(e) }
 	} finally {
 		loading.value = false
 	}

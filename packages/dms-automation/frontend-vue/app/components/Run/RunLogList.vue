@@ -34,7 +34,7 @@ async function load() {
 		fetched.value = await runs.getLogs(props.runId)
 		error.value = null
 	} catch (e) {
-		error.value = (e as Error).message
+		error.value = describeApiError(e)
 	} finally {
 		loading.value = false
 	}

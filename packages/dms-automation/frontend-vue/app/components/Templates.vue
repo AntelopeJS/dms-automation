@@ -110,7 +110,7 @@ async function loadList() {
 		selectedId.value = list.some((x) => x._id === wanted) ? wanted : (sortedItems.value[0]?._id ?? null)
 		loadError.value = null
 	} catch (e) {
-		loadError.value = (e as Error).message
+		loadError.value = describeApiError(e)
 	} finally {
 		loading.value = false
 	}
@@ -239,7 +239,7 @@ function errorCode(e: unknown): string | undefined {
 function errorMessage(e: unknown): string {
 	const body = (e as { data?: RefusalBody }).data
 	const issues = body?.issues?.map((i) => (i.path?.length ? `${i.path.join('.')}: ${i.message}` : i.message)).filter(Boolean)
-	return issues?.length ? issues.join(' · ') : (body?.error ?? (e as Error).message)
+	return issues?.length ? issues.join(' · ') : (body?.error ?? describeApiError(e))
 }
 
 async function onSave() {

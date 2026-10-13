@@ -137,7 +137,7 @@ async function load() {
 		const wanted = selectedId.value ?? queryItem()
 		selectedId.value = entries.value.some((e) => e.id === wanted) ? wanted : (groups.value[0]?.[1][0]?.id ?? null)
 	} catch (e) {
-		error.value = (e as Error).message
+		error.value = describeApiError(e)
 	} finally {
 		loading.value = false
 	}
@@ -247,7 +247,7 @@ async function setEnabled(enabled: boolean) {
 			icon: 'i-ph-check-circle',
 		})
 	} catch (e) {
-		toast.add({ title: t('dms_automation.common.actionFailed'), description: (e as Error).message, color: 'error', icon: 'i-ph-warning' })
+		toast.add({ title: t('dms_automation.common.actionFailed'), description: describeApiError(e), color: 'error', icon: 'i-ph-warning' })
 	} finally {
 		saving.value = false
 	}

@@ -153,7 +153,7 @@ async function loadTemplates() {
 		}))
 		templatesLoadError.value = null
 	} catch (e) {
-		templatesLoadError.value = (e as Error).message ?? 'Failed to load templates'
+		templatesLoadError.value = describeApiError(e)
 		templates.value = []
 	}
 }
@@ -2286,7 +2286,7 @@ function formatTemplateError(err: unknown): string {
 		}
 		return head
 	}
-	return (err as Error).message ?? 'Failed to save template'
+	return describeApiError(err)
 }
 
 function convertLocalGroupToTemplateInstance(
@@ -2479,7 +2479,7 @@ function formatForkError(err: unknown): string {
 	}
 	const data = (err as { data?: { error?: string } } | undefined)?.data
 	if (data?.error) return data.error
-	return (err as Error).message ?? 'Failed to fork template instance'
+	return describeApiError(err)
 }
 
 async function submitFork() {
