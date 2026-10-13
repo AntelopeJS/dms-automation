@@ -24,7 +24,6 @@ import {
   builtinDataNodes,
   builtinTriggers,
 } from "./runtime/builtins";
-import { setPublicUrl } from "./routes/library";
 import { registry } from "./runtime/registry";
 import {
   configureRetention,
@@ -52,13 +51,6 @@ export interface Config {
      */
     sensitiveNames?: string[];
   };
-  /**
-   * The public origin of the API server, e.g. `https://api.example.com`: the
-   * library and the builder show each webhook's full URL on it. Set it when
-   * outside callers reach the API on another address than the dashboard's
-   * server does; left out, that address is shown.
-   */
-  publicUrl?: string;
   /** The built-in HTTP request action. */
   httpRequest?: {
     /**
@@ -76,7 +68,6 @@ export async function construct(config: Config): Promise<void> {
   configureRetention(globalConfig.runs?.retentionDays);
   configureRedaction(globalConfig.runs?.sensitiveNames);
   setHttpRequestOptions(globalConfig.httpRequest ?? {});
-  setPublicUrl(globalConfig.publicUrl);
 
   ImplementInterface(
     await import("@antelopejs/interface-dms-automation"),

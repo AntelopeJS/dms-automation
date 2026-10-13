@@ -488,7 +488,7 @@
       "webhook": {
         "example": "Exemple",
         "hint": "Appelez cette URL pour lancer la procédure.",
-        "unconfigured": "C’est l’adresse par laquelle le serveur du tableau de bord joint l’API. Si un service extérieur ne peut pas l’atteindre, renseignez publicUrl dans la configuration du module automation."
+        "unconfigured": "C’est l’adresse par laquelle le serveur du tableau de bord joint l’API. Si un service extérieur ne peut pas l’atteindre, renseignez apiBaseUrl dans la configuration du DMS."
       },
       "builtIn": "Intégré",
       "cluster": {

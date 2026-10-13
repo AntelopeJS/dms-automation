@@ -488,7 +488,7 @@
       "webhook": {
         "example": "Example",
         "hint": "Call this URL to start the procedure.",
-        "unconfigured": "This is the address the dashboard’s server reaches the API on. If outside services can’t reach it, set publicUrl in the automation module’s configuration."
+        "unconfigured": "This is the address the dashboard’s server reaches the API on. If outside services can’t reach it, set apiBaseUrl in the DMS configuration."
       },
       "builtIn": "Built-in",
       "cluster": {

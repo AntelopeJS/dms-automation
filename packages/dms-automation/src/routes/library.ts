@@ -7,6 +7,7 @@ import {
   type RequestContext,
 } from "@antelopejs/interface-api";
 import { GetModel } from "@antelopejs/interface-database-decorators";
+import { GetApiBaseUrl } from "@antelopejs/interface-dms/api-base-url";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
 import { AutomationTemplateModel } from "../db/models/automation_template.model";
@@ -39,14 +40,6 @@ const ENTRY_OF_CATALOG = new Map<
   ["dataNodes", (node) => (node.kind === "data" ? node.typeId : undefined)],
   ["flow", (node) => (isFlowKind(node.kind) ? node.kind : undefined)],
 ]);
-
-/** The configured public origin of the API server, if any (`publicUrl`). */
-let publicUrl: string | undefined;
-
-/** Set from the module's configuration at construct. */
-export function setPublicUrl(url: string | undefined): void {
-  publicUrl = url?.trim().replace(/\/+$/, "") || undefined;
-}
 
 /** One node of a procedure using a catalog entry. */
 interface TypeUsage {
@@ -90,16 +83,17 @@ export class LibraryController extends Controller("/api/automation/library") {
   }
 
   /**
-   * The origin webhooks are called on: the configured `publicUrl`, else the
-   * one this request reached the API on — the address the dashboard's server
+   * The origin webhooks are called on: the DMS `apiBaseUrl`, else the one
+   * this request reached the API on — the address the dashboard's server
    * calls it on, right when it is also the public one.
    */
   @Get("/webhook-base")
-  webhookBase(
+  async webhookBase(
     @AuthRawUser() _user: User,
     @Context() context: RequestContext,
-  ): { url: string; configured: boolean } {
-    if (publicUrl) return { url: publicUrl, configured: true };
+  ): Promise<{ url: string; configured: boolean }> {
+    const configured = (await GetApiBaseUrl())?.trim().replace(/\/+$/, "");
+    if (configured) return { url: configured, configured: true };
     return { url: context.url.origin, configured: false };
   }
 
