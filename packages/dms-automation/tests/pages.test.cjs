@@ -88,6 +88,18 @@ test("the module's pages are DMS blocks around a few custom components", () => {
   assert.deepEqual(counts, [2, 1, 1, 0, 1, 5]);
 });
 
+test("the overview and the run history share one period, compared through a menu", () => {
+  const selectors = ["overview", "runs"].map((file) => {
+    const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
+    return controller.period._options;
+  });
+  for (const options of selectors) {
+    assert.equal(options.rememberKey, "automation");
+    assert.equal(options.comparisonControl, "menu");
+  }
+  assert.notEqual(selectors[0].id, selectors[1].id);
+});
+
 /** Every message of a locale, by its dotted key. */
 function messagesOf(node, prefix = "") {
   return Object.entries(node).flatMap(([key, value]) =>

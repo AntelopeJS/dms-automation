@@ -42,10 +42,15 @@ export function isPeriodPreset(
   return (PERIOD_PRESETS as readonly (string | undefined)[]).includes(value);
 }
 
-/** The 24 h / 7 d / 30 d switch of a page, publishing under `scope`. */
+/**
+ * The 24 h / 7 d / 30 d switch of a page, publishing under `scope`. The
+ * overview and the run history remember one choice: the period follows the
+ * user from one to the other.
+ */
 export function periodSwitch(scope: string) {
   return PeriodSelector({
     id: scope,
+    rememberKey: "automation",
     variant: "segmented",
     presets: PERIOD_PRESETS,
     defaultPreset: "last-24h",
