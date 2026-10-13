@@ -11,3 +11,9 @@ export function newId(): string {
     return globalThis.crypto.randomUUID();
   return `id-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
 }
+
+/** A route query value as one non-empty string: the first of a list. */
+export function queryString(value: unknown): string | null {
+  const first: unknown = Array.isArray(value) ? value[0] : value;
+  return typeof first === "string" && first.length > 0 ? first : null;
+}

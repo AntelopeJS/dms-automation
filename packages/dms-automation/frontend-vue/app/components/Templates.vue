@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { isIconName } from './IconPicker.vue'
+import { queryString } from '../utils/automation'
 
 // The library's templates: reusable groups other procedures place as linked
 // blocks. The detail edits the name, icon and description, lists the ports
@@ -96,8 +97,7 @@ const usagesLoading = ref(false)
 const procedures = ref<Map<string, ProcedureSummary>>(new Map())
 
 function queryTemplate(): string | null {
-	const q = route.query.template
-	return typeof q === 'string' && q ? q : null
+	return queryString(route.query.template)
 }
 
 async function loadList() {

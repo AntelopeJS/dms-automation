@@ -7,7 +7,7 @@ import type { ProcedureSummaryRow } from './Editor/ProcedureSwitcher.vue'
 import { describeDateTime, describeDuration, describeTime, describeTrigger, stepTitle, type TriggerSummary } from '../utils/describe'
 import type { BreadcrumbItem } from '@nuxt/ui'
 import type { NodeKindEntry } from '../composables/useAutomationNodeKinds'
-import { newId } from '../utils/automation'
+import { newId, queryString } from '../utils/automation'
 import type { GroupPort } from '../composables/useGraphConnect'
 
 // Editor mode.
@@ -53,18 +53,10 @@ function builderPath(): string {
 }
 
 function queryValue(key: string): string | null {
-	const q = route.query[key]
-	if (typeof q === 'string' && q.length > 0) return q
-	if (Array.isArray(q) && typeof q[0] === 'string' && q[0]!.length > 0) return q[0]!
-	return null
+	return queryString(route.query[key])
 }
 
-const templateQueryId = computed<string | null>(() => {
-	const q = route.query.template
-	if (typeof q === 'string' && q.length > 0) return q
-	if (Array.isArray(q) && typeof q[0] === 'string' && q[0]!.length > 0) return q[0]!
-	return null
-})
+const templateQueryId = computed(() => queryValue('template'))
 
 const editorMode = computed<'procedure' | 'template'>(() => (templateQueryId.value ? 'template' : 'procedure'))
 
