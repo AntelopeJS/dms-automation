@@ -210,7 +210,8 @@ export function escapeRegex(text: string): string {
 /**
  * A database regular expression matching a stored payload whose headers or
  * query parameters hold a credential (see {@link isSensitiveHeader}) with any
- * value but {@link REDACTED}: one stored before it was redacted.
+ * value but {@link REDACTED}: one stored before the project marked its name
+ * as sensitive (`runs.sensitiveNames`).
  */
 export function clearCredentialPattern(): string {
   const project = projectNames.map(
@@ -278,8 +279,8 @@ export function scrubSecrets<T>(value: T, secrets: readonly string[]): T {
 
 /**
  * The credentials a stored payload still holds in clear: those of a run
- * stored before payloads were redacted, to scrub from its log when it is
- * read.
+ * stored before the project marked their name as sensitive, to scrub from its
+ * log when it is read.
  */
 export function storedSecretsOf(stored: string | undefined): string[] {
   try {
@@ -312,8 +313,8 @@ export type StoredPayload =
 
 /**
  * Read a payload stored by {@link serializeTriggerPayload}, its credentials
- * redacted: a payload stored before they were is redacted on read, for the
- * trace, a re-run and Run now alike.
+ * redacted: a payload stored before the project marked a name as sensitive is
+ * redacted on read, for the trace, a re-run and Run now alike.
  */
 export function readTriggerPayload(stored: string | undefined): StoredPayload {
   let parsed: unknown = null;
@@ -335,9 +336,9 @@ export function readTriggerPayload(stored: string | undefined): StoredPayload {
 }
 
 /**
- * A stored payload as it may be shown: one stored before credentials were
- * redacted is redacted now. A marker or a value that is not JSON comes back as
- * it is.
+ * A stored payload as it may be shown: one stored before the project marked a
+ * name as sensitive is redacted now. A marker or a value that is not JSON
+ * comes back as it is.
  */
 export function redactStoredPayload(
   stored: string | undefined,
@@ -360,10 +361,10 @@ export interface StoredRunSecrets {
 }
 
 /**
- * The fields of a run stored before credentials were redacted, rewritten
- * without them: its payload redacted, and the values its payload holds in
- * clear scrubbed from its error and its log. `undefined` when there is
- * nothing to rewrite, so a second pass changes nothing.
+ * The fields of a run stored before the project marked a name as sensitive,
+ * rewritten without the credentials: its payload redacted, and the values its
+ * payload holds in clear scrubbed from its error and its log. `undefined` when
+ * there is nothing to rewrite.
  */
 export function redactedStoredRun(
   run: StoredRunSecrets,

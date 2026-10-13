@@ -210,9 +210,9 @@ async function loadRun(id: string): Promise<ProcedureRun> {
 }
 
 /**
- * A run as it is shown: a run stored before credentials were redacted has
- * them redacted from its payload and scrubbed from its log on read, until the
- * boot catch-up rewrites it.
+ * A run as it is shown: a run stored before the project marked a name as
+ * sensitive (`runs.sensitiveNames`) has that credential redacted from its
+ * payload and scrubbed from its log on read.
  */
 function shown(run: ProcedureRun): ProcedureRun {
   return Object.assign({}, run, redactedStoredRun(run));

@@ -24,7 +24,6 @@ import {
   findTriggerNode,
   loadProcedure,
   parseStoredGraph,
-  syncRunNames,
 } from "./runProcedure";
 import { type ArmError, armErrorFrom, storeArmErrors } from "./armErrors";
 import { diff } from "./reconcileDiff";
@@ -464,7 +463,6 @@ export const subscriptions = {
    */
   async hydrate(): Promise<void> {
     await hydrateTemplates();
-    void syncRunNames();
     // Through the chain so a bus replay arriving during boot (the subscriber is
     // live before hydrate in redis mode) can't race this initial reconcile.
     await queueReconcile();

@@ -1,5 +1,4 @@
 import { BasicDataModel } from "@antelopejs/interface-database-decorators";
-import { clearCredentialPattern } from "../../runtime/boundRunLog";
 import {
   ProcedureRun,
   procedureRunsTableName,
@@ -109,28 +108,6 @@ const RUN_TIMING_FIELDS = [
   "durationMs",
 ] as const;
 
-/** What the boot back-fill reads of a run stored before kinds existed. */
-export type LegacyRun = Pick<
-  ProcedureRun,
-  | "_id"
-  | "procedureId"
-  | "startedAt"
-  | "endedAt"
-  | "durationMs"
-  | "triggerNodeId"
-  | "triggerSummary"
->;
-
-const LEGACY_RUN_FIELDS = [
-  "_id",
-  "procedureId",
-  "startedAt",
-  "endedAt",
-  "durationMs",
-  "triggerNodeId",
-  "triggerSummary",
-] as const;
-
 export class ProcedureRunModel extends BasicDataModel(
   ProcedureRun,
   procedureRunsTableName,
@@ -171,7 +148,7 @@ export class ProcedureRunModel extends BasicDataModel(
   /**
    * Write a procedure's current version on its production runs of an older
    * one that lack it, so the run list tells them apart. Called when the
-   * procedure is saved, and at boot.
+   * procedure is saved.
    */
   async markOlderVersions(
     procedureId: string,
@@ -260,30 +237,6 @@ export class ProcedureRunModel extends BasicDataModel(
     if (before) query = query.filter((row) => row.key("startedAt").lt(before));
     if (status) query = query.filter((row) => row.key("status").eq(status));
     return query;
-  }
-
-  /**
-   * Runs stored before runs kept their kind, duration and trigger (no
-   * `kind`): the boot back-fill completes them once.
-   */
-  async listLegacy(): Promise<LegacyRun[]> {
-    return (await this.table
-      .filter((row) => row.key("kind").default("").eq(""))
-      .pluck(...LEGACY_RUN_FIELDS)
-      .run()) as LegacyRun[];
-  }
-
-  /**
-   * Runs whose stored webhook payload still holds a credential in clear
-   * (stored before headers and query parameters were redacted).
-   */
-  async listWithClearCredentials(): Promise<Pick<ProcedureRun, "_id">[]> {
-    return (await this.table
-      .filter((row) =>
-        row.key("triggerPayload").default("").match(clearCredentialPattern()),
-      )
-      .pluck("_id")
-      .run()) as Pick<ProcedureRun, "_id">[];
   }
 
   /** Delete the runs started before `before`; returns how many went. */

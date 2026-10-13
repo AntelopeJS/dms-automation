@@ -86,8 +86,8 @@ const TRIGGER_TYPE_ITEMS = builtinTriggers.map((t) => ({
 
 /**
  * The runs whose error contains `text` (the search, the "Error" filter). A run
- * stored before credentials were redacted, until the boot catch-up rewrites
- * it, is left out: its error may hold a secret, which a search could guess
+ * stored before the project marked a name as sensitive (`runs.sensitiveNames`)
+ * is left out: its error may hold a secret, which a search could guess
  * character by character.
  */
 function errorContains(row: ValueProxy<RunsTableAPI>, text: string) {
@@ -356,8 +356,9 @@ export class RunsTableAPI extends DataController(
   @Access(AccessMode.ReadOnly)
   declare triggerType: string;
 
-  // Searched, never served as it is stored: a run stored before credentials
-  // were redacted may name one in it. The list reads `errorText`.
+  // Searched, never served as it is stored: a run stored before the project
+  // marked a name as sensitive may hold that credential. The list reads
+  // `errorText`.
   @Searchable()
   @Filter(errorFilter)
   declare errorMessage: string;
