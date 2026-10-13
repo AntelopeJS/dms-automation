@@ -310,13 +310,7 @@ export class TemplatesController extends Controller(
     if (!existing) {
       throw new HTTPResult(404, { error: `template "${id}" not found` });
     }
-    // Only a new name must be free: templates that already share one (saved
-    // before names were checked) stay editable.
-    if (
-      data.name.toLocaleLowerCase() !== existing.name.trim().toLocaleLowerCase()
-    ) {
-      await assertNameFree(data.name, id);
-    }
+    await assertNameFree(data.name, id);
     const lookup = await buildTemplateRefLookup({
       id,
       subgraph: data.subgraph,
