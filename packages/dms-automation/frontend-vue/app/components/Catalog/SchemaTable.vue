@@ -23,7 +23,6 @@ interface JsonSchemaProperty {
 
 const props = defineProps<{
 	schema?: JsonSchemaProperty | null
-	emptyLabel?: string
 }>()
 
 const { processI18n } = useTranslation()
@@ -124,5 +123,5 @@ function segments(text: string): { code: boolean; text: string }[] {
 		</div>
 		<p v-if="oneOf" class="text-xs text-muted">{{ $t('dms_automation.library.schemaOneOf', { fields: oneOf }) }}</p>
 	</div>
-	<p v-else class="text-xs text-dimmed">{{ emptyLabel ?? $t('dms_automation.library.schema.none') }}</p>
+	<p v-else class="text-xs text-dimmed">{{ $t('dms_automation.library.schema.none') }}</p>
 </template>

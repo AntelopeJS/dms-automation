@@ -21,8 +21,6 @@ const props = defineProps<{
 	dataEdges: DataEdge[]
 	triggerType: TriggerType | null
 	actionType: ActionType | null
-	triggerTypes: TriggerType[]
-	actionTypes: ActionType[]
 	dataNodeTypes: DataNodeType[]
 	// Per-NodeKind metadata served by `/api/automation/node-kinds`. The
 	// inspector reads each kind's optional `configSchema` to render its
@@ -264,7 +262,8 @@ const fields = computed<
 // Type names may be `$`-prefixed DMS i18n keys shipped in the declaring
 // module's locales; plain text is shown as written.
 const { processI18n } = useTranslation()
-const { t, te, locale } = useI18n()
+const { t, te } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
 const typeName = (type: { name: string } | null | undefined) =>
 	type ? processI18n(type.name) : undefined
 
@@ -304,7 +303,7 @@ const nextRunText = computed(() => {
 	if (saved?.cron !== cron) return t('dms_automation.editor.inspector.nextRunAfterSave')
 	if (!saved.nextAt) return ''
 	return t('dms_automation.editor.inspector.nextRun', {
-		when: describeDateTime(saved.nextAt, locale.value, saved.timeZone),
+		when: describeDateTime(saved.nextAt, dateTimeFormat, saved.timeZone),
 		zone: saved.timeZone ?? '',
 	})
 })
@@ -558,7 +557,6 @@ function onUnwire(field: string) {
 				</template>
 				<DmsAutomationWiredField
 					v-if="findIncoming(f.name)"
-					:field="f.name"
 					:source="{
 						node: findIncoming(f.name)!.from.node,
 						port: findIncoming(f.name)!.from.port,

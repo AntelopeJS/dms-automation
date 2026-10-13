@@ -27,7 +27,7 @@ export class Procedure extends Table {
 
   /** Incremented when the graph changes; stamped on the runs it executes. */
   @Field("number")
-  declare version?: number;
+  declare version: number;
 
   /**
    * Incremented on every write a builder still open could overwrite (a save,
@@ -35,7 +35,7 @@ export class Procedure extends Table {
    * refused when the procedure moved on since.
    */
   @Field("number")
-  declare revision?: number;
+  declare revision: number;
 
   /** When the procedure was last disabled, and by whom (a display name). */
   @Field("date")

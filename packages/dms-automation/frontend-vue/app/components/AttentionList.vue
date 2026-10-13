@@ -44,6 +44,7 @@ const props = defineProps<{
 const { $authFetch } = useAuthFetch()
 const { processI18n } = useTranslation()
 const { t, te } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
 const toast = useToast()
 
 // Read like the DMS cards: over the page's period, on its refreshes, through
@@ -56,7 +57,7 @@ const { data, isLoading, error, refresh } = useChartFetch<{ items: AttentionRow[
 const rows = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? rows.value.length)
 const hasError = computed(() => !isLoading.value && data.value === null && Boolean(error.value))
-const errorDetail = computed(() => (error.value instanceof Error ? error.value.message : undefined))
+const errorDetail = computed(() => (error.value ? describeApiError(error.value) : undefined))
 const busy = ref<string | null>(null)
 
 const TONES = { failing: 'error', degraded: 'warning', paused: 'neutral' } as const
@@ -83,7 +84,7 @@ function reason(row: AttentionRow): string {
 			count: row.failed,
 			failed: row.failed,
 			runs: row.runs,
-			when: f ? describeTime(f.startedAt) : '—',
+			when: f ? describeTime(f.startedAt, dateTimeFormat) : '—',
 			error,
 		})
 	}
@@ -105,7 +106,7 @@ interface Change {
 function failed(e: unknown) {
 	toast.add({
 		title: processI18n('$dms_automation.common.actionFailed'),
-		description: (e as Error).message,
+		description: describeApiError(e),
 		color: 'error',
 		icon: 'i-ph-warning',
 	})

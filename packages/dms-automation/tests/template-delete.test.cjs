@@ -22,15 +22,8 @@ const { TemplatesController } = require("../dist/routes/templates.js");
 const templates = new Map();
 const procedures = new Map();
 
-const page = (rows) => ({
-  results: rows,
-  total: rows.length,
-  page: 0,
-  limit: rows.length,
-});
 Object.assign(AutomationTemplateModel.prototype, {
-  list: async () =>
-    page([...templates.values()].map((t) => structuredClone(t))),
+  listAll: async () => [...templates.values()].map((t) => structuredClone(t)),
   getById: async (id) => structuredClone(templates.get(id)),
   updateById: async (id, patch) => {
     templates.set(id, { ...templates.get(id), ...patch });
@@ -41,7 +34,7 @@ Object.assign(AutomationTemplateModel.prototype, {
   },
 });
 Object.assign(ProcedureModel.prototype, {
-  list: async () => page([...procedures.values()].map((p) => ({ ...p }))),
+  getAll: async () => [...procedures.values()].map((p) => ({ ...p })),
 });
 
 // Stands in for the runtime's fork of one procedure usage (the runtime's forkUsage):

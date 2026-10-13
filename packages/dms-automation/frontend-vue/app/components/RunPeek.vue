@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { builderRunUrl, opensInBuilder, type RunDetail, useAutomationRuns } from '../composables/useAutomationRuns'
 import { useRunActions } from '../composables/useRunActions'
-import { describeDateTime, describeDuration, describeTrigger } from '../utils/describe'
+import { describeDateTime, describeDuration } from '../utils/describe'
 
 // The quick look at a run, in the run history's side panel: what it did, where
 // it failed, the path it took and its payload, with the next actions. The DMS
@@ -16,8 +16,9 @@ const props = defineProps<{
 }>()
 
 const router = useDmsRouter()
-const { processI18n } = useTranslation()
+const { processText } = useComposedText()
 const { t, locale } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
 const runs = useAutomationRuns(props.apiUrl)
 const { rerun, rerunning } = useRunActions({ apiUrl: props.apiUrl, traceUrl: props.traceUrl })
 
@@ -33,7 +34,7 @@ async function load(id: string | undefined) {
 		run.value = await runs.getRun(id)
 		error.value = null
 	} catch (e) {
-		error.value = (e as Error).message
+		error.value = describeApiError(e)
 	} finally {
 		loading.value = false
 	}
@@ -47,7 +48,7 @@ const procedureName = computed(
 )
 const names = computed(() => new Map((run.value?.trace.steps ?? []).map((s) => [s.nodeId, s.name])))
 
-const when = computed(() => describeDateTime(run.value?.startedAt, locale.value))
+const when = computed(() => describeDateTime(run.value?.startedAt, dateTimeFormat))
 
 const sections = computed(() => [
 	{ label: t('dms_automation.trace.tabs.summary'), value: 'summary' },
@@ -83,7 +84,7 @@ function go(url: string) {
 					<UBadge v-if="!run.procedure" color="neutral" variant="subtle" size="sm">{{ $t('dms_automation.trace.deleted') }}</UBadge>
 				</div>
 				<p class="text-xs text-muted">
-					{{ when }} · {{ describeDuration(run.durationMs, locale) }} · {{ describeTrigger(run.trigger, processI18n) }}
+					{{ when }} · {{ describeDuration(run.durationMs, locale) }} · {{ processText(run.triggerText) }}
 				</p>
 			</div>
 

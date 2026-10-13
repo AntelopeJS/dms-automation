@@ -5,7 +5,6 @@ interface Source {
 }
 
 defineProps<{
-	field: string
 	source: Source
 	sourceLabel?: string
 }>()

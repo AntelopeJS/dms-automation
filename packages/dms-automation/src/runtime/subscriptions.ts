@@ -11,7 +11,7 @@ import {
 } from "../db/models/automation_template.model";
 import { ProcedureModel } from "../db/models/procedure.model";
 import type { Procedure } from "../db/tables/procedure.table";
-import { DATABASE_NAME, FETCH_ALL_LIMIT } from "../types/constants";
+import { DATABASE_NAME } from "../types/constants";
 import type { ProcedureGraph } from "../types/graph";
 import { MANUAL_TRIGGER_ID } from "./builtins/triggers/manual";
 import {
@@ -24,7 +24,6 @@ import {
   findTriggerNode,
   loadProcedure,
   parseStoredGraph,
-  syncRunNames,
 } from "./runProcedure";
 import { type ArmError, armErrorFrom, storeArmErrors } from "./armErrors";
 import { diff } from "./reconcileDiff";
@@ -381,9 +380,9 @@ async function activateTrigger(
 
 async function hydrateTemplates(): Promise<void> {
   const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
-  const all = await templateModel.list({ page: 0, limit: FETCH_ALL_LIMIT });
+  const all = await templateModel.listAll();
   templateCache.clear();
-  for (const t of all.results) {
+  for (const t of all) {
     templateCache.set(t._id, t);
   }
 }
@@ -464,7 +463,6 @@ export const subscriptions = {
    */
   async hydrate(): Promise<void> {
     await hydrateTemplates();
-    void syncRunNames();
     // Through the chain so a bus replay arriving during boot (the subscriber is
     // live before hydrate in redis mode) can't race this initial reconcile.
     await queueReconcile();

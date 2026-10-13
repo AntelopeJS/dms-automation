@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
-import { describeCron } from '../utils/describe'
+import type { NodeKindEntry, PortRef } from '../composables/useAutomationNodeKinds'
+import type { JsonSchema } from '../composables/useGraphConnect'
 
 // One catalog of the library (triggers, actions, data nodes, or the flow and
 // helper blocks): its entries grouped by the module that registered them, and
@@ -9,11 +10,6 @@ import { describeCron } from '../utils/describe'
 // in the URL (`?item=`), so going back to the library lands on it again.
 
 type CatalogKind = 'triggers' | 'actions' | 'dataNodes' | 'flow'
-
-interface JsonSchema {
-	properties?: Record<string, unknown>
-	required?: string[]
-}
 
 interface CatalogEntry {
 	id: string
@@ -27,27 +23,6 @@ interface CatalogEntry {
 	inputSchema?: JsonSchema
 	outputSchema?: JsonSchema
 	enabled?: boolean
-	globalConfig?: string
-}
-
-interface PortRef {
-	name: string
-	type?: string
-}
-
-/** A plain node kind, as `/node-kinds` lists it. */
-interface NodeKindEntry {
-	kind: string
-	meta: {
-		ui?: {
-			label: string
-			icon?: string
-			category?: string
-			configSchema?: JsonSchema
-			staticDataIns?: PortRef[]
-			staticDataOuts?: PortRef[]
-		}
-	}
 }
 
 type ProcedureState = 'failing' | 'degraded' | 'healthy' | 'paused' | 'draft'
@@ -66,6 +41,8 @@ interface TypeUsage {
 	path?: string
 	cron?: string
 	timeZone?: string
+	/** The schedule in words, by the server. */
+	cronText?: BlockText
 }
 
 const props = defineProps<{
@@ -100,6 +77,7 @@ const USES_SHOWN = 8
 
 const { $authFetch } = useAuthFetch()
 const { processI18n } = useTranslation()
+const { processText } = useComposedText()
 const { t, te } = useI18n()
 const toast = useToast()
 const { confirm } = useConfirm()
@@ -161,7 +139,7 @@ async function load() {
 		const wanted = selectedId.value ?? queryItem()
 		selectedId.value = entries.value.some((e) => e.id === wanted) ? wanted : (groups.value[0]?.[1][0]?.id ?? null)
 	} catch (e) {
-		error.value = (e as Error).message
+		error.value = describeApiError(e)
 	} finally {
 		loading.value = false
 	}
@@ -260,7 +238,7 @@ async function setEnabled(enabled: boolean) {
 	try {
 		await $authFetch(`${props.apiUrl}/${ENDPOINTS[props.kind]}/${encodeURIComponent(entry.id)}/config`, {
 			method: 'PUT',
-			body: { enabled, config: entry.globalConfig ?? '{}' },
+			body: { enabled },
 		})
 		entry.enabled = enabled
 		toast.add({
@@ -271,7 +249,7 @@ async function setEnabled(enabled: boolean) {
 			icon: 'i-ph-check-circle',
 		})
 	} catch (e) {
-		toast.add({ title: t('dms_automation.common.actionFailed'), description: (e as Error).message, color: 'error', icon: 'i-ph-warning' })
+		toast.add({ title: t('dms_automation.common.actionFailed'), description: describeApiError(e), color: 'error', icon: 'i-ph-warning' })
 	} finally {
 		saving.value = false
 	}
@@ -294,7 +272,7 @@ async function toggleEnabled(enabled: boolean) {
 
 /** Which node of the procedure it is: its label, else the block's name, and where it sits. */
 function where(use: TypeUsage): string {
-	if (use.cron) return describeCron(use.cron, processI18n, use.timeZone)
+	if (use.cronText) return processText(use.cronText)
 	const node = use.nodeLabel ?? processI18n(selected.value?.name ?? '')
 	if (use.viaTemplate) return `${node} · ${t('dms_automation.library.viaTemplate', { name: use.viaTemplate.name })}`
 	if (use.groupPath.length === 0) return node

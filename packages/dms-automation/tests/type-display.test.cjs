@@ -68,6 +68,9 @@ globalThis.useI18n = () => ({
   locale: { value: "en" },
 });
 globalThis.useToast = () => ({ add() {} });
+globalThis.useRegionalFormat = () => ({
+  dateTimeFormat: (options) => new Intl.DateTimeFormat("en", options),
+});
 
 const SlotStub = vue.defineComponent({
   inheritAttrs: false,
@@ -178,8 +181,8 @@ test("node inspector shows the translated type of the selected node", async () =
   assert.match(plain, /Plain trigger/);
 });
 
-test("describe helpers translate keyed trigger names and word schedules", () => {
-  const { describeTrigger, describeCron, stepTitle, summarizeNode } = require(
+test("describe helpers translate keyed step names and show the server's schedule text", () => {
+  const { stepTitle, summarizeNode } = require(
     path.join(FRONTEND, "app/utils/describe.ts"),
   );
   const t = (key, params = {}) =>
@@ -187,35 +190,26 @@ test("describe helpers translate keyed trigger names and word schedules", () => 
       ? `${key.slice(1)}${Object.keys(params).length ? JSON.stringify(params) : ""}`
       : key;
 
+  // Triggers and schedules are worded by the server: a schedule node reads
+  // as the text it sent, its expression until then.
   assert.equal(
-    describeTrigger(
-      { typeId: "acme.keyed", typeName: "$acme.trigger.name" },
-      processI18n,
+    summarizeNode(
+      "trigger",
+      "cron",
+      { cron: "0 2 * * *" },
+      t,
+      "Every day at 02:00 (UTC)",
     ),
-    "Déclencheur traduit",
+    "Every day at 02:00 (UTC)",
   );
   assert.equal(
-    describeTrigger(
-      {
-        typeId: "webhook",
-        typeName: "Webhook",
-        path: "/hooks/a",
-        method: "PUT",
-      },
-      t,
-    ),
+    summarizeNode("trigger", "cron", { cron: "0 2 * * *" }, t),
+    "0 2 * * *",
+  );
+  assert.equal(
+    summarizeNode("trigger", "webhook", { path: "/hooks/a", method: "PUT" }, t),
     "PUT /hooks/a",
   );
-  assert.equal(
-    describeCron("*/15 * * * *", t),
-    'dms_automation.cron.everyMinutes{"n":"15"}',
-  );
-  assert.equal(
-    describeCron("0 2 * * *", t),
-    'dms_automation.cron.daily{"time":"02:00"}',
-  );
-  assert.match(describeCron("0 9 * * 1", t), /^dms_automation\.cron\.weekly/);
-  assert.equal(describeCron("0 9 1-3 * 1", t), "0 9 1-3 * 1");
   assert.equal(
     stepTitle({ nodeId: "n", typeName: "$acme.action.name" }, processI18n),
     "Action traduite",
@@ -289,4 +283,26 @@ test("a webhook endpoint offers no URL to copy until the server's address is kno
   );
   assert.match(full, /loading/);
   assert.doesNotMatch(full, /data-copy|curl/);
+});
+
+test("dates are written through the page's regional format", () => {
+  const { describeDateTime, describeTime } = require(
+    path.join(FRONTEND, "app/utils/describe.ts"),
+  );
+  // As `useRegionalFormat().dateTimeFormat` does for a user who set a time
+  // zone and a 12-hour clock: their settings, unless the text names a zone.
+  const regional = (options) =>
+    new Intl.DateTimeFormat("en-GB", {
+      ...options,
+      timeZone: options.timeZone ?? "America/New_York",
+      hourCycle: "h12",
+    });
+  const date = new Date(Date.UTC(2020, 9, 12, 17, 57));
+  assert.equal(describeDateTime(date, regional), "12 Oct 2020, 1:57 pm");
+  assert.equal(
+    describeDateTime(date, regional, "Europe/Paris"),
+    "12 Oct 2020, 7:57 pm",
+  );
+  assert.equal(describeTime("not a date", regional), "—");
+  assert.equal(describeDateTime(null, regional), "—");
 });

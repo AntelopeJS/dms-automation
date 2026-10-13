@@ -279,7 +279,7 @@ test("the project names its own credentials", () => {
   }
 });
 
-test("the boot catch-up finds the payloads stored with a credential in clear", () => {
+test("the error filter finds the payloads stored with a credential in clear", () => {
   const pattern = new RegExp(clearCredentialPattern().replace("(?i)", ""), "i");
   const clear = [
     { headers: { Authorization: "Bearer x" } },
@@ -302,7 +302,7 @@ test("the boot catch-up finds the payloads stored with a credential in clear", (
   }
 });
 
-test("a payload stored before redaction is redacted when it is read", () => {
+test("a payload stored before its name was sensitive is redacted when it is read", () => {
   const old = JSON.stringify({
     headers: { authorization: "Bearer OLD" },
     body: { a: 1 },
@@ -333,7 +333,7 @@ test("a range loop refuses more than 10 000 iterations before the first one", as
   assert.equal(fired, 10_000);
 });
 
-test("the boot catch-up rewrites an old run's payload, error and log once", () => {
+test("a run read after a name became sensitive hides it in its payload, error and log", () => {
   const old = {
     triggerPayload: JSON.stringify({
       headers: { "x-api-key": "OLDSECRET99" },
@@ -349,7 +349,7 @@ test("the boot catch-up rewrites an old run's payload, error and log once", () =
 
   assert.doesNotMatch(JSON.stringify(rewritten), /OLDSECRET99|OLDQTOKEN77/);
   assert.equal(rewritten.errorMessage, '"[redacted]" is not a valid URL.');
-  // Idempotent: a rewritten run, or a run stored since, needs nothing.
+  // A run rewritten, or stored since, needs nothing.
   assert.equal(redactedStoredRun({ ...old, ...rewritten }), undefined);
   assert.equal(
     redactedStoredRun({

@@ -3,16 +3,12 @@ import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import { dataStyle, triggerStyle } from './styles'
 import { describeDuration, type NodeRole } from '../../../utils/describe'
+import type { PortRef } from '../../../composables/useAutomationNodeKinds'
 
 // One node of the procedure graph. Its header names it (the label the builder
 // gave it, else its type) under a type eyebrow coloured by its role, then one
 // line saying what it does (AU-10). After a run the header carries the step's
 // outcome; a node with a problem carries it in a strip at the bottom.
-
-interface PortRef {
-	name: string
-	type?: string
-}
 
 /** The last run's outcome of the node, drawn over the canvas. */
 export interface NodeRunState {

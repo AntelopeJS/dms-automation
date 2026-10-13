@@ -27,7 +27,7 @@ function executableNode(node: GraphNode): Record<string, unknown> {
 }
 
 /** A graph without what only the canvas reads, nested groups included. */
-export function executableGraph(graph: ProcedureGraph): unknown {
+function executableGraph(graph: ProcedureGraph): unknown {
   return {
     nodes: graph.nodes.map(executableNode),
     triggerEdges: graph.triggerEdges,

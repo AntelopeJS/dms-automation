@@ -7,14 +7,7 @@ import type {
 	DataNodeType,
 	GroupPort,
 } from '../../composables/useGraphConnect'
-import { PALETTE_DRAG_TYPE, type NodeKindEntry, type PaletteBlock } from '../../composables/useAutomationNodeKinds'
-
-interface TemplateSummary {
-	_id: string
-	name: string
-	icon?: string
-	ports: GroupPort[]
-}
+import { PALETTE_DRAG_TYPE, type NodeKindEntry, type PaletteBlock, type TemplateSummary } from '../../composables/useAutomationNodeKinds'
 
 const props = defineProps<{
 	nodeKinds: NodeKindEntry[]

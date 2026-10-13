@@ -24,39 +24,15 @@ import {
   readTriggerPayload,
   redactedStoredRun,
 } from "../runtime/boundRunLog";
-import {
-  parseGraphSafe,
-  stepName,
-  summarizeTrigger,
-} from "../runtime/describe";
+import { parseGraphSafe } from "../runtime/describe";
 import { subscriptions } from "../runtime/subscriptions";
-import { stepDurations, type TraceStep, traceOf } from "../runtime/trace";
-import { durationOf } from "../stats/health";
-import { DATABASE_NAME, MS_PER_DAY, MS_PER_HOUR } from "../types/constants";
+import { stepDurations, traceOf } from "../runtime/trace";
+import { triggerText } from "../runtime/wording";
+import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
 import type { ProcedureGraph } from "../types/graph";
 import type { RunLog } from "../types/runLog";
-import { API_MESSAGES, pageParams, refused } from "./requests";
+import { refused } from "./requests";
 import { kpiAnswer } from "./stats";
-
-// Period unit ("h" / "d") to its span in milliseconds.
-const MS_PER_UNIT: Record<"h" | "d", number> = {
-  h: MS_PER_HOUR,
-  d: MS_PER_DAY,
-};
-
-function sinceFromPeriod(period?: string): Date | undefined {
-  if (!period) return undefined;
-  const m = /^(\d+)([hd])$/.exec(period);
-  if (!m) return undefined;
-  const n = Number(m[1]);
-  const unit = m[2] as "h" | "d";
-  return new Date(Date.now() - n * MS_PER_UNIT[unit]);
-}
-
-/** Runs a page of the run list holds when the caller does not say. */
-const DEFAULT_LIST_SIZE = "50";
-
-const PERIOD_PATTERN = /^\d+[hd]$/;
 
 /** Time on each side of a run its usual duration is read over. */
 const USUAL_DURATION_WINDOW_MS = 7 * MS_PER_DAY;
@@ -68,7 +44,7 @@ const USUAL_DURATION_RUNS = 200;
 interface RunRef {
   runId: string;
   startedAt: string;
-  durationMs: number | null;
+  durationMs: number;
   stepDurations: Record<string, number | null>;
 }
 
@@ -88,10 +64,7 @@ function graphOf(
   if (snapshot) return { graph: snapshot, outdated: false };
   const graph = procedure ? parseGraphSafe(procedure.graph) : undefined;
   if (!graph || !procedure) return { graph, outdated: false };
-  // A run stored before versions were stamped may have used any of them.
-  const olderVersion =
-    typeof run.procedureVersion !== "number" ||
-    run.procedureVersion < (procedure.version ?? 1);
+  const olderVersion = (run.procedureVersion ?? 0) < procedure.version;
   return { graph, outdated: run.kind === "test" || olderVersion };
 }
 
@@ -115,7 +88,7 @@ function runRef(run: ProcedureRun, procedure: Procedure | undefined): RunRef {
   return {
     runId: run._id,
     startedAt: new Date(run.startedAt).toISOString(),
-    durationMs: run.durationMs ?? durationOf(run),
+    durationMs: run.durationMs,
     stepDurations: stepDurations(runTrace(run, procedure, null).trace.steps),
   };
 }
@@ -167,8 +140,7 @@ export async function historyOf(
   ]);
   const durations = timings
     .filter((r) => r._id !== run._id)
-    .map((r) => r.durationMs ?? durationOf(r))
-    .filter((d): d is number => d !== null);
+    .map((r) => r.durationMs);
   const lastSuccess = lastSuccessSummary
     ? await model.get(lastSuccessSummary._id)
     : undefined;
@@ -194,15 +166,6 @@ export async function historyOf(
   };
 }
 
-/** How long a run without an end took at least: until its last step ended. */
-function lastStepEnd(steps: readonly TraceStep[]): number | null {
-  if (steps.length === 0) return null;
-  return steps.reduce(
-    (end, s) => Math.max(end, s.startMs + (s.durationMs ?? 0)),
-    0,
-  );
-}
-
 async function loadRun(id: string): Promise<ProcedureRun> {
   const run = await GetModel(ProcedureRunModel, DATABASE_NAME).get(id);
   if (!run) throw new HTTPResult(404, { error: `run "${id}" not found` });
@@ -210,9 +173,9 @@ async function loadRun(id: string): Promise<ProcedureRun> {
 }
 
 /**
- * A run as it is shown: a run stored before credentials were redacted has
- * them redacted from its payload and scrubbed from its log on read, until the
- * boot catch-up rewrites it.
+ * A run as it is shown: a run stored before the project marked a name as
+ * sensitive (`runs.sensitiveNames`) has that credential redacted from its
+ * payload and scrubbed from its log on read.
  */
 function shown(run: ProcedureRun): ProcedureRun {
   return Object.assign({}, run, redactedStoredRun(run));
@@ -330,44 +293,6 @@ export function rerunPlanFor(
 
 @AuthOwnerOnly()
 export class RunsController extends Controller("/api/automation/runs") {
-  @Get("")
-  // Each parameter is bound to a request input by its decorator, so
-  // the framework hands them in positionally: an options object is not
-  // expressible here.
-  // oxlint-disable-next-line eslint/max-params
-  async list(
-    @AuthRawUser() _user: User,
-    @Parameter("page", "query") page?: string,
-    @Parameter("limit", "query") limit?: string,
-    @Parameter("procedureId", "query") procedureId?: string,
-    @Parameter("status", "query") status?: string,
-    @Parameter("period", "query") period?: string,
-  ) {
-    const pageQuery = pageParams(page, limit ?? DEFAULT_LIST_SIZE);
-    if (status && status !== "ok" && status !== "failed") {
-      throw refused(
-        400,
-        "status must be ok or failed",
-        `${API_MESSAGES}.invalidBody`,
-      );
-    }
-    if (period && !PERIOD_PATTERN.test(period)) {
-      throw refused(
-        400,
-        "period must read like 24h or 7d",
-        `${API_MESSAGES}.invalidBody`,
-      );
-    }
-    return GetModel(ProcedureRunModel, DATABASE_NAME).listAll({
-      ...pageQuery,
-      procedureId,
-      status,
-      since: sinceFromPeriod(period),
-      // Over-fetch one row so the client can tell whether a next page exists.
-      peek: true,
-    });
-  }
-
   @Get("/kpi/:metric")
   // oxlint-disable-next-line eslint/max-params -- one decorator per query input
   async kpi(
@@ -401,8 +326,9 @@ export class RunsController extends Controller("/api/automation/runs") {
     // A deleted procedure is still named by its runs.
     const [run] = procedure
       ? []
-      : await GetModel(ProcedureRunModel, DATABASE_NAME).latestOfProcedure(
+      : await GetModel(ProcedureRunModel, DATABASE_NAME).listByProcedure(
           procedureId,
+          0,
           1,
         );
     const name = procedure?.name ?? run?.procedureName;
@@ -448,11 +374,7 @@ export class RunsController extends Controller("/api/automation/runs") {
       procedure,
       payload.kept ? payload.payload : null,
     );
-    const trigger = graph?.nodes.find((n) => n.id === run.triggerNodeId);
     const history = await historyOf(run);
-    const durationMs = run.durationMs ?? durationOf(run);
-    const nameOf = (nodeId: string) =>
-      run.stepNames?.[nodeId] ?? (graph ? stepName(graph, nodeId) : null);
     // The stored run, as a plain object, without what is served elsewhere
     // (the log) or only read here (the draft, the step names).
     const {
@@ -464,8 +386,6 @@ export class RunsController extends Controller("/api/automation/runs") {
     return Object.assign(stored, {
       // A test ran a draft, not a saved version.
       procedureVersion: run.kind === "test" ? null : run.procedureVersion,
-      durationMs: durationMs ?? lastStepEnd(trace.steps),
-      durationEstimated: durationMs === null && trace.steps.length > 0,
       logCount: logs?.entries.length ?? 0,
       logTruncated: logs?.truncated,
       payloadKept: payload.kept,
@@ -474,15 +394,14 @@ export class RunsController extends Controller("/api/automation/runs") {
             _id: procedure._id,
             name: procedure.name,
             enabled: procedure.enabled,
-            version: procedure.version ?? 1,
+            version: procedure.version,
           }
         : null,
       graph: graph ?? null,
       graphOutdated: outdated,
-      trigger:
-        run.triggerSummary ?? (trigger ? summarizeTrigger(trigger) : null),
-      failedStep:
-        run.failedStep ?? (run.failedNodeId ? nameOf(run.failedNodeId) : null),
+      trigger: run.triggerSummary ?? null,
+      triggerText: triggerText(run.triggerSummary),
+      failedStep: run.failedStep ?? null,
       trace,
       usualDurationMs: history.usualDurationMs,
       lastSuccess: history.lastSuccess

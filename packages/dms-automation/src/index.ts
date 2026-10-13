@@ -24,11 +24,9 @@ import {
   builtinDataNodes,
   builtinTriggers,
 } from "./runtime/builtins";
-import { setPublicUrl } from "./routes/library";
 import { registry } from "./runtime/registry";
 import {
   configureRetention,
-  DEFAULT_RETENTION_DAYS,
   startRetention,
   stopRetention,
 } from "./runtime/retention";
@@ -53,13 +51,6 @@ export interface Config {
      */
     sensitiveNames?: string[];
   };
-  /**
-   * The public origin of the API server, e.g. `https://api.example.com`: the
-   * library and the builder show each webhook's full URL on it. Set it when
-   * outside callers reach the API on another address than the dashboard's
-   * server does; left out, that address is shown.
-   */
-  publicUrl?: string;
   /** The built-in HTTP request action. */
   httpRequest?: {
     /**
@@ -77,7 +68,6 @@ export async function construct(config: Config): Promise<void> {
   configureRetention(globalConfig.runs?.retentionDays);
   configureRedaction(globalConfig.runs?.sensitiveNames);
   setHttpRequestOptions(globalConfig.httpRequest ?? {});
-  setPublicUrl(globalConfig.publicUrl);
 
   ImplementInterface(
     await import("@antelopejs/interface-dms-automation"),
@@ -161,10 +151,7 @@ export async function start(): Promise<void> {
   if (mode === "redis") await startLeaderElection();
   else Logging.Info("[dms-automation] cluster mode: standalone (memory)");
 
-  startRetention(
-    globalConfig.runs?.retentionDays ?? DEFAULT_RETENTION_DAYS,
-    mode === "redis" ? leader.isLeader : () => true,
-  );
+  startRetention(mode === "redis" ? leader.isLeader : () => true);
 }
 
 export async function destroy(): Promise<void> {

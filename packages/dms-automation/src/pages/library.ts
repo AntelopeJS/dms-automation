@@ -59,8 +59,6 @@ export class LibraryPageController extends PageController(
   },
   DefaultLayout(),
 ) {
-  // Flow & helpers comes last so the tabs linked to by index (Templates is
-  // `?tab=3`) keep their place.
   static catalogs = Tab({
     items: [
       tabItem("triggers", CATALOG_ICONS.triggers),

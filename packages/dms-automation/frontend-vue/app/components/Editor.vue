@@ -4,11 +4,22 @@ import { type RunDetail, type TraceStep, useAutomationRuns } from '../composable
 import type { NodeRunState } from './Editor/nodes/GenericNode.vue'
 import type { DockIssue, DockRun, DockTab } from './Editor/BottomDock.vue'
 import type { ProcedureSummaryRow } from './Editor/ProcedureSwitcher.vue'
-import { describeDateTime, describeDuration, describeTime, describeTrigger, stepTitle, type TriggerSummary } from '../utils/describe'
+import { describeDateTime, describeDuration, describeTime, stepTitle, type TriggerSummary, type WordedTrigger } from '../utils/describe'
 import type { BreadcrumbItem } from '@nuxt/ui'
-import type { NodeKindEntry } from '../composables/useAutomationNodeKinds'
-import { type ListEnvelope, newId, unwrapList } from '../utils/automation'
-import type { GroupPort } from '../composables/useGraphConnect'
+import type { NodeKindEntry, TemplateSummary } from '../composables/useAutomationNodeKinds'
+import { newId, queryString } from '../utils/automation'
+import type {
+	ActionType,
+	DataEdge,
+	DataNodeType,
+	GraphNode,
+	GroupPort,
+	JsonSchema,
+	JsonSchemaProperty,
+	ProcedureGraph,
+	TriggerEdge,
+	TriggerType,
+} from '../composables/useGraphConnect'
 
 // Editor mode.
 //
@@ -22,22 +33,18 @@ import type { GroupPort } from '../composables/useGraphConnect'
 //   PUT /api/automation/templates/:id. Run, procedure list, and enabled toggle
 //   are hidden.
 //
-// Mode is resolved from props first (so a host page can hard-wire it) and
-// otherwise from the route query: `?template=<id>` switches into template mode.
+// Mode is resolved from the route query: `?template=<id>` switches into
+// template mode.
 // This keeps the route wiring trivial (the Templates catalog navigates
 // to `/modules/automation/builder?template=<id>`) without needing a
 // dedicated page.
 const props = withDefaults(
 	defineProps<{
-		mode?: 'procedure' | 'template'
-		entityId?: string
 		apiUrl?: string
 		runsUrl?: string
 		traceUrl?: string
 	}>(),
 	{
-		mode: undefined,
-		entityId: undefined,
 		apiUrl: '/api/automation',
 		runsUrl: '/modules/automation/runs',
 		traceUrl: '/modules/automation/trace',
@@ -47,7 +54,9 @@ const props = withDefaults(
 const route = useDmsRoute()
 const router = useDmsRouter()
 const { t, te, locale } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
 const { processI18n } = useTranslation()
+const { processText } = useComposedText()
 // Shortcut hints print ⌘ on macOS and Ctrl elsewhere, like the rest of the DMS.
 const { formatShortcut } = useKeyboardPlatform()
 
@@ -57,67 +66,14 @@ function builderPath(): string {
 }
 
 function queryValue(key: string): string | null {
-	const q = route.query[key]
-	if (typeof q === 'string' && q.length > 0) return q
-	if (Array.isArray(q) && typeof q[0] === 'string' && q[0]!.length > 0) return q[0]!
-	return null
+	return queryString(route.query[key])
 }
 
-const templateQueryId = computed<string | null>(() => {
-	const q = route.query.template
-	if (typeof q === 'string' && q.length > 0) return q
-	if (Array.isArray(q) && typeof q[0] === 'string' && q[0]!.length > 0) return q[0]!
-	return null
-})
+const templateQueryId = computed(() => queryValue('template'))
 
-const editorMode = computed<'procedure' | 'template'>(() => {
-	if (props.mode) return props.mode
-	if (templateQueryId.value) return 'template'
-	return 'procedure'
-})
+const editorMode = computed<'procedure' | 'template'>(() => (templateQueryId.value ? 'template' : 'procedure'))
 
-const editorTemplateId = computed<string | null>(() => {
-	if (editorMode.value !== 'template') return null
-	return props.entityId ?? templateQueryId.value
-})
-
-interface GraphNode {
-	id: string
-	// Node kind is a free-form string keyed off the backend kind registry
-	// (`/api/automation/node-kinds`); the few kinds with bespoke Vue
-	// components (group / groupInput / groupOutput) are compared as
-	// literals where needed.
-	kind: string
-	typeId?: string
-	// The step's name, set in the inspector (a group's falls back to config.name).
-	label?: string
-	config: Record<string, unknown>
-	position: { x: number; y: number }
-	// Group-only extras — present iff kind === 'group'.
-	ports?: GroupPort[]
-	templateId?: string
-	subgraph?: ProcedureGraph
-}
-
-interface TriggerEdge {
-	id: string
-	from: { node: string; branch?: string }
-	// `to.branch` carries the target's trigger-in port name when the target is
-	// a group node or groupOutput sentinel — see src/types/graph.ts.
-	to: { node: string; branch?: string }
-}
-
-interface DataEdge {
-	id: string
-	from: { node: string; port: string }
-	to: { node: string; field: string }
-}
-
-interface ProcedureGraph {
-	nodes: GraphNode[]
-	triggerEdges: TriggerEdge[]
-	dataEdges: DataEdge[]
-}
+const editorTemplateId = computed<string | null>(() => (editorMode.value === 'template' ? templateQueryId.value : null))
 
 interface ProcedureRecord {
 	_id: string
@@ -133,62 +89,12 @@ interface ProcedureRecord {
 	revision?: number
 }
 
-interface ProcedureApiRecord {
-	_id: string
-	name: string
-	description?: string
-	enabled: boolean
-	graph: string | ProcedureGraph
-	version?: number
-	revision?: number
-}
-
-interface JsonSchemaProperty {
-	type?: string
-	[key: string]: unknown
-}
-
-interface JsonSchema {
-	type?: string
-	properties?: Record<string, JsonSchemaProperty>
-	[key: string]: unknown
-}
-
-interface TriggerType {
-	id: string
-	name: string
-	description?: string
-	icon?: string
-	configSchema?: JsonSchema
-	outputSchema?: JsonSchema
-}
-
-interface ActionType {
-	id: string
-	name: string
-	description?: string
-	icon?: string
-	inputSchema?: JsonSchema
-	outputSchema?: JsonSchema
-}
-
-interface DataNodeType {
-	id: string
-	category: string
-	name: string
-	description: string
-	icon: string
-	inputSchema: JsonSchema
-	outputSchema: JsonSchema
-	// Kept in sync with the canonical DataNodeType (useGraphConnect.ts).
-	configSchema?: JsonSchema
-}
-
 const { $authFetch } = useAuthFetch()
 const toast = useToast()
 // Composables are called before the first `await` of this setup: after it,
 // the component instance they inject from is gone.
 const { confirm } = useConfirm()
+const { confirmFrom } = useConfirmFrom()
 const runsApi = useAutomationRuns(props.apiUrl)
 // Leaving the page with unsaved changes goes through the DMS leave guard.
 const unsavedDraft = ref(false)
@@ -235,26 +141,13 @@ const nodeKinds = ref<NodeKindEntry[]>([])
 // the client (id, name, icon, ports). The list endpoint still returns full
 // rows (description, usageCount, hydrated subgraph); the `.map()` below
 // simply discards the extra fields after the fetch.
-interface TemplatePaletteRow {
-	_id: string
-	name: string
-	icon?: string
-	ports: GroupPort[]
-}
-interface TemplateListResponse {
-	results?: TemplatePaletteRow[]
-	items?: TemplatePaletteRow[]
-}
-const templates = ref<TemplatePaletteRow[]>([])
+const templates = ref<TemplateSummary[]>([])
 const templatesLoadError = ref<string | null>(null)
 
 async function loadTemplates() {
 	try {
-		const data = await $authFetch<
-			TemplatePaletteRow[] | TemplateListResponse
-		>('/api/automation/templates')
-		const list = unwrapList<TemplatePaletteRow>(data)
-		templates.value = list.map((t) => ({
+		const { results } = await $authFetch<{ results: TemplateSummary[] }>('/api/automation/templates')
+		templates.value = results.map((t) => ({
 			_id: t._id,
 			name: t.name,
 			icon: t.icon,
@@ -262,7 +155,7 @@ async function loadTemplates() {
 		}))
 		templatesLoadError.value = null
 	} catch (e) {
-		templatesLoadError.value = (e as Error).message ?? 'Failed to load templates'
+		templatesLoadError.value = describeApiError(e)
 		templates.value = []
 	}
 }
@@ -271,7 +164,7 @@ async function loadTemplates() {
 // server's cycle check would still catch any reference cycle, but blocking
 // it at the UI level keeps the UX cleaner — the user can't even attempt
 // to drop a template (including the one currently open) into itself.
-const palettesTemplates = computed<TemplatePaletteRow[] | undefined>(() =>
+const palettesTemplates = computed<TemplateSummary[] | undefined>(() =>
 	editorMode.value === 'template' ? undefined : templates.value,
 )
 
@@ -294,8 +187,8 @@ const canvasViewKey = computed(() => [selectedId.value ?? '', ...subgraphPath.va
 // Back to the Library's Templates tab, on the template being edited.
 const libraryBackUrl = computed(() =>
 	editorTemplateId.value && !templateNotFound.value
-		? `/modules/automation/library?tab=3&template=${editorTemplateId.value}`
-		: '/modules/automation/library?tab=3',
+		? `/modules/automation/library?tab=templates&template=${editorTemplateId.value}`
+		: '/modules/automation/library?tab=templates',
 )
 
 const selectedNodeId = ref<string | null>(null)
@@ -438,48 +331,6 @@ function initHistoryAndSaved() {
 	}
 }
 
-function emptyGraph(): ProcedureGraph {
-	return {
-		nodes: [
-			{
-				id: 'trigger-1',
-				kind: 'trigger',
-				typeId: 'manual',
-				config: {},
-				position: { x: 100, y: 100 },
-			},
-		],
-		triggerEdges: [],
-		dataEdges: [],
-	}
-}
-
-function parseGraph(g: string | ProcedureGraph | undefined | null): ProcedureGraph {
-	if (!g) return emptyGraph()
-	if (typeof g === 'string') {
-		try {
-			const parsed = JSON.parse(g) as ProcedureGraph
-			return parsed && Array.isArray(parsed.nodes) ? parsed : emptyGraph()
-		} catch {
-			return emptyGraph()
-		}
-	}
-	return g
-}
-
-function normalize(r: ProcedureApiRecord): ProcedureRecord {
-	return {
-		_id: r._id,
-		name: r.name,
-		description: r.description ?? '',
-		enabled: !!r.enabled,
-		graph: parseGraph(r.graph),
-		version: r.version,
-		// A procedure written before revisions existed has none: it counts as 0.
-		revision: r.revision ?? 0,
-	}
-}
-
 const PROCEDURES_PAGE_SIZE = 200
 
 async function loadList() {
@@ -487,21 +338,15 @@ async function loadList() {
 	loadError.value = null
 	try {
 		// The API serves pages of PROCEDURES_PAGE_SIZE at most: read them all.
-		// A page that brings nothing new (a server ignoring `page`) ends it.
-		const list: ProcedureApiRecord[] = []
-		const seen = new Set<string>()
+		const list: ProcedureRecord[] = []
 		for (let page = 0; ; page++) {
-			const rows = unwrapList<ProcedureApiRecord>(
-				await $authFetch<ProcedureApiRecord[] | ListEnvelope<ProcedureApiRecord>>(
-					`/api/automation/procedures?limit=${PROCEDURES_PAGE_SIZE}&page=${page}`,
-				),
+			const { results } = await $authFetch<{ results: ProcedureRecord[] }>(
+				`/api/automation/procedures?limit=${PROCEDURES_PAGE_SIZE}&page=${page}`,
 			)
-			const fresh = rows.filter((row) => !seen.has(row._id))
-			for (const row of fresh) seen.add(row._id)
-			list.push(...fresh)
-			if (rows.length < PROCEDURES_PAGE_SIZE || fresh.length === 0) break
+			list.push(...results)
+			if (results.length < PROCEDURES_PAGE_SIZE) break
 		}
-		procedures.value = list.map(normalize)
+		procedures.value = list
 		if (
 			selectedId.value &&
 			!procedures.value.some((p) => p._id === selectedId.value)
@@ -530,21 +375,9 @@ async function loadList() {
 
 async function loadTypeCatalogs() {
 	try {
-		triggerTypes.value = unwrapList<TriggerType>(
-			await $authFetch<TriggerType[] | ListEnvelope<TriggerType>>(
-				'/api/automation/trigger-types',
-			),
-		)
-		actionTypes.value = unwrapList<ActionType>(
-			await $authFetch<ActionType[] | ListEnvelope<ActionType>>(
-				'/api/automation/action-types',
-			),
-		)
-		dataNodeTypes.value = unwrapList<DataNodeType>(
-			await $authFetch<DataNodeType[] | ListEnvelope<DataNodeType>>(
-				'/api/automation/data-node-types',
-			),
-		)
+		triggerTypes.value = await $authFetch<TriggerType[]>('/api/automation/trigger-types')
+		actionTypes.value = await $authFetch<ActionType[]>('/api/automation/action-types')
+		dataNodeTypes.value = await $authFetch<DataNodeType[]>('/api/automation/data-node-types')
 		nodeKinds.value = await useAutomationNodeKinds().list()
 	} catch {
 		// Catalogs are optional for editing — silently ignore.
@@ -556,8 +389,8 @@ interface AutomationTemplateApi {
 	name: string
 	description?: string
 	icon?: string
-	ports?: GroupPort[]
-	subgraph?: string | ProcedureGraph
+	ports: GroupPort[]
+	subgraph: ProcedureGraph
 }
 
 async function loadTemplate(id: string) {
@@ -568,7 +401,6 @@ async function loadTemplate(id: string) {
 		const tpl = await $authFetch<AutomationTemplateApi>(
 			`/api/automation/templates/${id}`,
 		)
-		const subgraph = parseGraph(tpl.subgraph)
 		// Adapt the template into the ProcedureRecord shape so the rest of
 		// the editor (history, dirty-tracking, sentinel sync, group toolbar)
 		// keeps working unchanged. `enabled` is meaningless for templates;
@@ -578,7 +410,7 @@ async function loadTemplate(id: string) {
 			name: tpl.name,
 			description: tpl.description ?? '',
 			enabled: true,
-			graph: subgraph,
+			graph: tpl.subgraph,
 		}
 		procedures.value = [adapted]
 		selectedId.value = adapted._id
@@ -1780,8 +1612,7 @@ const summaries = ref<ProcedureSummaryRow[]>([])
 
 async function loadSummaries() {
 	try {
-		const res = await $authFetch<{ results: ProcedureSummaryRow[] }>(`${props.apiUrl}/procedures/summary`)
-		summaries.value = res.results ?? []
+		summaries.value = await $authFetch<ProcedureSummaryRow[]>(`${props.apiUrl}/procedures/summary`)
 	} catch {
 		summaries.value = []
 	}
@@ -1827,6 +1658,9 @@ interface GraphIssue {
 	nodeId?: string
 }
 const issues = ref<GraphIssue[]>([])
+// The draft's triggers, worded by the server with its problems: the canvas
+// and the test dock name them.
+const draftTriggers = ref<WordedTrigger[]>([])
 let validateTimer: ReturnType<typeof setTimeout> | undefined
 const VALIDATE_DELAY_MS = 500
 
@@ -1834,16 +1668,18 @@ async function validateDraft() {
 	const current = selected.value
 	if (!current || editorMode.value !== 'procedure') {
 		issues.value = []
+		draftTriggers.value = []
 		return
 	}
 	try {
-		const res = await $authFetch<{ issues: typeof issues.value }>(`${props.apiUrl}/procedures/validate`, {
+		const res = await $authFetch<{ issues: typeof issues.value; triggers?: WordedTrigger[] }>(`${props.apiUrl}/procedures/validate`, {
 			method: 'POST',
 			// With the procedure and its name, the server also checks what other
 			// procedures hold (a webhook path, a name).
 			body: { graph: current.graph, enabled: current.enabled, procedureId: current._id, name: current.name },
 		})
 		issues.value = res.issues ?? []
+		draftTriggers.value = res.triggers ?? []
 	} catch {
 		// A graph the schema refuses is reported on save.
 	}
@@ -1937,7 +1773,7 @@ function selectNode(id: string) {
 }
 
 interface ProcedureTriggers {
-	triggers: Array<TriggerSummary & { nextAt: string | null }>
+	triggers: Array<WordedTrigger & { nextAt: string | null }>
 }
 const savedTriggers = ref<ProcedureTriggers['triggers']>([])
 
@@ -1958,14 +1794,14 @@ const pausedBanner = computed(() => {
 	const triggers = savedTriggers.value.filter((tr) => tr.typeId !== 'manual')
 	if (triggers.length === 0) return null
 	const first = triggers[0]!
-	const what = describeTrigger(first, processI18n)
+	const what = processText(first.text)
 	const isDraft = currentSummary.value?.status === 'draft'
 	return {
 		title: t(isDraft ? 'dms_automation.editor.paused.draftTitle' : 'dms_automation.editor.paused.title', { name: savedName.value }),
 		description: first.nextAt
 			? t('dms_automation.editor.paused.schedule', {
 					what,
-					next: describeDateTime(first.nextAt, locale.value, first.timeZone),
+					next: describeDateTime(first.nextAt, dateTimeFormat, first.timeZone),
 				})
 			: t('dms_automation.editor.paused.other', { what }),
 	}
@@ -2003,13 +1839,9 @@ async function onDelete() {
 	const current = selected.value
 	if (!current) return
 	const name = savedName.value
-	await confirm({
-		title: t('dms_automation.editor.deleteTitle', { name }),
-		description: current.enabled ? t('dms_automation.editor.deleteEnabled') : t('dms_automation.editor.deleteDisabled'),
-		color: 'error',
-		icon: 'i-ph-trash',
-		confirmLabel: t('dms_automation.editor.delete'),
-		confirmText: current.enabled ? name : undefined,
+	// The server words the dialog, as the procedures table's delete does.
+	await confirmFrom(`${props.apiUrl}/procedures/{id}/delete-confirm`, {
+		params: { id: current._id },
 		onConfirm: async () => {
 			await $authFetch(`${props.apiUrl}/procedures/${current._id}`, { method: 'DELETE' })
 			procedures.value = procedures.value.filter((p) => p._id !== current._id)
@@ -2263,7 +2095,7 @@ async function onSave(): Promise<boolean> {
 			toast.add({ title: t('dms_automation.templates.saved', { name: sent.name }), color: 'success', icon: 'i-ph-check-circle' })
 			return true
 		}
-		const res = await $authFetch<{ version: number; revision?: number; issues?: GraphIssue[] }>(`${props.apiUrl}/procedures/${current._id}`, {
+		const res = await $authFetch<{ version: number; revision: number; issues?: GraphIssue[] }>(`${props.apiUrl}/procedures/${current._id}`, {
 			method: 'PUT',
 			body: {
 				name: sent.name,
@@ -2316,8 +2148,7 @@ async function onSave(): Promise<boolean> {
  */
 async function resolveStale(current: ProcedureRecord, error: unknown): Promise<boolean> {
 	saving.value = false
-	const stale = (error as { data?: { revision?: number; current?: number } }).data
-	let latest = stale?.revision ?? stale?.current
+	let latest = (error as { data: { revision: number } }).data.revision
 	const choice = await askChoice({
 		title: t('dms_automation.editor.stale.title', { name: savedName.value }),
 		description: t('dms_automation.editor.stale.description'),
@@ -2334,9 +2165,9 @@ async function resolveStale(current: ProcedureRecord, error: unknown): Promise<b
 		// switch was flipped in this draft, the procedure stays as it is now.
 		if (current.enabled === savedSnapshot.value?.enabled) {
 			try {
-				const saved = await $authFetch<ProcedureApiRecord>(`${props.apiUrl}/procedures/${current._id}`)
-				current.enabled = !!saved.enabled
-				latest = saved.revision ?? latest
+				const saved = await $authFetch<{ enabled: boolean; revision: number }>(`${props.apiUrl}/procedures/${current._id}`)
+				current.enabled = saved.enabled
+				latest = saved.revision
 			} catch {
 				// Unreadable: the draft's state is saved, as before.
 			}
@@ -2353,7 +2184,7 @@ async function reloadSelected() {
 	const current = selected.value
 	if (!current) return
 	try {
-		const fresh = normalize(await $authFetch<ProcedureApiRecord>(`${props.apiUrl}/procedures/${current._id}`))
+		const fresh = await $authFetch<ProcedureRecord>(`${props.apiUrl}/procedures/${current._id}`)
 		procedures.value = procedures.value.map((p) => (p._id === fresh._id ? fresh : p))
 		selectedNodeId.value = null
 		initHistoryAndSaved()
@@ -2462,7 +2293,7 @@ function formatTemplateError(err: unknown): string {
 		}
 		return head
 	}
-	return (err as Error).message ?? 'Failed to save template'
+	return describeApiError(err)
 }
 
 function convertLocalGroupToTemplateInstance(
@@ -2655,7 +2486,7 @@ function formatForkError(err: unknown): string {
 	}
 	const data = (err as { data?: { error?: string } } | undefined)?.data
 	if (data?.error) return data.error
-	return (err as Error).message ?? 'Failed to fork template instance'
+	return describeApiError(err)
 }
 
 async function submitFork() {
@@ -2953,7 +2784,7 @@ const selectedRunStep = computed<TraceStep | null>(() => {
 const overlayLabel = computed(() => {
 	const run = overlayRun.value
 	if (!run) return ''
-	const when = describeTime(run.startedAt, locale.value)
+	const when = describeTime(run.startedAt, dateTimeFormat)
 	return overlayIsTest.value
 		? t('dms_automation.editor.debug.testLabel', { when })
 		: t('dms_automation.editor.debug.runLabel', { run: run._id.slice(-6), when })
@@ -3242,11 +3073,17 @@ const selectedTriggerSummaries = computed<TriggerSummary[]>(() =>
 		})),
 )
 
+// A draft trigger as the server words it, its type's name until it has.
+function triggerLabel(trigger: TriggerSummary): string {
+	const worded = draftTriggers.value.find((tr) => tr.nodeId === trigger.nodeId)
+	return worded ? processText(worded.text) : processI18n(trigger.typeName)
+}
+
 // Test run starts from the trigger picked in the dock: the manual one, else
 // the first, until the user picks another; its last real payload prefills
 // the test payload.
 const testTriggerItems = computed(() =>
-	selectedTriggerSummaries.value.map((trigger) => ({ label: describeTrigger(trigger, processI18n), value: trigger.nodeId ?? '' })),
+	selectedTriggerSummaries.value.map((trigger) => ({ label: triggerLabel(trigger), value: trigger.nodeId ?? '' })),
 )
 watch(
 	selectedTriggerSummaries,
@@ -3559,7 +3396,7 @@ function onTemplatePortsUpdate(next: GroupPort[]) {
 						:selected-node-id="selectedNodeId"
 						:view-key="canvasViewKey"
 						:covered-by="inspectorRef"
-						:saved-triggers="savedTriggers"
+						:triggers="draftTriggers"
 						class="[&_.graph-canvas-wrap]:rounded-none [&_.graph-canvas-wrap]:border-0"
 						@update:graph="onGraphUpdate"
 						@select:node="onSelectNode"
@@ -3623,8 +3460,6 @@ function onTemplatePortsUpdate(next: GroupPort[]) {
 					:data-edges="currentGraph?.dataEdges ?? []"
 					:trigger-type="selectedNodeTriggerType"
 					:action-type="selectedNodeActionType"
-					:trigger-types="triggerTypes"
-					:action-types="actionTypes"
 					:data-node-types="dataNodeTypes"
 					:node-kinds="nodeKinds"
 					:read-only="isCurrentGraphReadOnly"

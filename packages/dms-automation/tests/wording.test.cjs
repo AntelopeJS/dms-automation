@@ -6,6 +6,7 @@ const {
   stepText,
   triggerText,
   triggerTypeText,
+  withTriggerText,
 } = require("../dist/runtime/wording.js");
 const { scheduleTimeZone } = require("../dist/runtime/schedule.js");
 
@@ -85,6 +86,30 @@ test("a trigger reads as its settings, its type under them", () => {
   assert.equal(triggerText(null), "$dms_automation.trigger.none");
 });
 
+test("a schedule trigger reads in the zone its summary names", () => {
+  const schedule = {
+    nodeId: "t1",
+    typeId: "cron",
+    typeName: "$dms_automation.types.cron.name",
+    cron: "0 9 * * 1",
+    timeZone: "Europe/Brussels",
+  };
+  const text = {
+    key: `${CRON}.weekly`,
+    params: {
+      day: { key: `${CRON}.days.mon` },
+      time: "09:00 (Europe/Brussels)",
+    },
+  };
+  assert.deepEqual(triggerText(schedule), text);
+  assert.deepEqual(withTriggerText(schedule), { ...schedule, text });
+  const { timeZone: _zone, ...unzoned } = schedule;
+  assert.deepEqual(
+    triggerText(unzoned).params.time,
+    `09:00 (${scheduleTimeZone()})`,
+  );
+});
+
 test("a step reads as its label, else its type, else its id", () => {
   assert.equal(
     stepText({ nodeId: "a1", label: "Notify", typeName: "Log" }),
@@ -100,4 +125,67 @@ test("a key nested in a composed text is composed, a name is kept", () => {
     key: "dms_automation.types.log.name",
   });
   assert.equal(asParam("Notify the team"), "Notify the team");
+});
+
+// The routes the builder, the trace and the library read send the text next
+// to the trigger: the browser no longer words triggers itself.
+test("the saved triggers of a procedure come with their text", () => {
+  const { savedTriggersOf } = require("../dist/routes/procedures.js");
+  const graph = {
+    nodes: [
+      {
+        id: "s",
+        kind: "trigger",
+        typeId: "cron",
+        config: { cron: "0 2 * * *" },
+      },
+      {
+        id: "w",
+        kind: "trigger",
+        typeId: "webhook",
+        config: { path: "/hooks/in", method: "PUT" },
+      },
+      { id: "m", kind: "trigger", typeId: "manual", config: {} },
+      { id: "a", kind: "action", typeId: "log", config: {} },
+    ],
+    triggerEdges: [],
+    dataEdges: [],
+  };
+  const from = new Date("2026-01-01T00:00:00Z");
+  const triggers = savedTriggersOf(graph, from);
+  assert.deepEqual(
+    triggers.map((t) => t.nodeId),
+    ["s", "w", "m"],
+  );
+  assert.deepEqual(triggers[0].text, {
+    key: `${CRON}.daily`,
+    params: { time: `02:00 (${scheduleTimeZone()})` },
+  });
+  assert.equal(typeof triggers[0].nextAt, "string");
+  assert.equal(triggers[1].text, "PUT /hooks/in");
+  assert.equal(triggers[1].nextAt, null);
+  assert.equal(triggers[2].text, triggers[2].typeName);
+});
+
+test("a schedule placed in a procedure is listed in the library in words", () => {
+  const { triggerUsageOf } = require("../dist/routes/library.js");
+  const schedule = triggerUsageOf({
+    id: "s",
+    kind: "trigger",
+    typeId: "cron",
+    config: { cron: "*/15 * * * *" },
+  });
+  assert.deepEqual(schedule.cronText, {
+    key: `${CRON}.everyMinutes`,
+    params: { n: "15" },
+  });
+  assert.equal(schedule.timeZone, scheduleTimeZone());
+  const webhook = triggerUsageOf({
+    id: "w",
+    kind: "trigger",
+    typeId: "webhook",
+    config: { path: "/hooks/in" },
+  });
+  assert.equal(webhook.cronText, undefined);
+  assert.equal(webhook.path, "/hooks/in");
 });

@@ -164,9 +164,6 @@
         "testLabel": "Test · {when}"
       },
       "delete": "Supprimer la procédure",
-      "deleteDisabled": "Le graphe est supprimé ; son historique reste jusqu’à ce que la rétention l’efface.",
-      "deleteEnabled": "Elle est active : ses déclencheurs s’arrêtent aussitôt. Saisissez son nom pour confirmer.",
-      "deleteTitle": "Supprimer « {name} » ?",
       "deleted": "{name} supprimée",
       "disabled": "Désactivée",
       "discard": "Abandonner les modifications",
@@ -491,7 +488,7 @@
       "webhook": {
         "example": "Exemple",
         "hint": "Appelez cette URL pour lancer la procédure.",
-        "unconfigured": "C’est l’adresse par laquelle le serveur du tableau de bord joint l’API. Si un service extérieur ne peut pas l’atteindre, renseignez publicUrl dans la configuration du module automation."
+        "unconfigured": "C’est l’adresse par laquelle le serveur du tableau de bord joint l’API. Si un service extérieur ne peut pas l’atteindre, renseignez apiBaseUrl dans la configuration du DMS."
       },
       "builtIn": "Intégré",
       "cluster": {
@@ -803,6 +800,9 @@
       "listTitle": "Exécutions",
       "peek": "Aperçu",
       "peekPosition": "Exécution {index} sur {total}",
+      "peekNotFound": "Cette exécution n’est plus conservée",
+      "peekNotFoundHint": "La rétention des exécutions l’a peut-être supprimée, ou le lien est erroné.",
+      "rowMenu": "Actions pour cette exécution de {procedureName}",
       "peekTitle": "Exécution",
       "rerun": "Relancer",
       "rerunConfirmDescription": "Exécute à nouveau la version enregistrée de la procédure, depuis le même déclencheur, avec la charge utile reçue. Les effets sont réels.",
@@ -922,7 +922,6 @@
       "previousRun": "Exécution précédente",
       "procedureDeleted": "procédure supprimée",
       "rerunFailed": "{name} a été relancée et a échoué",
-      "rerunUnavailable": "Impossible de préparer la relance",
       "truncatedHint": "Des étapes du milieu de l’exécution manquent ici : les étapes ignorées ne sont donc pas listées.",
       "truncatedTitle": "{count} entrées du journal ont été retirées pour garder cette exécution légère",
       "versionUnknown": "inconnue",
@@ -1025,7 +1024,7 @@
           "name": "Différent de"
         }
       },
-      "compareMode": "Comment a et b sont comparés. auto : comme des nombres quand les deux en sont, même écrits en texte (10 est supérieur à 9), sinon comme du texte. number : comme des nombres, et l’étape échoue si l’un n’est pas un nombre. text : comme du texte, dans l’ordre alphabétique.",
+      "compareMode": "Comment a et b sont comparés. auto : comme des nombres quand les deux en sont, même écrits en texte (10 est supérieur à 9), sinon comme du texte ; une valeur vide ou un booléen n’est égal qu’à lui-même. number : comme des nombres, et l’étape échoue si l’un n’est pas un nombre. text : comme du texte, dans l’ordre alphabétique.",
       "const": {
         "boolean": {
           "description": "Une valeur fixe, vraie ou fausse.",

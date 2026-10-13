@@ -40,7 +40,7 @@ export function setHttpRequestOptions(next: HttpRequestOptions): void {
   options = next;
 }
 
-export const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_TIMEOUT_MS = 30_000;
 /**
  * The longest a step may wait: a run holds its caller (a test run, Run now)
  * until it ends.

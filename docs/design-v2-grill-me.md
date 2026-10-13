@@ -232,8 +232,8 @@ Started (`RelativeDateDisplay`), Procedure (identity, run id as subtitle),
 Trigger (`automation:trigger` display: "POST /webhooks/stripe", "Every day at
 02:00"), Outcome (`StatusPillDisplay`, the error under it), Failed at
 (`automation:step`), Duration (`DurationDisplay`), Kind (run / re-run / test).
-The procedure's name is stored on the run and renamed with the procedure (and
-back-filled at boot for older runs): the relation join cannot read the
+The procedure's name is stored on the run and renamed with the procedure:
+the relation join cannot read the
 computed procedures controller, and a stored name sorts and searches.
 *Why:* the mockup row, with built-in displays where they exist.
 

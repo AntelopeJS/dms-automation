@@ -9,26 +9,19 @@ const MAX_DESCRIPTION_LENGTH = 2000;
 const nameSchema = z.string().trim().min(1).max(MAX_NAME_LENGTH);
 const descriptionSchema = z.string().max(MAX_DESCRIPTION_LENGTH);
 
-export const procedureBodySchema = z.object({
+/**
+ * A save names the revision it was loaded at: a procedure written since
+ * (another tab, a pause from the list) is not overwritten.
+ */
+export const procedureUpdateSchema = z.object({
   name: nameSchema,
   description: descriptionSchema.optional(),
   enabled: z.boolean(),
   graph: procedureGraphSchema,
+  expectedRevision: z.number().int(),
 });
 
-export type ProcedureBody = z.infer<typeof procedureBodySchema>;
-
-/**
- * A save from the builder names the revision it was loaded at: a procedure
- * written since (another tab, a pause from the list) is not overwritten.
- * `expectedVersion`, the first form of this check, is still read.
- */
-export const procedureUpdateSchema = procedureBodySchema.extend({
-  expectedRevision: z.number().int().optional(),
-  expectedVersion: z.number().int().optional(),
-});
-
-export const STARTERS = ["webhook", "schedule.cron", "manual"] as const;
+const STARTERS = ["webhook", "schedule.cron", "manual"] as const;
 
 export type Starter = (typeof STARTERS)[number];
 

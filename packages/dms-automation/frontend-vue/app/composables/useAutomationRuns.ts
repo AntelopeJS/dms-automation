@@ -71,7 +71,7 @@ export interface RunRef {
   stepDurations: Record<string, number | null>;
 }
 
-export interface GraphNodeLite {
+interface GraphNodeLite {
   id: string;
   kind: string;
   typeId?: string;
@@ -80,7 +80,7 @@ export interface GraphNodeLite {
   position: { x: number; y: number };
 }
 
-export interface GraphLite {
+interface GraphLite {
   nodes: GraphNodeLite[];
   triggerEdges: Array<{
     id: string;
@@ -113,16 +113,14 @@ export interface RunDetail {
   triggerNodeId: string;
   triggerPayload?: string;
   payloadKept: boolean;
-  kind?: "run" | "rerun" | "test";
+  kind: "run" | "rerun" | "test";
   rerunOf?: string;
   failedNodeId?: string;
   instanceId?: string;
   /** The version that ran; `null` for a test run of the builder's draft. */
   procedureVersion?: number | null;
-  procedureName?: string;
-  durationMs: number | null;
-  /** No end was stored: the duration is the end of the last step. */
-  durationEstimated?: boolean;
+  procedureName: string;
+  durationMs: number;
   /** The log, when the run carries it; else read with `getLogs`. */
   logs?: RunLog;
   logCount?: number;
@@ -137,6 +135,8 @@ export interface RunDetail {
   graph: GraphLite | null;
   graphOutdated?: boolean;
   trigger: TriggerSummary | null;
+  /** What started the run, worded by the server. */
+  triggerText: BlockText;
   failedStep: StepName | null;
   trace: {
     steps: TraceStep[];
@@ -158,22 +158,6 @@ export interface RerunResult {
   status?: "ok" | "failed";
   /** An i18n key (with `$`) to show when the new run failed. */
   warning?: string;
-}
-
-/**
- * The confirmation of a re-run as the server words it (a DMS confirm
- * dialog): its texts are i18n keys filled in with `params`, and `blocked`
- * says why the run cannot be re-run.
- */
-export interface RerunDialog {
-  title: string;
-  description?: string;
-  params?: Record<string, unknown>;
-  icon?: string;
-  color?: "primary" | "error" | "warning" | "info" | "success" | "neutral";
-  confirmLabel?: string;
-  impact?: Array<{ icon: string; label: string }>;
-  blocked?: boolean;
 }
 
 /**
@@ -215,9 +199,6 @@ export function useAutomationRuns(apiUrl = "/api/automation") {
     },
     getLogs(id: string): Promise<RunLog> {
       return $authFetch<RunLog>(`${runUrl(id)}/logs`);
-    },
-    rerunConfirm(id: string): Promise<RerunDialog> {
-      return $authFetch<RerunDialog>(`${runUrl(id)}/rerun-confirm`);
     },
     rerun(id: string): Promise<RerunResult> {
       return $authFetch<RerunResult>(`${runUrl(id)}/rerun`, {

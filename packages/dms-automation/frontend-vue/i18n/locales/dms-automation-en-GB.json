@@ -164,9 +164,6 @@
         "testLabel": "Test run · {when}"
       },
       "delete": "Delete procedure",
-      "deleteDisabled": "The graph is deleted; its run history stays until retention removes it.",
-      "deleteEnabled": "It is enabled: its triggers stop at once. Type its name to confirm.",
-      "deleteTitle": "Delete “{name}”?",
       "deleted": "{name} deleted",
       "disabled": "Disabled",
       "discard": "Discard",
@@ -491,7 +488,7 @@
       "webhook": {
         "example": "Example",
         "hint": "Call this URL to start the procedure.",
-        "unconfigured": "This is the address the dashboard’s server reaches the API on. If outside services can’t reach it, set publicUrl in the automation module’s configuration."
+        "unconfigured": "This is the address the dashboard’s server reaches the API on. If outside services can’t reach it, set apiBaseUrl in the DMS configuration."
       },
       "builtIn": "Built-in",
       "cluster": {
@@ -803,6 +800,9 @@
       "listTitle": "Runs",
       "peek": "Quick look",
       "peekPosition": "Run {index} of {total}",
+      "peekNotFound": "This run is no longer kept",
+      "peekNotFoundHint": "The run retention may have deleted it, or the link is wrong.",
+      "rowMenu": "Actions for this run of {procedureName}",
       "peekTitle": "Run",
       "rerun": "Re-run",
       "rerunConfirmDescription": "Runs the saved version of the procedure again, from the same trigger, with the payload this run received. Side effects are real.",
@@ -922,7 +922,6 @@
       "previousRun": "Previous run",
       "procedureDeleted": "procedure deleted",
       "rerunFailed": "{name} re-ran and failed",
-      "rerunUnavailable": "Couldn’t prepare the re-run",
       "truncatedHint": "Some steps in the middle of the run are missing here, so the steps it skipped aren’t listed.",
       "truncatedTitle": "{count} log entries were dropped to keep this run small",
       "versionUnknown": "unknown",
@@ -1025,7 +1024,7 @@
           "name": "Not equal"
         }
       },
-      "compareMode": "How a and b are compared. auto: as numbers when both are numbers, even written as text (10 is greater than 9), otherwise as text. number: as numbers, and the step fails if one is not a number. text: as text, in alphabetical order.",
+      "compareMode": "How a and b are compared. auto: as numbers when both are numbers, even written as text (10 is greater than 9), otherwise as text; an empty value or a boolean only equals itself. number: as numbers, and the step fails if one is not a number. text: as text, in alphabetical order.",
       "const": {
         "boolean": {
           "description": "A fixed true or false value.",

@@ -25,6 +25,7 @@ import { changesExecution } from "../runtime/graphVersion";
 import { nextOccurrence } from "../runtime/schedule";
 import { subscriptions } from "../runtime/subscriptions";
 import { withFreeWebhookPaths } from "../runtime/webhookRoutes";
+import { withTriggerText } from "../runtime/wording";
 import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import { isProductionRun } from "../types/runLog";
@@ -32,7 +33,6 @@ import { deleteDialogOf } from "./deleteConfirm";
 import {
   checkSavable,
   graphRefusal,
-  isStale,
   issuesOf,
   nameWarning,
   saveIssues,
@@ -46,8 +46,6 @@ import {
   importSchema,
   MAX_NAME_LENGTH,
   newProcedureSchema,
-  type ProcedureBody,
-  procedureBodySchema,
   procedureUpdateSchema,
   runNowSchema,
   type Starter,
@@ -151,10 +149,29 @@ async function insertDraft(
   return id;
 }
 
+/** A procedure as the API serves it: its graph parsed. */
+function served(procedure: Procedure) {
+  const { graph, ...fields } = procedure;
+  return { ...fields, graph: JSON.parse(graph) as ProcedureGraph };
+}
+
 /** The name of a copy, kept within the length a name may have. */
 function copyNameOf(name: string): string {
   const suffix = " (copy)";
   return `${name.slice(0, MAX_NAME_LENGTH - suffix.length)}${suffix}`;
+}
+
+/**
+ * The triggers of a saved graph, each with its text and, for a schedule, the
+ * next time it fires.
+ */
+export function savedTriggersOf(graph: ProcedureGraph, from = new Date()) {
+  return triggersOf(graph).map((trigger) => ({
+    ...withTriggerText(trigger),
+    nextAt: trigger.cron
+      ? (nextOccurrence(trigger.cron, from)?.toISOString() ?? null)
+      : null,
+  }));
 }
 
 @AuthOwnerOnly()
@@ -168,21 +185,23 @@ export class ProceduresController extends Controller(
     @Parameter("limit", "query") limit?: string,
   ) {
     const model = GetModel(ProcedureModel, DATABASE_NAME);
-    return await model.list(pageParams(page, limit));
+    const listed = await model.list(pageParams(page, limit));
+    return { ...listed, results: listed.results.map(served) };
   }
 
   // Per-procedure rows (trigger, state, last runs, success, avg): the
   // builder's procedure switcher reads them. Declared before "/:id".
   @Get("/summary")
   async summary(@AuthRawUser() _user: User) {
-    return { results: await getProceduresSummary() };
+    return await getProceduresSummary();
   }
 
   /**
    * The problems of a draft graph, for the builder's Problems dock: as for an
    * enabled procedure when `enabled` is set (a missing setting then blocks).
    * With the procedure's id and name, a webhook path or a name another
-   * procedure already uses is reported too.
+   * procedure already uses is reported too. With the draft's triggers and
+   * their text, for the canvas and the test dock.
    */
   @Post("/validate")
   async validate(@AuthRawUser() _user: User, @JSONBody() body: unknown) {
@@ -191,7 +210,10 @@ export class ProceduresController extends Controller(
       body,
     );
     const target = { procedureId, name };
-    return { issues: await saveIssues(graph, enabled ?? false, target) };
+    return {
+      issues: await saveIssues(graph, enabled ?? false, target),
+      triggers: triggersOf(graph).map(withTriggerText),
+    };
   }
 
   /**
@@ -249,10 +271,7 @@ export class ProceduresController extends Controller(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
   ) {
-    const procedure = await loadProcedure(id);
-    // Stored before revisions existed: at 0, the revision a save checks.
-    procedure.revision ??= 0;
-    return procedure;
+    return served(await loadProcedure(id));
   }
 
   /** The procedure as "Import JSON" reads it back. */
@@ -284,38 +303,10 @@ export class ProceduresController extends Controller(
     return { _id: copyId };
   }
 
-  @Post("")
-  async create(@AuthRawUser() _user: User, @JSONBody() body: unknown) {
-    const data: ProcedureBody = parseBody(procedureBodySchema, body);
-    const issues = await checkSavable(data.graph, data.enabled, {
-      name: data.name,
-    });
-    const model = GetModel(ProcedureModel, DATABASE_NAME);
-    const now = new Date();
-    const ids = await model.insert({
-      name: data.name,
-      description: data.description ?? "",
-      enabled: data.enabled,
-      graph: JSON.stringify(data.graph),
-      version: 1,
-      revision: 1,
-      created_at: now,
-      updated_at: now,
-    });
-    const id = ids[0];
-    if (!id) {
-      throw new HTTPResult(500, { error: "procedure insert returned no id" });
-    }
-    await subscriptions.onProcedureChange(id);
-    notifyTopic(PROCEDURES_TOPIC, "created", { procedureId: id });
-    return { _id: id, version: 1, revision: 1, issues };
-  }
-
   /**
-   * Save a procedure. With `expectedRevision` (or the older
-   * `expectedVersion`), the save is refused (409 `stale`) when the procedure
-   * was written since it was loaded. The version moves on only when the
-   * graph changes; the revision on every save.
+   * Save a procedure. The save is refused (409 `stale`) when the procedure
+   * was written since it was loaded at `expectedRevision`. The version moves
+   * on only when the graph changes; the revision on every save.
    */
   @Put("/:id")
   async update(
@@ -325,18 +316,18 @@ export class ProceduresController extends Controller(
   ) {
     const data = parseBody(procedureUpdateSchema, body);
     const existing = await loadProcedure(id);
-    if (isStale(existing, data)) throw stale(existing, data);
+    if (existing.revision !== data.expectedRevision) throw stale(existing);
     const issues = await checkSavable(data.graph, data.enabled, {
       procedureId: id,
       name: data.name,
     });
     const graph = JSON.stringify(data.graph);
-    const current = existing.version ?? 1;
+    const current = existing.version;
     // Moving or restyling nodes is a new revision, not a new version.
     const version = changesExecution(existing.graph, data.graph)
       ? current + 1
       : current;
-    const revision = (existing.revision ?? 0) + 1;
+    const revision = existing.revision + 1;
     const patch: Partial<Procedure> = {
       name: data.name,
       description: data.description ?? "",
@@ -351,13 +342,9 @@ export class ProceduresController extends Controller(
       patch.pausedBy = user.name ?? user.email;
     }
     const model = GetModel(ProcedureModel, DATABASE_NAME);
-    const checked =
-      data.expectedRevision !== undefined || data.expectedVersion !== undefined;
-    if (!checked) {
-      await model.update(id, patch);
-    } else if (!(await model.updateAtRevision(id, revision - 1, patch))) {
+    if (!(await model.updateAtRevision(id, existing.revision, patch))) {
       // Written by someone else between the read and this write.
-      throw stale(await loadProcedure(id), data);
+      throw stale(await loadProcedure(id));
     }
     const runs = GetModel(ProcedureRunModel, DATABASE_NAME);
     if (existing.name !== data.name) {
@@ -386,7 +373,7 @@ export class ProceduresController extends Controller(
     // still open on the old one cannot save it back over a pause or a resume.
     const patch: Partial<Procedure> = {
       enabled,
-      revision: (procedure.revision ?? 0) + 1,
+      revision: procedure.revision + 1,
       updated_at: new Date(),
     };
     // Undoing a resume puts the pause back as it was: a resume leaves its
@@ -457,17 +444,6 @@ export class ProceduresController extends Controller(
     return serializeConfirmDialog(deleteDialogOf(procedure, runs.length));
   }
 
-  /** Run the saved graph of a procedure with a manual trigger (API invoke). */
-  @Post("/:id/run")
-  async run(
-    @AuthRawUser() _user: User,
-    @Parameter("id", "param") id: string,
-    @JSONBody() body: unknown,
-  ) {
-    const runId = await subscriptions.invokeManual(id, body);
-    return { runId };
-  }
-
   /**
    * Run now: the saved graph, from the given trigger (the manual one or the
    * first by default), with the given payload, or the last real payload of
@@ -531,13 +507,7 @@ export class ProceduresController extends Controller(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
   ) {
-    const graph = graphOf(await loadProcedure(id));
-    return {
-      triggers: triggersOf(graph).map((t) => ({
-        ...t,
-        nextAt: t.cron ? (nextOccurrence(t.cron)?.toISOString() ?? null) : null,
-      })),
-    };
+    return { triggers: savedTriggersOf(graphOf(await loadProcedure(id))) };
   }
 
   @Get("/:id/runs")

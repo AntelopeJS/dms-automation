@@ -25,7 +25,7 @@ import {
 } from "./validate";
 
 /** How much a problem on the graph matters: an error blocks enabling. */
-export type GraphIssueSeverity = "error" | "warning";
+type GraphIssueSeverity = "error" | "warning";
 
 /**
  * One problem on a graph, tied to the top-level node it concerns, so the

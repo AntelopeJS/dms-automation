@@ -7,15 +7,18 @@ import {
   type RequestContext,
 } from "@antelopejs/interface-api";
 import { GetModel } from "@antelopejs/interface-database-decorators";
+import { GetApiBaseUrl } from "@antelopejs/interface-dms/api-base-url";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
+import type { BlockText } from "@antelopejs/interface-dms/base/types";
 import { AutomationTemplateModel } from "../db/models/automation_template.model";
 import { healthByProcedure, loadStatsContext } from "../db/models/stats.model";
 import { labelOf, summarizeTrigger } from "../runtime/describe";
 import { nodeKinds } from "../runtime/nodeKinds";
 import { registry } from "../runtime/registry";
 import { walkPlacedNodes } from "../runtime/resolveSubgraph";
-import { DATABASE_NAME, FETCH_ALL_LIMIT } from "../types/constants";
+import { cronText } from "../runtime/wording";
+import { DATABASE_NAME } from "../types/constants";
 import type { GraphNode } from "../types/graph";
 
 /** The palette categories of the plain node kinds the Flow catalog lists. */
@@ -40,14 +43,6 @@ const ENTRY_OF_CATALOG = new Map<
   ["flow", (node) => (isFlowKind(node.kind) ? node.kind : undefined)],
 ]);
 
-/** The configured public origin of the API server, if any (`publicUrl`). */
-let publicUrl: string | undefined;
-
-/** Set from the module's configuration at construct. */
-export function setPublicUrl(url: string | undefined): void {
-  publicUrl = url?.trim().replace(/\/+$/, "") || undefined;
-}
-
 /** One node of a procedure using a catalog entry. */
 interface TypeUsage {
   procedureId: string;
@@ -70,6 +65,22 @@ interface TypeUsage {
   path?: string;
   cron?: string;
   timeZone?: string;
+  /** The schedule in words, in the zone it fires in. */
+  cronText?: BlockText;
+}
+
+/** What a trigger node is set to: its webhook, or its schedule in words. */
+export function triggerUsageOf(
+  node: GraphNode,
+): Pick<TypeUsage, "method" | "path" | "cron" | "timeZone" | "cronText"> {
+  const { method, path, cron, timeZone } = summarizeTrigger(node);
+  return {
+    method,
+    path,
+    cron,
+    timeZone,
+    cronText: cron ? cronText(cron, timeZone) : undefined,
+  };
 }
 
 @AuthOwnerOnly()
@@ -90,17 +101,18 @@ export class LibraryController extends Controller("/api/automation/library") {
   }
 
   /**
-   * The origin webhooks are called on: the configured `publicUrl`, else the
-   * one this request reached the API on — the address the dashboard's server
-   * calls it on, right when it is also the public one.
+   * The origin webhooks are called on: the DMS `apiBaseUrl`, else the one
+   * this request reached the API on. A loopback address (the DMS default)
+   * cannot be called from outside, so it still counts as unconfigured.
    */
   @Get("/webhook-base")
-  webhookBase(
+  async webhookBase(
     @AuthRawUser() _user: User,
     @Context() context: RequestContext,
-  ): { url: string; configured: boolean } {
-    if (publicUrl) return { url: publicUrl, configured: true };
-    return { url: context.url.origin, configured: false };
+  ): Promise<{ url: string; configured: boolean }> {
+    const base = (await GetApiBaseUrl())?.trim().replace(/\/+$/, "");
+    if (!base) return { url: context.url.origin, configured: false };
+    return { url: base, configured: !isLoopback(base) };
   }
 
   /**
@@ -119,12 +131,9 @@ export class LibraryController extends Controller("/api/automation/library") {
     }
     const [ctx, templates] = await Promise.all([
       loadStatsContext(),
-      GetModel(AutomationTemplateModel, DATABASE_NAME).list({
-        page: 0,
-        limit: FETCH_ALL_LIMIT,
-      }),
+      GetModel(AutomationTemplateModel, DATABASE_NAME).listAll(),
     ]);
-    const templateById = new Map(templates.results.map((t) => [t._id, t]));
+    const templateById = new Map(templates.map((t) => [t._id, t]));
     const health = healthByProcedure(ctx);
     const out: Record<string, TypeUsage[]> = {};
     for (const { procedure, graph } of ctx.procedures) {
@@ -153,12 +162,20 @@ export class LibraryController extends Controller("/api/automation/library") {
             : null,
         };
         if (node.kind === "trigger") {
-          const { method, path, cron, timeZone } = summarizeTrigger(node);
-          Object.assign(usage, { method, path, cron, timeZone });
+          Object.assign(usage, triggerUsageOf(node));
         }
         (out[entry] ??= []).push(usage);
       }
     }
     return out;
   }
+}
+
+function isLoopback(url: string): boolean {
+  const { hostname } = new URL(url);
+  return (
+    hostname === "localhost" ||
+    hostname === "[::1]" ||
+    hostname.startsWith("127.")
+  );
 }

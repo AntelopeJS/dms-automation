@@ -86,8 +86,8 @@ const TRIGGER_TYPE_ITEMS = builtinTriggers.map((t) => ({
 
 /**
  * The runs whose error contains `text` (the search, the "Error" filter). A run
- * stored before credentials were redacted, until the boot catch-up rewrites
- * it, is left out: its error may hold a secret, which a search could guess
+ * stored before the project marked a name as sensitive (`runs.sensitiveNames`)
+ * is left out: its error may hold a secret, which a search could guess
  * character by character.
  */
 function errorContains(row: ValueProxy<RunsTableAPI>, text: string) {
@@ -95,13 +95,7 @@ function errorContains(row: ValueProxy<RunsTableAPI>, text: string) {
     .key("errorMessage")
     .default("")
     .match(containing(text))
-    .and(
-      row
-        .key("triggerPayload")
-        .default("")
-        .match(clearCredentialPattern())
-        .not(),
-    );
+    .and(row.key("triggerPayload").match(clearCredentialPattern()).not());
 }
 
 // The data API hands a filter the row sixth.
@@ -241,8 +235,8 @@ export class RunsTableAPI extends DataController(
   declare triggerSummary: TriggerSummary;
 
   /**
-   * The trigger in words: the first line of the trigger cell. A run stored
-   * before runs kept their trigger, of a procedure since deleted, has none.
+   * The trigger in words: the first line of the trigger cell. A run whose
+   * trigger node was not found in its graph when it was stored has none.
    */
   @Listable(["triggerSummary"])
   @Access(AccessMode.ReadOnly)
@@ -356,8 +350,9 @@ export class RunsTableAPI extends DataController(
   @Access(AccessMode.ReadOnly)
   declare triggerType: string;
 
-  // Searched, never served as it is stored: a run stored before credentials
-  // were redacted may name one in it. The list reads `errorText`.
+  // Searched, never served as it is stored: a run stored before the project
+  // marked a name as sensitive may hold that credential. The list reads
+  // `errorText`.
   @Searchable()
   @Filter(errorFilter)
   declare errorMessage: string;

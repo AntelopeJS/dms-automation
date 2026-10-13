@@ -1,5 +1,4 @@
 import type { GroupPort, JsonSchema } from "./useGraphConnect";
-import { type ListEnvelope, unwrapList } from "../utils/automation";
 
 export interface PortRef {
   name: string;
@@ -38,21 +37,29 @@ export interface NodeKindEntry {
 /** Data type of a block dragged from the builder palette onto the canvas. */
 export const PALETTE_DRAG_TYPE = "application/x-dms-automation-block";
 
+/**
+ * A workspace template as the palette offers it: the fields placing it
+ * needs (the list endpoint serves more).
+ */
+export interface TemplateSummary {
+  _id: string;
+  name: string;
+  icon?: string;
+  ports: GroupPort[];
+}
+
 /** The block being dragged: a node kind (and type), or a workspace template. */
 export interface PaletteBlock {
   kind?: string;
   typeId?: string;
-  template?: { _id: string; name: string; icon?: string; ports: GroupPort[] };
+  template?: TemplateSummary;
 }
 
 export function useAutomationNodeKinds() {
   const { $authFetch } = useAuthFetch();
   return {
     async list(): Promise<NodeKindEntry[]> {
-      const data = await $authFetch<
-        NodeKindEntry[] | ListEnvelope<NodeKindEntry>
-      >("/api/automation/node-kinds");
-      return unwrapList(data);
+      return await $authFetch<NodeKindEntry[]>("/api/automation/node-kinds");
     },
   };
 }

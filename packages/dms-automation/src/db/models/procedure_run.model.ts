@@ -1,24 +1,8 @@
 import { BasicDataModel } from "@antelopejs/interface-database-decorators";
-import { clearCredentialPattern } from "../../runtime/boundRunLog";
 import {
   ProcedureRun,
   procedureRunsTableName,
 } from "../tables/procedure_run.table";
-
-/** One page of the run list. */
-export interface RunListQuery {
-  page: number;
-  limit: number;
-  procedureId?: string;
-  status?: string;
-  since?: Date;
-  /**
-   * Over-fetch one extra row as a "has next page" probe. The offset stays
-   * page*limit, so paging never overlaps or gaps; the caller trims the surplus
-   * row and uses its presence to decide whether a next page exists.
-   */
-  peek?: boolean;
-}
 
 export type StatsRun = Pick<
   ProcedureRun,
@@ -82,8 +66,8 @@ const RUN_SUMMARY_FIELDS = [
 
 /**
  * A query on the runs of a procedure a run is compared with: its tests, or
- * its production runs (`kind` absent, `run` or `rerun`), in a time range, of
- * one status when given.
+ * its production runs (`run` or `rerun`), in a time range, of one status when
+ * given.
  */
 export interface HistoryQuery {
   tests: boolean;
@@ -109,28 +93,6 @@ const RUN_TIMING_FIELDS = [
   "durationMs",
 ] as const;
 
-/** What the boot back-fill reads of a run stored before kinds existed. */
-export type LegacyRun = Pick<
-  ProcedureRun,
-  | "_id"
-  | "procedureId"
-  | "startedAt"
-  | "endedAt"
-  | "durationMs"
-  | "triggerNodeId"
-  | "triggerSummary"
->;
-
-const LEGACY_RUN_FIELDS = [
-  "_id",
-  "procedureId",
-  "startedAt",
-  "endedAt",
-  "durationMs",
-  "triggerNodeId",
-  "triggerSummary",
-] as const;
-
 export class ProcedureRunModel extends BasicDataModel(
   ProcedureRun,
   procedureRunsTableName,
@@ -147,22 +109,14 @@ export class ProcedureRunModel extends BasicDataModel(
       .run() as Promise<StatsRun[]>;
   }
 
-  /** The newest runs of one procedure, any kind, without payloads or logs. */
-  async latestOfProcedure(
-    procedureId: string,
-    limit: number,
-  ): Promise<RunSummary[]> {
-    return this.listByProcedure(procedureId, 0, limit);
-  }
-
-  /** Write a procedure's current name on those of its runs that lack it. */
+  /** Write a procedure's current name on its runs. */
   async renameProcedure(procedureId: string, name: string): Promise<number> {
     return await this.table
       .filter((row) =>
         row
           .key("procedureId")
           .eq(procedureId)
-          .and(row.key("procedureName").default("").ne(name)),
+          .and(row.key("procedureName").ne(name)),
       )
       .update({ procedureName: name })
       .run();
@@ -171,7 +125,7 @@ export class ProcedureRunModel extends BasicDataModel(
   /**
    * Write a procedure's current version on its production runs of an older
    * one that lack it, so the run list tells them apart. Called when the
-   * procedure is saved, and at boot.
+   * procedure is saved. Test runs carry no version: they are left alone.
    */
   async markOlderVersions(
     procedureId: string,
@@ -250,11 +204,7 @@ export class ProcedureRunModel extends BasicDataModel(
       row
         .key("procedureId")
         .eq(procedureId)
-        .and(
-          tests
-            ? row.key("kind").eq("test")
-            : row.key("kind").default("run").ne("test"),
-        ),
+        .and(tests ? row.key("kind").eq("test") : row.key("kind").ne("test")),
     );
     if (after) query = query.filter((row) => row.key("startedAt").gt(after));
     if (before) query = query.filter((row) => row.key("startedAt").lt(before));
@@ -262,28 +212,14 @@ export class ProcedureRunModel extends BasicDataModel(
     return query;
   }
 
-  /**
-   * Runs stored before runs kept their kind, duration and trigger (no
-   * `kind`): the boot back-fill completes them once.
-   */
-  async listLegacy(): Promise<LegacyRun[]> {
-    return (await this.table
-      .filter((row) => row.key("kind").default("").eq(""))
-      .pluck(...LEGACY_RUN_FIELDS)
-      .run()) as LegacyRun[];
-  }
-
-  /**
-   * Runs whose stored webhook payload still holds a credential in clear
-   * (stored before headers and query parameters were redacted).
-   */
-  async listWithClearCredentials(): Promise<Pick<ProcedureRun, "_id">[]> {
-    return (await this.table
-      .filter((row) =>
-        row.key("triggerPayload").default("").match(clearCredentialPattern()),
-      )
+  /** Whether any run started before `date`. */
+  async hasRunBefore(date: Date): Promise<boolean> {
+    const older = await this.table
+      .filter((row) => row.key("startedAt").lt(date))
+      .slice(0, 1)
       .pluck("_id")
-      .run()) as Pick<ProcedureRun, "_id">[];
+      .run();
+    return older.length > 0;
   }
 
   /** Delete the runs started before `before`; returns how many went. */
@@ -298,38 +234,13 @@ export class ProcedureRunModel extends BasicDataModel(
     procedureId: string,
     page: number,
     limit: number,
-    // Over-fetch one extra row as a "has next page" probe, mirroring listAll.
-    // The caller trims the surplus row and uses its presence to decide whether
-    // a next page exists.
+    // Over-fetch one extra row as a "has next page" probe. The caller trims
+    // the surplus row and uses its presence to decide whether a next page
+    // exists.
     peek = false,
   ): Promise<RunSummary[]> {
     return (await this.table
       .filter((doc) => doc.key("procedureId").eq(procedureId))
-      .orderBy("startedAt", "desc")
-      .slice(page * limit, peek ? limit + 1 : limit)
-      .pluck(...RUN_SUMMARY_FIELDS)
-      .run()) as RunSummary[];
-  }
-
-  async listAll({
-    page,
-    limit,
-    procedureId,
-    status,
-    since,
-    peek = false,
-  }: RunListQuery): Promise<RunSummary[]> {
-    let base = this.table;
-    if (procedureId) {
-      base = base.filter((doc) => doc.key("procedureId").eq(procedureId));
-    }
-    if (status) {
-      base = base.filter((doc) => doc.key("status").eq(status));
-    }
-    if (since) {
-      base = base.filter((doc) => doc.key("startedAt").ge(since));
-    }
-    return (await base
       .orderBy("startedAt", "desc")
       .slice(page * limit, peek ? limit + 1 : limit)
       .pluck(...RUN_SUMMARY_FIELDS)

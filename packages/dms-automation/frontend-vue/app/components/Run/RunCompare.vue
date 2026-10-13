@@ -10,7 +10,7 @@ import { describeDateTime, describeDuration, stepTitle } from '../../utils/descr
 const props = defineProps<{ run: RunDetail; traceUrl: string }>()
 
 const { processI18n } = useTranslation()
-const { locale } = useI18n()
+const { dateTimeFormat } = useRegionalFormat()
 
 // A gap under this share of the last success's time, or under a few
 // milliseconds, reads as noise.
@@ -90,7 +90,7 @@ const GRID = 'grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-x-3'
 			<span>{{ $t('dms_automation.trace.step') }}</span>
 			<DmsLink :to="`${traceUrl}?run=${encodeURIComponent(run.lastSuccess.runId)}`" class="flex flex-col text-right hover:text-highlighted">
 				<span>{{ $t('dms_automation.trace.compareLastSuccess') }}</span>
-				<span class="whitespace-nowrap normal-case">{{ describeDateTime(run.lastSuccess.startedAt, locale) }}</span>
+				<span class="whitespace-nowrap normal-case">{{ describeDateTime(run.lastSuccess.startedAt, dateTimeFormat) }}</span>
 			</DmsLink>
 			<span class="text-right">{{ $t('dms_automation.trace.now') }}</span>
 			<span class="text-right">{{ $t('dms_automation.trace.compareGap') }}</span>

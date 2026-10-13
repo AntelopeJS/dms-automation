@@ -137,6 +137,8 @@ export class RunsPageController extends PageController(
       details: false,
       delete: false,
       hasSelection: false,
+      // Named after the procedure rather than the run's id.
+      menuLabel: "$dms_automation.runs.rowMenu",
       custom: [
         {
           label: "$dms_automation.runs.peek",
@@ -148,6 +150,11 @@ export class RunsPageController extends PageController(
             title: "$dms_automation.runs.peekTitle",
             positionLabel: "$dms_automation.runs.peekPosition",
             deepLink: true,
+            // A `?record=` link to a run the retention has deleted since.
+            notFound: {
+              title: "$dms_automation.runs.peekNotFound",
+              description: "$dms_automation.runs.peekNotFoundHint",
+            },
             component: runPeek,
           },
         },

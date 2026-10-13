@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
-import { unwrapList } from '../utils/automation'
 import { isIconName } from './IconPicker.vue'
+import { queryString } from '../utils/automation'
 
 // The library's templates: reusable groups other procedures place as linked
 // blocks. The detail edits the name, icon and description, lists the ports
@@ -97,22 +97,20 @@ const usagesLoading = ref(false)
 const procedures = ref<Map<string, ProcedureSummary>>(new Map())
 
 function queryTemplate(): string | null {
-	const q = route.query.template
-	return typeof q === 'string' && q ? q : null
+	return queryString(route.query.template)
 }
 
 async function loadList() {
 	loading.value = true
 	try {
-		const response = await $authFetch<{ results: TemplateRow[]; total: number }>(`${props.apiUrl}/templates`)
-		const list = unwrapList<TemplateRow>(response)
+		const { results: list, total: count } = await $authFetch<{ results: TemplateRow[]; total: number }>(`${props.apiUrl}/templates`)
 		items.value = list
-		total.value = response.total ?? list.length
+		total.value = count
 		const wanted = selectedId.value ?? queryTemplate()
 		selectedId.value = list.some((x) => x._id === wanted) ? wanted : (sortedItems.value[0]?._id ?? null)
 		loadError.value = null
 	} catch (e) {
-		loadError.value = (e as Error).message
+		loadError.value = describeApiError(e)
 	} finally {
 		loading.value = false
 	}
@@ -120,7 +118,7 @@ async function loadList() {
 
 async function loadProcedures() {
 	try {
-		const rows = unwrapList<ProcedureSummary>(await $authFetch(`${props.apiUrl}/procedures/summary`))
+		const rows = await $authFetch<ProcedureSummary[]>(`${props.apiUrl}/procedures/summary`)
 		procedures.value = new Map(rows.map((p) => [p.procedureId, p]))
 	} catch {
 		procedures.value = new Map()
@@ -241,7 +239,7 @@ function errorCode(e: unknown): string | undefined {
 function errorMessage(e: unknown): string {
 	const body = (e as { data?: RefusalBody }).data
 	const issues = body?.issues?.map((i) => (i.path?.length ? `${i.path.join('.')}: ${i.message}` : i.message)).filter(Boolean)
-	return issues?.length ? issues.join(' · ') : (body?.error ?? (e as Error).message)
+	return issues?.length ? issues.join(' · ') : (body?.error ?? describeApiError(e))
 }
 
 async function onSave() {

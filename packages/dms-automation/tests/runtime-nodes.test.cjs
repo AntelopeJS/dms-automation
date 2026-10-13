@@ -84,7 +84,7 @@ test("Set variable feeds its value port", async () => {
     {},
   );
   assert.equal(result.status, "ok");
-  assert.deepEqual(outputOf(result, "sv"), { x: 5, value: 5 });
+  assert.deepEqual(outputOf(result, "sv"), { value: 5 });
   assert.equal(outputOf(result, "log").value, 5);
 });
 
@@ -125,6 +125,16 @@ test("Compare reads numbers written as text as numbers", async () => {
     true,
   );
   assert.equal((await evaluate("compare.eq", { a: "01", b: "1" })).value, true);
+});
+
+test("Compare in auto mode keeps null, booleans and hex apart", async () => {
+  const eq = async (a, b) => (await evaluate("compare.eq", { a, b })).value;
+  assert.equal(await eq(null, ""), false);
+  assert.equal(await eq("0x10", 16), false);
+  assert.equal(await eq(true, "true"), false);
+  assert.equal(await eq(null, null), true);
+  assert.equal(await eq(true, true), true);
+  assert.equal(await eq("1e3", 1000), true);
 });
 
 test("Compare in text mode compares in alphabetical order", async () => {

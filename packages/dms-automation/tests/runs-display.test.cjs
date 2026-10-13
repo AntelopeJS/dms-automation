@@ -24,6 +24,16 @@ test("a run opens in the side panel on one click, deep linked, and re-runs with 
   assert.equal(peek.target.type, "sidePanel");
   assert.equal(peek.target.positionLabel, "$dms_automation.runs.peekPosition");
   assert.equal(peek.target.deepLink, true);
+  // A link to a run the retention deleted says so in the panel.
+  assert.deepEqual(peek.target.notFound, {
+    title: "$dms_automation.runs.peekNotFound",
+    description: "$dms_automation.runs.peekNotFoundHint",
+  });
+  // The row menu is named after the procedure, not the run's id.
+  assert.equal(
+    RunsPageController.table._options.rowActions.menuLabel,
+    "$dms_automation.runs.rowMenu",
+  );
   assert.equal(RunsPageController.table._options.rowClick, "single");
   assert.equal(rerun.target.url, "/api/automation/runs/{_id}/rerun");
   // The server words the confirmation for the run (a test, a paused

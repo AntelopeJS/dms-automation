@@ -1,4 +1,4 @@
-import type { NodeKindEntry } from "./useAutomationNodeKinds";
+import type { NodeKindEntry, PortRef } from "./useAutomationNodeKinds";
 
 /**
  * Node kind is a free-form string keyed off the runtime kind registry
@@ -12,8 +12,14 @@ export interface GraphNode {
   id: string;
   kind: NodeKind;
   typeId?: string;
+  // The step's name, set in the inspector (a group's falls back to config.name).
+  label?: string;
   config: Record<string, unknown>;
   position: { x: number; y: number };
+  // Group-only extras — present iff kind === 'group'.
+  ports?: GroupPort[];
+  templateId?: string;
+  subgraph?: ProcedureGraph;
 }
 
 export interface TriggerEdge {
@@ -108,8 +114,8 @@ export interface GroupPort {
 /**
  * A group node carries the ports its subgraph exposes, as a sibling field of
  * `config`/`position` — mirrors `GroupNode` on the backend. `ports` is optional
- * here because the value crosses the API: a group saved before it had any port,
- * or a hand-written graph, simply omits it.
+ * here because the value crosses the API: a hand-written (imported) graph may
+ * omit it.
  */
 export interface GroupNode extends GraphNode {
   kind: "group";
@@ -120,9 +126,9 @@ export function isGroupNode(node: GraphNode): node is GroupNode {
   return node.kind === "group";
 }
 
-export type ConnectKind = "trigger" | "data";
+type ConnectKind = "trigger" | "data";
 
-export interface ConnectionLike {
+interface ConnectionLike {
   id?: string;
   source: string;
   target: string;
@@ -134,7 +140,7 @@ export interface ConnectionLike {
  * Why a connection is refused. The canvas turns the code into a sentence
  * (`dms_automation.editor.canvas.connect.<code>`), with `params` filled in.
  */
-export type ConnectRefusal =
+type ConnectRefusal =
   | "invalidPorts"
   | "kindMismatch"
   | "selfLoop"
@@ -150,7 +156,7 @@ export type ConnectResult =
 // group's inner subgraph — the sentinel nodes (`groupInput` / `groupOutput`)
 // don't carry ports themselves, so their schemas must be looked up against
 // the parent group. Undefined at the procedure-graph root.
-export interface ConnectContext {
+interface ConnectContext {
   parentGroupPorts?: GroupPort[];
 }
 
@@ -311,11 +317,6 @@ function portsToSyntheticSchema(ports: PortRef[]): JsonSchema {
     properties[p.name] = p.type ? { type: p.type } : {};
   }
   return { properties };
-}
-
-interface PortRef {
-  name: string;
-  type?: string;
 }
 
 // Type-registry schemas have a small set of source schemas

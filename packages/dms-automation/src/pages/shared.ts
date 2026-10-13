@@ -42,15 +42,22 @@ export function isPeriodPreset(
   return (PERIOD_PRESETS as readonly (string | undefined)[]).includes(value);
 }
 
-/** The 24 h / 7 d / 30 d switch of a page, publishing under `scope`. */
+/**
+ * The 24 h / 7 d / 30 d switch of a page, publishing under `scope`. The
+ * overview and the run history remember one choice: the period follows the
+ * user from one to the other.
+ */
 export function periodSwitch(scope: string) {
   return PeriodSelector({
     id: scope,
+    rememberKey: "automation",
     variant: "segmented",
     presets: PERIOD_PRESETS,
     defaultPreset: "last-24h",
     defaultComparison: "previous-period",
     comparisons: ["previous-period"],
+    // A single comparison would draw an on/off toggle; keep the menu.
+    comparisonControl: "menu",
     align: "right",
     size: "sm",
     showRangeLabel: false,
@@ -64,8 +71,10 @@ export function periodSwitch(scope: string) {
 /**
  * Keeps a page declared with `live` in step with `topics`: each event they
  * publish refreshes every block of the page through its Live / Pause. The
- * DMS KPI, chart and top list cards take no realtime topic of their own, and
- * a custom block binds none to its page, so this one binds them.
+ * DMS KPI card takes no realtime topic of its own, and a custom block binds
+ * none to its page, so this one binds them. Chart and top list cards do take
+ * a `realtimeTopic`, but this refresh already reaches them: giving them one
+ * too would read them twice per event.
  */
 export function liveTopics(topics: string[]) {
   return CustomComponent("dms-automation-live-topics")

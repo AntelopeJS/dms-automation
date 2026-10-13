@@ -1,8 +1,9 @@
 import { GetModel } from "@antelopejs/interface-database-decorators";
-import {
-  ActionTypeConfigModel,
-  TriggerTypeConfigModel,
-} from "../db/models/type_config.model";
+import { TypeSwitchModel } from "../db/models/type_switch.model";
+import type {
+  SwitchableKind,
+  TypeSwitch,
+} from "../db/tables/type_switch.table";
 import { DATABASE_NAME } from "../types/constants";
 
 /**
@@ -16,22 +17,19 @@ const disabled = {
   actions: new Set<string>(),
 };
 
-interface TypeSwitchRow {
-  typeId: string;
-  enabled: boolean;
-}
-
-function disabledIds(rows: readonly TypeSwitchRow[]): Set<string> {
-  return new Set(rows.filter((r) => r.enabled === false).map((r) => r.typeId));
+function disabledIds(
+  rows: readonly TypeSwitch[],
+  kind: SwitchableKind,
+): Set<string> {
+  return new Set(
+    rows.filter((r) => r.kind === kind && !r.enabled).map((r) => r.typeId),
+  );
 }
 
 export async function refreshTypeSwitches(): Promise<void> {
-  const [triggers, actions] = await Promise.all([
-    GetModel(TriggerTypeConfigModel, DATABASE_NAME).getAll(),
-    GetModel(ActionTypeConfigModel, DATABASE_NAME).getAll(),
-  ]);
-  disabled.triggers = disabledIds(triggers);
-  disabled.actions = disabledIds(actions);
+  const rows = await GetModel(TypeSwitchModel, DATABASE_NAME).getAll();
+  disabled.triggers = disabledIds(rows, "trigger");
+  disabled.actions = disabledIds(rows, "action");
 }
 
 export function isTriggerTypeDisabled(typeId: string): boolean {

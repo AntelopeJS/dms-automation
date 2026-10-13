@@ -53,8 +53,7 @@ export interface LogEntry {
 
 /**
  * The run-log shape persisted with each procedure run. The fire tree
- * carries nested-group / iteration structure that used to live in the
- * removed `RunLogEntry.path` field.
+ * carries the nested-group / iteration structure.
  */
 export interface RunLog {
   fires: FireNode[];
@@ -68,19 +67,12 @@ export interface RunLog {
 
 /**
  * What started a run: a trigger or Run now (`run`), Re-run with this payload
- * (`rerun`), or a Test run of a draft from the builder (`test`). Runs stored
- * before kinds existed have none and read as `run`. Test runs never count in
- * the health figures.
+ * (`rerun`), or a Test run of a draft from the builder (`test`). Test runs
+ * never count in the health figures.
  */
 export type RunKind = "run" | "rerun" | "test";
 
-/** Kinds that count in health figures, KPIs and procedure states. */
-const PRODUCTION_RUN_KINDS: readonly RunKind[] = ["run", "rerun"];
-
-export function isProductionRun(kind: string | undefined): boolean {
-  return (
-    kind === undefined ||
-    kind === null ||
-    PRODUCTION_RUN_KINDS.includes(kind as RunKind)
-  );
+/** Whether a run of this kind counts in health figures, KPIs and procedure states. */
+export function isProductionRun(kind: RunKind): boolean {
+  return kind !== "test";
 }

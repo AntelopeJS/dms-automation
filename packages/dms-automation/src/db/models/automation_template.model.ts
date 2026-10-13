@@ -2,7 +2,7 @@ import {
   BasicDataModel,
   GetModel,
 } from "@antelopejs/interface-database-decorators";
-import { DATABASE_NAME, FETCH_ALL_LIMIT } from "../../types/constants";
+import { DATABASE_NAME } from "../../types/constants";
 import {
   type TemplateCache,
   walkPlacedNodes,
@@ -147,6 +147,11 @@ export class AutomationTemplateModel extends BasicDataModel(
     };
   }
 
+  /** Every template, in no particular order. */
+  async listAll(): Promise<AutomationTemplateRow[]> {
+    return (await this.getAll()).map(parseRow);
+  }
+
   async getById(id: string): Promise<AutomationTemplateRow | undefined> {
     const row = await this.get(id);
     if (!row) return undefined;
@@ -210,12 +215,8 @@ export class AutomationTemplateModel extends BasicDataModel(
    */
   async findUsages(templateId: string): Promise<TemplateUsage[]> {
     const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
-    const procs = await procedureModel.list({
-      page: 0,
-      limit: FETCH_ALL_LIMIT,
-    });
     const out: TemplateUsage[] = [];
-    for (const p of procs.results) {
+    for (const p of await procedureModel.getAll()) {
       let graph: ProcedureGraph;
       try {
         graph = JSON.parse(p.graph) as ProcedureGraph;
@@ -236,9 +237,8 @@ export class AutomationTemplateModel extends BasicDataModel(
    * fork those instances too, or every procedure using them breaks.
    */
   async findNestings(templateId: string): Promise<TemplateNesting[]> {
-    const all = await this.list({ page: 0, limit: FETCH_ALL_LIMIT });
     const out: TemplateNesting[] = [];
-    for (const t of all.results) {
+    for (const t of await this.listAll()) {
       for (const { node, groupPath } of templateInstancesOf(t.subgraph)) {
         if (node.templateId === templateId) {
           out.push({ templateId: t._id, nodeId: node.id, groupPath });
