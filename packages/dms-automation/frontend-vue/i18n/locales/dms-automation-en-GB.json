@@ -1024,7 +1024,7 @@
           "name": "Not equal"
         }
       },
-      "compareMode": "How a and b are compared. auto: as numbers when both are numbers, even written as text (10 is greater than 9), otherwise as text. number: as numbers, and the step fails if one is not a number. text: as text, in alphabetical order.",
+      "compareMode": "How a and b are compared. auto: as numbers when both are numbers, even written as text (10 is greater than 9), otherwise as text; an empty value or a boolean only equals itself. number: as numbers, and the step fails if one is not a number. text: as text, in alphabetical order.",
       "const": {
         "boolean": {
           "description": "A fixed true or false value.",

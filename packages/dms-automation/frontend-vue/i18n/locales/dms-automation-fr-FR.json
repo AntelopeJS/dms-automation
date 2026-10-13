@@ -1024,7 +1024,7 @@
           "name": "Différent de"
         }
       },
-      "compareMode": "Comment a et b sont comparés. auto : comme des nombres quand les deux en sont, même écrits en texte (10 est supérieur à 9), sinon comme du texte. number : comme des nombres, et l’étape échoue si l’un n’est pas un nombre. text : comme du texte, dans l’ordre alphabétique.",
+      "compareMode": "Comment a et b sont comparés. auto : comme des nombres quand les deux en sont, même écrits en texte (10 est supérieur à 9), sinon comme du texte ; une valeur vide ou un booléen n’est égal qu’à lui-même. number : comme des nombres, et l’étape échoue si l’un n’est pas un nombre. text : comme du texte, dans l’ordre alphabétique.",
       "const": {
         "boolean": {
           "description": "Une valeur fixe, vraie ou fausse.",
