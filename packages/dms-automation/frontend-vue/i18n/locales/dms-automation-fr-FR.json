@@ -922,7 +922,6 @@
       "previousRun": "Exécution précédente",
       "procedureDeleted": "procédure supprimée",
       "rerunFailed": "{name} a été relancée et a échoué",
-      "rerunUnavailable": "Impossible de préparer la relance",
       "truncatedHint": "Des étapes du milieu de l’exécution manquent ici : les étapes ignorées ne sont donc pas listées.",
       "truncatedTitle": "{count} entrées du journal ont été retirées pour garder cette exécution légère",
       "versionUnknown": "inconnue",

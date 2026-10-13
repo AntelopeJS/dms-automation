@@ -11,59 +11,37 @@ import { type RerunResult, useAutomationRuns } from "./useAutomationRuns";
 export function useRunActions(options: { apiUrl: string; traceUrl: string }) {
   const { t } = useI18n();
   const { processI18n } = useTranslation();
-  const { confirm } = useConfirm();
+  const { confirmFrom } = useConfirmFrom();
   const toast = useToast();
   const router = useDmsRouter();
   const runs = useAutomationRuns(options.apiUrl);
   const rerunning = ref(false);
+  let asking = false;
 
   async function rerun(runId: string, procedureName: string): Promise<void> {
     // A second click while the first is under way does nothing: the button
     // shows it loading. The server also refuses a re-run asked twice in a
     // row, and the dialog shows its message.
-    if (rerunning.value) return;
-    rerunning.value = true;
-    let dialog;
-    try {
-      dialog = await runs.rerunConfirm(runId);
-    } catch (e) {
-      toast.add({
-        title: t("dms_automation.trace.rerunUnavailable"),
-        description: (e as Error).message,
-        color: "error",
-        icon: "i-ph-warning-circle",
-      });
-      return;
-    } finally {
-      rerunning.value = false;
-    }
-    const params = { name: procedureName, ...dialog.params };
-    const text = (value: string | undefined) =>
-      value === undefined ? undefined : processI18n(value, params);
+    if (asking || rerunning.value) return;
+    asking = true;
     let result: RerunResult | undefined;
-    const confirmed = await confirm({
-      title: text(dialog.title) ?? "",
-      description: text(dialog.description),
-      color: dialog.color ?? "warning",
-      icon: dialog.icon ?? "i-ph-arrow-clockwise",
-      confirmLabel: text(dialog.confirmLabel),
-      impact: dialog.impact?.map((note) => ({
-        ...note,
-        label: text(note.label) ?? "",
-      })),
-      blocked: dialog.blocked,
-      onConfirm: dialog.blocked
-        ? undefined
-        : async () => {
-            rerunning.value = true;
-            try {
-              result = await runs.rerun(runId);
-            } finally {
-              rerunning.value = false;
-            }
-          },
-    });
-    if (!confirmed || !result) return;
+    try {
+      await confirmFrom(`${options.apiUrl}/runs/{id}/rerun-confirm`, {
+        params: { id: runId, name: procedureName },
+        fallback: { color: "warning", icon: "i-ph-arrow-clockwise" },
+        onConfirm: async () => {
+          rerunning.value = true;
+          try {
+            result = await runs.rerun(runId);
+          } finally {
+            rerunning.value = false;
+          }
+        },
+      });
+    } finally {
+      asking = false;
+    }
+    if (!result) return;
     const failed = result.status === "failed";
     toast.add({
       title: failed

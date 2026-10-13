@@ -159,22 +159,6 @@ export interface RerunResult {
 }
 
 /**
- * The confirmation of a re-run as the server words it (a DMS confirm
- * dialog): its texts are i18n keys filled in with `params`, and `blocked`
- * says why the run cannot be re-run.
- */
-interface RerunDialog {
-  title: string;
-  description?: string;
-  params?: Record<string, unknown>;
-  icon?: string;
-  color?: "primary" | "error" | "warning" | "info" | "success" | "neutral";
-  confirmLabel?: string;
-  impact?: Array<{ icon: string; label: string }>;
-  blocked?: boolean;
-}
-
-/**
  * The builder open on a run: its procedure, with this run's trace and, given
  * one, a step selected (its top-level node: a step inside a group selects the
  * group). The trace, the drawer and the path taken all link through it.
@@ -213,9 +197,6 @@ export function useAutomationRuns(apiUrl = "/api/automation") {
     },
     getLogs(id: string): Promise<RunLog> {
       return $authFetch<RunLog>(`${runUrl(id)}/logs`);
-    },
-    rerunConfirm(id: string): Promise<RerunDialog> {
-      return $authFetch<RerunDialog>(`${runUrl(id)}/rerun-confirm`);
     },
     rerun(id: string): Promise<RerunResult> {
       return $authFetch<RerunResult>(`${runUrl(id)}/rerun`, {

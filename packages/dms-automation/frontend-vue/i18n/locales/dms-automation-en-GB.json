@@ -922,7 +922,6 @@
       "previousRun": "Previous run",
       "procedureDeleted": "procedure deleted",
       "rerunFailed": "{name} re-ran and failed",
-      "rerunUnavailable": "Couldn’t prepare the re-run",
       "truncatedHint": "Some steps in the middle of the run are missing here, so the steps it skipped aren’t listed.",
       "truncatedTitle": "{count} log entries were dropped to keep this run small",
       "versionUnknown": "unknown",
