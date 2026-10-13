@@ -24,14 +24,9 @@ import {
   readTriggerPayload,
   redactedStoredRun,
 } from "../runtime/boundRunLog";
-import {
-  parseGraphSafe,
-  stepName,
-  summarizeTrigger,
-} from "../runtime/describe";
+import { parseGraphSafe } from "../runtime/describe";
 import { subscriptions } from "../runtime/subscriptions";
-import { stepDurations, type TraceStep, traceOf } from "../runtime/trace";
-import { durationOf } from "../stats/health";
+import { stepDurations, traceOf } from "../runtime/trace";
 import { DATABASE_NAME, MS_PER_DAY, MS_PER_HOUR } from "../types/constants";
 import type { ProcedureGraph } from "../types/graph";
 import type { RunLog } from "../types/runLog";
@@ -68,7 +63,7 @@ const USUAL_DURATION_RUNS = 200;
 interface RunRef {
   runId: string;
   startedAt: string;
-  durationMs: number | null;
+  durationMs: number;
   stepDurations: Record<string, number | null>;
 }
 
@@ -88,10 +83,7 @@ function graphOf(
   if (snapshot) return { graph: snapshot, outdated: false };
   const graph = procedure ? parseGraphSafe(procedure.graph) : undefined;
   if (!graph || !procedure) return { graph, outdated: false };
-  // A run stored before versions were stamped may have used any of them.
-  const olderVersion =
-    typeof run.procedureVersion !== "number" ||
-    run.procedureVersion < (procedure.version ?? 1);
+  const olderVersion = (run.procedureVersion ?? 0) < procedure.version;
   return { graph, outdated: run.kind === "test" || olderVersion };
 }
 
@@ -115,7 +107,7 @@ function runRef(run: ProcedureRun, procedure: Procedure | undefined): RunRef {
   return {
     runId: run._id,
     startedAt: new Date(run.startedAt).toISOString(),
-    durationMs: run.durationMs ?? durationOf(run),
+    durationMs: run.durationMs,
     stepDurations: stepDurations(runTrace(run, procedure, null).trace.steps),
   };
 }
@@ -167,8 +159,7 @@ export async function historyOf(
   ]);
   const durations = timings
     .filter((r) => r._id !== run._id)
-    .map((r) => r.durationMs ?? durationOf(r))
-    .filter((d): d is number => d !== null);
+    .map((r) => r.durationMs);
   const lastSuccess = lastSuccessSummary
     ? await model.get(lastSuccessSummary._id)
     : undefined;
@@ -192,15 +183,6 @@ export async function historyOf(
     next: neighbourOf(next),
     failuresInRow,
   };
-}
-
-/** How long a run without an end took at least: until its last step ended. */
-function lastStepEnd(steps: readonly TraceStep[]): number | null {
-  if (steps.length === 0) return null;
-  return steps.reduce(
-    (end, s) => Math.max(end, s.startMs + (s.durationMs ?? 0)),
-    0,
-  );
 }
 
 async function loadRun(id: string): Promise<ProcedureRun> {
@@ -448,11 +430,7 @@ export class RunsController extends Controller("/api/automation/runs") {
       procedure,
       payload.kept ? payload.payload : null,
     );
-    const trigger = graph?.nodes.find((n) => n.id === run.triggerNodeId);
     const history = await historyOf(run);
-    const durationMs = run.durationMs ?? durationOf(run);
-    const nameOf = (nodeId: string) =>
-      run.stepNames?.[nodeId] ?? (graph ? stepName(graph, nodeId) : null);
     // The stored run, as a plain object, without what is served elsewhere
     // (the log) or only read here (the draft, the step names).
     const {
@@ -464,8 +442,6 @@ export class RunsController extends Controller("/api/automation/runs") {
     return Object.assign(stored, {
       // A test ran a draft, not a saved version.
       procedureVersion: run.kind === "test" ? null : run.procedureVersion,
-      durationMs: durationMs ?? lastStepEnd(trace.steps),
-      durationEstimated: durationMs === null && trace.steps.length > 0,
       logCount: logs?.entries.length ?? 0,
       logTruncated: logs?.truncated,
       payloadKept: payload.kept,
@@ -474,15 +450,13 @@ export class RunsController extends Controller("/api/automation/runs") {
             _id: procedure._id,
             name: procedure.name,
             enabled: procedure.enabled,
-            version: procedure.version ?? 1,
+            version: procedure.version,
           }
         : null,
       graph: graph ?? null,
       graphOutdated: outdated,
-      trigger:
-        run.triggerSummary ?? (trigger ? summarizeTrigger(trigger) : null),
-      failedStep:
-        run.failedStep ?? (run.failedNodeId ? nameOf(run.failedNodeId) : null),
+      trigger: run.triggerSummary ?? null,
+      failedStep: run.failedStep ?? null,
       trace,
       usualDurationMs: history.usualDurationMs,
       lastSuccess: history.lastSuccess

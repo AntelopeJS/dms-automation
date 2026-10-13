@@ -81,8 +81,8 @@ const RUN_SUMMARY_FIELDS = [
 
 /**
  * A query on the runs of a procedure a run is compared with: its tests, or
- * its production runs (`kind` absent, `run` or `rerun`), in a time range, of
- * one status when given.
+ * its production runs (`run` or `rerun`), in a time range, of one status when
+ * given.
  */
 export interface HistoryQuery {
   tests: boolean;
@@ -132,14 +132,14 @@ export class ProcedureRunModel extends BasicDataModel(
     return this.listByProcedure(procedureId, 0, limit);
   }
 
-  /** Write a procedure's current name on those of its runs that lack it. */
+  /** Write a procedure's current name on its runs. */
   async renameProcedure(procedureId: string, name: string): Promise<number> {
     return await this.table
       .filter((row) =>
         row
           .key("procedureId")
           .eq(procedureId)
-          .and(row.key("procedureName").default("").ne(name)),
+          .and(row.key("procedureName").ne(name)),
       )
       .update({ procedureName: name })
       .run();
@@ -148,7 +148,7 @@ export class ProcedureRunModel extends BasicDataModel(
   /**
    * Write a procedure's current version on its production runs of an older
    * one that lack it, so the run list tells them apart. Called when the
-   * procedure is saved.
+   * procedure is saved. Test runs carry no version: they are left alone.
    */
   async markOlderVersions(
     procedureId: string,
@@ -227,11 +227,7 @@ export class ProcedureRunModel extends BasicDataModel(
       row
         .key("procedureId")
         .eq(procedureId)
-        .and(
-          tests
-            ? row.key("kind").eq("test")
-            : row.key("kind").default("run").ne("test"),
-        ),
+        .and(tests ? row.key("kind").eq("test") : row.key("kind").ne("test")),
     );
     if (after) query = query.filter((row) => row.key("startedAt").gt(after));
     if (before) query = query.filter((row) => row.key("startedAt").lt(before));

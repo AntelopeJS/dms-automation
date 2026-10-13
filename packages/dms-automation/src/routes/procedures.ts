@@ -249,10 +249,7 @@ export class ProceduresController extends Controller(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
   ) {
-    const procedure = await loadProcedure(id);
-    // Stored before revisions existed: at 0, the revision a save checks.
-    procedure.revision ??= 0;
-    return procedure;
+    return await loadProcedure(id);
   }
 
   /** The procedure as "Import JSON" reads it back. */
@@ -331,12 +328,12 @@ export class ProceduresController extends Controller(
       name: data.name,
     });
     const graph = JSON.stringify(data.graph);
-    const current = existing.version ?? 1;
+    const current = existing.version;
     // Moving or restyling nodes is a new revision, not a new version.
     const version = changesExecution(existing.graph, data.graph)
       ? current + 1
       : current;
-    const revision = (existing.revision ?? 0) + 1;
+    const revision = existing.revision + 1;
     const patch: Partial<Procedure> = {
       name: data.name,
       description: data.description ?? "",
@@ -386,7 +383,7 @@ export class ProceduresController extends Controller(
     // still open on the old one cannot save it back over a pause or a resume.
     const patch: Partial<Procedure> = {
       enabled,
-      revision: (procedure.revision ?? 0) + 1,
+      revision: procedure.revision + 1,
       updated_at: new Date(),
     };
     // Undoing a resume puts the pause back as it was: a resume leaves its

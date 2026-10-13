@@ -139,8 +139,8 @@ interface ProcedureApiRecord {
 	description?: string
 	enabled: boolean
 	graph: string | ProcedureGraph
-	version?: number
-	revision?: number
+	version: number
+	revision: number
 }
 
 interface JsonSchemaProperty {
@@ -475,8 +475,7 @@ function normalize(r: ProcedureApiRecord): ProcedureRecord {
 		enabled: !!r.enabled,
 		graph: parseGraph(r.graph),
 		version: r.version,
-		// A procedure written before revisions existed has none: it counts as 0.
-		revision: r.revision ?? 0,
+		revision: r.revision,
 	}
 }
 

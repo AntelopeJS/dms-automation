@@ -25,7 +25,7 @@ import { validateGraph } from "./validate";
 
 /** The next version of a procedure: its graph, as runs see it, changed. */
 function nextVersion(procedure: Procedure): number {
-  return (procedure.version ?? 1) + 1;
+  return procedure.version + 1;
 }
 
 /** The runs of the previous graph now read as an older version. */
@@ -148,7 +148,7 @@ export async function forkUsage(
   await procedureModel.update(procedureId, {
     graph: JSON.stringify(graph),
     version,
-    revision: (p.revision ?? 0) + 1,
+    revision: p.revision + 1,
     updated_at: new Date(),
   });
   await markOlderRuns(procedureId, version);

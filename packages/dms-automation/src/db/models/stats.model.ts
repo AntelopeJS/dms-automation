@@ -385,7 +385,7 @@ function summaryRow(
     failed: health.failed,
     failingSince: health.failingSince?.toISOString() ?? null,
     failedStep,
-    version: procedure.version ?? 1,
+    version: procedure.version,
     updatedAt: procedure.updated_at
       ? new Date(procedure.updated_at).toISOString()
       : null,

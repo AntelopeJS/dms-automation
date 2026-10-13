@@ -29,7 +29,7 @@ export class ProcedureRun extends Table {
    * draws it without a join; renaming a procedure renames its runs.
    */
   @Field("string")
-  declare procedureName?: string;
+  declare procedureName: string;
 
   @Field("date")
   declare endedAt?: Date;
@@ -50,10 +50,10 @@ export class ProcedureRun extends Table {
   @Field("any")
   declare logs?: RunLog;
 
-  /** What started the run; absent on runs stored before kinds existed. */
+  /** What started the run. */
   @Index()
   @Field("string")
-  declare kind?: RunKind;
+  declare kind: RunKind;
 
   /** Run whose payload a `rerun` replayed. */
   @Field("string")
@@ -69,7 +69,7 @@ export class ProcedureRun extends Table {
 
   /** `endedAt - startedAt`, stored so the list sorts and draws it. */
   @Field("number")
-  declare durationMs?: number;
+  declare durationMs: number;
 
   /** Type id of the trigger that started the run. */
   @Index()
@@ -100,7 +100,7 @@ export class ProcedureRun extends Table {
    * trace names its steps from it once the procedure has changed or is gone.
    */
   @Field("any")
-  declare stepNames?: Record<string, StepName>;
+  declare stepNames: Record<string, StepName>;
 
   /**
    * JSON of the graph a test run executed: a draft, kept nowhere else. Its

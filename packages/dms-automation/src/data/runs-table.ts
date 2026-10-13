@@ -95,13 +95,7 @@ function errorContains(row: ValueProxy<RunsTableAPI>, text: string) {
     .key("errorMessage")
     .default("")
     .match(containing(text))
-    .and(
-      row
-        .key("triggerPayload")
-        .default("")
-        .match(clearCredentialPattern())
-        .not(),
-    );
+    .and(row.key("triggerPayload").match(clearCredentialPattern()).not());
 }
 
 // The data API hands a filter the row sixth.
@@ -241,8 +235,8 @@ export class RunsTableAPI extends DataController(
   declare triggerSummary: TriggerSummary;
 
   /**
-   * The trigger in words: the first line of the trigger cell. A run stored
-   * before runs kept their trigger, of a procedure since deleted, has none.
+   * The trigger in words: the first line of the trigger cell. A run whose
+   * trigger node was not found in its graph when it was stored has none.
    */
   @Listable(["triggerSummary"])
   @Access(AccessMode.ReadOnly)

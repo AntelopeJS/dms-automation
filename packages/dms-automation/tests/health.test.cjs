@@ -112,8 +112,7 @@ test("figures count, rate and the p95 duration", () => {
   assert.equal(percentile([], 0.95), null);
 });
 
-test("test runs never count; runs without a kind do", () => {
-  assert.equal(isProductionRun(undefined), true);
+test("test runs never count", () => {
   assert.equal(isProductionRun("run"), true);
   assert.equal(isProductionRun("rerun"), true);
   assert.equal(isProductionRun("test"), false);

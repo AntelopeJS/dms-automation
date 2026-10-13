@@ -17,6 +17,7 @@ function run(minute, fields = {}) {
     procedureId: PROCEDURE,
     startedAt: new Date(minute * MINUTE),
     endedAt: new Date(minute * MINUTE + 100),
+    durationMs: 100,
     status: "ok",
     kind: "run",
     triggerNodeId: "t",

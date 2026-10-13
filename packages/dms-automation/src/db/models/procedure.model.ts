@@ -22,7 +22,7 @@ export class ProcedureModel extends BasicDataModel(
   ): Promise<boolean> {
     const updated = await this.table
       .filter((doc) =>
-        doc.key("_id").eq(id).and(doc.key("revision").default(0).eq(revision)),
+        doc.key("_id").eq(id).and(doc.key("revision").eq(revision)),
       )
       .update(patch)
       .run();

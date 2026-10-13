@@ -183,7 +183,7 @@ const stats = computed(() => {
 		{
 			id: 'duration',
 			eyebrow: t('dms_automation.trace.duration'),
-			value: `${r.durationEstimated ? '≥ ' : ''}${describeDuration(r.durationMs, locale.value)}`,
+			value: describeDuration(r.durationMs, locale.value),
 			detail: delta === null
 				? ''
 				: t(delta >= 0 ? 'dms_automation.trace.slowerThanUsual' : 'dms_automation.trace.fasterThanUsual', {

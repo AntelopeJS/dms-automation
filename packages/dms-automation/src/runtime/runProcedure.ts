@@ -156,7 +156,7 @@ export async function executeProcedure(
     endedAt,
     result,
     origin,
-    procedureVersion: procedure.version ?? 1,
+    procedureVersion: procedure.version,
   });
 }
 

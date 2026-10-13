@@ -123,9 +123,8 @@ export function isStale(
 ): boolean {
   return (
     (expectedRevision !== undefined &&
-      expectedRevision !== (procedure.revision ?? 0)) ||
-    (expectedVersion !== undefined &&
-      expectedVersion !== (procedure.version ?? 1))
+      expectedRevision !== procedure.revision) ||
+    (expectedVersion !== undefined && expectedVersion !== procedure.version)
   );
 }
 
@@ -139,8 +138,7 @@ export function stale(
   procedure: Procedure,
   { expectedRevision }: SaveExpectation,
 ): HTTPResult {
-  const revision = procedure.revision ?? 0;
-  const version = procedure.version ?? 1;
+  const { revision, version } = procedure;
   return new HTTPResult(409, {
     error: "stale",
     message: `${API}.stale`,

@@ -113,16 +113,14 @@ export interface RunDetail {
   triggerNodeId: string;
   triggerPayload?: string;
   payloadKept: boolean;
-  kind?: "run" | "rerun" | "test";
+  kind: "run" | "rerun" | "test";
   rerunOf?: string;
   failedNodeId?: string;
   instanceId?: string;
   /** The version that ran; `null` for a test run of the builder's draft. */
   procedureVersion?: number | null;
-  procedureName?: string;
-  durationMs: number | null;
-  /** No end was stored: the duration is the end of the last step. */
-  durationEstimated?: boolean;
+  procedureName: string;
+  durationMs: number;
   /** The log, when the run carries it; else read with `getLogs`. */
   logs?: RunLog;
   logCount?: number;
