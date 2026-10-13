@@ -84,17 +84,17 @@ export class LibraryController extends Controller("/api/automation/library") {
 
   /**
    * The origin webhooks are called on: the DMS `apiBaseUrl`, else the one
-   * this request reached the API on — the address the dashboard's server
-   * calls it on, right when it is also the public one.
+   * this request reached the API on. A loopback address (the DMS default)
+   * cannot be called from outside, so it still counts as unconfigured.
    */
   @Get("/webhook-base")
   async webhookBase(
     @AuthRawUser() _user: User,
     @Context() context: RequestContext,
   ): Promise<{ url: string; configured: boolean }> {
-    const configured = (await GetApiBaseUrl())?.trim().replace(/\/+$/, "");
-    if (configured) return { url: configured, configured: true };
-    return { url: context.url.origin, configured: false };
+    const base = (await GetApiBaseUrl())?.trim().replace(/\/+$/, "");
+    if (!base) return { url: context.url.origin, configured: false };
+    return { url: base, configured: !isLoopback(base) };
   }
 
   /**
@@ -152,4 +152,13 @@ export class LibraryController extends Controller("/api/automation/library") {
     }
     return out;
   }
+}
+
+function isLoopback(url: string): boolean {
+  const { hostname } = new URL(url);
+  return (
+    hostname === "localhost" ||
+    hostname === "[::1]" ||
+    hostname.startsWith("127.")
+  );
 }
