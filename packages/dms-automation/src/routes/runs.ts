@@ -325,8 +325,9 @@ export class RunsController extends Controller("/api/automation/runs") {
     // A deleted procedure is still named by its runs.
     const [run] = procedure
       ? []
-      : await GetModel(ProcedureRunModel, DATABASE_NAME).latestOfProcedure(
+      : await GetModel(ProcedureRunModel, DATABASE_NAME).listByProcedure(
           procedureId,
+          0,
           1,
         );
     const name = procedure?.name ?? run?.procedureName;

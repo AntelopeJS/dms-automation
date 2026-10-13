@@ -109,14 +109,6 @@ export class ProcedureRunModel extends BasicDataModel(
       .run() as Promise<StatsRun[]>;
   }
 
-  /** The newest runs of one procedure, any kind, without payloads or logs. */
-  async latestOfProcedure(
-    procedureId: string,
-    limit: number,
-  ): Promise<RunSummary[]> {
-    return this.listByProcedure(procedureId, 0, limit);
-  }
-
   /** Write a procedure's current name on its runs. */
   async renameProcedure(procedureId: string, name: string): Promise<number> {
     return await this.table
@@ -218,6 +210,16 @@ export class ProcedureRunModel extends BasicDataModel(
     if (before) query = query.filter((row) => row.key("startedAt").lt(before));
     if (status) query = query.filter((row) => row.key("status").eq(status));
     return query;
+  }
+
+  /** Whether any run started before `date`. */
+  async hasRunBefore(date: Date): Promise<boolean> {
+    const older = await this.table
+      .filter((row) => row.key("startedAt").lt(date))
+      .slice(0, 1)
+      .pluck("_id")
+      .run();
+    return older.length > 0;
   }
 
   /** Delete the runs started before `before`; returns how many went. */

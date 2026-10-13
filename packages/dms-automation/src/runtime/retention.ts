@@ -44,15 +44,13 @@ async function purge(retentionDays: number): Promise<void> {
 }
 
 /**
- * Purge the runs older than `retentionDays` now and every hour after, on the
- * instance `isLeader` names (every instance in standalone mode). `0` keeps
- * every run.
+ * Purge the runs past retention (`runs.retentionDays`) now and every hour
+ * after, on the instance `isLeader` names (every instance in standalone
+ * mode). `0` keeps every run.
  */
-export function startRetention(
-  retentionDays: number,
-  isLeader: () => boolean,
-): void {
+export function startRetention(isLeader: () => boolean): void {
   stopRetention();
+  const retentionDays = keptDays;
   if (retentionDays <= 0) return;
   const tick = () => {
     if (!isLeader()) return;

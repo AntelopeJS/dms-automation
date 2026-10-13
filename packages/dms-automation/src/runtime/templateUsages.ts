@@ -28,12 +28,6 @@ function nextVersion(procedure: Procedure): number {
   return procedure.version + 1;
 }
 
-/** The runs of the previous graph now read as an older version. */
-async function markOlderRuns(procedureId: string, version: number) {
-  const runs = GetModel(ProcedureRunModel, DATABASE_NAME);
-  await runs.markOlderVersions(procedureId, version);
-}
-
 async function usingProcedureIds(templateId: string): Promise<Set<string>> {
   const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
   const usages = await templateModel.findUsages(templateId);
@@ -52,7 +46,11 @@ export async function bumpVersionOfUsages(templateId: string): Promise<void> {
     if (!p) continue;
     const version = nextVersion(p);
     await procedureModel.update(id, { version });
-    await markOlderRuns(id, version);
+    // The runs of the previous graph now read as an older version.
+    await GetModel(ProcedureRunModel, DATABASE_NAME).markOlderVersions(
+      id,
+      version,
+    );
   }
 }
 
@@ -151,5 +149,8 @@ export async function forkUsage(
     revision: p.revision + 1,
     updated_at: new Date(),
   });
-  await markOlderRuns(procedureId, version);
+  await GetModel(ProcedureRunModel, DATABASE_NAME).markOlderVersions(
+    procedureId,
+    version,
+  );
 }

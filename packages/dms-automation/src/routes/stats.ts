@@ -116,12 +116,8 @@ function earliestOf(window: StatsWindow): Date {
  */
 async function withKeptComparison(window: StatsWindow): Promise<StatsWindow> {
   if (!window.compareFrom) return window;
-  const older = await GetModel(ProcedureRunModel, DATABASE_NAME)
-    .table.filter((row) => row.key("startedAt").lt(window.compareFrom!))
-    .slice(0, 1)
-    .pluck("_id")
-    .run();
-  if (older.length > 0) return window;
+  const runs = GetModel(ProcedureRunModel, DATABASE_NAME);
+  if (await runs.hasRunBefore(window.compareFrom)) return window;
   return { from: window.from, to: window.to };
 }
 
