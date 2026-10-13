@@ -51,6 +51,8 @@ export function periodSwitch(scope: string) {
     defaultPreset: "last-24h",
     defaultComparison: "previous-period",
     comparisons: ["previous-period"],
+    // A single comparison would draw an on/off toggle; keep the menu.
+    comparisonControl: "menu",
     align: "right",
     size: "sm",
     showRangeLabel: false,
