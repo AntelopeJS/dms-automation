@@ -1,5 +1,51 @@
 # Changelog
 
+## v0.2.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.1.1...v0.2.0)
+
+### 🚀 Enhancements
+
+- **frontend-vue:** Declare the @antelopejs/dms-frontend releases the layer supports ([#31](https://github.com/AntelopeJS/dms-automation/pull/31))
+- **frontend-vue:** Resolve i18n keys in automation type names ([#37](https://github.com/AntelopeJS/dms-automation/pull/37))
+- **dms-automation:** ⚠️  Port the v2 design on dms 0.7 ([#39](https://github.com/AntelopeJS/dms-automation/pull/39))
+
+### 🔥 Performance
+
+- **db:** Index procedure run history and bound persisted run logs ([#29](https://github.com/AntelopeJS/dms-automation/pull/29))
+
+### 🩹 Fixes
+
+- **deps:** Relax @antelopejs/interface-database to >=0.1.7 <1.0.0 ([#30](https://github.com/AntelopeJS/dms-automation/pull/30))
+- **deps:** Accept compatible 0.x versions of the interface packages ([#28](https://github.com/AntelopeJS/dms-automation/pull/28))
+- **deps:** Cap @antelopejs/interface-dms-automation below the next minor and check interface ranges ([#33](https://github.com/AntelopeJS/dms-automation/pull/33))
+
+### 💅 Refactors
+
+- **pages:** Let the library and the builder fill the panel ([#34](https://github.com/AntelopeJS/dms-automation/pull/34))
+- **runs:** Namespace the timeline display id as automation:timeline ([#38](https://github.com/AntelopeJS/dms-automation/pull/38))
+
+### 🏡 Chore
+
+- **playground:** Move to @antelopejs/dms-frontend 0.3.2 ([#27](https://github.com/AntelopeJS/dms-automation/pull/27))
+- **release:** @antelopejs/dms-automation v0.2.1 ([45de366](https://github.com/AntelopeJS/dms-automation/commit/45de366))
+- **release:** @antelopejs/dms-automation v0.2.2 ([cced507](https://github.com/AntelopeJS/dms-automation/commit/cced507))
+- **release:** @antelopejs/dms-automation v0.2.3 ([bbc49f3](https://github.com/AntelopeJS/dms-automation/commit/bbc49f3))
+- **release:** @antelopejs/dms-automation v0.2.4 ([8900e22](https://github.com/AntelopeJS/dms-automation/commit/8900e22))
+- **release:** @antelopejs/dms-automation v0.2.5 ([269f353](https://github.com/AntelopeJS/dms-automation/commit/269f353))
+- **release:** @antelopejs/dms-automation v0.2.6 ([3f2144c](https://github.com/AntelopeJS/dms-automation/commit/3f2144c))
+- **playground:** Run api ^1.3.1 and open module source ranges ([#35](https://github.com/AntelopeJS/dms-automation/pull/35))
+- **release:** @antelopejs/dms-automation v0.2.7 ([d152415](https://github.com/AntelopeJS/dms-automation/commit/d152415))
+
+#### ⚠️ Breaking Changes
+
+- **dms-automation:** ⚠️  Port the v2 design on dms 0.7 ([#39](https://github.com/AntelopeJS/dms-automation/pull/39))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.1.1
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.1.0...v0.1.1)
