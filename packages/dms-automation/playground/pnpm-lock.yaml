@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@antelopejs/dms':
-        specifier: '>=0.7.19 <1.0.0'
-        version: 0.7.19(@antelopejs/core@1.13.5)(@antelopejs/interface-auth@0.0.6(@antelopejs/interface-api@0.0.14(@antelopejs/interface-core@0.1.1))(@antelopejs/interface-core@0.1.1))
+        specifier: '>=0.7.20 <1.0.0'
+        version: 0.7.20(@antelopejs/core@1.13.5)(@antelopejs/interface-auth@0.0.6(@antelopejs/interface-api@0.0.14(@antelopejs/interface-core@0.1.1))(@antelopejs/interface-core@0.1.1))
       '@antelopejs/interface-api':
         specifier: '>=0.0.14 <1.0.0'
         version: 0.0.14(@antelopejs/interface-core@0.1.1)
@@ -31,8 +31,8 @@ importers:
         specifier: 1.13.5
         version: 1.13.5
       '@antelopejs/dms-frontend':
-        specifier: 0.5.4
-        version: 0.5.4(@antelopejs/core@1.13.5)
+        specifier: 0.5.5
+        version: 0.5.5(@antelopejs/core@1.13.5)
       '@types/node':
         specifier: ^22.14.1
         version: 22.19.21
@@ -53,15 +53,15 @@ packages:
     engines: {node: '>=20.19'}
     hasBin: true
 
-  '@antelopejs/dms-frontend@0.5.4':
-    resolution: {integrity: sha512-L+GRVgB5HR7seLUXu1ZWWIIF0FM64lx+3Fy3CmJa7LLRCa6sJHkjLp3TIrKeqggtmpgsuRjgVO2t47OruLq2KQ==}
+  '@antelopejs/dms-frontend@0.5.5':
+    resolution: {integrity: sha512-sgxz/b1rbRnHOYk5ikikRDvi/aT0rT9Yjcijmk3O5SVch3rmSqx/U48XLznLTh9Ro/BnPUsxUUkJQ6p0QBLZeg==}
     engines: {node: '>=20.12.0'}
     hasBin: true
     peerDependencies:
       '@antelopejs/core': '>=1.13.2 <2'
 
-  '@antelopejs/dms@0.7.19':
-    resolution: {integrity: sha512-4+GGpEWn4J/n5xPf600n2hzWS44HG/Gxji4MAblAWgRNMprzhLRICPobckD+ygKAm8d55YfggWw9Mao9HZQ5jA==}
+  '@antelopejs/dms@0.7.20':
+    resolution: {integrity: sha512-L22KORxEuS2Rl54YPVEBOG4gjwSj9kizm26MvIJRdqPhwydbdm6cktimPvDRauWoOyZvbr6v414ChE76IEEKGA==}
     peerDependencies:
       '@antelopejs/core': '>=1.13.2 <2'
     peerDependenciesMeta:
@@ -1077,7 +1077,7 @@ snapshots:
       semver: 7.8.5
       typescript: 5.9.3
 
-  '@antelopejs/dms-frontend@0.5.4(@antelopejs/core@1.13.5)':
+  '@antelopejs/dms-frontend@0.5.5(@antelopejs/core@1.13.5)':
     dependencies:
       '@antelopejs/core': 1.13.5
       chokidar: 4.0.3
@@ -1092,7 +1092,7 @@ snapshots:
       '@oxc-parser/binding-linux-x64-gnu': 0.95.0
       '@oxc-parser/binding-win32-x64-msvc': 0.95.0
 
-  '@antelopejs/dms@0.7.19(@antelopejs/core@1.13.5)(@antelopejs/interface-auth@0.0.6(@antelopejs/interface-api@0.0.14(@antelopejs/interface-core@0.1.1))(@antelopejs/interface-core@0.1.1))':
+  '@antelopejs/dms@0.7.20(@antelopejs/core@1.13.5)(@antelopejs/interface-auth@0.0.6(@antelopejs/interface-api@0.0.14(@antelopejs/interface-core@0.1.1))(@antelopejs/interface-core@0.1.1))':
     dependencies:
       2fa: 0.1.2
       '@antelopejs/interface-api': 0.0.14(@antelopejs/interface-core@0.1.1)
