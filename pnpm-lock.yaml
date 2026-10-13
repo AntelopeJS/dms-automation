@@ -45,7 +45,7 @@ importers:
         specifier: '>=0.5.13 <1.0.0'
         version: 0.5.13(812a9e0655f26c36f63a86ee7b0b1022)
       '@antelopejs/interface-dms-automation':
-        specifier: '>=0.1.1 <0.2.0'
+        specifier: '>=0.2.0 <0.3.0'
         version: link:../interface-dms-automation
       defu:
         specifier: ^6.1.4
