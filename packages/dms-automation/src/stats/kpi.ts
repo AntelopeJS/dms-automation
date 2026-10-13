@@ -67,19 +67,17 @@ function metricValue(
 }
 
 /**
- * The change shown under a KPI: in points for the success rate, which is
- * already a percentage, in percent of the previous value for the others.
+ * The change shown under a KPI, in percent of the previous value: the DMS
+ * KPI card prints it with "%", so the success rate is no exception.
  * `null` when it would mislead: too few runs to compare with, or a previous
  * value of 0, which no percentage measures.
  */
 function kpiDelta(
-  metric: KpiMetric,
   value: number,
   previous: number,
   previousRuns: number,
 ): number | null {
   if (previousRuns < MIN_COMPARED_RUNS) return null;
-  if (metric === "success-rate") return roundOne(value - previous);
   if (previous === 0) return value === 0 ? 0 : null;
   return deltaPercent(value, previous);
 }
@@ -170,7 +168,7 @@ export function kpiPayload(
     if (previous !== null) payload.previousValue = previous;
     payload.delta =
       value !== null && previous !== null
-        ? kpiDelta(metric, value, previous, compared.length)
+        ? kpiDelta(value, previous, compared.length)
         : null;
   }
   return payload;

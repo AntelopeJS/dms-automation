@@ -60,15 +60,15 @@ test("too few runs to compare with: no change shown", () => {
   assert.equal(kpiPayload("runs", runs, window).delta, null);
 });
 
-test("a count compares in percent, the success rate in points", () => {
+test("every KPI compares in percent of the previous value", () => {
   const many = [...runs, ...earlier("ok", 6), ...earlier("failed", 4)];
   const runsKpi = kpiPayload("runs", many, window);
   assert.equal(runsKpi.previousValue, 12);
   assert.equal(runsKpi.delta, -66.7);
   const rate = kpiPayload("success-rate", many, window);
   assert.equal(rate.previousValue, 66.7);
-  // 75 % against 66.7 %: 8.3 points, not "+12.4 %".
-  assert.equal(rate.delta, 8.3);
+  // 75 % against 66.7 %: the card prints "+12.4 %", not 8.3 points.
+  assert.equal(rate.delta, 12.4);
 });
 
 test("a change from 0 is not a percentage", () => {
