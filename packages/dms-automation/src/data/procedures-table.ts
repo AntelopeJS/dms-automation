@@ -410,7 +410,7 @@ export class ProceduresTableAPI extends DataController(
     display: new ProcedureLinkDisplay({
       icon: "i-ph-flow-arrow",
       subtitleField: "description",
-      url: `${BUILDER_URL}?selected={procedureId}`,
+      url: `${BUILDER_URL}?selected={{row.procedureId}}`,
     }),
     order: 1,
   })
@@ -511,7 +511,7 @@ export class ProceduresTableAPI extends DataController(
     display: new LastRunsDisplay({
       limit: 12,
       runsField: "lastRuns",
-      runUrl: `${TRACE_URL}?run={runId}`,
+      runUrl: `${TRACE_URL}?run={{row.runId}}`,
       emptyLabel: "$dms_automation.procedures.never",
     }),
     order: 4,

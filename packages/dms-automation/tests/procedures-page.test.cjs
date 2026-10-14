@@ -25,7 +25,7 @@ test("a procedure row opens the builder, and the list offers no form", () => {
   assert.deepEqual(rowActions.delete, {
     isEnabled: true,
     confirm: {
-      from: "/api/automation/procedures/{procedureId}/delete-confirm",
+      from: "/api/automation/procedures/{{row.procedureId}}/delete-confirm",
     },
   });
 });
@@ -53,7 +53,7 @@ test("run now, pause and resume act on the right rows", () => {
   );
   assert.equal(
     byLabel.runNow.target.url,
-    "/api/automation/procedures/{procedureId}/run-now",
+    "/api/automation/procedures/{{row.procedureId}}/run-now",
   );
   assert.deepEqual(byLabel.runNow.rule, { field: "status", notIn: ["draft"] });
   assert.deepEqual(byLabel.pause.target.body, { enabled: false });
@@ -61,15 +61,15 @@ test("run now, pause and resume act on the right rows", () => {
   assert.deepEqual(byLabel.resume.target.body, { enabled: true });
   assert.equal(
     byLabel.viewRuns.target.url,
-    "/modules/automation/runs?procedure={procedureId}",
+    "/modules/automation/runs?procedure={{row.procedureId}}",
   );
   assert.equal(
     byLabel.openLastRun.target.url,
-    "/modules/automation/trace?run={lastRunId}",
+    "/modules/automation/trace?run={{row.lastRunId}}",
   );
   assert.equal(
     byLabel.duplicate.target.url,
-    "/api/automation/procedures/{procedureId}/duplicate",
+    "/api/automation/procedures/{{row.procedureId}}/duplicate",
   );
 });
 
