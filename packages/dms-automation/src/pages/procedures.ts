@@ -91,7 +91,9 @@ export class ProceduresPageController extends PageController(
       hasSelection: false,
       delete: {
         isEnabled: true,
-        confirm: { from: `${API_URL}/procedures/{procedureId}/delete-confirm` },
+        confirm: {
+          from: `${API_URL}/procedures/{{row.procedureId}}/delete-confirm`,
+        },
       },
       custom: [
         {
@@ -100,7 +102,7 @@ export class ProceduresPageController extends PageController(
           rule: { field: "status", notIn: ["draft"] },
           target: {
             type: "api",
-            url: `${API_URL}/procedures/{procedureId}/run-now`,
+            url: `${API_URL}/procedures/{{row.procedureId}}/run-now`,
             method: "POST",
             successMessage: "$dms_automation.procedures.runFinished",
           },
@@ -118,7 +120,7 @@ export class ProceduresPageController extends PageController(
           rule: { field: "enabled", equals: true },
           target: {
             type: "api",
-            url: `${API_URL}/procedures/{procedureId}/enabled`,
+            url: `${API_URL}/procedures/{{row.procedureId}}/enabled`,
             method: "PUT",
             body: { enabled: false },
             successMessage: "$dms_automation.procedures.pausedNamed",
@@ -135,7 +137,7 @@ export class ProceduresPageController extends PageController(
           },
           target: {
             type: "api",
-            url: `${API_URL}/procedures/{procedureId}/enabled`,
+            url: `${API_URL}/procedures/{{row.procedureId}}/enabled`,
             method: "PUT",
             body: { enabled: true },
             successMessage: "$dms_automation.procedures.resumedNamed",
@@ -145,19 +147,22 @@ export class ProceduresPageController extends PageController(
           label: "$dms_automation.procedures.openLastRun",
           icon: "i-ph-path",
           rule: { field: "lastRunId", notEquals: null },
-          target: { type: "page", url: `${TRACE_URL}?run={lastRunId}` },
+          target: { type: "page", url: `${TRACE_URL}?run={{row.lastRunId}}` },
         },
         {
           label: "$dms_automation.procedures.viewRuns",
           icon: "i-ph-list-bullets",
-          target: { type: "page", url: `${RUNS_URL}?procedure={procedureId}` },
+          target: {
+            type: "page",
+            url: `${RUNS_URL}?procedure={{row.procedureId}}`,
+          },
         },
         {
           label: "$dms_automation.procedures.duplicate",
           icon: "i-ph-copy",
           target: {
             type: "api",
-            url: `${API_URL}/procedures/{procedureId}/duplicate`,
+            url: `${API_URL}/procedures/{{row.procedureId}}/duplicate`,
             method: "POST",
             successMessage: "$dms_automation.procedures.duplicated",
           },

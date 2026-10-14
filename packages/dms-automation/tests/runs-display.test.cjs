@@ -38,13 +38,13 @@ test("a run opens in the side panel on one click, deep linked, and re-runs with 
     "$dms_automation.runs.rowMenu",
   );
   assert.equal(RunsPageController.table._options.rowClick, "single");
-  assert.equal(rerun.target.url, "/api/automation/runs/{_id}/rerun");
+  assert.equal(rerun.target.url, "/api/automation/runs/{{row._id}}/rerun");
   // The server words the confirmation for the run (a test, a paused
   // procedure, redacted headers), or says why it cannot be re-run.
   assert.deepEqual(rerun.confirm, {
-    from: "/api/automation/runs/{_id}/rerun-confirm",
+    from: "/api/automation/runs/{{row._id}}/rerun-confirm",
   });
-  assert.equal(trace.target.url, "/modules/automation/trace?run={_id}");
+  assert.equal(trace.target.url, "/modules/automation/trace?run={{row._id}}");
 });
 
 test("the frontend registers the run strip from a universal plugin", () => {

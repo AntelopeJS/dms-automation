@@ -10,7 +10,7 @@ export interface LastRunsDisplayOptions {
   limit?: number;
   /** Row field listing the runs, oldest first. */
   runsField: string;
-  /** The page of a run, `{runId}` filled from the bar's run. */
+  /** The page of a run, `{{row.runId}}` filled from the bar's run. */
   runUrl?: string;
   /** Text under an empty strip. `$`-prefixed: an i18n key. */
   emptyLabel?: string;
@@ -28,7 +28,7 @@ export class LastRunsDisplay extends ColumnDisplay<LastRunsDisplayOptions> {}
 /** Options of a procedure's name: the identity cell's, and the page it opens. */
 export interface ProcedureLinkDisplayOptions
   extends DefaultDisplays.IdentityDisplayOptions {
-  /** The page the name opens, `{field}` filled from the row. */
+  /** The page the name opens, `{{row.<field>}}` filled from the row. */
   url: string;
 }
 

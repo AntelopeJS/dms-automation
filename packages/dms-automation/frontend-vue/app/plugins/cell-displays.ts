@@ -10,7 +10,7 @@ import { defineDmsPlugin, DmsLink } from "#dms/frontend-module";
 
 /**
  * A run of the strip, as the procedures summary lists it. A type alias, not an
- * interface, so it fills the run URL's `{runId}` as a plain record.
+ * interface, so it fills the run URL's `{{row.runId}}` as a plain record.
  */
 type RecentRun = {
   runId: string;

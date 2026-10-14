@@ -164,19 +164,19 @@ export class RunsPageController extends PageController(
           isVisible: true,
           target: {
             type: "api",
-            url: `${API_URL}/runs/{_id}/rerun`,
+            url: `${API_URL}/runs/{{row._id}}/rerun`,
             method: "POST",
             successMessage: "$dms_automation.runs.rerunStarted",
           },
           // Worded for the run: a test, a paused procedure, redacted
           // headers, or why it cannot be re-run.
-          confirm: { from: `${API_URL}/runs/{_id}/rerun-confirm` },
+          confirm: { from: `${API_URL}/runs/{{row._id}}/rerun-confirm` },
         },
         {
           label: "$dms_automation.runs.trace",
           icon: "i-ph-path",
           isVisible: true,
-          target: { type: "page", url: `${TRACE_URL}?run={_id}` },
+          target: { type: "page", url: `${TRACE_URL}?run={{row._id}}` },
         },
       ],
     },
