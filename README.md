@@ -7,7 +7,10 @@
 </div>
 
 The visual automation builder of the AntelopeJS DMS, and the contract other
-modules use to plug their own nodes into it. Two packages, released separately:
+modules use to plug their own nodes into it. User guide:
+[dms.antelopejs.com/docs/modules/automation](https://dms.antelopejs.com/docs/modules/automation)
+(source in [`packages/dms-automation/docs`](./packages/dms-automation/docs)). Two packages, released
+separately:
 
 | package | directory | what it is |
 |---|---|---|

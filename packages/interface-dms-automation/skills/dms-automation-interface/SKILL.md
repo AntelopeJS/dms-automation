@@ -1,6 +1,7 @@
 ---
 name: dms-automation-interface
 description: Provides the AntelopeJS DMS automation interface for declaring trigger, action and data node types from any module, plus listing node types and invoking procedures. Use when importing "@antelopejs/interface-dms-automation", when adding automation nodes to the DMS procedure editor, or when working with RegisterTriggerType, RegisterActionType, RegisterDataNodeType, ListTriggerTypes, ListActionTypes, ListDataNodeTypes, InvokeProcedure, TriggerType, ActionType, DataNodeType or ExecutionCtx.
+icon: i-lucide-workflow
 category: antelopejs-interface
 tags: [antelopejs, dms, automation, workflow, interface]
 ---
@@ -106,4 +107,6 @@ const runId = await InvokeProcedure(procedureId, { some: "payload" });
 ## Deeper reference
 
 See this package's README.md (installation, per-node-kind examples, conventions) and
-`dist/index.d.ts` for the exact typed surface. Do not duplicate them here.
+`dist/index.d.ts` for the exact typed surface. The module side (procedures, config,
+pages) is the `dms-automation` skill; the user guide's Extending page is
+https://dms.antelopejs.com/docs/modules/automation/extending.
