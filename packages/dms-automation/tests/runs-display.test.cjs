@@ -6,12 +6,15 @@ const { test } = require("node:test");
 test("the run history uses the DMS grouped display, by day, counted", () => {
   const { RunsPageController } = require("../dist/pages/runs.js");
   const options = RunsPageController.table._options;
-  assert.deepEqual(options.displays, [
-    {
-      id: "grouped",
-      options: { groupByField: "startedAt", by: "day", count: true },
-    },
-  ]);
+  assert.deepEqual(
+    options.displays.map((display) => display.id),
+    ["table", "grouped"],
+  );
+  assert.deepEqual(options.displays[1].options, {
+    groupByField: "startedAt",
+    by: "day",
+    count: true,
+  });
   assert.equal(options.defaultDisplay, "grouped");
 });
 
