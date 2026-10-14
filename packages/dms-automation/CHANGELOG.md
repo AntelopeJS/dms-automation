@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.3.1
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.3.0...v0.3.1)
+
+### 🩹 Fixes
+
+- **pages:** Name row fields with {{row.X}} tokens for dms 0.8 ([#45](https://github.com/AntelopeJS/dms-automation/pull/45))
+
+### ✅ Tests
+
+- **runs:** Expect the table display before the grouped one ([#43](https://github.com/AntelopeJS/dms-automation/pull/43))
+
+### 🤖 CI
+
+- Speed up pipeline ([#44](https://github.com/AntelopeJS/dms-automation/pull/44))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.3.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.2.7...v0.3.0)
