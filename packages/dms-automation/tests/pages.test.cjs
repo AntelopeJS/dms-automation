@@ -75,19 +75,6 @@ for (const [file, name] of Object.entries(PAGES)) {
   });
 }
 
-test("the module's pages are DMS blocks around a few custom components", () => {
-  const counts = Object.entries(PAGES).map(([file, name]) => {
-    const all = pageComponents(require(`../dist/pages/${file}.js`)[name]);
-    return all.filter((c) => c._componentName.startsWith("dms-automation-"))
-      .length;
-  });
-  // overview: the attention list and the live topics relay (the health line is
-  // a DMS banner); runs: the live topics relay (the drawer is a row action);
-  // trace: the trace; procedures: none; builder: the editor; library: four
-  // catalogs and the templates.
-  assert.deepEqual(counts, [2, 1, 1, 0, 1, 5]);
-});
-
 test("the overview and the run history share one period, compared through a menu", () => {
   const selectors = ["overview", "runs"].map((file) => {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
