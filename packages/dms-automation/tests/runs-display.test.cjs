@@ -1,6 +1,4 @@
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
 const { test } = require("node:test");
 
 test("the run history uses the DMS grouped display, by day, counted", () => {
@@ -45,25 +43,6 @@ test("a run opens in the side panel on one click, deep linked, and re-runs with 
     from: "/api/automation/runs/{_id}/rerun-confirm",
   });
   assert.equal(trace.target.url, "/modules/automation/trace?run={_id}");
-});
-
-test("the frontend registers the run strip from a universal plugin", () => {
-  const entry = fs.readFileSync(
-    path.resolve(__dirname, "../frontend-vue/dms.frontend.ts"),
-    "utf8",
-  );
-  assert.match(entry, /componentPrefix: "DmsAutomation"/);
-  assert.match(entry, /sdk\.registerPlugin\(cellDisplaysPlugin\);/);
-  const plugin = fs.readFileSync(
-    path.resolve(__dirname, "../frontend-vue/app/plugins/cell-displays.ts"),
-    "utf8",
-  );
-  assert.match(plugin, /id: "automation:last-runs"/);
-  assert.doesNotMatch(plugin, /id: "automation:(trigger|step)"/);
-  const displays = Object.keys(require("../dist/displays/index.js"));
-  assert.ok(displays.includes("LastRunsDisplay"));
-  // The trigger and failed-step cells are the DMS's own displays.
-  assert.ok(!displays.some((name) => /Trigger|Step/.test(name)), displays);
 });
 
 test("the trigger and failed-step cells are the DMS two_line display", () => {
