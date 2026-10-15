@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import {
 	builderRunUrl,
 	opensInBuilder,
@@ -40,13 +40,6 @@ const runId = computed(() => {
 	return typeof q === 'string' ? q : Array.isArray(q) ? (q[0] ?? null) : null
 })
 
-const run = ref<RunDetail | null>(null)
-const loading = ref(true)
-/** Why the run did not load: no id given, no such run, or another error. */
-const failure = ref<{ reason: 'noRun' | 'notFound' | 'error'; message?: string } | null>(null)
-const tab = ref('steps')
-const pathOnly = ref(false)
-
 const HTTP_NOT_FOUND = 404
 
 function statusOf(e: unknown): number | undefined {
@@ -54,28 +47,24 @@ function statusOf(e: unknown): number | undefined {
 	return error.statusCode ?? error.response?.status
 }
 
-async function load() {
-	if (!runId.value) {
-		run.value = null
-		failure.value = { reason: 'noRun' }
-		loading.value = false
-		return
-	}
-	loading.value = true
-	try {
-		run.value = await runs.getRun(runId.value)
-		failure.value = null
-	} catch (e) {
-		run.value = null
-		failure.value = statusOf(e) === HTTP_NOT_FOUND
-			? { reason: 'notFound' }
-			: { reason: 'error', message: describeApiError(e) }
-	} finally {
-		loading.value = false
-	}
-}
+const runRead = runs.readRun(runId)
+// Until another run's read answers, the run on screen stays; a run that did
+// not load shows why instead.
+const run = computed<RunDetail | null>(() => (runRead.error.value ? null : runRead.data.value))
+const loading = computed(() => runRead.pending.value)
+/** Why the run did not load: no id given, no such run, or another error. */
+const failure = computed<{ reason: 'noRun' | 'notFound' | 'error'; message?: string } | null>(() => {
+	if (!runId.value) return { reason: 'noRun' }
+	const error = runRead.error.value
+	if (!error) return null
+	return statusOf(error) === HTTP_NOT_FOUND ? { reason: 'notFound' } : { reason: 'error', message: describeApiError(error) }
+})
+const tab = ref('steps')
+const pathOnly = ref(false)
 
-watch(runId, () => void load(), { immediate: true })
+function load() {
+	void runRead.refresh()
+}
 
 const names = computed(() => {
 	const map = new Map<string, StepName>()

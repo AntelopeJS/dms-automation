@@ -1,3 +1,4 @@
+import { type MaybeRefOrGetter, toValue } from "vue";
 import type { StepName, TriggerSummary } from "../utils/describe";
 
 export type LogLevel = "info" | "warn" | "error";
@@ -194,6 +195,13 @@ export function useAutomationRuns(apiUrl = "/api/automation") {
   const runUrl = (id: string) => `${apiUrl}/runs/${encodeURIComponent(id)}`;
 
   return {
+    /** One run, read with the page: nothing while `id` is empty. */
+    readRun(id: MaybeRefOrGetter<string | null>) {
+      return useApiData<RunDetail>(() => {
+        const value = toValue(id);
+        return value ? runUrl(value) : null;
+      });
+    },
     getRun(id: string): Promise<RunDetail> {
       return $authFetch<RunDetail>(runUrl(id));
     },

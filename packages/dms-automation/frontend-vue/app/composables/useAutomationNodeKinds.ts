@@ -55,11 +55,10 @@ export interface PaletteBlock {
   template?: TemplateSummary;
 }
 
-export function useAutomationNodeKinds() {
-  const { $authFetch } = useAuthFetch();
-  return {
-    async list(): Promise<NodeKindEntry[]> {
-      return await $authFetch<NodeKindEntry[]>("/api/automation/node-kinds");
-    },
-  };
+/**
+ * The node kinds and their UI metadata, read with the page: the builder's
+ * canvas, palette and inspector draw every block from them.
+ */
+export function useAutomationNodeKinds(apiUrl = "/api/automation") {
+  return useApiData<NodeKindEntry[]>(`${apiUrl}/node-kinds`);
 }
