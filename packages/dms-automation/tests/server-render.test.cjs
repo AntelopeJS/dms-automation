@@ -2,12 +2,7 @@ const assert = require("node:assert/strict");
 const Module = require("node:module");
 const path = require("node:path");
 const { describe, test } = require("node:test");
-const {
-  FRONTEND,
-  frontendRequire,
-  component,
-  fetchKey,
-} = require("./frontend.cjs");
+const { FRONTEND, frontendRequire, component } = require("./frontend.cjs");
 
 // What a server render of each page reads from the backend, and that it
 // hands the browser every response it read: a read the page does not hand
@@ -40,6 +35,9 @@ const ANTELOPE = path.join(FRONTEND, "node_modules/@antelopejs");
 const engine = require(
   path.join(ANTELOPE, "dms-frontend/templates/vue/frontend-module.ts"),
 );
+/** The key the payload carries the response of `read` under, as `useDmsFetch` keys it. */
+const fetchKey = (read) =>
+  engine.dmsRequestKey(read.url, { method: read.method, query: read.rawQuery });
 const { useApiData } = require(
   path.join(
     ANTELOPE,

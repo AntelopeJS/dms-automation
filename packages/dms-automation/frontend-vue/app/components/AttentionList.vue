@@ -121,7 +121,8 @@ async function act(row: AttentionRow, change: Change, undo: Change, message: str
 	busy.value = row.procedureId
 	try {
 		await $authFetch(change.url, { method: change.method, body: change.body })
-		refreshPageBlocks()
+		// The row keeps its spinner until the page shows the change.
+		await refreshPageBlocks()
 		toast.add({
 			title: processI18n(message, { name: row.name }),
 			color: 'success',
