@@ -1,48 +1,15 @@
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const Module = require("node:module");
 const path = require("node:path");
 const { test } = require("node:test");
+const { FRONTEND, frontendRequire, component } = require("./frontend.cjs");
 
 // Registered trigger / action / data-node types may declare `name` and
 // `description` as `$`-prefixed DMS i18n keys. These tests render the
 // components that display them and check both forms: keys come out
 // translated, plain strings come out as written.
 
-const FRONTEND = path.resolve(__dirname, "../frontend-vue");
-const frontendRequire = Module.createRequire(
-  path.join(FRONTEND, "package.json"),
-);
 const vue = frontendRequire("vue");
-const { compileScript, parse } = frontendRequire("vue/compiler-sfc");
 const { renderToString } = frontendRequire("vue/server-renderer");
-const ts = frontendRequire("typescript");
-
-// Loads the frontend sources through `require`: TypeScript is transpiled to
-// CommonJS, and single-file components are compiled first (template inlined).
-function compileTypeScript(module, filename, source) {
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-      verbatimModuleSyntax: false,
-    },
-  });
-  module._compile(outputText, filename);
-}
-require.extensions[".ts"] = (module, filename) =>
-  compileTypeScript(module, filename, fs.readFileSync(filename, "utf8"));
-require.extensions[".vue"] = (module, filename) => {
-  const { descriptor } = parse(fs.readFileSync(filename, "utf8"), { filename });
-  const { content } = compileScript(descriptor, {
-    id: path.relative(FRONTEND, filename),
-    inlineTemplate: true,
-  });
-  compileTypeScript(module, filename, content);
-};
-
-const component = (file) =>
-  require(path.join(FRONTEND, "app/components", file)).default;
 
 // Stand-in for the host's `processI18n`: `$` marks a key, anything else is
 // returned verbatim (dms-core `resolveI18nKey`).
@@ -259,7 +226,12 @@ test("schema tables drop the description column when no field has one", async ()
 });
 
 test("a webhook endpoint offers no URL to copy until the server's address is known", async () => {
-  globalThis.useAuthFetch = () => ({ $authFetch: () => new Promise(() => {}) });
+  // The address is still being read.
+  globalThis.useApiData = () => ({
+    data: vue.ref(null),
+    error: vue.ref(null),
+    status: vue.ref("pending"),
+  });
   const CopyButton = vue.defineComponent({
     props: { value: String },
     setup: (props) => () => vue.h("button", { "data-copy": props.value }),

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, type Ref, watch } from 'vue'
 import { type RunDetail, type TraceStep, useAutomationRuns } from '../composables/useAutomationRuns'
 import type { NodeRunState } from './Editor/nodes/GenericNode.vue'
 import type { DockIssue, DockRun, DockTab } from './Editor/BottomDock.vue'
@@ -123,42 +123,39 @@ const running = ref(false)
 const templatePorts = ref<GroupPort[]>([])
 // Kept as loaded: saving the template from the editor must not reset its icon.
 const templateIcon = ref<string>('i-ph-package')
-const templateLoadKey = ref<string | null>(null)
 
-const triggerTypes = ref<TriggerType[]>([])
-const actionTypes = ref<ActionType[]>([])
-const dataNodeTypes = ref<DataNodeType[]>([])
+// The palette's catalogs, read with the page. They are optional for
+// editing: one the server cannot answer is an empty list.
+const triggerTypesRead = useApiData<TriggerType[]>('/api/automation/trigger-types')
+const actionTypesRead = useApiData<ActionType[]>('/api/automation/action-types')
+const dataNodeTypesRead = useApiData<DataNodeType[]>('/api/automation/data-node-types')
 // Per-NodeKind UI metadata served by the backend
 // (`/api/automation/node-kinds`). Drives the editor's GenericNode renderer
 // so the frontend doesn't need to know about specific kinds.
-const nodeKinds = ref<NodeKindEntry[]>([])
+const nodeKindsRead = useAutomationNodeKinds()
+const triggerTypes = computed(() => triggerTypesRead.data.value ?? [])
+const actionTypes = computed(() => actionTypesRead.data.value ?? [])
+const dataNodeTypes = computed(() => dataNodeTypesRead.data.value ?? [])
+const nodeKinds = computed(() => nodeKindsRead.data.value ?? [])
 
-// Workspace-global templates surfaced in the canvas's node palette.
-// Fetched once on mount alongside the type catalogs. Empty list → palette
-// section hidden (handled inside BuilderPalette).
+// Workspace-global templates surfaced in the canvas's node palette. Empty
+// list → palette section hidden (handled inside BuilderPalette).
 //
-// Only the fields the palette + template-instance creation need are kept on
-// the client (id, name, icon, ports). The list endpoint still returns full
-// rows (description, usageCount, hydrated subgraph); the `.map()` below
-// simply discards the extra fields after the fetch.
-const templates = ref<TemplateSummary[]>([])
-const templatesLoadError = ref<string | null>(null)
-
-async function loadTemplates() {
-	try {
-		const { results } = await $authFetch<{ results: TemplateSummary[] }>('/api/automation/templates')
-		templates.value = results.map((t) => ({
+// Only the fields the palette + template-instance creation need are kept,
+// and handed over with the page: the list endpoint also returns the
+// description, the usage count and the hydrated subgraph. Under a key of its
+// own, apart from the library's full rows of the same URL.
+const templatesRead = useApiData<TemplateSummary[]>('/api/automation/templates', {
+	key: 'dms-automation-palette-templates',
+	transform: (value) =>
+		(value as { results: TemplateSummary[] }).results.map((t) => ({
 			_id: t._id,
 			name: t.name,
 			icon: t.icon,
 			ports: Array.isArray(t.ports) ? t.ports : [],
-		}))
-		templatesLoadError.value = null
-	} catch (e) {
-		templatesLoadError.value = describeApiError(e)
-		templates.value = []
-	}
-}
+		})),
+})
+const templates = computed(() => templatesRead.data.value ?? [])
 
 // Hide the palette section while editing a template (self-edit). The
 // server's cycle check would still catch any reference cycle, but blocking
@@ -333,56 +330,25 @@ function initHistoryAndSaved() {
 
 const PROCEDURES_PAGE_SIZE = 200
 
-async function loadList() {
-	loading.value = true
-	loadError.value = null
-	try {
+// What the builder opens, read with the page: every procedure, or the
+// template `?template=` names. The editor works on its own copy of what they
+// answered (`procedures`), which its drafts change.
+const procedureListRead = useApiData<ProcedureRecord[]>(
+	() => (editorMode.value === 'procedure' ? 'dms-automation-builder-procedures' : null),
+	async ({ $authFetch, signal }) => {
 		// The API serves pages of PROCEDURES_PAGE_SIZE at most: read them all.
 		const list: ProcedureRecord[] = []
 		for (let page = 0; ; page++) {
 			const { results } = await $authFetch<{ results: ProcedureRecord[] }>(
 				`/api/automation/procedures?limit=${PROCEDURES_PAGE_SIZE}&page=${page}`,
+				{ signal },
 			)
 			list.push(...results)
 			if (results.length < PROCEDURES_PAGE_SIZE) break
 		}
-		procedures.value = list
-		if (
-			selectedId.value &&
-			!procedures.value.some((p) => p._id === selectedId.value)
-		) {
-			selectedId.value = null
-		}
-		const requested = queryValue('selected')
-		if (requested && procedures.value.some((p) => p._id === requested)) {
-			selectedId.value = requested
-		} else if (requested && !selectedId.value) {
-			// A link to a deleted procedure opens none: the builder says so
-			// and offers the switcher (see onMounted).
-			missingProcedureId.value = requested
-			return
-		}
-		if (!selectedId.value && procedures.value.length > 0) {
-			const first = procedures.value[0]
-			selectedId.value = first ? first._id : null
-		}
-	} catch (e) {
-		loadError.value = describeApiError(e)
-	} finally {
-		loading.value = false
-	}
-}
-
-async function loadTypeCatalogs() {
-	try {
-		triggerTypes.value = await $authFetch<TriggerType[]>('/api/automation/trigger-types')
-		actionTypes.value = await $authFetch<ActionType[]>('/api/automation/action-types')
-		dataNodeTypes.value = await $authFetch<DataNodeType[]>('/api/automation/data-node-types')
-		nodeKinds.value = await useAutomationNodeKinds().list()
-	} catch {
-		// Catalogs are optional for editing — silently ignore.
-	}
-}
+		return list
+	},
+)
 
 interface AutomationTemplateApi {
 	_id: string
@@ -393,58 +359,96 @@ interface AutomationTemplateApi {
 	subgraph: ProcedureGraph
 }
 
-async function loadTemplate(id: string) {
-	loading.value = true
+const templateRead = useApiData<AutomationTemplateApi>(() =>
+	editorTemplateId.value ? `/api/automation/templates/${editorTemplateId.value}` : null,
+)
+
+/** Opens what the procedure list answered: `?selected=`, else the procedure open, else the first. */
+function openList() {
+	const error = procedureListRead.error.value
+	if (error) {
+		loadError.value = describeApiError(error)
+		return
+	}
 	loadError.value = null
-	try {
-		templateNotFound.value = false
-		const tpl = await $authFetch<AutomationTemplateApi>(
-			`/api/automation/templates/${id}`,
-		)
-		// Adapt the template into the ProcedureRecord shape so the rest of
-		// the editor (history, dirty-tracking, sentinel sync, group toolbar)
-		// keeps working unchanged. `enabled` is meaningless for templates;
-		// pin it to true so the "disabled" warning banner never appears.
-		const adapted: ProcedureRecord = {
-			_id: tpl._id,
-			name: tpl.name,
-			description: tpl.description ?? '',
-			enabled: true,
-			graph: tpl.subgraph,
-		}
-		procedures.value = [adapted]
-		selectedId.value = adapted._id
-		templateIcon.value = tpl.icon || 'i-ph-package'
-		templatePorts.value = Array.isArray(tpl.ports)
-			? tpl.ports.map((p) => ({ ...p }))
-			: []
-		templateLoadKey.value = id
-	} catch (e) {
-		// Worded for users, the same on the server and in the browser (the
-		// raw fetch error names an internal URL that differs between them).
-		templateNotFound.value = apiErrorStatus(e) === 404
-		loadError.value = templateNotFound.value ? t('dms_automation.editor.templateNotFound') : describeApiError(e)
-		procedures.value = []
+	// Copies: a draft changes the editor's records, not the read's.
+	procedures.value = (procedureListRead.data.value ?? []).map((p) => ({ ...p }))
+	if (
+		selectedId.value &&
+		!procedures.value.some((p) => p._id === selectedId.value)
+	) {
 		selectedId.value = null
-		templatePorts.value = []
-	} finally {
-		loading.value = false
+	}
+	const requested = queryValue('selected')
+	if (requested && procedures.value.some((p) => p._id === requested)) {
+		selectedId.value = requested
+	} else if (requested && !selectedId.value) {
+		// A link to a deleted procedure opens none: the builder says so
+		// and offers the switcher (see onMounted).
+		missingProcedureId.value = requested
+		return
+	}
+	if (!selectedId.value && procedures.value.length > 0) {
+		const first = procedures.value[0]
+		selectedId.value = first ? first._id : null
 	}
 }
 
-if (editorMode.value === 'template') {
+/** Reads the procedure list again (one was created) and opens it. */
+async function loadList() {
+	loading.value = true
+	await procedureListRead.refresh()
+	loading.value = false
+	openList()
+}
+
+/** Opens what the template read answered, or says why there is none. */
+function openTemplate() {
 	const id = editorTemplateId.value
-	if (id) {
-		await loadTemplate(id)
-	} else {
+	if (!id) {
 		templateNotFound.value = true
 		loadError.value = t('dms_automation.editor.templateNotFound')
+		return
 	}
-} else {
-	await loadList()
+	const error = templateRead.error.value
+	const tpl = templateRead.data.value
+	if (error || !tpl) {
+		// Worded for users, the same on the server and in the browser (the
+		// raw fetch error names an internal URL that differs between them).
+		templateNotFound.value = apiErrorStatus(error) === 404
+		loadError.value = templateNotFound.value ? t('dms_automation.editor.templateNotFound') : describeApiError(error)
+		procedures.value = []
+		selectedId.value = null
+		templatePorts.value = []
+		return
+	}
+	templateNotFound.value = false
+	loadError.value = null
+	// Adapt the template into the ProcedureRecord shape so the rest of
+	// the editor (history, dirty-tracking, sentinel sync, group toolbar)
+	// keeps working unchanged. `enabled` is meaningless for templates;
+	// pin it to true so the "disabled" warning banner never appears.
+	const adapted: ProcedureRecord = {
+		_id: tpl._id,
+		name: tpl.name,
+		description: tpl.description ?? '',
+		enabled: true,
+		graph: tpl.subgraph,
+	}
+	procedures.value = [adapted]
+	selectedId.value = adapted._id
+	templateIcon.value = tpl.icon || 'i-ph-package'
+	templatePorts.value = Array.isArray(tpl.ports)
+		? tpl.ports.map((p) => ({ ...p }))
+		: []
 }
-await loadTypeCatalogs()
-await loadTemplates()
+
+// What the builder opens is awaited: the server renders it, and the browser
+// opens the same from the data handed over. The catalogs, the templates and
+// the bar's figures are read meanwhile, in parallel.
+await Promise.all([procedureListRead, templateRead])
+if (editorMode.value === 'template') openTemplate()
+else openList()
 
 const selected = computed<ProcedureRecord | null>(
 	() => procedures.value.find((p) => p._id === selectedId.value) ?? null,
@@ -747,15 +751,16 @@ watch(selectedId, () => {
 	seedSubgraphPath()
 })
 
-// Re-fetch when the route's `?template=<id>` changes between templates while
-// the editor is mounted. Editor is mounted once per route navigation so this
-// is mostly a guard for in-place query updates (e.g. catalog "Edit" buttons
-// using router.push).
-watch(templateQueryId, async (id) => {
-	if (editorMode.value !== 'template') return
-	if (!id || id === templateLoadKey.value) return
-	await loadTemplate(id)
-})
+// `?template=<id>` changed while the editor stayed mounted (Editor is
+// mounted once per route navigation, so this is mostly a guard for in-place
+// query updates, e.g. catalog "Edit" buttons using router.push): the template
+// read follows the URL, and the editor opens what it answers.
+watch(
+	() => templateRead.status.value,
+	(status) => {
+		if (editorMode.value === 'template' && (status === 'success' || status === 'error')) openTemplate()
+	},
+)
 
 /** A group's name: its step name, else the name it was created with. */
 function groupName(node: GraphNode): string {
@@ -1608,15 +1613,12 @@ const procedureEnabled = computed<boolean>({
 // The builder's bar: state, saving, problems (AU-03, AU-04, AU-16)
 // ---------------------------------------------------------------------------
 
-const summaries = ref<ProcedureSummaryRow[]>([])
-
-async function loadSummaries() {
-	try {
-		summaries.value = await $authFetch<ProcedureSummaryRow[]>(`${props.apiUrl}/procedures/summary`)
-	} catch {
-		summaries.value = []
-	}
-}
+// Each procedure's state, for the bar's badge and the switcher (procedure
+// mode only).
+const summariesRead = useApiData<ProcedureSummaryRow[]>(() =>
+	editorMode.value === 'procedure' ? `${props.apiUrl}/procedures/summary` : null,
+)
+const summaries = computed(() => summariesRead.data.value ?? [])
 
 const currentSummary = computed(() => summaries.value.find((s) => s.procedureId === selectedId.value) ?? null)
 
@@ -1685,14 +1687,18 @@ async function validateDraft() {
 	}
 }
 
+function scheduleValidation() {
+	clearTimeout(validateTimer)
+	validateTimer = setTimeout(() => void validateDraft(), VALIDATE_DELAY_MS)
+}
 watch(
 	() => (selected.value ? [structuralKey(selected.value.graph), selected.value.name, selected.value.enabled].join('|') : ''),
-	() => {
-		clearTimeout(validateTimer)
-		validateTimer = setTimeout(() => void validateDraft(), VALIDATE_DELAY_MS)
-	},
-	{ immediate: true },
+	scheduleValidation,
 )
+// The draft as opened is checked in the browser: a server render has no
+// draft to check, and its timer would outlive the render.
+onMounted(scheduleValidation)
+onBeforeUnmount(() => clearTimeout(validateTimer))
 
 const blockingIssues = computed(() => issues.value.filter((i) => i.severity === 'error'))
 
@@ -1775,17 +1781,27 @@ function selectNode(id: string) {
 interface ProcedureTriggers {
 	triggers: Array<WordedTrigger & { nextAt: string | null }>
 }
-const savedTriggers = ref<ProcedureTriggers['triggers']>([])
 
-async function loadSavedTriggers() {
-	if (!selectedId.value || editorMode.value !== 'procedure') return
-	try {
-		const res = await $authFetch<ProcedureTriggers>(`${props.apiUrl}/procedures/${selectedId.value}/triggers`)
-		savedTriggers.value = res.triggers
-	} catch {
-		savedTriggers.value = []
-	}
+/**
+ * A URL of the procedure open, for the reads that follow it: none in
+ * template mode or while no procedure is open.
+ */
+function selectedProcedureUrl(path: string): () => string | null {
+	return () => (selectedId.value && editorMode.value === 'procedure' ? `${props.apiUrl}/procedures/${selectedId.value}/${path}` : null)
 }
+
+/**
+ * Data of the procedure open, or nothing while another one's is still on
+ * screen or once its read failed.
+ */
+function ofSelected<T>(read: { data: Ref<T | null>; placeholder: Readonly<Ref<boolean>>; error: Ref<unknown> }): T | null {
+	return read.placeholder.value || read.error.value ? null : read.data.value
+}
+
+// The saved triggers: what a paused procedure will not fire, and what Run
+// now offers.
+const savedTriggersRead = useApiData<ProcedureTriggers>(selectedProcedureUrl('triggers'))
+const savedTriggers = computed(() => ofSelected(savedTriggersRead)?.triggers ?? [])
 
 /** The banner of a disabled procedure names what will not fire (AU-16). */
 const pausedBanner = computed(() => {
@@ -1824,8 +1840,7 @@ const saveState = computed(() => {
 // ---------------------------------------------------------------------------
 
 async function onCreated(id: string) {
-	await loadList()
-	await loadSummaries()
+	await Promise.all([loadList(), summariesRead.refresh()])
 	selectedId.value = id
 	void router.replace(`${builderPath()}?selected=${id}`)
 }
@@ -1848,7 +1863,7 @@ async function onDelete() {
 			selectedId.value = procedures.value[0]?._id ?? null
 			void router.replace(selectedId.value ? `${builderPath()}?selected=${selectedId.value}` : builderPath())
 			toast.add({ title: t('dms_automation.editor.deleted', { name }), color: 'success', icon: 'i-ph-check-circle' })
-			void loadSummaries()
+			void summariesRead.refresh()
 		},
 	})
 }
@@ -2116,8 +2131,8 @@ async function onSave(): Promise<boolean> {
 			icon: 'i-ph-check-circle',
 			actions: [{ label: t('dms_automation.editor.testRun'), onClick: () => void onTestRun() }],
 		})
-		void loadSummaries()
-		void loadSavedTriggers()
+		void summariesRead.refresh()
+		void savedTriggersRead.refresh()
 		return true
 	} catch (e) {
 		if (editorMode.value === 'procedure' && apiErrorStatus(e) === 409) return await resolveStale(current, e)
@@ -2190,8 +2205,8 @@ async function reloadSelected() {
 		initHistoryAndSaved()
 		seedSubgraphPath()
 		saveBlocked.value = false
-		void loadSummaries()
-		void loadSavedTriggers()
+		void summariesRead.refresh()
+		void savedTriggersRead.refresh()
 	} catch (e) {
 		toast.add({ title: t('dms_automation.editor.loadProceduresError'), description: describeApiError(e), color: 'error', icon: 'i-ph-warning' })
 	}
@@ -2341,7 +2356,7 @@ async function submitSaveAsTemplate() {
 		const linkOnly = !isDirty.value
 		convertLocalGroupToTemplateInstance(n.id, created._id)
 		saveAsTemplateOpen.value = false
-		void loadTemplates()
+		void templatesRead.refresh()
 		toast.add({
 			title: t('dms_automation.templates.saved', { name }),
 			description: linkOnly ? undefined : t('dms_automation.editor.saveTemplateModal.saveToLink'),
@@ -2712,17 +2727,13 @@ onBeforeUnmount(() => {
 // Runs over the canvas: Test run of the draft, debugging a stored run (AU-05)
 // ---------------------------------------------------------------------------
 
-const recentRuns = ref<DockRun[]>([])
-
-async function loadRecentRuns() {
-	if (!selectedId.value || editorMode.value !== 'procedure') return
-	try {
-		const list = await $authFetch<DockRun[]>(`${props.apiUrl}/procedures/${selectedId.value}/runs?limit=8`)
-		recentRuns.value = Array.isArray(list) ? list.slice(0, 8) : []
-	} catch {
-		recentRuns.value = []
-	}
-}
+// The dock's last runs: its tab counts the failed ones, folded too.
+const RECENT_RUNS = 8
+const recentRunsRead = useApiData<DockRun[]>(selectedProcedureUrl('runs'), { query: { limit: RECENT_RUNS } })
+const recentRuns = computed(() => {
+	const list = ofSelected(recentRunsRead)
+	return Array.isArray(list) ? list.slice(0, RECENT_RUNS) : []
+})
 
 /** The run shown over the canvas, and whether it is a test of the draft. */
 const overlayRun = ref<RunDetail | null>(null)
@@ -2733,21 +2744,6 @@ const testPayloadSource = ref<string | null>(null)
 // The trigger a Test run starts from, chosen in the dock (see the watch on
 // the draft's triggers at the end).
 const testTriggerNodeId = ref<string | undefined>(undefined)
-
-async function loadTestPayload() {
-	if (!selectedId.value || editorMode.value !== 'procedure') return
-	const query = testTriggerNodeId.value ? `?triggerNodeId=${encodeURIComponent(testTriggerNodeId.value)}` : ''
-	try {
-		const res = await $authFetch<{ last: { runId: string; payload: unknown } | null }>(
-			`${props.apiUrl}/procedures/${selectedId.value}/last-payload${query}`,
-		)
-		testPayload.value = JSON.stringify(res.last?.payload ?? {}, null, 2)
-		testPayloadSource.value = res.last?.runId ?? null
-	} catch {
-		testPayload.value = '{}'
-		testPayloadSource.value = null
-	}
-}
 
 const runStates = computed<Record<string, NodeRunState> | undefined>(() => {
 	const run = overlayRun.value
@@ -2883,7 +2879,7 @@ async function onTestRun() {
 		await showRun(res.runId)
 		dockTab.value = 'test'
 		dockCollapsed.value = false
-		void loadRecentRuns()
+		void recentRunsRead.refresh()
 	} catch (e) {
 		const refused = issuesOf(e)
 		if (refused) {
@@ -2925,8 +2921,8 @@ async function openRunNow() {
 async function onRunStarted(runId: string) {
 	const name = savedName.value
 	const trace = { label: t('dms_automation.runs.trace'), onClick: () => void router.push(`${props.traceUrl}?run=${runId}`) }
-	void loadRecentRuns()
-	void loadSummaries()
+	void recentRunsRead.refresh()
+	void summariesRead.refresh()
 	let run: RunDetail
 	try {
 		run = await showRun(runId)
@@ -3021,17 +3017,12 @@ function onWrapInRetry(payload: { id: string }) {
 // Loading what the bar and the dock show, per procedure
 // ---------------------------------------------------------------------------
 
-watch(
-	selectedId,
-	(id) => {
-		if (id) missingProcedureId.value = null
-		overlayRun.value = null
-		void loadSavedTriggers()
-		void loadRecentRuns()
-		void loadTestPayload()
-	},
-	{ immediate: true },
-)
+// Another procedure opened: what the bar and the dock show follows it
+// through their reads' URLs.
+watch(selectedId, (id) => {
+	if (id) missingProcedureId.value = null
+	overlayRun.value = null
+})
 
 /** `?path=g1,g2`: the groups to enter, outermost first, before `?node=`. */
 function enterPathFromUrl(): boolean {
@@ -3045,7 +3036,6 @@ function enterPathFromUrl(): boolean {
 }
 
 onMounted(async () => {
-	await loadSummaries()
 	if (missingProcedureId.value) switcherOpen.value = true
 	const runId = queryValue('run')
 	if (runId) await openRunFromUrl(runId)
@@ -3093,7 +3083,23 @@ watch(
 	},
 	{ immediate: true },
 )
-watch(testTriggerNodeId, () => void loadTestPayload())
+
+// The last real payload of the trigger a Test run starts from, which fills
+// the test payload the user then edits. Left to the browser: it is shown
+// only once the dock's payload tab is opened, and may be large. Declared
+// once that trigger is chosen, so that it starts on the key it reads.
+const lastPayloadRead = useApiData<{ last: { runId: string; payload: unknown } | null }>(selectedProcedureUrl('last-payload'), {
+	query: () => (testTriggerNodeId.value ? { triggerNodeId: testTriggerNodeId.value } : {}),
+	server: false,
+})
+// Each answer (or failure) of another procedure or trigger replaces the
+// payload; the previous procedure's, still on screen meanwhile, does not.
+watch([() => lastPayloadRead.data.value, () => lastPayloadRead.error.value], ([answer, error]) => {
+	if (!error && lastPayloadRead.placeholder.value) return
+	const last = error ? null : answer?.last
+	testPayload.value = JSON.stringify(last?.payload ?? {}, null, 2)
+	testPayloadSource.value = last?.runId ?? null
+})
 
 // Below xl the inspector floats over the canvas instead of narrowing it; the
 // palette can be put away. Remembered per browser.

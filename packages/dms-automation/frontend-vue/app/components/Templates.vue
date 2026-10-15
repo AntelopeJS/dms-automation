@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { isIconName } from './IconPicker.vue'
 import { queryString } from '../utils/automation'
 
@@ -77,12 +77,6 @@ const toast = useToast()
 const { t } = useI18n()
 const { confirm } = useConfirm()
 
-const items = ref<TemplateRow[]>([])
-/** How many templates exist, when the server sent fewer than that. */
-const total = ref(0)
-const loading = ref(true)
-const loadError = ref<string | null>(null)
-const selectedId = ref<string | null>(null)
 const search = ref('')
 const detail = useTemplateRef<HTMLElement>('detail')
 const list = useTemplateRef<HTMLElement>('list')
@@ -92,48 +86,41 @@ const formDescription = ref('')
 const formIcon = ref(DEFAULT_ICON)
 const saving = ref(false)
 
-const usages = ref<TemplateUsages>(NO_USAGES)
-const usagesLoading = ref(false)
-const procedures = ref<Map<string, ProcedureSummary>>(new Map())
-
 function queryTemplate(): string | null {
 	return queryString(route.query.template)
 }
 
-async function loadList() {
-	loading.value = true
-	try {
-		const { results: list, total: count } = await $authFetch<{ results: TemplateRow[]; total: number }>(`${props.apiUrl}/templates`)
-		items.value = list
-		total.value = count
-		const wanted = selectedId.value ?? queryTemplate()
-		selectedId.value = list.some((x) => x._id === wanted) ? wanted : (sortedItems.value[0]?._id ?? null)
-		loadError.value = null
-	} catch (e) {
-		loadError.value = describeApiError(e)
-	} finally {
-		loading.value = false
-	}
+// The templates, and the state of the procedures placing them, read with
+// the page.
+const listRead = useApiData<{ results: TemplateRow[]; total: number }>(`${props.apiUrl}/templates`)
+const summaryRead = useApiData<ProcedureSummary[]>(`${props.apiUrl}/procedures/summary`)
+const items = computed(() => listRead.data.value?.results ?? [])
+/** How many templates exist, when the server sent fewer than that. */
+const total = computed(() => listRead.data.value?.total ?? 0)
+const loading = computed(() => listRead.pending.value)
+const loadError = computed(() => (listRead.error.value ? describeApiError(listRead.error.value) : null))
+const procedures = computed(() => new Map((summaryRead.data.value ?? []).map((p) => [p.procedureId, p])))
+
+function loadList() {
+	void listRead.refresh()
 }
-
-async function loadProcedures() {
-	try {
-		const rows = await $authFetch<ProcedureSummary[]>(`${props.apiUrl}/procedures/summary`)
-		procedures.value = new Map(rows.map((p) => [p.procedureId, p]))
-	} catch {
-		procedures.value = new Map()
-	}
-}
-
-onMounted(() => {
-	void loadList()
-	void loadProcedures()
-})
-
-const selected = computed(() => items.value.find((x) => x._id === selectedId.value) ?? null)
-const templateNames = computed(() => new Map(items.value.map((x) => [x._id, x.name])))
 
 const sortedItems = computed(() => [...items.value].sort((a, b) => a.name.localeCompare(b.name)))
+// The template picked in this view, else the URL's (`?template=`).
+const picked = ref<string | null>(null)
+/** The template shown: the one picked, else the first by name. */
+const selectedId = computed<string | null>(() => {
+	const wanted = picked.value ?? queryTemplate()
+	return items.value.some((x) => x._id === wanted) ? wanted : (sortedItems.value[0]?._id ?? null)
+})
+const selected = computed(() => items.value.find((x) => x._id === selectedId.value) ?? null)
+
+// Where the template shown is used, read with it.
+const usagesRead = useApiData<TemplateUsages>(() => (selectedId.value ? `${props.apiUrl}/templates/${selectedId.value}/usages` : null))
+const usages = computed(() => (usagesRead.placeholder.value || usagesRead.error.value ? NO_USAGES : (usagesRead.data.value ?? NO_USAGES)))
+const usagesLoading = computed(() => usagesRead.pending.value && (usagesRead.placeholder.value || !usagesRead.data.value))
+const templateNames = computed(() => new Map(items.value.map((x) => [x._id, x.name])))
+
 const filteredItems = computed(() => {
 	const q = search.value.trim().toLowerCase()
 	if (!q) return sortedItems.value
@@ -154,13 +141,15 @@ const dirty = computed(() => {
 const form = useTemplateRef<HTMLElement>('form')
 const { confirmLeave } = useUnsavedChanges({ dirty, element: form })
 
+// The form starts from the template shown: awaited, the server renders it
+// filled in, and the browser starts from the same values.
+await listRead
 watch(
 	selected,
 	(s) => {
 		formName.value = s?.name ?? ''
 		formDescription.value = s?.description ?? ''
 		formIcon.value = s?.icon || DEFAULT_ICON
-		void loadUsages()
 	},
 	{ immediate: true },
 )
@@ -171,7 +160,7 @@ watch(selectedId, (id) => {
 
 async function select(id: string) {
 	if (id === selectedId.value || !(await confirmLeave())) return
-	selectedId.value = id
+	picked.value = id
 	// Below the two-column width the detail sits under the list: bring it into view.
 	await nextTick()
 	if (detail.value && list.value && detail.value.offsetTop > list.value.offsetTop) {
@@ -181,24 +170,6 @@ async function select(id: string) {
 
 function backToList() {
 	list.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-async function fetchUsages(id: string): Promise<TemplateUsages> {
-	return await $authFetch<TemplateUsages>(`${props.apiUrl}/templates/${id}/usages`)
-}
-
-async function loadUsages() {
-	const s = selected.value
-	usages.value = NO_USAGES
-	if (!s) return
-	usagesLoading.value = true
-	try {
-		usages.value = await fetchUsages(s._id)
-	} catch {
-		usages.value = NO_USAGES
-	} finally {
-		usagesLoading.value = false
-	}
 }
 
 /** One line per procedure or template placing it, with how many times. */
@@ -288,12 +259,10 @@ async function onDelete() {
 	const s = selected.value
 	if (!s) return
 	// Counted now, not when the list loaded: a usage added since is forked too.
-	let fresh: TemplateUsages
-	try {
-		fresh = await fetchUsages(s._id)
-		usages.value = fresh
-	} catch (e) {
-		toast.add({ title: t('dms_automation.templates.deleteError'), description: errorMessage(e), color: 'error', icon: 'i-ph-warning' })
+	await usagesRead.refresh()
+	const fresh = usagesRead.data.value
+	if (usagesRead.error.value || !fresh) {
+		toast.add({ title: t('dms_automation.templates.deleteError'), description: errorMessage(usagesRead.error.value), color: 'error', icon: 'i-ph-warning' })
 		return
 	}
 	const count = fresh.procedures.length + fresh.templates.length
@@ -315,14 +284,14 @@ async function onDelete() {
 			color: 'error',
 			icon: 'i-ph-warning',
 		})
-		await loadUsages()
+		await usagesRead.refresh()
 		return
 	}
 	toast.add({ title: t('dms_automation.templates.deleted', { name: s.name }), color: 'success', icon: 'i-ph-check-circle' })
-	items.value = items.value.filter((x) => x._id !== s._id)
-	total.value = Math.max(0, total.value - 1)
-	selectedId.value = sortedItems.value[0]?._id ?? null
-	// Forking may have changed other templates' graphs and usage counts.
+	// Gone from the list at once (the detail moves to the first template);
+	// forking may have changed other templates' graphs and usage counts.
+	const listed = listRead.data.value
+	if (listed) listRead.data.value = { results: listed.results.filter((x) => x._id !== s._id), total: Math.max(0, listed.total - 1) }
 	void loadList()
 }
 

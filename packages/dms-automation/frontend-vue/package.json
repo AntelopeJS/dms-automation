@@ -16,6 +16,8 @@
     "vue": "^3.5.18"
   },
   "devDependencies": {
+    "@antelopejs/dms": ">=0.8.0 <0.9.0",
+    "@antelopejs/dms-frontend": ">=0.5.6 <0.6.0",
     "@antelopejs/tooling-configs": ">=0.0.7 <1.0.0",
     "@eslint/js": "^9.0.0",
     "@nuxt/ui": "4.10.0",
@@ -29,7 +31,7 @@
     "vue-tsc": "^3.1.1"
   },
   "engines": {
-    "@antelopejs/dms-frontend": ">=0.5.0 <0.6.0"
+    "@antelopejs/dms-frontend": ">=0.5.7 <0.6.0"
   },
   "packageManager": "pnpm@10.6.5"
 }
