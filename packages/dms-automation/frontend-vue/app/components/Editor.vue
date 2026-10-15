@@ -2745,6 +2745,24 @@ const testPayloadSource = ref<string | null>(null)
 // the draft's triggers at the end).
 const testTriggerNodeId = ref<string | undefined>(undefined)
 
+// The last real payload of the trigger a Test run starts from, which fills
+// the test payload the user then edits. Left to the browser: it is shown
+// only once the dock's payload tab is opened, and may be large.
+const lastPayloadRead = useApiData<{ last: { runId: string; payload: unknown } | null }>(selectedProcedureUrl('last-payload'), {
+	query: () => (testTriggerNodeId.value ? { triggerNodeId: testTriggerNodeId.value } : {}),
+	server: false,
+	// Copied into an editable field: the page's refreshes leave the draft alone.
+	refreshOnPageRefresh: false,
+})
+// Each answer (or failure) of another procedure or trigger replaces the
+// payload; the previous procedure's, still on screen meanwhile, does not.
+watch([() => lastPayloadRead.data.value, () => lastPayloadRead.error.value], ([answer, error]) => {
+	if (!error && lastPayloadRead.placeholder.value) return
+	const last = error ? null : answer?.last
+	testPayload.value = JSON.stringify(last?.payload ?? {}, null, 2)
+	testPayloadSource.value = last?.runId ?? null
+})
+
 const runStates = computed<Record<string, NodeRunState> | undefined>(() => {
 	const run = overlayRun.value
 	if (!run || subgraphPath.value.length > 1) return undefined
@@ -3083,25 +3101,6 @@ watch(
 	},
 	{ immediate: true },
 )
-
-// The last real payload of the trigger a Test run starts from, which fills
-// the test payload the user then edits. Left to the browser: it is shown
-// only once the dock's payload tab is opened, and may be large. Declared
-// once that trigger is chosen, so that it starts on the key it reads.
-const lastPayloadRead = useApiData<{ last: { runId: string; payload: unknown } | null }>(selectedProcedureUrl('last-payload'), {
-	query: () => (testTriggerNodeId.value ? { triggerNodeId: testTriggerNodeId.value } : {}),
-	server: false,
-	// Copied into an editable field: the page's refreshes leave the draft alone.
-	refreshOnPageRefresh: false,
-})
-// Each answer (or failure) of another procedure or trigger replaces the
-// payload; the previous procedure's, still on screen meanwhile, does not.
-watch([() => lastPayloadRead.data.value, () => lastPayloadRead.error.value], ([answer, error]) => {
-	if (!error && lastPayloadRead.placeholder.value) return
-	const last = error ? null : answer?.last
-	testPayload.value = JSON.stringify(last?.payload ?? {}, null, 2)
-	testPayloadSource.value = last?.runId ?? null
-})
 
 // Below xl the inspector floats over the canvas instead of narrowing it; the
 // palette can be put away. Remembered per browser.
