@@ -3091,6 +3091,8 @@ watch(
 const lastPayloadRead = useApiData<{ last: { runId: string; payload: unknown } | null }>(selectedProcedureUrl('last-payload'), {
 	query: () => (testTriggerNodeId.value ? { triggerNodeId: testTriggerNodeId.value } : {}),
 	server: false,
+	// Copied into an editable field: the page's refreshes leave the draft alone.
+	refreshOnPageRefresh: false,
 })
 // Each answer (or failure) of another procedure or trigger replaces the
 // payload; the previous procedure's, still on screen meanwhile, does not.

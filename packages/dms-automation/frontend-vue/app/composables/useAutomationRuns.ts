@@ -122,7 +122,7 @@ export interface RunDetail {
   procedureVersion?: number | null;
   procedureName: string;
   durationMs: number;
-  /** The log, when the run carries it; else read with `getLogs`. */
+  /** The log, when the run carries it; else read with `readLogs`. */
   logs?: RunLog;
   logCount?: number;
   logTruncated?: number;
@@ -187,6 +187,12 @@ export function opensInBuilder(run: RunDetail): boolean {
   return !!run.procedure && run.kind !== "test";
 }
 
+/** How a run read follows the page, as `useApiData` takes it. */
+export interface RunReadOptions {
+  /** `false` for a read the page's refreshes leave alone. */
+  refreshOnPageRefresh?: boolean;
+}
+
 /** The run endpoints the drawer, the trace and the builder share. */
 export function useAutomationRuns(apiUrl = "/api/automation") {
   const { $authFetch } = useAuthFetch();
@@ -196,17 +202,28 @@ export function useAutomationRuns(apiUrl = "/api/automation") {
 
   return {
     /** One run, read with the page: nothing while `id` is empty. */
-    readRun(id: MaybeRefOrGetter<string | null>) {
+    readRun(
+      id: MaybeRefOrGetter<string | null | undefined>,
+      options?: RunReadOptions,
+    ) {
       return useApiData<RunDetail>(() => {
         const value = toValue(id);
         return value ? runUrl(value) : null;
-      });
+      }, options);
     },
+    /** A run's log, read while `id` is set: nothing while it is empty. */
+    readLogs(
+      id: MaybeRefOrGetter<string | null | undefined>,
+      options?: RunReadOptions,
+    ) {
+      return useApiData<RunLog>(() => {
+        const value = toValue(id);
+        return value ? `${runUrl(value)}/logs` : null;
+      }, options);
+    },
+    /** One run, for the builder's lookups chained to a click or a write. */
     getRun(id: string): Promise<RunDetail> {
       return $authFetch<RunDetail>(runUrl(id));
-    },
-    getLogs(id: string): Promise<RunLog> {
-      return $authFetch<RunLog>(`${runUrl(id)}/logs`);
     },
     rerun(id: string): Promise<RerunResult> {
       return $authFetch<RerunResult>(`${runUrl(id)}/rerun`, {

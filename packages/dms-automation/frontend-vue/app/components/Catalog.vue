@@ -141,6 +141,13 @@ function load() {
 	void Promise.all([listRead.refresh(), usageRead.refresh()])
 }
 
+/** Shows a write at once: the catalog's data is replaced, never changed in place. */
+function replaceEntry(id: string, change: Partial<CatalogEntry>) {
+	const listed = listRead.data.value
+	if (!listed || props.kind === 'flow') return
+	listRead.data.value = (listed as CatalogEntry[]).map((entry) => (entry.id === id ? { ...entry, ...change } : entry))
+}
+
 /**
  * The heading an entry is listed under: its module (built-in first), and for
  * data nodes and flow blocks their category within it.
@@ -240,7 +247,7 @@ async function setEnabled(enabled: boolean) {
 			method: 'PUT',
 			body: { enabled },
 		})
-		entry.enabled = enabled
+		replaceEntry(entry.id, { enabled })
 		toast.add({
 			title: t(enabled ? 'dms_automation.library.enabledToast' : 'dms_automation.library.disabledToast', {
 				name: processI18n(entry.name),

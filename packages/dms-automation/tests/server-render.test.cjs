@@ -2,7 +2,12 @@ const assert = require("node:assert/strict");
 const Module = require("node:module");
 const path = require("node:path");
 const { describe, test } = require("node:test");
-const { FRONTEND, frontendRequire, component } = require("./frontend.cjs");
+const {
+  FRONTEND,
+  frontendRequire,
+  component,
+  fetchKey,
+} = require("./frontend.cjs");
 
 // What a server render of each page reads from the backend, and that it
 // hands the browser every response it read: a read the page does not hand
@@ -79,6 +84,7 @@ Object.assign(globalThis, {
         url,
         method: (options.method ?? "GET").toUpperCase(),
         query: options.query ?? {},
+        rawQuery: options.query,
       };
       reads.push(read);
       return backend(read);
@@ -134,22 +140,6 @@ function stub(name) {
 }
 const STUBBED = /^(Dms|U[A-Z]|I18nT)/;
 
-/** The requests the payload carries the responses of, by their key. */
-function transferredRequests(payload) {
-  return Object.keys({ ...payload.data, ...payload.errors })
-    .filter((key) => key.startsWith("$dmsfetch:"))
-    .map((key) => {
-      const [method, , url, query] = JSON.parse(key.slice("$dmsfetch:".length));
-      return { method, url, query: query ?? {} };
-    });
-}
-const queryKey = (query) =>
-  JSON.stringify(Object.entries(query).sort(([a], [b]) => a.localeCompare(b)));
-const sameRead = (a, b) =>
-  a.method === b.method &&
-  a.url === b.url &&
-  queryKey(a.query) === queryKey(b.query);
-
 /**
  * Renders `root` with `props` as a server renders the page `url`. `keyed`
  * names the reads handed over under a key of their own (a handler, the `key`
@@ -174,7 +164,6 @@ async function serverRender(root, props, options = {}) {
   const html = await renderToString(app);
   await new Promise((resolve) => setTimeout(resolve, options.settle ?? 50));
   const payload = engine.serializeDmsPayload(runtime);
-  const transferred = transferredRequests(payload);
   const keyed = Object.entries(options.keyed ?? {})
     .filter(([key]) => key in payload.data || key in payload.errors)
     .map(([, matches]) => matches);
@@ -185,7 +174,8 @@ async function serverRender(root, props, options = {}) {
     reads: made,
     untransferred: made.filter(
       (read) =>
-        !transferred.some((handed) => sameRead(read, handed)) &&
+        !(fetchKey(read) in payload.data) &&
+        !(fetchKey(read) in payload.errors) &&
         !keyed.some((matches) => matches(read)),
     ),
   };
@@ -305,6 +295,18 @@ function respond({ url, method }) {
       throw httpError(404);
     case "/runs/run-1":
       return run;
+    case "/runs/run-1/logs":
+      return {
+        entries: [
+          {
+            ts: 1,
+            seq: 0,
+            level: "error",
+            source: "executor",
+            message: "Refused connection",
+          },
+        ],
+      };
     case "/library/usage/triggers":
       return { "schedule.cron": [] };
     case "/library/webhook-base":
@@ -461,5 +463,67 @@ describe("run trace", () => {
     const render = await trace("gone");
     assert.deepEqual(render.untransferred, []);
     assert.match(render.html, /dms_automation\.trace\.notFound/);
+  });
+});
+
+describe("run drawer and log", () => {
+  test("reads the run of the row opened through useApiData, and hands it over", async () => {
+    const render = await serverRender(
+      component("RunPeek.vue"),
+      {
+        rowData: { _id: "run-1" },
+        apiUrl: API,
+        traceUrl: "/t",
+        builderUrl: "/b",
+      },
+      { respond },
+    );
+    assert.deepEqual(paths(render.reads), ["GET /runs/run-1"]);
+    assert.deepEqual(render.untransferred, []);
+    assert.match(render.html, /Failing call/);
+  });
+
+  test("says a run of the row does not exist", async () => {
+    const render = await serverRender(
+      component("RunPeek.vue"),
+      {
+        rowData: { _id: "gone" },
+        apiUrl: API,
+        traceUrl: "/t",
+        builderUrl: "/b",
+      },
+      { respond },
+    );
+    assert.deepEqual(render.untransferred, []);
+    assert.match(render.html, /dms_automation\.trace\.loadError/);
+  });
+
+  test("reads the log a run did not come with, and hands it over", async () => {
+    const render = await serverRender(
+      component("Run/RunLogList.vue"),
+      { apiUrl: API, runId: "run-1", names: new Map() },
+      { respond },
+    );
+    assert.deepEqual(paths(render.reads), ["GET /runs/run-1/logs"]);
+    assert.deepEqual(render.untransferred, []);
+    assert.match(render.html, /Refused connection/);
+  });
+});
+
+describe("run now dialog", () => {
+  test("reads the last payload only once opened", async () => {
+    const render = await serverRender(
+      component("Editor/RunNowDialog.vue"),
+      {
+        apiUrl: API,
+        procedureId: "p-echo",
+        procedureName: "Manual echo",
+        triggers: [{ nodeId: "manual-1", typeId: "manual", text: "Manual" }],
+        open: false,
+      },
+      { respond },
+    );
+    assert.deepEqual(render.reads, []);
+    assert.deepEqual(render.payload.data, {});
   });
 });

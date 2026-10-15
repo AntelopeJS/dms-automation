@@ -105,6 +105,14 @@ function loadList() {
 	void listRead.refresh()
 }
 
+/** Shows a write at once: the list's data is replaced, never changed in place. */
+function replaceListed(change: (rows: TemplateRow[]) => TemplateRow[]) {
+	const listed = listRead.data.value
+	if (!listed) return
+	const results = change(listed.results)
+	listRead.data.value = { results, total: Math.max(0, listed.total + results.length - listed.results.length) }
+}
+
 const sortedItems = computed(() => [...items.value].sort((a, b) => a.name.localeCompare(b.name)))
 // The template picked in this view, else the URL's (`?template=`).
 const picked = ref<string | null>(null)
@@ -232,8 +240,7 @@ async function onSave() {
 				subgraph: s.subgraph ?? { nodes: [], triggerEdges: [], dataEdges: [] },
 			},
 		})
-		const index = items.value.findIndex((x) => x._id === s._id)
-		if (index >= 0) items.value[index] = { ...s, ...updated, usageCount: s.usageCount }
+		replaceListed((rows) => rows.map((x) => (x._id === s._id ? { ...s, ...updated, usageCount: s.usageCount } : x)))
 		toast.add({ title: t('dms_automation.templates.saved', { name: updated.name }), color: 'success', icon: 'i-ph-check-circle' })
 	} catch (e) {
 		if (errorCode(e) === 'name-taken') {
@@ -288,11 +295,10 @@ async function onDelete() {
 		return
 	}
 	toast.add({ title: t('dms_automation.templates.deleted', { name: s.name }), color: 'success', icon: 'i-ph-check-circle' })
-	// Gone from the list at once (the detail moves to the first template);
-	// forking may have changed other templates' graphs and usage counts.
-	const listed = listRead.data.value
-	if (listed) listRead.data.value = { results: listed.results.filter((x) => x._id !== s._id), total: Math.max(0, listed.total - 1) }
-	void loadList()
+	// Gone from the list at once (the detail moves to the first template); the
+	// page's refresh on the templates topic reads the forked graphs and usage
+	// counts again.
+	replaceListed((rows) => rows.filter((x) => x._id !== s._id))
 }
 
 /** "1 procedure", "2 procedures and 1 template": who places the template. */

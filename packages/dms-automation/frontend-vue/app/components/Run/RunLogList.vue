@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { type LogEntry, type RunLog, useAutomationRuns } from '../../composables/useAutomationRuns'
 import { describeDuration, prettyJson, stepTitle, type StepName } from '../../utils/describe'
 
@@ -22,25 +22,12 @@ const { t } = useI18n()
 const runs = useAutomationRuns(props.apiUrl)
 const expanded = ref<Set<number>>(new Set())
 
-const fetched = ref<RunLog | null>(null)
-const loading = ref(false)
-const error = ref<string | null>(null)
-const log = computed(() => props.log ?? fetched.value)
-
-async function load() {
-	if (props.log) return
-	loading.value = true
-	try {
-		fetched.value = await runs.getLogs(props.runId)
-		error.value = null
-	} catch (e) {
-		error.value = describeApiError(e)
-	} finally {
-		loading.value = false
-	}
-}
-
-watch(() => props.runId, () => void load(), { immediate: true })
+// The log a run did not come with, read once the list shows it. A stored
+// run's log does not change: the page's refreshes leave it alone.
+const logRead = runs.readLogs(() => (props.log ? null : props.runId), { refreshOnPageRefresh: false })
+const log = computed(() => props.log ?? logRead.data.value)
+const loading = computed(() => !props.log && logRead.pending.value)
+const error = computed(() => (!props.log && logRead.error.value ? describeApiError(logRead.error.value) : null))
 
 const level = ref<'all' | 'problems' | 'errors'>('all')
 const stepMessagesOnly = ref(false)
