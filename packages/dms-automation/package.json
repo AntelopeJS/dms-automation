@@ -1,10 +1,23 @@
 {
   "name": "@antelopejs/dms-automation",
   "version": "0.4.0",
+  "description": "Visual automation builder for the AntelopeJS DMS: procedures as node graphs started by schedules, webhooks, manual runs or DMS events, with a trace for every run.",
+  "keywords": [
+    "antelopejs",
+    "automation",
+    "dms",
+    "dms-module",
+    "workflow"
+  ],
+  "homepage": "https://dms.antelopejs.com/docs/modules/automation",
+  "bugs": {
+    "url": "https://github.com/AntelopeJS/dms-automation/issues"
+  },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AntelopeJS/dms-automation.git"
+    "url": "git+https://github.com/AntelopeJS/dms-automation.git",
+    "directory": "packages/dms-automation"
   },
   "files": [
     "dist",

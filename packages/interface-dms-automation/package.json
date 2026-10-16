@@ -1,17 +1,22 @@
 {
   "name": "@antelopejs/interface-dms-automation",
   "version": "0.2.0",
-  "description": "AntelopeJS interface for the DMS automation module: declare trigger, action and data node types from any module",
+  "description": "AntelopeJS interface for the DMS automation module: declare trigger, action and data node types from any module.",
   "keywords": [
     "antelopejs",
     "automation",
     "dms",
     "interface"
   ],
+  "homepage": "https://dms.antelopejs.com/docs/modules/automation/extending",
+  "bugs": {
+    "url": "https://github.com/AntelopeJS/dms-automation/issues"
+  },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/AntelopeJS/dms-automation.git"
+    "url": "git+https://github.com/AntelopeJS/dms-automation.git",
+    "directory": "packages/interface-dms-automation"
   },
   "files": [
     "dist",
