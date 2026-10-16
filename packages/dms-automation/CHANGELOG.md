@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.4.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.3.1...v0.4.0)
+
+### 🚀 Enhancements
+
+- ⚠️  Migrate to DMS 0.9 and renderer 0.6 ([#49](https://github.com/AntelopeJS/dms-automation/pull/49))
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Migrate to DMS 0.9 and renderer 0.6 ([#49](https://github.com/AntelopeJS/dms-automation/pull/49))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.3.1
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.3.0...v0.3.1)
