@@ -71,7 +71,7 @@ The implementation is `@antelopejs/dms-automation >=0.4.0`. The interface declar
 
 | Package | Range |
 | --- | --- |
-| `@antelopejs/interface-core` | `>=0.1.1 <1.0.0` |
+| `@antelopejs/interface-core` | `>=0.2.4 <1.0.0` |
 
 `InvokeProcedure` and the `List*Types` functions reject when no implementation is loaded; check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core` to branch on availability instead.
 
