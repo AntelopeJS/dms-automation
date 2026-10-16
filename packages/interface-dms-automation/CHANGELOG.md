@@ -1,5 +1,51 @@
 # Changelog
 
+## v0.2.1
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.2.0...v0.2.1)
+
+### 🚀 Enhancements
+
+- ⚠️  Migrate to DMS 0.9 and renderer 0.6 ([#49](https://github.com/AntelopeJS/dms-automation/pull/49))
+
+### 🩹 Fixes
+
+- **pages:** Name row fields with {{row.X}} tokens for dms 0.8 ([#45](https://github.com/AntelopeJS/dms-automation/pull/45))
+
+### 💅 Refactors
+
+- **frontend:** Declare the builder's test payload read with the dock's reads ([#50](https://github.com/AntelopeJS/dms-automation/pull/50))
+
+### 📖 Documentation
+
+- Add user guide and module skill ([#46](https://github.com/AntelopeJS/dms-automation/pull/46))
+- Establish the automation consumer reference ([#51](https://github.com/AntelopeJS/dms-automation/pull/51))
+- Make dense guide sections easier to scan ([#52](https://github.com/AntelopeJS/dms-automation/pull/52))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/dms-automation v0.3.0 ([bb64ac2](https://github.com/AntelopeJS/dms-automation/commit/bb64ac2))
+- **release:** @antelopejs/dms-automation v0.3.1 ([0250727](https://github.com/AntelopeJS/dms-automation/commit/0250727))
+- **release:** @antelopejs/dms-automation v0.4.0 ([259ad87](https://github.com/AntelopeJS/dms-automation/commit/259ad87))
+- **interface:** Raise verified foundation dependency floors ([#53](https://github.com/AntelopeJS/dms-automation/pull/53))
+
+### ✅ Tests
+
+- **runs:** Expect the table display before the grouped one ([#43](https://github.com/AntelopeJS/dms-automation/pull/43))
+
+### 🤖 CI
+
+- Speed up pipeline ([#44](https://github.com/AntelopeJS/dms-automation/pull/44))
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Migrate to DMS 0.9 and renderer 0.6 ([#49](https://github.com/AntelopeJS/dms-automation/pull/49))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.2.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.1.1...v0.2.0)
