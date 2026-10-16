@@ -1,4 +1,3 @@
-import type { RegisteringProxy } from "@antelopejs/interface-core";
 import { GetResponsibleModule } from "@antelopejs/interface-core";
 import { internal } from "@antelopejs/interface-dms-automation";
 
@@ -28,12 +27,17 @@ interface ProxyRegistry {
   state?: { registered?: Map<string, ProxyRegistryEntry> };
 }
 
+type TypeProxy =
+  | typeof internal.RegisterTriggerType
+  | typeof internal.RegisterActionType
+  | typeof internal.RegisterDataNodeType;
+
 /**
  * Reads the proxy's registration bookkeeping for `id`, or undefined when the
  * internal shape no longer matches.
  */
 function registryEntry(
-  proxy: RegisteringProxy,
+  proxy: TypeProxy,
   id: string,
 ): ProxyRegistryEntry | undefined {
   // Reaching into an AntelopeJS internal: the runtime's registry is
@@ -61,7 +65,7 @@ export interface TypeOrigin {
   module?: string;
 }
 
-function originOf(proxy: RegisteringProxy, id: string): TypeOrigin {
+function originOf(proxy: TypeProxy, id: string): TypeOrigin {
   const module = registryEntry(proxy, id)?.module;
   return module === undefined || module === SELF_MODULE ? {} : { module };
 }
