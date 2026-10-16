@@ -1,139 +1,85 @@
+<div align="center">
+
 # @antelopejs/dms-automation
 
-<div align="center">
-<a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge&labelColor=000000"></a>
-<a href="https://discord.gg/sjK28QHrA7"><img src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000" alt="Discord"></a>
-<a href="https://antelopejs.com"><img src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000" alt="Documentation"></a>
+<a href="https://www.npmjs.com/package/@antelopejs/dms-automation"><img alt="npm" src="https://img.shields.io/npm/v/@antelopejs/dms-automation?style=for-the-badge&labelColor=000000&color=000000"></a>
+<a href="./LICENSE"><img alt="License" src="https://img.shields.io/npm/l/@antelopejs/dms-automation?style=for-the-badge&labelColor=000000&color=000000"></a>
+<a href="https://discord.gg/sjK28QHrA7"><img alt="Discord" src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000"></a>
+<a href="https://dms.antelopejs.com/docs/modules/automation"><img alt="Documentation" src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000"></a>
+
+The visual automation builder of the AntelopeJS DMS.
+
 </div>
 
-AntelopeJS DMS module that provides a visual automation builder under `/modules/automation`. Author procedures as node graphs (triggers, actions, data nodes), wire trigger and data edges, and run them in response to events such as cron schedules and webhooks.
+![The Automation builder: a webhook trigger, a condition and two log actions on the canvas](https://raw.githubusercontent.com/AntelopeJS/dms-automation/main/packages/dms-automation/docs/images/builder.png)
 
-It runs on `@antelopejs/dms` 0.9 (`@antelopejs/interface-dms` 0.7) and `@antelopejs/dms-frontend` 0.6: its pages read their data with the DMS's `useApiData`, which renders it on the server and hands it to the browser, and reads it again when the page refreshes. Webhook triggers are called on the API's public origin (`apiBaseUrl`), not through the frontend server.
+## What it does
 
-## Pages
+- Builds procedures as node graphs: triggers start a run, actions do the work, flow and data nodes branch, loop and shape values.
+- Starts procedures from schedules, webhooks, manual runs or DMS events such as a user registering or a record being created.
+- Keeps every run with its trace, shows where and why it failed, and re-runs it with its own payload.
+- Shows the health of every procedure, with KPIs over 24 hours, 7 days or 30 days.
+- Lets any module add its own nodes through [`@antelopejs/interface-dms-automation`](https://github.com/AntelopeJS/dms-automation/tree/main/packages/interface-dms-automation).
 
-| Page | What it shows |
-| --- | --- |
-| Overview | The health of every procedure in one line, KPIs over 24 h / 7 d / 30 d, what needs attention and why, the latest runs |
-| Run history | Every run grouped by day, with KPIs; one click opens a run in the side panel (failure, path taken, payload, log; J / K to step), re-runs with its own payload |
-| Run trace | One run, linkable (`/modules/automation/trace?run=<id>`): its steps on a time line, where and why it failed, compared with the last success |
-| Procedures | Every procedure with its state (failing, degraded, healthy, paused, draft), its last 12 runs, success rate and duration; import and new-procedure dialogs |
-| Builder | The graph editor: test runs of the draft overlaid on the canvas, problems mapped onto nodes, Run now with an editable payload |
-| Library | Triggers, actions, data nodes and templates, each with where it is used |
+## Install
 
-The pages are DMS blocks (KPI and chart cards, period selector, activity feed, table views with the grouped display and module cell displays) around a few module components, each named for the roles screen with `meta()`. Module pages are the platform owner's, like every DMS module, and so is the module's API.
-
-A procedure is **failing** when its last run failed, **degraded** when runs failed in the last 7 days but the last one succeeded, **healthy** otherwise; a disabled one is **paused**, and one that has no trigger, or was never enabled nor run, is a **draft**. Test runs from the builder are kept (they have a trace) but never count in these states or in any figure. A procedure whose trigger cannot be armed (an invalid schedule, a webhook path already taken) is **failing**, with the reason under its state.
-
-Webhooks are served by the API server, under the path set on the trigger. A path cannot overlap a route the server already serves, nor start with `/api`, `/auth`, `/dms`, `/modules` or `/settings`, and two enabled procedures cannot share the same method and path. A run keeps the request it received, with credentials replaced by `[redacted]` (see `runs.sensitiveNames`): a re-run therefore sends `[redacted]` in their place, and its confirmation says so. The library and the builder show each webhook's full URL on the DMS `apiBaseUrl`.
-
-## Configuration
-
-| Key | Default | |
-| --- | --- | --- |
-| `runs.retentionDays` | `30` | Days a run is kept; older runs are deleted every hour by the leader instance. `0` keeps every run. |
-| `runs.sensitiveNames` | `[]` | More header and query parameter names whose value is a credential, matched case-insensitively as part of the name. They are added to the built-in list (`Authorization`, `Cookie`, `*token*`, `*secret*`, `*signature*`, `*hmac*`, `*-key`…). A run stores, shows and replays these values as `[redacted]`. |
-| `httpRequest.blockPrivateNetwork` | `false` | Refuse HTTP requests to this server's network. See [HTTP request: private network](#http-request-private-network). |
-| `cluster.driver` | `auto` | See [Clustering](#clustering). |
-
-### HTTP request: private network
-
-The built-in **HTTP request** action can call any address the server can reach, including its own network. When procedures are built by people you do not fully trust, or when a URL can come from a webhook payload, turn on `blockPrivateNetwork`:
-
-```ts
-"dms-automation": {
-  config: {
-    httpRequest: { blockPrivateNetwork: true },
-  },
-},
-```
-
-The step then fails when the host resolves to a loopback (127.0.0.0/8, ::1), private (10/8, 172.16/12, 192.168/16, fc00::/7), carrier-grade NAT (100.64/10), link-local (169.254/16, fe80::/10, cloud metadata endpoints included), multicast or reserved address, or to a NAT64 address embedding one of them. Each redirect is checked too. DNS rebinding between the check and the connection is not covered. The option is off by default, so procedures that call services on the same machine or network keep working.
-
-Every request also has a timeout (`timeoutMs`, 30 seconds by default, at most 5 minutes, set per step), and a response larger than 2 MB is refused.
-
-## Vue frontend
-
-The module registers `frontend-vue` through `AddFrontendModule` with the Vue 3 renderer. `dms.frontend.ts` declares the `DmsAutomation` component prefix, registers the Automation components, and a universal plugin registering the `automation:last-runs` cell display of the procedures table. The trigger and failed-step cells use the DMS `two_line` display over texts the server composes (`src/runtime/wording.ts`). `dms.frontend.build.ts` lists the folders the layer auto-imports (`app/composables`, `app/utils`). The generated Inertia application discovers the English and French locale files, while the host DMS provides shared composables and UI components.
-
-The playground uses the published DMS and Inertia frontend packages. To build or typecheck the module frontend directly, first generate an Inertia workspace, set `DMS_FRONTEND_WORKSPACE` to its absolute path, then run:
+Run the AntelopeJS CLI from the root of a project that already loads `@antelopejs/dms`:
 
 ```bash
-pnpm --dir frontend-vue build
-pnpm --dir frontend-vue typecheck
+ajs project modules add @antelopejs/dms-automation
 ```
 
-`pnpm test:frontend-registration` checks backend registration and configuration without starting database services or automation triggers.
+## Quick start
 
-## Interface
+The module works without configuration. Restart the backend, then the frontend, and open **Modules → Automation**. The Overview offers three recipes to start from: **Forward a webhook**, **Send a scheduled digest** and **Run it on demand**.
 
-The public contract lives in a dedicated interface package,
-[`@antelopejs/interface-dms-automation`](https://github.com/AntelopeJS/dms-automation/tree/main/packages/interface-dms-automation),
-which this module `implements`. Any DMS module can declare its own automation nodes
-(triggers, actions, data nodes) by depending on the interface package only — never on
-this implementation module. Add it to `optionalDependencies` and call
-`RegisterTriggerType` / `RegisterActionType` / `RegisterDataNodeType`; when
-dms-automation is absent from the project the registrations are inert no-ops. See the
-interface package README for the full guide and examples.
+To add a node from your own module, depend on the interface and register it in `start()`:
 
-The builder's block palette groups each category by the module that registered its
-entries: the built-ins shipped with dms-automation come first, unlabeled, followed by
-one section per external module, labelled with the module's id as named in the
-project's `antelope.config.ts`.
+```ts
+import { RegisterActionType } from "@antelopejs/interface-dms-automation";
 
-The interface package is released before dms-automation because the latter depends on
-it. Both are published to npmjs from their own manually dispatched GitHub workflow:
-run `Release DMS automation interface` first, then `Release DMS automation module`,
-which refuses to run until the interface version its dependency range is floored at is
-resolvable on npmjs. Inside the workspace that same range resolves to the sibling
-package, through `link-workspace-packages`. Existing consumers of the old standalone interface must
-move to `@antelopejs/interface-dms-automation` and update their `implements` or
-optional-dependency wiring; no compatibility alias is provided.
+RegisterActionType({
+  id: "bakery.restock-order",
+  name: "Place restock order",
+  description: "Order an ingredient restock from a supplier",
+  icon: "i-lucide-shopping-cart",
+  inputSchema: { type: "object", properties: { ingredient: { type: "string" } } },
+  outputSchema: { type: "object", properties: { ordered: { type: "boolean" } } },
+  async execute(input, ctx) {
+    ctx.log("info", "placing restock order", input);
+    return { ordered: true };
+  },
+});
+```
 
-## Clustering
+## Compatibility
 
-By default dms-automation runs **standalone**: a single instance owns every trigger and there is nothing to configure.
+| Package | Version |
+| --- | --- |
+| `@antelopejs/dms` | `>=0.9.0 <1.0.0` |
+| `@antelopejs/interface-dms` | `>=0.7.0 <1.0.0` |
+| `@antelopejs/dms-frontend` (renderer) | `>=0.6.0 <0.7.0` |
+| `@antelopejs/interface-dms-automation` | `>=0.2.0 <0.3.0` |
+| API provider | `@antelopejs/api`, for webhooks |
+| Database | an `@antelopejs/interface-database` implementation |
 
-To run multiple instances against shared state, wire `@antelopejs/interface-redis` in the consuming project's `antelope.config.ts` and start more than one instance. With Redis available the module coordinates the instances automatically — no per-instance config needed.
+On DMS 0.8, use `@antelopejs/dms-automation` 0.3. Running several instances needs `@antelopejs/interface-redis`: see [Clustering](https://dms.antelopejs.com/docs/modules/automation/configuration#clustering).
 
-Mode resolution can be overridden with the optional `cluster.driver` config:
+## Documentation
 
-- `auto` (default) — use Redis if the `@antelopejs/interface-redis` interface is provided, otherwise run standalone.
-- `redis` — force clustered mode; if the interface is absent it logs a warning and falls back to standalone.
-- `memory` — force standalone mode even when Redis is wired.
+- [Introduction](https://dms.antelopejs.com/docs/modules/automation/introduction)
+- [Installation](https://dms.antelopejs.com/docs/modules/automation/installation)
+- [Configuration](https://dms.antelopejs.com/docs/modules/automation/configuration)
+- [Usage](https://dms.antelopejs.com/docs/modules/automation/usage/overview)
+- [Extending](https://dms.antelopejs.com/docs/modules/automation/extending)
+- [FAQ](https://dms.antelopejs.com/docs/modules/automation/faq)
 
-### Firing semantics
+The guide's sources live in [`packages/dms-automation/docs`](https://github.com/AntelopeJS/dms-automation/tree/main/packages/dms-automation/docs). The module ships the `dms-automation` Claude Code skill in [`packages/dms-automation/skills`](https://github.com/AntelopeJS/dms-automation/tree/main/packages/dms-automation/skills), declared under `antelopeJs.skills`.
 
-Each trigger type declares how it behaves across a cluster:
+## Contributing
 
-- **`singleton`** (e.g. cron) — must fire exactly once cluster-wide. Only the elected leader activates it; followers stay idle. Leadership is a renewable Redis lock, so if the leader stops another instance takes over.
-- **`replicated`** (e.g. webhook) — every instance activates it. The load balancer in front of the cluster already routes each incoming event to exactly one instance.
+This package lives in the [`AntelopeJS/dms-automation`](https://github.com/AntelopeJS/dms-automation) pnpm workspace, next to `@antelopejs/interface-dms-automation`. Read [CONTRIBUTING.md](https://github.com/AntelopeJS/dms-automation/blob/main/CONTRIBUTING.md) and the [repository README](https://github.com/AntelopeJS/dms-automation#contributing) for the development commands.
 
-Procedure and template edits made on one instance propagate to the others over Redis pub/sub, so every instance reconciles its active triggers without a restart.
+## License
 
-### Known limitations
-
-Leadership uses a TTL'd Redis lock, so singleton triggers are **fire-once under
-normal operation but not transactionally exactly-once** across leadership
-changes. If a singleton trigger must never run twice, make its downstream effect
-idempotent.
-
-- **Missed occurrence on ungraceful leader death.** If the leader process dies without releasing its lock, a cron occurrence that falls inside the takeover window (up to the lock TTL, ≤30s) is missed; firing resumes once a new leader is elected. (A graceful shutdown releases the lock immediately, so this only applies to crashes/kills.)
-- **Brief double-fire on handover.** When leadership moves, the new leader arms its singletons as soon as it acquires the lock, while the old leader only deactivates its copies on its next tick (≤ one tick interval) — or, for a stall/GC-pause longer than the lock TTL, after it notices it lost the lock. An occurrence landing in that overlap can fire on both. The window is bounded by the tick interval (and by the TTL for stalls), never unbounded.
-- **No timeout on Redis itself.** Leader renewal and pub/sub ride the shared Redis client; a Redis server that accepts connections but stops responding (no command timeout configured) can stall a renew. The leader tolerates transient errors up to the TTL before stepping down, so this degrades to the missed-occurrence case rather than a hang.
-- **Very slow promotion can self-evict.** When an instance wins the lock it activates its singletons before the renewal loop resumes; if that activation took longer than the lock TTL (≤30s) the lock could expire mid-promotion. Built-in trigger activation is sub-millisecond, so this only matters for a custom trigger whose `activate` blocks for tens of seconds — keep trigger `activate`/`deactivate` fast and non-blocking.
-
-## Breaking changes in 0.0.1
-
-This is the first release under the `@antelopejs` scope, renamed from the CMS
-product. Every identifier that carried the old name moved with it, and there is
-no compatibility path: a deployment is recreated from scratch, not migrated.
-
-- Database `cms-automation` -> `dms-automation`, schema `cms_automation` ->
-  `dms_automation`. Existing collections are invisible to this version.
-- Module config key `cmsAutomation` -> `dmsAutomation` in `antelope.config.ts`.
-- Frontend i18n namespace `cms-automation-<locale>` -> `dms-automation-<locale>`;
-  a host overriding those keys has to rename its own entries.
-- The contract lives in `@antelopejs/interface-dms-automation`, which this
-  module `implements`. Import it from there, never from the runtime package,
-  and note that `TriggerType` requires a `cluster` field.
+[Apache-2.0](./LICENSE)

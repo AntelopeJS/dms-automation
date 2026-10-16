@@ -1,178 +1,88 @@
+<div align="center">
+
 # @antelopejs/interface-dms-automation
 
-<div align="center">
-<a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge&labelColor=000000"></a>
-<a href="https://discord.gg/sjK28QHrA7"><img src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000" alt="Discord"></a>
-<a href="https://antelopejs.com"><img src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000" alt="Documentation"></a>
+<a href="https://www.npmjs.com/package/@antelopejs/interface-dms-automation"><img alt="npm" src="https://img.shields.io/npm/v/@antelopejs/interface-dms-automation?style=for-the-badge&labelColor=000000&color=000000"></a>
+<a href="./LICENSE"><img alt="License" src="https://img.shields.io/npm/l/@antelopejs/interface-dms-automation?style=for-the-badge&labelColor=000000&color=000000"></a>
+<a href="https://discord.gg/sjK28QHrA7"><img alt="Discord" src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000"></a>
+<a href="https://dms.antelopejs.com/docs/modules/automation/extending"><img alt="Documentation" src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000"></a>
+
+The AntelopeJS interface to add triggers, actions and data nodes to the DMS automation builder.
+
 </div>
 
-AntelopeJS interface for the DMS automation module. It lets **any module** declare
-automation node types — triggers, actions and data nodes — that become available in the
-automation procedure editor, without depending on the automation module implementation.
+## What it does
 
-The implementation is provided by
-[`@antelopejs/dms-automation`](https://github.com/AntelopeJS/dms-automation),
-which declares `implements: ["@antelopejs/interface-dms-automation"]`.
+- Declares trigger, action and data node types from any module: `RegisterTriggerType`, `RegisterActionType`, `RegisterDataNodeType` and their `Unregister*` counterparts.
+- Queues registrations made before the automation module attaches and replays them, so load order does not matter.
+- Lists the available node types (`ListTriggerTypes`, `ListActionTypes`, `ListDataNodeTypes`) and starts a procedure from code (`InvokeProcedure`).
+- Keeps your module independent of the implementation, [`@antelopejs/dms-automation`](https://www.npmjs.com/package/@antelopejs/dms-automation).
 
-## Installation
+## Install
+
+Add the interface to the module that declares nodes:
 
 ```bash
 pnpm add @antelopejs/interface-dms-automation
 ```
 
-- Put it in `dependencies` if your module **requires** the automation module to be
-  present in the project (project startup fails otherwise).
-- Put it in `optionalDependencies` if your module merely **offers** automation nodes:
-  when no module implements the interface, registrations are inert no-ops and your
-  module keeps working. This is the recommended setup for DMS modules that ship
-  nodes as a bonus feature.
+Move it to `optionalDependencies` when your nodes are a bonus: with no implementation loaded, the registrations are silent no-ops and your module keeps working. Keep it in `dependencies` when your module needs automation to run. Use a wide range, such as `>=0.2.0 <1.0.0`, so package managers can deduplicate.
 
-Use a wide range, `>=<floor> <1.0.0`, so package managers can deduplicate.
-`@antelopejs/dms-automation`, which implements this interface, is the exception:
-it caps its range below the next minor, so a breaking minor of this package never
-reaches an older automation module.
+## Quick start
 
-```json
-// package.json
-{
-  "optionalDependencies": {
-    "@antelopejs/interface-dms-automation": ">=0.0.1 <1.0.0"
-  }
-}
-```
-
-## Declaring nodes from a module
-
-Register node types at module `start()` (or any time — registrations made before the
-automation module attaches are queued and replayed automatically, so load order does
-not matter).
-
-### Action node
-
-An action is an async step in a procedure. `inputSchema` / `outputSchema` are JSON
-Schemas; they drive the editor's ports and validation.
+Register in `start()`, unregister in `stop()`:
 
 ```ts
 import { RegisterActionType, UnregisterActionType } from "@antelopejs/interface-dms-automation";
 
+const NOTIFY_ID = "my-module.notify";
+
 export function start(): void {
   RegisterActionType({
-    id: "my-module.notify",
+    id: NOTIFY_ID,
     name: "Send notification",
     description: "Send a notification to a user",
     icon: "i-lucide-bell",
     inputSchema: {
       type: "object",
-      properties: {
-        userId: { type: "string" },
-        message: { type: "string" },
-      },
+      properties: { userId: { type: "string" }, message: { type: "string" } },
       required: ["userId", "message"],
     },
-    outputSchema: {
-      type: "object",
-      properties: { delivered: { type: "boolean" } },
-    },
-    async execute(input: unknown, ctx) {
-      const { userId, message } = input as { userId: string; message: string };
-      ctx.log("info", `notifying ${userId}`);
-      // ... do the work ...
+    outputSchema: { type: "object", properties: { delivered: { type: "boolean" } } },
+    async execute(input, ctx) {
+      ctx.log("info", "notifying", input);
       return { delivered: true };
     },
   });
 }
 
 export function stop(): void {
-  UnregisterActionType("my-module.notify");
+  UnregisterActionType(NOTIFY_ID);
 }
 ```
 
-### Trigger node
+Triggers also take a `cluster` mode: `"singleton"` fires on the elected leader only (schedules), `"replicated"` on every instance (webhooks). Namespace node ids as `<module>.<node>` and keep schemas flat, one property per port.
 
-A trigger starts a procedure run. `cluster` is required and states the firing
-semantics in multi-instance deployments:
+## Compatibility
 
-- `"singleton"` — must fire exactly once cluster-wide; only the elected leader
-  activates it (e.g. cron).
-- `"replicated"` — every instance activates it; the load balancer already routes
-  each event to exactly one instance (e.g. webhook).
+| Package | Version |
+| --- | --- |
+| `@antelopejs/dms-automation` (implementation) | `>=0.4.0` |
+| `@antelopejs/interface-core` | `>=0.1.1 <1.0.0` |
 
-```ts
-import { RegisterTriggerType } from "@antelopejs/interface-dms-automation";
+`InvokeProcedure` and the `List*Types` functions reject when no implementation is loaded; check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core` to branch on availability instead.
 
-RegisterTriggerType({
-  id: "my-module.record-created",
-  name: "Record created",
-  description: "Fires when a record is created in my-module",
-  icon: "i-lucide-database",
-  cluster: "replicated",
-  configSchema: {
-    type: "object",
-    properties: { table: { type: "string" } },
-    required: ["table"],
-  },
-  outputSchema: {
-    type: "object",
-    properties: { id: { type: "string" } },
-  },
-  async activate(config: unknown, emit) {
-    const off = myEvents.on("created", (record) => emit({ id: record.id }));
-    return off; // opaque handle, given back to deactivate()
-  },
-  async deactivate(off: unknown) {
-    (off as () => void)();
-  },
-});
-```
+## Documentation
 
-### Data node
+- [Extending the automation module](https://dms.antelopejs.com/docs/modules/automation/extending): node kinds, required members, running a procedure from code
+- [Automation module guide](https://dms.antelopejs.com/docs/modules/automation)
 
-A data node is a pure, synchronous transformation used to wire values between nodes.
+The package also ships the `dms-automation-interface` Claude Code skill in [`skills/`](https://github.com/AntelopeJS/dms-automation/tree/main/packages/interface-dms-automation/skills), declared under `antelopeJs.skills`.
 
-```ts
-import { RegisterDataNodeType } from "@antelopejs/interface-dms-automation";
+## Contributing
 
-RegisterDataNodeType({
-  id: "my-module.slugify",
-  category: "String",
-  name: "Slugify",
-  description: "Turn a string into a URL-safe slug",
-  icon: "i-lucide-link",
-  inputSchema: {
-    type: "object",
-    properties: { value: { type: "string" } },
-    required: ["value"],
-  },
-  outputSchema: {
-    type: "object",
-    properties: { slug: { type: "string" } },
-  },
-  evaluate(input: unknown) {
-    const { value } = input as { value: string };
-    return { slug: value.toLowerCase().replace(/[^a-z0-9]+/g, "-") };
-  },
-});
-```
+This package lives in the [`AntelopeJS/dms-automation`](https://github.com/AntelopeJS/dms-automation) pnpm workspace, next to the module that implements it. Read [CONTRIBUTING.md](https://github.com/AntelopeJS/dms-automation/blob/main/CONTRIBUTING.md) and the [repository README](https://github.com/AntelopeJS/dms-automation#contributing) for the development commands. Release this package before the module that implements it.
 
-## Querying and invoking
+## License
 
-These interface functions require an implementation to be present; with no
-implementation the returned promise rejects (registrations, by contrast, are
-always safe to call).
-
-```ts
-import { InvokeProcedure, ListActionTypes } from "@antelopejs/interface-dms-automation";
-
-const actions = await ListActionTypes();
-const runId = await InvokeProcedure(procedureId, { some: "payload" });
-```
-
-To branch on availability instead of catching a rejection, check
-`GetInterfaceInstances("@antelopejs/interface-dms-automation")` from
-`@antelopejs/interface-core`.
-
-## Conventions
-
-- Namespace node ids with your module name: `"<module>.<node>"` (e.g. `dms.page-published`).
-- `icon` is an Iconify name rendered by the editor (e.g. `i-lucide-bell`).
-- Schemas are plain JSON Schema objects; keep them flat — one property per port.
+[Apache-2.0](./LICENSE)
