@@ -11,10 +11,9 @@ import { internal } from "@antelopejs/interface-dms-automation";
  * when the module unloads) but does not forward it to the register callback,
  * and it replays queued registrations from OUR stack once we attach — so the
  * callback can't recover the true caller. That leaves the proxy's private
- * `state.registered` map as the only complete source (interface-core keeps
- * every proxy's bookkeeping in a shared per-identity `state` object since
- * 0.0.11 — our peer range floors at 0.0.13, so that is the only shape we
- * target). The cast below is deliberately narrow and the access is fully
+ * `registered` map as the only complete source (interface-core 0.2.4 keeps
+ * the bookkeeping directly on the proxy instance, which is the shape our
+ * dependency floor targets). The cast below is deliberately narrow and the access is fully
  * defensive: if a future @antelopejs/interface-core moves the field again,
  * every lookup degrades to "no module" (a flat, ungrouped palette) instead of
  * throwing. `isOriginAttributionWorking` turns that silent degradation into a
@@ -24,7 +23,7 @@ interface ProxyRegistryEntry {
   module?: string;
 }
 interface ProxyRegistry {
-  state?: { registered?: Map<string, ProxyRegistryEntry> };
+  registered?: Map<string, ProxyRegistryEntry>;
 }
 
 type TypeProxy =
@@ -44,7 +43,7 @@ function registryEntry(
   // not on the public type, and the source and target do not overlap,
   // so a single assertion is not expressible.
   // oxlint-disable-next-line anti-slop/no-chained-type-assertions
-  return (proxy as unknown as ProxyRegistry).state?.registered?.get(id);
+  return (proxy as unknown as ProxyRegistry).registered?.get(id);
 }
 
 /**
