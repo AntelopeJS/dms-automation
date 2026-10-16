@@ -74,6 +74,7 @@ On DMS 0.8, use `@antelopejs/dms-automation` 0.3. Running several instances need
 
 ## Documentation
 
+- [Consumer reference](./packages/interface-dms-automation/docs/1.index.md)
 - [Introduction](https://dms.antelopejs.com/docs/modules/automation/introduction)
 - [Installation](https://dms.antelopejs.com/docs/modules/automation/installation)
 - [Configuration](https://dms.antelopejs.com/docs/modules/automation/configuration)

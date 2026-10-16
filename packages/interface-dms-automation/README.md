@@ -26,7 +26,7 @@ Add the interface to the module that declares nodes:
 pnpm add @antelopejs/interface-dms-automation
 ```
 
-Move it to `optionalDependencies` when your nodes are a bonus: with no implementation loaded, the registrations are silent no-ops and your module keeps working. Keep it in `dependencies` when your module needs automation to run. Use a wide range, such as `>=0.2.0 <1.0.0`, so package managers can deduplicate.
+Move it to `optionalDependencies` when your nodes are a bonus: with no implementation loaded, registrations wait for attachment and your module keeps working. Keep it in `dependencies` when your module needs automation to run. Use a wide range, such as `>=0.2.0 <1.0.0`, so package managers can deduplicate.
 
 ## Quick start
 
@@ -65,15 +65,19 @@ Triggers also take a `cluster` mode: `"singleton"` fires on the elected leader o
 
 ## Compatibility
 
-| Package | Version |
+The implementation is `@antelopejs/dms-automation >=0.4.0`. The interface declares this peer dependency:
+
+<!-- docs-compat: ./package.json#peerDependencies -->
+
+| Package | Range |
 | --- | --- |
-| `@antelopejs/dms-automation` (implementation) | `>=0.4.0` |
 | `@antelopejs/interface-core` | `>=0.1.1 <1.0.0` |
 
 `InvokeProcedure` and the `List*Types` functions reject when no implementation is loaded; check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core` to branch on availability instead.
 
 ## Documentation
 
+- [Consumer reference](./docs/1.index.md): node contracts, lifecycle, clustering, invocation and failures
 - [Extending the automation module](https://dms.antelopejs.com/docs/modules/automation/extending): node kinds, required members, running a procedure from code
 - [Automation module guide](https://dms.antelopejs.com/docs/modules/automation)
 
