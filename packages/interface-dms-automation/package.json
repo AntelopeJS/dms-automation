@@ -21,6 +21,7 @@
   "files": [
     "dist",
     "!dist/.tsbuildinfo",
+    "docs",
     "skills",
     "package.json",
     "README.md",
