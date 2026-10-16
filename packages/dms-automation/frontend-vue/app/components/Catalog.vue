@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import type { NodeKindEntry, PortRef } from '../composables/useAutomationNodeKinds'
 import type { JsonSchema } from '../composables/useGraphConnect'
 
@@ -84,11 +84,17 @@ const { confirm } = useConfirm()
 const route = useDmsRoute()
 const router = useDmsRouter()
 
-const entries = ref<CatalogEntry[]>([])
-const usage = ref<Record<string, TypeUsage[]>>({})
-const loading = ref(true)
-const error = ref<string | null>(null)
-const selectedId = ref<string | null>(null)
+// The catalog and where its entries are used, read with the page.
+const listRead = useApiData<CatalogEntry[] | NodeKindEntry[]>(`${props.apiUrl}/${ENDPOINTS[props.kind]}`)
+const usageRead = useApiData<Record<string, TypeUsage[]>>(`${props.apiUrl}/library/usage/${props.kind}`)
+const usage = computed(() => usageRead.data.value ?? {})
+const loading = computed(() => listRead.pending.value || usageRead.pending.value)
+const error = computed(() => {
+	const failure = listRead.error.value ?? usageRead.error.value
+	return failure ? describeApiError(failure) : null
+})
+// The entry picked in this view, else the URL's (`?item=`).
+const picked = ref<string | null>(null)
 const query = ref('')
 const saving = ref(false)
 const showAllUses = ref(false)
@@ -126,26 +132,21 @@ function queryItem(): string | null {
 	return typeof q === 'string' && q ? q : null
 }
 
-async function load() {
-	loading.value = true
-	try {
-		const [listed, uses] = await Promise.all([
-			$authFetch<CatalogEntry[] | NodeKindEntry[]>(`${props.apiUrl}/${ENDPOINTS[props.kind]}`),
-			$authFetch<Record<string, TypeUsage[]>>(`${props.apiUrl}/library/usage/${props.kind}`),
-		])
-		entries.value = props.kind === 'flow' ? flowEntries(listed as NodeKindEntry[]) : (listed as CatalogEntry[])
-		usage.value = uses
-		error.value = null
-		const wanted = selectedId.value ?? queryItem()
-		selectedId.value = entries.value.some((e) => e.id === wanted) ? wanted : (groups.value[0]?.[1][0]?.id ?? null)
-	} catch (e) {
-		error.value = describeApiError(e)
-	} finally {
-		loading.value = false
-	}
+const entries = computed<CatalogEntry[]>(() => {
+	const listed = listRead.data.value ?? []
+	return props.kind === 'flow' ? flowEntries(listed as NodeKindEntry[]) : (listed as CatalogEntry[])
+})
+
+function load() {
+	void Promise.all([listRead.refresh(), usageRead.refresh()])
 }
 
-onMounted(load)
+/** Shows a write at once: the catalog's data is replaced, never changed in place. */
+function replaceEntry(id: string, change: Partial<CatalogEntry>) {
+	const listed = listRead.data.value
+	if (!listed || props.kind === 'flow') return
+	listRead.data.value = (listed as CatalogEntry[]).map((entry) => (entry.id === id ? { ...entry, ...change } : entry))
+}
 
 /**
  * The heading an entry is listed under: its module (built-in first), and for
@@ -183,11 +184,17 @@ const groups = computed(() => {
 	return [...map.entries()].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
 })
 
+/** The entry whose detail is shown: the one picked, else the first listed. */
+const selectedId = computed<string | null>(() => {
+	const wanted = picked.value ?? queryItem()
+	return entries.value.some((e) => e.id === wanted) ? wanted : (groups.value[0]?.[1][0]?.id ?? null)
+})
+
 // A search hiding the picked entry moves the detail to the first one shown.
 watch(groups, (shown) => {
 	if (loading.value || shown.length === 0) return
 	if (!shown.some(([, items]) => items.some((e) => e.id === selectedId.value))) {
-		selectedId.value = shown[0]![1][0]!.id
+		picked.value = shown[0]![1][0]!.id
 	}
 })
 
@@ -200,7 +207,7 @@ watch(selectedId, (id) => {
 
 /** Below the two-column width the detail sits under the list: bring it into view. */
 async function select(id: string) {
-	selectedId.value = id
+	picked.value = id
 	await nextTick()
 	if (detail.value && list.value && detail.value.offsetTop > list.value.offsetTop) {
 		detail.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -240,7 +247,7 @@ async function setEnabled(enabled: boolean) {
 			method: 'PUT',
 			body: { enabled },
 		})
-		entry.enabled = enabled
+		replaceEntry(entry.id, { enabled })
 		toast.add({
 			title: t(enabled ? 'dms_automation.library.enabledToast' : 'dms_automation.library.disabledToast', {
 				name: processI18n(entry.name),

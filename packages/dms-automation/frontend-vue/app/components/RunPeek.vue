@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { builderRunUrl, opensInBuilder, type RunDetail, useAutomationRuns } from '../composables/useAutomationRuns'
 import { useRunActions } from '../composables/useRunActions'
 import { describeDateTime, describeDuration } from '../utils/describe'
@@ -22,25 +22,13 @@ const { dateTimeFormat } = useRegionalFormat()
 const runs = useAutomationRuns(props.apiUrl)
 const { rerun, rerunning } = useRunActions({ apiUrl: props.apiUrl, traceUrl: props.traceUrl })
 
-const run = ref<RunDetail | null>(null)
-const loading = ref(true)
-const error = ref<string | null>(null)
+// The run of the row opened, read once the drawer shows it. A run does not
+// change once stored: the live page's refreshes leave it alone.
+const runRead = runs.readRun(() => props.rowData?._id, { refreshOnPageRefresh: false })
+const run = computed<RunDetail | null>(() => runRead.data.value)
+const loading = computed(() => runRead.pending.value)
+const error = computed(() => (runRead.error.value ? describeApiError(runRead.error.value) : null))
 const section = ref<'summary' | 'payload' | 'logs'>('summary')
-
-async function load(id: string | undefined) {
-	if (!id) return
-	loading.value = true
-	try {
-		run.value = await runs.getRun(id)
-		error.value = null
-	} catch (e) {
-		error.value = describeApiError(e)
-	} finally {
-		loading.value = false
-	}
-}
-
-watch(() => props.rowData?._id, (id) => void load(id), { immediate: true })
 
 const failed = computed(() => run.value?.status === 'failed')
 const procedureName = computed(

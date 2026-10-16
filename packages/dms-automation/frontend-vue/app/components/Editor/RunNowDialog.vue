@@ -23,7 +23,6 @@ const { t } = useI18n()
 const triggerNodeId = ref<string | undefined>(undefined)
 const payload = ref('{}')
 const source = ref<string | null>(null)
-const loadingPayload = ref(false)
 const submitting = ref(false)
 const PAYLOAD_ID = 'run-now-payload'
 const ROW = { layout: 'stack', spacing: 'list', inset: false } as const
@@ -37,33 +36,43 @@ const triggerItems = computed(() =>
 	props.triggers.map((trigger) => ({ label: processText(trigger.text), value: trigger.nodeId ?? '' })),
 )
 
-async function loadPayload() {
-	loadingPayload.value = true
-	try {
-		const query = triggerNodeId.value ? `?triggerNodeId=${encodeURIComponent(triggerNodeId.value)}` : ''
-		const res = await $authFetch<{ last: { runId: string; payload: unknown } | null }>(
-			`${props.apiUrl}/procedures/${props.procedureId}/last-payload${query}`,
-		)
-		payload.value = JSON.stringify(res.last?.payload ?? {}, null, 2)
-		source.value = res.last?.runId ?? null
-	} catch {
-		payload.value = '{}'
-		source.value = null
-	} finally {
-		loadingPayload.value = false
-	}
+interface LastPayload {
+	last: { runId: string; payload: unknown } | null
 }
+
+// The last real payload of the trigger picked, read once the dialog opens and
+// again when another trigger is picked. Under a key of its own, apart from the
+// builder dock's read of the same URL: each copies its answers into its own
+// editable field. The page's refreshes leave the draft payload alone.
+const lastPayloadRead = useApiData<LastPayload>(
+	() => `dms-automation-run-now-payload:${props.procedureId}:${triggerNodeId.value ?? ''}`,
+	({ $authFetch, signal }) =>
+		$authFetch<LastPayload>(`${props.apiUrl}/procedures/${props.procedureId}/last-payload`, {
+			query: triggerNodeId.value ? { triggerNodeId: triggerNodeId.value } : {},
+			signal,
+		}),
+	{ immediate: false, refreshOnPageRefresh: false },
+)
+const loadingPayload = computed(() => lastPayloadRead.pending.value)
+
+// Each answer, or failure, fills the payload in.
+watch(
+	() => lastPayloadRead.status.value,
+	(status) => {
+		if (status !== 'success' && status !== 'error') return
+		const last = status === 'error' ? null : (lastPayloadRead.data.value?.last ?? null)
+		payload.value = JSON.stringify(last?.payload ?? {}, null, 2)
+		source.value = last?.runId ?? null
+	},
+)
 
 watch(open, (isOpen) => {
 	if (!isOpen) return
 	fieldErrors.clear()
 	triggerNodeId.value = props.triggers.find((tr) => tr.typeId === 'manual')?.nodeId ?? props.triggers[0]?.nodeId
-	void loadPayload()
+	void lastPayloadRead.execute()
 })
 watch(payload, () => fieldErrors.clear('payload'))
-watch(triggerNodeId, () => {
-	if (open.value) void loadPayload()
-})
 
 async function submit() {
 	let body: unknown

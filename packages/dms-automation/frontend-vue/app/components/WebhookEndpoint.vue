@@ -1,21 +1,16 @@
-<script lang="ts">
-interface WebhookBase {
-	url: string
-	configured: boolean
-}
-
-// Every endpoint shown is on the same origin: it is asked for once.
-let baseRequest: Promise<WebhookBase | null> | undefined
-</script>
-
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 
 // The full URL a webhook trigger is called on — the API server's public
 // origin and the trigger's path — with a copy button, and a curl example.
 // `compact` keeps the URL and its copy button only, for a line in a list.
 // Until the origin is known, or if it can't be, no URL is offered to copy:
 // the path alone would be a wrong address to hand to another service.
+
+interface WebhookBase {
+	url: string
+	configured: boolean
+}
 
 const props = withDefaults(
 	defineProps<{
@@ -27,19 +22,14 @@ const props = withDefaults(
 	{ method: 'POST', apiUrl: '/api/automation', compact: false },
 )
 
-const { $authFetch } = useAuthFetch()
-
-const base = ref<WebhookBase | null>(null)
-const status = ref<'loading' | 'ready' | 'error'>('loading')
-
-onMounted(async () => {
-	baseRequest ??= $authFetch<WebhookBase>(`${props.apiUrl}/library/webhook-base`).catch(() => {
-		baseRequest = undefined
-		return null
-	})
-	base.value = await baseRequest
-	status.value = base.value ? 'ready' : 'error'
-})
+// Every endpoint shown is on the same origin: the endpoints of a page share
+// one read, made with the page.
+const baseRead = useApiData<WebhookBase>(`${props.apiUrl}/library/webhook-base`)
+const base = computed(() => baseRead.data.value)
+// A failure kept while it is tried again still shows the skeleton.
+const status = computed<'loading' | 'ready' | 'error'>(() =>
+	base.value ? 'ready' : baseRead.error.value && baseRead.status.value !== 'pending' ? 'error' : 'loading',
+)
 
 const url = computed(() => `${base.value?.url ?? ''}${props.path}`)
 const method = computed(() => (props.method || 'POST').toUpperCase())
