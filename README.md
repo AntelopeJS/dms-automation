@@ -86,11 +86,10 @@ The guide's sources live in [`packages/dms-automation/docs`](./packages/dms-auto
 
 ## Contributing
 
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request. The root holds the shared tooling only; `frontend-vue` and `playground` are separate projects with their own lockfiles.
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request. One root install covers the shared tooling, backend, interface and Vue development dependencies, retaining each project's lockfile. The playground remains independent and needs its own install. Root build and typecheck commands cover only the backend and interface; frontend checks require the generated Inertia workspace described below.
 
 ```bash
 pnpm install
-pnpm --dir packages/dms-automation/frontend-vue install
 pnpm --dir packages/dms-automation/playground install --ignore-workspace
 pnpm build                                        # interface first, then the module
 pnpm --dir packages/dms-automation dev            # playground backend

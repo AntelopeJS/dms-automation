@@ -32,16 +32,15 @@ jobs:
           # read a TypeScript config, which every value there clears.
           node-version-file: .nvmrc
           cache: pnpm
-          # frontend-vue is its own project with its own lockfile; without it
-          # the cache key ignores half of what the job installs.
+          # Each workspace project retains its own dependency resolutions.
           cache-dependency-path: |
             pnpm-lock.yaml
-            packages/dms-automation/frontend-vue/pnpm-lock.yaml
+            packages/*/pnpm-lock.yaml
+            packages/*/frontend-vue/pnpm-lock.yaml
 
       # The whole workspace, root included: the shared oxlint, oxfmt and
       # TypeScript configs live there and the packages extend them.
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --dir packages/dms-automation/frontend-vue install --frozen-lockfile
 
       # Interface first: it is the contract, and the module builds against it.
       - run: pnpm --dir packages/interface-dms-automation lint
