@@ -1,8 +1,12 @@
 import type {
   ActionType,
   DataNodeType,
+  DeclaredProcedure,
+  ProcedureDeclaration,
   TriggerType,
 } from "@antelopejs/interface-dms-automation";
+import { declareProcedure } from "../../runtime/declaredProcedures";
+import { whenStarted } from "../../runtime/readiness";
 import { registry } from "../../runtime/registry";
 import { subscriptions } from "../../runtime/subscriptions";
 
@@ -57,4 +61,11 @@ export async function InvokeProcedure(
   payload?: unknown,
 ): Promise<string> {
   return subscriptions.invokeManual(id, payload);
+}
+
+export async function DeclareProcedure(
+  declaration: ProcedureDeclaration,
+): Promise<DeclaredProcedure> {
+  await whenStarted();
+  return declareProcedure(declaration);
 }
