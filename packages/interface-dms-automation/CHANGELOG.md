@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.3.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.2.1...v0.3.0)
+
+### 🚀 Enhancements
+
+- Declare and run procedures from code, and survive module reloads ([#56](https://github.com/AntelopeJS/dms-automation/pull/56))
+
+### 📦 Build
+
+- Install frontend development dependencies from the root ([#54](https://github.com/AntelopeJS/dms-automation/pull/54))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/dms-automation v0.4.1 ([4eba7c6](https://github.com/AntelopeJS/dms-automation/commit/4eba7c6))
+
+### ❤️ Contributors
+
+- Maxime Westhoven ([@mwesto](http://github.com/mwesto))
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.2.1
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.2.0...v0.2.1)
