@@ -39,6 +39,7 @@ import { withTimeout } from "./withTimeout";
 
 interface HandleEntry {
   handle: unknown;
+  type: TriggerType;
   typeId: string;
   configHash: string;
   procedureId: string;
@@ -139,17 +140,12 @@ const TRIGGER_OP_TIMEOUT_MS = 10_000;
 
 // Tear down one trigger handle, bounded so a misbehaving deactivate can't wedge
 // the caller. Returns whether teardown succeeded; callers decide whether to drop
-// the handle or keep it for retry. An unregistered type has nothing to call, so
-// it counts as torn down.
-async function tryDeactivate(
-  k: string,
-  entry: HandleEntry,
-  triggerType = registry.getTrigger(entry.typeId),
-): Promise<boolean> {
-  if (!triggerType) return true;
+// the handle or keep it for retry. Keep the definition that created EACH handle:
+// a reload can replace the registry entry while another activation is awaiting.
+async function tryDeactivate(k: string, entry: HandleEntry): Promise<boolean> {
   try {
     await withTimeout(
-      triggerType.deactivate(entry.handle),
+      entry.type.deactivate(entry.handle),
       TRIGGER_OP_TIMEOUT_MS,
       `deactivate ${entry.typeId} for ${k}`,
     );
@@ -296,6 +292,7 @@ async function activateNewHandles(
       const handle = await activateTrigger(triggerType, meta.config, k);
       handles.set(k, {
         handle,
+        type: triggerType,
         typeId: meta.typeId,
         configHash: configHashOf(meta.config),
         procedureId: meta.procedure._id,
@@ -582,19 +579,16 @@ export const subscriptions = {
     requestReconcile(`trigger type "${typeId}" registered`);
   },
   /**
-   * A trigger type was unregistered: tear down its handles with `type`, the
-   * definition that armed them (the registry no longer holds it, or already
-   * holds its replacement), then reconcile so its procedures report it gone,
-   * or re-arm with the replacement.
+   * A trigger type was unregistered: tear down each handle with its own
+   * definition, then reconcile so its procedures report it gone, or re-arm
+   * with the replacement. A pass already running can have armed handles from
+   * both definitions before this queued teardown starts.
    */
-  async onTriggerTypeUnregistered(
-    typeId: string,
-    type: TriggerType | undefined,
-  ): Promise<void> {
+  async onTriggerTypeUnregistered(typeId: string): Promise<void> {
     await reconciles.run(async () => {
       for (const [k, entry] of handles) {
         if (entry.typeId !== typeId) continue;
-        await tryDeactivate(k, entry, type); // force teardown: drop regardless of result
+        await tryDeactivate(k, entry); // force teardown: drop regardless of result
         handles.delete(k);
         liveMeta.delete(k);
       }

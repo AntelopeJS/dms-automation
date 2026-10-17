@@ -134,3 +134,33 @@ test("a late trigger type arms its procedures, and a reload re-arms them", async
 
   await subscriptions._deactivateAll();
 });
+
+test("a reload during activation releases each definition's own handles", async (t) => {
+  t.after(async () => {
+    await subscriptions._deactivateAll();
+    internal.RegisterTriggerType.unregister(TYPE_ID);
+  });
+  const first = recordingType();
+  const second = recordingType();
+  const entered = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const activate = first.activate.bind(first);
+  first.activate = async () => {
+    entered.resolve();
+    await release.promise;
+    return activate();
+  };
+  internal.RegisterTriggerType.register(TYPE_ID, first);
+  const boot = subscriptions.hydrate();
+  await entered.promise;
+  internal.RegisterTriggerType.unregister(TYPE_ID);
+  internal.RegisterTriggerType.register(TYPE_ID, second);
+  release.resolve();
+  await boot;
+  // Wait behind the queued reload before observing the resulting subscriptions.
+  await subscriptions.onProcedureChange();
+  assert.equal(first.armed.size, 0);
+  assert.equal(second.armed.size, 2);
+  await subscriptions._deactivateAll();
+  assert.equal(second.armed.size, 0);
+});

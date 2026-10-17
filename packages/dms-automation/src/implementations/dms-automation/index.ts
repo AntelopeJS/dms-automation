@@ -17,11 +17,9 @@ export namespace internal {
       subscriptions.onTriggerTypeRegistered(id);
     },
     unregister: (id: string): void => {
-      // Best-effort deactivate any live handles using this type, with the
-      // definition that armed them: the registry forgets it right away.
-      const type = registry.getTrigger(id);
+      // Each live handle retains its own definition for queued teardown.
       registry.removeTrigger(id);
-      void subscriptions.onTriggerTypeUnregistered(id, type);
+      void subscriptions.onTriggerTypeUnregistered(id);
     },
   };
 
