@@ -63,7 +63,7 @@ nodeKinds.register("forRange", execute, {
   continuationPorts: ["main"],
   sidePorts: ["body"],
   ui: {
-    label: "For range",
+    label: "$dms_automation.nodes.kinds.forRange",
     icon: "i-ph-arrow-clockwise",
     category: "flow",
     hasTriggerIn: true,

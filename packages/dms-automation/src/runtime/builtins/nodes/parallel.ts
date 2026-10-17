@@ -36,7 +36,7 @@ nodeKinds.register("parallel", execute, {
   continuationPorts: ["main"],
   sidePorts: [],
   ui: {
-    label: "Parallel",
+    label: "$dms_automation.nodes.kinds.parallel",
     icon: "i-ph-flow-arrow",
     category: "flow",
     hasTriggerIn: true,

@@ -222,7 +222,8 @@ function issueOf(id: string): NodeIssue | null {
 function dataFor(node: AppGraphNode) {
 	const spec = nodeKindUiByKind.value.get(node.kind)
 	if (spec) {
-		let label = spec.label
+		// Kind labels may be `$`-prefixed i18n keys too.
+		let label = processI18n(spec.label)
 		let icon = spec.icon
 		let category: string | undefined
 		let dataIns = [...spec.staticDataIns]
