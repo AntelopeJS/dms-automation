@@ -2,9 +2,9 @@
   "name": "dms-automation-workspace",
   "private": true,
   "scripts": {
-    "build": "pnpm --filter './packages/*' -r build",
-    "typecheck": "pnpm --filter './packages/*' -r typecheck",
-    "knip": "pnpm --filter './packages/*' -r knip",
+    "build": "pnpm --filter \"./packages/*\" -r build",
+    "typecheck": "pnpm --filter \"./packages/*\" -r typecheck",
+    "knip": "pnpm --filter \"./packages/*\" -r knip",
     "lint": "oxlint && oxfmt --check . && pnpm --dir packages/dms-automation/frontend-vue lint",
     "lint:fix": "oxlint --fix --max-warnings=1000000 && oxfmt . && pnpm --dir packages/dms-automation/frontend-vue lint:fix",
     "format": "oxfmt ."
