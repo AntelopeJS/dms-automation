@@ -29,6 +29,7 @@ Runs procedures: a trigger starts a run, actions run along trigger edges, data n
 - Data-change triggers on a project's own tables: `database.table-watch` from `@antelopejs/dms-database` (`schema` = the `RegisterSchema` id, `table`). It needs a change feed: MongoDB **replica set** only (single node `--replSet rs0` + `rs.initiate()` + `replicaSet=rs0` in the URL); on a standalone server the procedure is Failing with "$changeStream is only supported on replica sets".
 - A trigger type registered after the module armed its procedures (start order, hot reload) arms them on registration; "not available" that lasts means the registering module is not loaded.
 - A module stopping or hot-reloading has its triggers torn down as its types are unregistered (no `ModuleContextInvalidatedError`); a run on its steps ends `cancelled`, not `failed`, and health figures ignore cancelled runs.
+- From backend code, `InvokeProcedure` needs a manual trigger node; `RunProcedure(id, { payload?, triggerNodeId? })` runs any procedure (cron-only, webhook-only…) as the builder's Run now and resolves to `{ runId, status, errorMessage? }`.
 - In a Redis cluster, singleton triggers (cron, table watch) are fire-once, not exactly-once: make their effects idempotent.
 - Keep credentials out of graphs: every builder user sees them.
 - Turn on `blockPrivateNetwork` when untrusted people build procedures or URLs come from payloads.

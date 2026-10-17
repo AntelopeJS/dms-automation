@@ -206,11 +206,46 @@ export interface DeclaredProcedure {
   issues: ProcedureIssue[];
 }
 
+/**
+ * How a run ended. `cancelled`: a module one of its steps belongs to went
+ * away while it ran (a stop, a hot reload).
+ */
+export type ProcedureRunStatus = "ok" | "failed" | "cancelled";
+
+export interface RunProcedureOptions {
+  /**
+   * What the trigger hands the graph. Left out, the last payload that
+   * trigger received in a stored run, else `{}`: Run now's default.
+   */
+  payload?: unknown;
+  /** The trigger node to start from: the manual one, else the first, by default. */
+  triggerNodeId?: string;
+}
+
+/** A run `RunProcedure` started, once it is stored. */
+export interface ProcedureRunOutcome {
+  runId: string;
+  status: ProcedureRunStatus;
+  /** Why the run failed or was cancelled. */
+  errorMessage?: string;
+}
+
 export const ListTriggerTypes = InterfaceFunction<() => TriggerType[]>();
 export const ListActionTypes = InterfaceFunction<() => ActionType[]>();
 export const ListDataNodeTypes = InterfaceFunction<() => DataNodeType[]>();
 export const InvokeProcedure =
   InterfaceFunction<(id: string, payload?: unknown) => Promise<string>>();
+/**
+ * Run a saved procedure now, from any of its triggers (a schedule, a
+ * webhook, a manual one…), as "Run now" in the builder does: a graph with
+ * blocking issues is refused, and the payload defaults to the trigger's last
+ * one. Resolves once the run is stored. Waits until the automation module
+ * has started.
+ */
+export const RunProcedure =
+  InterfaceFunction<
+    (id: string, options?: RunProcedureOptions) => Promise<ProcedureRunOutcome>
+  >();
 /**
  * Create or refresh a procedure shipped as code, keyed by `declaration.id`.
  * Safe to call on every boot: the procedure is created once, refreshed only

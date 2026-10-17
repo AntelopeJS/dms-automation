@@ -1,6 +1,6 @@
 ---
 name: dms-automation-interface
-description: Provides the AntelopeJS DMS automation interface for declaring trigger, action and data node types from any module, shipping procedures as code, listing node types and invoking procedures. Use when importing "@antelopejs/interface-dms-automation", when adding automation nodes to the DMS procedure editor, when a module or project must create procedures at startup (demo content, templates), or when working with RegisterTriggerType, RegisterActionType, RegisterDataNodeType, DeclareProcedure, ListTriggerTypes, ListActionTypes, ListDataNodeTypes, InvokeProcedure, TriggerType, ActionType, DataNodeType, ProcedureGraph or ExecutionCtx.
+description: Provides the AntelopeJS DMS automation interface for declaring trigger, action and data node types from any module, shipping procedures as code, listing node types and invoking procedures. Use when importing "@antelopejs/interface-dms-automation", when adding automation nodes to the DMS procedure editor, when a module or project must create procedures at startup (demo content, templates), or when working with RegisterTriggerType, RegisterActionType, RegisterDataNodeType, DeclareProcedure, ListTriggerTypes, ListActionTypes, ListDataNodeTypes, InvokeProcedure, RunProcedure, TriggerType, ActionType, DataNodeType, ProcedureGraph or ExecutionCtx.
 icon: i-lucide-workflow
 category: antelopejs-interface
 tags: [antelopejs, dms, automation, workflow, interface]
@@ -29,9 +29,12 @@ import {
   ListActionTypes,
   ListDataNodeTypes,
   InvokeProcedure,
+  RunProcedure,
   DeclareProcedure,
   type ProcedureDeclaration,
   type DeclaredProcedure,
+  type ProcedureRunOutcome,
+  type RunProcedureOptions,
   type ProcedureGraph,
   type TriggerType,
   type ActionType,
@@ -80,7 +83,17 @@ invoking:
 ```ts
 const actions = await ListActionTypes();
 const runId = await InvokeProcedure(procedureId, { some: "payload" });
+// Any procedure, whatever its triggers (a schedule, a webhook…), as "Run now":
+const { runId: id, status } = await RunProcedure(procedureId, { payload });
 ```
+
+`InvokeProcedure` needs a manual trigger node and resolves to the run id.
+`RunProcedure(id, { payload?, triggerNodeId? })` runs from the trigger named,
+else the manual one, else the first; without `payload` it replays that
+trigger's last stored payload (or `{}`); it refuses a graph with blocking
+issues and resolves to `{ runId, status: "ok" | "failed" | "cancelled",
+errorMessage? }`. It also runs a paused procedure, as the builder's Run now
+does, and waits for the automation module to start.
 
 ## Shipping procedures as code
 
@@ -118,8 +131,8 @@ const declared = await DeclareProcedure({
 - Dependency placement: put the interface in `dependencies` only if your module
   requires the automation module to be present; use `optionalDependencies` if it
   merely offers nodes as a bonus (registrations become no-ops when unimplemented).
-- `ListTriggerTypes` / `ListActionTypes` / `ListDataNodeTypes` / `InvokeProcedure`
-  reject without an implementation — wrap in try/catch to branch on availability.
+- `ListTriggerTypes` / `ListActionTypes` / `ListDataNodeTypes` / `InvokeProcedure` /
+  `RunProcedure` reject without an implementation — wrap in try/catch to branch on availability.
   (`GetInterfaceInstances` from `@antelopejs/interface-core` only reports
   connections for interfaces declared in `dependencies` or wired via
   `importOverrides`; with the recommended `optionalDependencies` setup it returns
