@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.4.1
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.4.0...v0.4.1)
+
+### 💅 Refactors
+
+- **frontend:** Declare the builder's test payload read with the dock's reads ([#50](https://github.com/AntelopeJS/dms-automation/pull/50))
+
+### 📖 Documentation
+
+- Add user guide and module skill ([#46](https://github.com/AntelopeJS/dms-automation/pull/46))
+- Establish the automation consumer reference ([#51](https://github.com/AntelopeJS/dms-automation/pull/51))
+- Make dense guide sections easier to scan ([#52](https://github.com/AntelopeJS/dms-automation/pull/52))
+
+### 🏡 Chore
+
+- **interface:** Raise verified foundation dependency floors ([#53](https://github.com/AntelopeJS/dms-automation/pull/53))
+- **release:** @antelopejs/interface-dms-automation v0.2.1 ([4da6c69](https://github.com/AntelopeJS/dms-automation/commit/4da6c69))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.4.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.3.1...v0.4.0)
