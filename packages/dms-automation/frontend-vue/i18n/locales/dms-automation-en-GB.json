@@ -593,6 +593,20 @@
         "group": "Group",
         "helper": "Helper",
         "trigger": "Trigger"
+      },
+      "kinds": {
+        "action": "Action",
+        "data": "Data",
+        "delay": "Delay",
+        "foreach": "For each",
+        "forRange": "For range",
+        "if": "If",
+        "parallel": "Parallel",
+        "retry": "Retry",
+        "setVariable": "Set variable",
+        "switch": "Switch",
+        "trigger": "Trigger",
+        "tryCatch": "Try / Catch"
       }
     },
     "overview": {

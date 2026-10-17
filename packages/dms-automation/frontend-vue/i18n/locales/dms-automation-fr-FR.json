@@ -593,6 +593,20 @@
         "group": "Groupe",
         "helper": "Utilitaire",
         "trigger": "Déclencheur"
+      },
+      "kinds": {
+        "action": "Action",
+        "data": "Donnée",
+        "delay": "Attente",
+        "foreach": "Pour chaque",
+        "forRange": "Pour un intervalle",
+        "if": "Si",
+        "parallel": "En parallèle",
+        "retry": "Réessayer",
+        "setVariable": "Définir une variable",
+        "switch": "Selon",
+        "trigger": "Déclencheur",
+        "tryCatch": "Essayer / En cas d’erreur"
       }
     },
     "overview": {

@@ -28,7 +28,7 @@ nodeKinds.register("delay", execute, {
   continuationPorts: ["main"],
   sidePorts: [],
   ui: {
-    label: "Delay",
+    label: "$dms_automation.nodes.kinds.delay",
     icon: "i-ph-clock",
     category: "helper",
     hasTriggerIn: true,

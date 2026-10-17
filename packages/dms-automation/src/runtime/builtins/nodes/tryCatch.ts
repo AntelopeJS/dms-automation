@@ -26,7 +26,7 @@ nodeKinds.register("tryCatch", execute, {
   continuationPorts: ["main"],
   sidePorts: ["try", "catch"],
   ui: {
-    label: "Try / Catch",
+    label: "$dms_automation.nodes.kinds.tryCatch",
     icon: "i-ph-shield-warning",
     category: "flow",
     hasTriggerIn: true,
