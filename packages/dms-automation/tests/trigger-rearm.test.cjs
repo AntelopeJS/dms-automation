@@ -14,6 +14,9 @@ Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
 
 const { ProcedureModel } = require("../dist/db/models/procedure.model.js");
 const {
+  ProcedureRunModel,
+} = require("../dist/db/models/procedure_run.model.js");
+const {
   AutomationTemplateModel,
 } = require("../dist/db/models/automation_template.model.js");
 const { TypeSwitchModel } = require("../dist/db/models/type_switch.model.js");
@@ -163,4 +166,62 @@ test("a reload during activation releases each definition's own handles", async 
   assert.equal(second.armed.size, 2);
   await subscriptions._deactivateAll();
   assert.equal(second.armed.size, 0);
+});
+
+test("retrying a committed declaration after a read failure arms it without rewriting it", async (t) => {
+  t.after(async () => {
+    await subscriptions._deactivateAll();
+    internal.RegisterTriggerType.unregister(TYPE_ID);
+  });
+  procedures.clear();
+  const type = recordingType();
+  internal.RegisterTriggerType.register(TYPE_ID, type);
+  await subscriptions.hydrate();
+  const {
+    DeclareProcedure,
+  } = require("../dist/implementations/dms-automation/index.js");
+  const { markModuleStarted } = require("../dist/runtime/readiness.js");
+  markModuleStarted();
+  const declaration = {
+    id: "support.retry",
+    name: "Retry",
+    enabled: true,
+    graph: JSON.parse(graphOn(TYPE_ID)),
+  };
+  t.mock.method(ProcedureRunModel.prototype, "renameProcedure", async () => {});
+  t.mock.method(
+    ProcedureRunModel.prototype,
+    "markOlderVersions",
+    async () => {},
+  );
+  t.mock.method(ProcedureModel.prototype, "get", async (id) =>
+    procedures.has(id) ? structuredClone(procedures.get(id)) : undefined,
+  );
+  t.mock.method(ProcedureModel.prototype, "getAll", async () => [
+    ...procedures.values(),
+  ]);
+  t.mock.method(ProcedureModel.prototype, "insert", async (doc) => {
+    procedures.set(doc._id, structuredClone(doc));
+    return [doc._id];
+  });
+  const read = t.mock.method(
+    ProcedureModel.prototype,
+    "listEnabled",
+    async () => {
+      throw new Error("transient read failure");
+    },
+  );
+  await assert.rejects(DeclareProcedure(declaration), /transient read failure/);
+  assert.equal(type.armed.size, 0);
+  const committed = structuredClone(procedures.get(declaration.id));
+  read.mock.restore();
+  const result = await DeclareProcedure(declaration);
+  assert.equal(result.status, "unchanged");
+  assert.equal(type.armed.size, 1);
+  const stored = procedures.get(declaration.id);
+  assert.equal(stored.revision, committed.revision);
+  assert.equal(stored.version, committed.version);
+  assert.equal(stored.updated_at.getTime(), committed.updated_at.getTime());
+  await subscriptions._deactivateAll();
+  assert.equal(type.armed.size, 0);
 });

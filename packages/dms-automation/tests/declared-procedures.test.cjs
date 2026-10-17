@@ -122,7 +122,7 @@ test("a first declaration stores the procedure under its id, enabled and armed",
   assert.deepEqual(changed, ["shop.welcome"]);
 });
 
-test("declaring the same thing again changes nothing", async () => {
+test("declaring the same thing again preserves the stored procedure", async () => {
   await declareProcedure(declaration());
   const before = structuredClone(procedures.get("shop.welcome"));
   changed.length = 0;
@@ -130,9 +130,42 @@ test("declaring the same thing again changes nothing", async () => {
   const result = await declareProcedure(declaration());
   assert.equal(result.status, "unchanged");
   assert.deepEqual(procedures.get("shop.welcome"), before);
-  assert.deepEqual(changed, []);
   assert.equal(procedures.size, 1);
 });
+
+for (const failedStep of ["rename", "version"]) {
+  test(`a retry repairs run history after a failed ${failedStep} without a new revision`, async (t) => {
+    await declareProcedure(declaration());
+    const run = { name: "Welcome", version: 1, currentVersion: 1 };
+    let failing = true;
+    t.mock.method(
+      ProcedureRunModel.prototype,
+      "renameProcedure",
+      async (_id, name) => {
+        if (failing && failedStep === "rename")
+          throw new Error("history unavailable");
+        run.name = name;
+      },
+    );
+    t.mock.method(
+      ProcedureRunModel.prototype,
+      "markOlderVersions",
+      async (_id, version) => {
+        if (failing && failedStep === "version")
+          throw new Error("history unavailable");
+        if (run.version < version) run.currentVersion = version;
+      },
+    );
+    const next = declaration({ name: "Updated", graph: graphOf("new") });
+    await assert.rejects(declareProcedure(next), /history unavailable/);
+    const committed = structuredClone(procedures.get(next.id));
+    failing = false;
+    const retry = await declareProcedure(next);
+    assert.equal(retry.status, "unchanged");
+    assert.deepEqual(run, { name: "Updated", version: 1, currentVersion: 2 });
+    assert.deepEqual(procedures.get(next.id), committed);
+  });
+}
 
 test("a changed declaration replaces a procedure nobody touched", async () => {
   await declareProcedure(declaration());

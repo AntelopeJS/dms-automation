@@ -136,6 +136,12 @@ async function refreshDeclared(
     return { status: "kept", enabled: existing.enabled };
   }
   if (existing.declaredHash === hash) {
+    // The previous call may have committed and then failed while updating
+    // history or reconciling. Retry those idempotent effects, not the write.
+    const runs = GetModel(ProcedureRunModel, DATABASE_NAME);
+    await runs.renameProcedure(existing._id, existing.name);
+    await runs.markOlderVersions(existing._id, existing.version);
+    await afterWrite(existing._id, "updated");
     return { status: "unchanged", enabled: existing.enabled };
   }
   const id = existing._id;
@@ -156,8 +162,9 @@ async function refreshDeclared(
     // thing (then it is this declaration), or by someone (then it stays).
     const now = await model.get(id);
     const same = now?.declaredHash === hash && isAsDeclared(now);
+    if (same) return refreshDeclared(now, content, graph);
     return {
-      status: same ? "unchanged" : "kept",
+      status: "kept",
       enabled: now?.enabled ?? existing.enabled,
     };
   }
