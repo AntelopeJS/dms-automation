@@ -27,7 +27,7 @@ Add the interface to the module that declares nodes:
 pnpm add @antelopejs/interface-dms-automation
 ```
 
-Move it to `optionalDependencies` when your nodes are a bonus: with no implementation loaded, registrations wait for attachment and your module keeps working. Keep it in `dependencies` when your module needs automation to run. Use a wide range, such as `>=0.2.0 <1.0.0`, so package managers can deduplicate.
+Move it to `optionalDependencies` when your nodes are a bonus: with no implementation loaded, registrations wait for attachment and your module keeps working. Keep it in `dependencies` when your module needs automation to run. Use a wide consumer range, such as `>=0.3.0 <1.0.0`, so package managers can deduplicate. The implementing module caps its own dependency below the next interface minor instead.
 
 ## Quick start
 
@@ -66,7 +66,7 @@ Triggers also take a `cluster` mode: `"singleton"` fires on the elected leader o
 
 ## Compatibility
 
-The implementation is `@antelopejs/dms-automation >=0.4.0`. The interface declares this peer dependency:
+Interface 0.3 requires `@antelopejs/dms-automation >=0.5.0` for its complete contract, including `DeclareProcedure` and `RunProcedure`. Module 0.4 implements interface 0.2. The interface declares this peer dependency:
 
 <!-- docs-compat: ./package.json#peerDependencies -->
 
