@@ -1,6 +1,6 @@
 ---
 name: dms-automation-interface
-description: Provides the AntelopeJS DMS automation interface for declaring trigger, action and data node types from any module, plus listing node types and invoking procedures. Use when importing "@antelopejs/interface-dms-automation", when adding automation nodes to the DMS procedure editor, or when working with RegisterTriggerType, RegisterActionType, RegisterDataNodeType, ListTriggerTypes, ListActionTypes, ListDataNodeTypes, InvokeProcedure, TriggerType, ActionType, DataNodeType or ExecutionCtx.
+description: Provides the AntelopeJS DMS automation interface for declaring trigger, action and data node types from any module, shipping procedures as code, listing node types and invoking procedures. Use when importing "@antelopejs/interface-dms-automation", when adding automation nodes to the DMS procedure editor, when a module or project must create procedures at startup (demo content, templates), or when working with RegisterTriggerType, RegisterActionType, RegisterDataNodeType, DeclareProcedure, ListTriggerTypes, ListActionTypes, ListDataNodeTypes, InvokeProcedure, TriggerType, ActionType, DataNodeType, ProcedureGraph or ExecutionCtx.
 icon: i-lucide-workflow
 category: antelopejs-interface
 tags: [antelopejs, dms, automation, workflow, interface]
@@ -29,6 +29,10 @@ import {
   ListActionTypes,
   ListDataNodeTypes,
   InvokeProcedure,
+  DeclareProcedure,
+  type ProcedureDeclaration,
+  type DeclaredProcedure,
+  type ProcedureGraph,
   type TriggerType,
   type ActionType,
   type DataNodeType,
@@ -78,6 +82,37 @@ const actions = await ListActionTypes();
 const runId = await InvokeProcedure(procedureId, { some: "payload" });
 ```
 
+## Shipping procedures as code
+
+`DeclareProcedure` creates a procedure from a module's backend, keyed by a stable
+id you choose (it becomes the procedure's id). Call it on every boot from
+`start()` or a `Hook.DATABASE_INITIALIZED` handler: it waits for the automation
+module to start, and never in `construct()` with `await` (deadlock: modules start
+after every construct).
+
+```ts
+const declared = await DeclareProcedure({
+  id: "sales.quote-follow-up", // "<module>.<procedure>", [A-Za-z0-9._-]
+  name: "Follow up open quotes",
+  description: "Every weekday morning",
+  graph, // ProcedureGraph: what the builder's "Export JSON" writes under `graph`
+  enabled: true, // required; enabled = triggers armed immediately
+});
+// declared.status: "created" | "updated" | "unchanged" | "kept"
+```
+
+- Rule: a hash of the declared name, description, graph and enabled flag is kept.
+  The procedure is refreshed only while its content still matches the last
+  declaration; once anyone changed it (builder save, pause, resume, auto-disable)
+  it is `"kept"` as is. Deleting it brings it back on the next call — pause it instead.
+- Validated as "Import JSON", and as enabling in the builder when `enabled`:
+  missing settings, no trigger, unknown template, a webhook route another enabled
+  procedure answers on → rejects with an `Error` listing the problems, nothing
+  stored. A node type not registered yet is only a warning (start order): the
+  trigger arms when its type registers.
+- Never write the module's tables directly: a row inserted behind its back is not
+  armed and couples you to its schema.
+
 ## Gotchas
 
 - Dependency placement: put the interface in `dependencies` only if your module
@@ -92,6 +127,12 @@ const runId = await InvokeProcedure(procedureId, { some: "payload" });
 - `TriggerType.cluster` is required, no default: `"singleton"` (fires once
   cluster-wide, leader-only, e.g. cron) or `"replicated"` (every instance activates,
   e.g. webhook). `activate` returns an opaque handle passed back to `deactivate`.
+- `ExecutionCtx` has no tenant: procedures are platform-wide and a schedule or
+  webhook has no tenant. A tenant-scoped action takes `tenantId` as an input
+  (wired from the `tenantId` output of a DMS event trigger), defaulting to
+  `DEFAULT_TENANT_ID` from `@antelopejs/interface-dms`, as the DMS's own actions do.
+- A trigger type registered after the automation module armed its procedures
+  (modules start in parallel, hot reloads) arms them on registration.
 - `DataNodeType.evaluate` is synchronous and must be a pure transformation;
   `ActionType.execute` is async and receives an `ExecutionCtx` with a per-node
   `log(level, message, value?)`.
