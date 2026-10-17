@@ -10,11 +10,14 @@ export namespace internal {
   export const RegisterTriggerType = {
     register: (id: string, type: TriggerType): void => {
       registry.addTrigger(id, type);
+      subscriptions.onTriggerTypeRegistered(id);
     },
     unregister: (id: string): void => {
-      // Best-effort deactivate any live handles using this type before removal.
-      void subscriptions.deactivateAllForTriggerType(id);
+      // Best-effort deactivate any live handles using this type, with the
+      // definition that armed them: the registry forgets it right away.
+      const type = registry.getTrigger(id);
       registry.removeTrigger(id);
+      void subscriptions.onTriggerTypeUnregistered(id, type);
     },
   };
 

@@ -28,6 +28,7 @@ import {
 import { type ArmError, armErrorFrom, storeArmErrors } from "./armErrors";
 import { diff } from "./reconcileDiff";
 import { registry } from "./registry";
+import { serialQueue } from "./serialQueue";
 import {
   bumpVersionOfUsages,
   disableInvalidUsages,
@@ -102,18 +103,29 @@ let amLeader: () => boolean = () => true;
 
 // Serialize reconciles: a leadership transition, a route edit, and a bus
 // message can land near-simultaneously, and reconcile mutates the shared
-// handle map. Each call runs after the previous one SETTLES (success or
-// failure) so one failure never wedges the chain. The returned promise
-// reflects THIS reconcile's real outcome — it may reject — so callers (route
-// handlers, leadership promotion) can react; the chain itself swallows.
-let reconcileChain: Promise<void> = Promise.resolve();
+// handle map. Callers (route handlers, leadership promotion) get THIS
+// reconcile's real outcome. Tearing down the handles of an unregistered
+// trigger type goes through the same queue, so a reconcile queued after it
+// never sees them.
+const reconciles = serialQueue();
+
 function queueReconcile(): Promise<void> {
-  const run = reconcileChain.then(
-    () => reconcile(),
-    () => reconcile(),
+  return reconciles.run(() => reconcile());
+}
+
+// Whether hydrate() ran: before it, the database may not be ready and the
+// boot reconcile arms everything anyway.
+let hydrated = false;
+
+/**
+ * Reconcile this instance only (a type registration is local to it); a
+ * burst of registrations (a module starting, a hot reload) shares one.
+ */
+function requestReconcile(reason: string): void {
+  if (!hydrated) return;
+  reconciles.request(reconcile, (err) =>
+    Logging.Error(`[dms-automation] reconcile after ${reason} failed:`, err),
   );
-  reconcileChain = run.catch(() => {});
-  return run;
 }
 
 function key(procedureId: string, nodeId: string): string {
@@ -129,8 +141,11 @@ const TRIGGER_OP_TIMEOUT_MS = 10_000;
 // the caller. Returns whether teardown succeeded; callers decide whether to drop
 // the handle or keep it for retry. An unregistered type has nothing to call, so
 // it counts as torn down.
-async function tryDeactivate(k: string, entry: HandleEntry): Promise<boolean> {
-  const triggerType = registry.getTrigger(entry.typeId);
+async function tryDeactivate(
+  k: string,
+  entry: HandleEntry,
+  triggerType = registry.getTrigger(entry.typeId),
+): Promise<boolean> {
   if (!triggerType) return true;
   try {
     await withTimeout(
@@ -463,6 +478,9 @@ export const subscriptions = {
    */
   async hydrate(): Promise<void> {
     await hydrateTemplates();
+    // From here a trigger type registered late (a module starting after us)
+    // re-arms the procedures waiting for it.
+    hydrated = true;
     // Through the chain so a bus replay arriving during boot (the subscriber is
     // live before hydrate in redis mode) can't race this initial reconcile.
     await queueReconcile();
@@ -554,13 +572,34 @@ export const subscriptions = {
   ): Promise<void> {
     await forkUsage(procedureId, nodeId, groupPath, getTemplate);
   },
-  async deactivateAllForTriggerType(typeId: string): Promise<void> {
-    for (const [k, entry] of handles) {
-      if (entry.typeId !== typeId) continue;
-      await tryDeactivate(k, entry); // force teardown: drop regardless of result
-      handles.delete(k);
-      liveMeta.delete(k);
-    }
+  /**
+   * A trigger type was registered: arm the enabled procedures that wait for
+   * it. Without this, a type registered after the boot reconcile (its module
+   * started after ours, or was hot-reloaded) left them "not available" until
+   * the next procedure change or restart.
+   */
+  onTriggerTypeRegistered(typeId: string): void {
+    requestReconcile(`trigger type "${typeId}" registered`);
+  },
+  /**
+   * A trigger type was unregistered: tear down its handles with `type`, the
+   * definition that armed them (the registry no longer holds it, or already
+   * holds its replacement), then reconcile so its procedures report it gone,
+   * or re-arm with the replacement.
+   */
+  async onTriggerTypeUnregistered(
+    typeId: string,
+    type: TriggerType | undefined,
+  ): Promise<void> {
+    await reconciles.run(async () => {
+      for (const [k, entry] of handles) {
+        if (entry.typeId !== typeId) continue;
+        await tryDeactivate(k, entry, type); // force teardown: drop regardless of result
+        handles.delete(k);
+        liveMeta.delete(k);
+      }
+    });
+    requestReconcile(`trigger type "${typeId}" unregistered`);
   },
   async invokeManual(procedureId: string, payload?: unknown): Promise<string> {
     const procedure = await loadProcedure(procedureId);
@@ -677,5 +716,6 @@ export const subscriptions = {
       liveMeta.delete(k);
     }
     activationErrors.clear();
+    hydrated = false;
   },
 };
