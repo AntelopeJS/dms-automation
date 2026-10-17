@@ -168,7 +168,7 @@ export interface ProcedureDeclaration {
   name: string;
   description?: string;
   graph: ProcedureGraph;
-  /** Enabled procedures have their triggers armed as soon as they are stored. */
+  /** Eligible triggers reconcile after storage; this is not an arming-success flag. */
   enabled: boolean;
 }
 
@@ -177,7 +177,8 @@ export interface ProcedureDeclaration {
  *   "created"   — no procedure had this id: it was stored.
  *   "updated"   — the stored procedure was still what this caller declared
  *                 last, and the declaration changed: it was replaced.
- *   "unchanged" — the stored procedure is already this declaration.
+ *   "unchanged" — the stored procedure is already this declaration;
+ *                 run-history metadata and subscriptions synchronize again.
  *   "kept"      — someone changed the procedure since it was declared (an
  *                 edit, a pause, a resume): it is left as they made it.
  */
@@ -215,6 +216,8 @@ export const InvokeProcedure =
  * Safe to call on every boot: the procedure is created once, refreshed only
  * while it is still what was declared last, and never overwritten once
  * someone changed it. Waits until the automation module has started.
+ * A rejection can occur after storage. Retry the same declaration to repair
+ * synchronization without advancing its revision or version.
  */
 export const DeclareProcedure =
   InterfaceFunction<
