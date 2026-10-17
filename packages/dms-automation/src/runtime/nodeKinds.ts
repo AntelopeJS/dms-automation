@@ -16,6 +16,8 @@ export interface NodeCtx {
   readonly nodeId: string;
   /** Run-cancellation signal. Always present; may never abort. */
   readonly signal: AbortSignal;
+  /** A test run: actions that can simulate do (see `ActionType.dryRun`). */
+  readonly dryRun: boolean;
 
   /**
    * Fire one of this node's trigger-out ports as a SIDE fire — opens a

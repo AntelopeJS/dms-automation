@@ -25,7 +25,8 @@
         "thu": "Thursdays at {time}",
         "tue": "Tuesdays at {time}",
         "wed": "Wednesdays at {time}"
-      }
+      },
+      "testNeedsConfirm": "Some steps of this draft act for real: confirm them before testing."
     },
     "attention": {
       "degradedInPeriod": "{failed} of {runs} runs failed in this period · last at {when}, none since",
@@ -183,7 +184,7 @@
         "problems": "Problems",
         "recentRuns": "Recent runs",
         "selectNode": "Select node",
-        "sideEffects": "Side effects are real: point HTTP steps at a sandbox to dry-run.",
+        "sideEffects": "Steps that can simulate were simulated; the others acted for real.",
         "testRun": "Test run",
         "toggle": "Show or hide the dock"
       },
@@ -408,6 +409,11 @@
       "wiredField": {
         "from": "From",
         "unwire": "Unwire"
+      },
+      "testEffects": {
+        "title": "Test with real effects?",
+        "description": "This test acts for real: {count} step below changes something outside the run (sends, writes, calls a service) and can’t be simulated. Steps that can simulate are simulated. | This test acts for real: {count} steps below change something outside the run (send, write, call a service) and can’t be simulated. Steps that can simulate are simulated.",
+        "confirm": "Test for real"
       }
     },
     "feed": {
@@ -768,7 +774,7 @@
       "retentionConfigured": "Older runs are deleted after the retention period set for this project",
       "retentionForever": "Runs are kept forever",
       "retest": "Run the test again",
-      "retestConfirmDescription": "Runs the draft this test ran, from the same trigger, with the same payload. It is stored as a test and doesn’t count in the figures. Side effects are real.",
+      "retestConfirmDescription": "Runs the draft this test ran, from the same trigger, with the same payload. It is stored as a test and doesn’t count in the figures. Steps that can simulate are simulated; the ones listed act for real.",
       "retestConfirmTitle": "Run this test again?",
       "scopedTo": "Runs of {name}",
       "searchRuns": "Search procedures, errors, steps, paths or run ids…",

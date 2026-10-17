@@ -459,6 +459,17 @@ export class RunsController extends Controller("/api/automation/runs") {
         label: "$dms_automation.runs.rerunRedacted",
       });
     }
+    // A test acts for real through these steps: named before it runs again.
+    for (const step of plan.draft
+      ? subscriptions.realEffectsOf(plan.draft)
+      : []) {
+      const line: ConfirmDialogImpact = {
+        icon: "i-ph-lightning",
+        label: step.typeName,
+      };
+      if (step.label) line.count = step.label;
+      impact.push(line);
+    }
     return serializeConfirmDialog({
       title: isTest
         ? "$dms_automation.runs.retestConfirmTitle"
