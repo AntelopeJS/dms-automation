@@ -24,6 +24,7 @@ import {
   builtinDataNodes,
   builtinTriggers,
 } from "./runtime/builtins";
+import { markModuleStarted, markModuleStopped } from "./runtime/readiness";
 import { registry } from "./runtime/registry";
 import {
   configureRetention,
@@ -152,9 +153,11 @@ export async function start(): Promise<void> {
   else Logging.Info("[dms-automation] cluster mode: standalone (memory)");
 
   startRetention(mode === "redis" ? leader.isLeader : () => true);
+  markModuleStarted();
 }
 
 export async function destroy(): Promise<void> {
+  markModuleStopped();
   stopRetention();
   // Release leadership first (fast handoff), then the bus, then local handles.
   await leader.stop();

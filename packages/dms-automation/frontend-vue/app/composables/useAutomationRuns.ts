@@ -109,7 +109,7 @@ export interface RunDetail {
   procedureId: string;
   startedAt: string;
   endedAt?: string | null;
-  status: "ok" | "failed";
+  status: "ok" | "failed" | "cancelled";
   errorMessage?: string | null;
   triggerNodeId: string;
   triggerPayload?: string;
@@ -156,7 +156,7 @@ export interface RunDetail {
 /** What `POST /runs/:id/rerun` answers: the new run and how it ended. */
 export interface RerunResult {
   runId: string;
-  status?: "ok" | "failed";
+  status?: "ok" | "failed" | "cancelled";
   /** An i18n key (with `$`) to show when the new run failed. */
   warning?: string;
 }

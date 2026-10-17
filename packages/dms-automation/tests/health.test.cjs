@@ -41,6 +41,18 @@ test("a procedure whose last run failed is failing, with its streak", () => {
   );
 });
 
+test("a cancelled run neither ends nor breaks a failure streak", () => {
+  const health = procedureHealth(
+    enabled,
+    [run("a", "failed", 3), run("b", "failed", 2), run("c", "cancelled", 1)],
+    WEEK_AGO,
+  );
+  assert.equal(health.state, "failing");
+  assert.equal(health.failureStreak, 2);
+  assert.equal(health.lastRun._id, "c");
+  assert.equal(health.successRate, 0);
+});
+
 test("an enabled procedure whose trigger cannot arm is failing", () => {
   const armError = {
     code: "cronInvalid",

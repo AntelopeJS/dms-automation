@@ -19,7 +19,7 @@ The visual automation builder of the AntelopeJS DMS.
 - Starts procedures from schedules, webhooks, manual runs or DMS events such as a user registering or a record being created.
 - Keeps every run with its trace, shows where and why it failed, and re-runs it with its own payload.
 - Shows the health of every procedure, with KPIs over 24 hours, 7 days or 30 days.
-- Lets any module add its own nodes through [`@antelopejs/interface-dms-automation`](./packages/interface-dms-automation).
+- Lets any module add its own nodes, and ship its own procedures as code, through [`@antelopejs/interface-dms-automation`](./packages/interface-dms-automation).
 
 ## Install
 

@@ -1,8 +1,16 @@
 import type {
   ActionType,
   DataNodeType,
+  DeclaredProcedure,
+  ProcedureDeclaration,
+  ProcedureRunOutcome,
+  RunProcedureOptions,
   TriggerType,
 } from "@antelopejs/interface-dms-automation";
+import { runNow, runResult } from "../../routes/procedureRuns";
+import { declareProcedure } from "../../runtime/declaredProcedures";
+import { whenStarted } from "../../runtime/readiness";
+import { loadProcedure, parseStoredGraph } from "../../runtime/runProcedure";
 import { registry } from "../../runtime/registry";
 import { subscriptions } from "../../runtime/subscriptions";
 
@@ -10,11 +18,12 @@ export namespace internal {
   export const RegisterTriggerType = {
     register: (id: string, type: TriggerType): void => {
       registry.addTrigger(id, type);
+      subscriptions.onTriggerTypeRegistered(id);
     },
     unregister: (id: string): void => {
-      // Best-effort deactivate any live handles using this type before removal.
-      void subscriptions.deactivateAllForTriggerType(id);
+      // Each live handle retains its own definition for queued teardown.
       registry.removeTrigger(id);
+      void subscriptions.onTriggerTypeUnregistered(id);
     },
   };
 
@@ -54,4 +63,20 @@ export async function InvokeProcedure(
   payload?: unknown,
 ): Promise<string> {
   return subscriptions.invokeManual(id, payload);
+}
+
+export async function RunProcedure(
+  id: string,
+  options: RunProcedureOptions = {},
+): Promise<ProcedureRunOutcome> {
+  await whenStarted();
+  const graph = parseStoredGraph(await loadProcedure(id));
+  return await runResult(await runNow(id, graph, options));
+}
+
+export async function DeclareProcedure(
+  declaration: ProcedureDeclaration,
+): Promise<DeclaredProcedure> {
+  await whenStarted();
+  return declareProcedure(declaration);
 }

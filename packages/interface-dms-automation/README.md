@@ -15,7 +15,8 @@ The AntelopeJS interface to add triggers, actions and data nodes to the DMS auto
 
 - Declares trigger, action and data node types from any module: `RegisterTriggerType`, `RegisterActionType`, `RegisterDataNodeType` and their `Unregister*` counterparts.
 - Queues registrations made before the automation module attaches and replays them, so load order does not matter.
-- Lists the available node types (`ListTriggerTypes`, `ListActionTypes`, `ListDataNodeTypes`) and starts a procedure from code (`InvokeProcedure`).
+- Lists the available node types (`ListTriggerTypes`, `ListActionTypes`, `ListDataNodeTypes`) and starts a procedure from code: `InvokeProcedure` from its manual trigger, `RunProcedure` from any trigger, as Run now in the builder.
+- Ships procedures as code (`DeclareProcedure`): created once under a stable id, refreshed while unchanged, never overwritten once someone edited them.
 - Keeps your module independent of the implementation, [`@antelopejs/dms-automation`](https://www.npmjs.com/package/@antelopejs/dms-automation).
 
 ## Install
@@ -73,7 +74,7 @@ The implementation is `@antelopejs/dms-automation >=0.4.0`. The interface declar
 | --- | --- |
 | `@antelopejs/interface-core` | `>=0.2.4 <1.0.0` |
 
-`InvokeProcedure` and the `List*Types` functions reject when no implementation is loaded; check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core` to branch on availability instead.
+`InvokeProcedure`, `RunProcedure` and the `List*Types` functions reject when no implementation is loaded; check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core` to branch on availability instead.
 
 ## Documentation
 

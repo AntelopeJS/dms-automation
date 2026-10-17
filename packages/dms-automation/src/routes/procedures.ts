@@ -38,7 +38,7 @@ import {
   saveIssues,
   stale,
 } from "./procedureChecks";
-import { lastPayloadOf, runOutcome } from "./procedureRuns";
+import { lastPayloadOf, runNow, runOutcome } from "./procedureRuns";
 import {
   enabledSchema,
   exportedSchema,
@@ -445,10 +445,7 @@ export class ProceduresController extends Controller(
   }
 
   /**
-   * Run now: the saved graph, from the given trigger (the manual one or the
-   * first by default), with the given payload, or the last real payload of
-   * that trigger when none is given. A graph with errors is refused, as a
-   * test run is, rather than stored as a failed production run. The answer
+   * Run now (see `runNow`), what `RunProcedure` does from code. The answer
    * says how the run ended.
    */
   @Post("/:id/run-now")
@@ -458,13 +455,7 @@ export class ProceduresController extends Controller(
     @JSONBody() body: unknown,
   ) {
     const data = parseBody(runNowSchema, body) ?? {};
-    const issues = issuesOf(graphOf(await loadProcedure(id)), false);
-    if (hasBlockingIssue(issues)) throw graphRefusal(issues);
-    const hasPayload = Object.hasOwn(data, "payload");
-    const payload = hasPayload
-      ? data.payload
-      : ((await lastPayloadOf(id, data.triggerNodeId)).last?.payload ?? {});
-    const runId = await subscriptions.runNow(id, payload, data.triggerNodeId);
+    const runId = await runNow(id, graphOf(await loadProcedure(id)), data);
     return await runOutcome(runId, true);
   }
 

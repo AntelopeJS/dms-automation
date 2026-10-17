@@ -2816,6 +2816,7 @@ const overlaySummary = computed(() => {
 	const run = overlayRun.value
 	if (!run) return ''
 	const duration = describeDuration(run.durationMs, locale.value)
+	if (run.status === 'cancelled') return t('dms_automation.editor.debug.cancelled', { duration })
 	if (run.status === 'failed') {
 		const step = stepTitle(run.failedStep, processI18n)
 		return step
@@ -2823,6 +2824,14 @@ const overlaySummary = computed(() => {
 			: t('dms_automation.editor.debug.failed', { duration })
 	}
 	return t('dms_automation.editor.debug.passed', { duration })
+})
+
+/** The overlay banner's tone and icon, by how the run ended. */
+const overlayLook = computed(() => {
+	const status = overlayRun.value?.status
+	if (status === 'failed') return { tone: 'error', icon: 'i-ph-bug' } as const
+	if (status === 'cancelled') return { tone: 'warning', icon: 'i-ph-prohibit' } as const
+	return { tone: 'success', icon: 'i-ph-check-circle' } as const
 })
 
 /** Shows a stored run over the canvas; a test run is told by its kind. */
@@ -2946,6 +2955,10 @@ async function onRunStarted(runId: string) {
 		run = await showRun(runId)
 	} catch {
 		toast.add({ title: t('dms_automation.editor.runStarted', { name }), color: 'neutral', icon: 'i-ph-play-circle', actions: [trace] })
+		return
+	}
+	if (run.status === 'cancelled') {
+		toast.add({ title: t('dms_automation.editor.runCancelled', { name }), description: run.errorMessage, color: 'warning', icon: 'i-ph-prohibit', actions: [trace] })
 		return
 	}
 	const step = stepTitle(run.failedStep, processI18n)
@@ -3311,8 +3324,8 @@ function onTemplatePortsUpdate(next: GroupPort[]) {
 			<DmsBanner
 				v-if="overlayRun && !testing"
 				size="sm"
-				:tone="overlayRun.status === 'failed' ? 'error' : 'success'"
-				:icon="overlayRun.status === 'failed' ? 'i-ph-bug' : 'i-ph-check-circle'"
+				:tone="overlayLook.tone"
+				:icon="overlayLook.icon"
 				:title="overlaySummary"
 				:description="overlayDescription"
 			>

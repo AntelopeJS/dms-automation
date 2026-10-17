@@ -108,8 +108,153 @@ export function UnregisterDataNodeType(id: string): void {
   internal.RegisterDataNodeType.unregister(id);
 }
 
+/**
+ * One node of a procedure graph, as the builder saves it and "Export JSON"
+ * writes it. `kind` is "trigger", "action", "data", "group" or a flow kind
+ * ("if", "switch", "foreach"…); trigger, action and data nodes name their
+ * registered type in `typeId`. Group nodes carry `ports` with either a
+ * `templateId` or an inline `subgraph`. Other fields (a `label`, canvas
+ * metadata) are kept as given.
+ */
+export interface ProcedureGraphNode {
+  id: string;
+  kind: string;
+  typeId?: string;
+  config: Record<string, unknown>;
+  position: { x: number; y: number };
+  templateId?: string;
+  ports?: ProcedureGroupPort[];
+  subgraph?: ProcedureGraph;
+  [field: string]: unknown;
+}
+
+export interface ProcedureGroupPort {
+  name: string;
+  kind: "data" | "trigger";
+  direction: "in" | "out";
+  /** Present on data ports. */
+  schema?: JsonSchema;
+}
+
+/** Runs `to` after `from`; `branch` names a port of a node that has several. */
+export interface ProcedureTriggerEdge {
+  id: string;
+  from: { node: string; branch?: string };
+  to: { node: string; branch?: string };
+}
+
+/** Feeds the output `port` of one node into the input `field` of another. */
+export interface ProcedureDataEdge {
+  id: string;
+  from: { node: string; port: string };
+  to: { node: string; field: string };
+}
+
+/** A procedure graph, in the shape "Export JSON" writes under `graph`. */
+export interface ProcedureGraph {
+  nodes: ProcedureGraphNode[];
+  triggerEdges: ProcedureTriggerEdge[];
+  dataEdges: ProcedureDataEdge[];
+}
+
+/** A procedure a module ships as code. */
+export interface ProcedureDeclaration {
+  /**
+   * Stable key chosen by the caller, namespaced `<module>.<procedure>`
+   * (letters, digits, `.`, `_`, `-`): it becomes the procedure's id, so
+   * `InvokeProcedure` and the builder's URL take it as is.
+   */
+  id: string;
+  name: string;
+  description?: string;
+  graph: ProcedureGraph;
+  /** Eligible triggers reconcile after storage; this is not an arming-success flag. */
+  enabled: boolean;
+}
+
+/**
+ * What `DeclareProcedure` did:
+ *   "created"   — no procedure had this id: it was stored.
+ *   "updated"   — the stored procedure was still what this caller declared
+ *                 last, and the declaration changed: it was replaced.
+ *   "unchanged" — the stored procedure is already this declaration;
+ *                 run-history metadata and subscriptions synchronize again.
+ *   "kept"      — someone changed the procedure since it was declared (an
+ *                 edit, a pause, a resume): it is left as they made it.
+ */
+export type DeclaredProcedureStatus =
+  | "created"
+  | "updated"
+  | "unchanged"
+  | "kept";
+
+/** A problem on a graph, as the builder lists it. */
+export interface ProcedureIssue {
+  severity: "error" | "warning";
+  code: string;
+  message: string;
+  nodeId?: string;
+  params?: Record<string, unknown>;
+}
+
+export interface DeclaredProcedure {
+  id: string;
+  status: DeclaredProcedureStatus;
+  /** Whether the stored procedure is enabled (a kept one may differ). */
+  enabled: boolean;
+  /** The declared graph's problems, none of them blocking (see the docs). */
+  issues: ProcedureIssue[];
+}
+
+/**
+ * How a run ended. `cancelled`: a module one of its steps belongs to went
+ * away while it ran (a stop, a hot reload).
+ */
+export type ProcedureRunStatus = "ok" | "failed" | "cancelled";
+
+export interface RunProcedureOptions {
+  /**
+   * What the trigger hands the graph. Left out, the last payload that
+   * trigger received in a stored run, else `{}`: Run now's default.
+   */
+  payload?: unknown;
+  /** The trigger node to start from: the manual one, else the first, by default. */
+  triggerNodeId?: string;
+}
+
+/** A run `RunProcedure` started, once it is stored. */
+export interface ProcedureRunOutcome {
+  runId: string;
+  status: ProcedureRunStatus;
+  /** Why the run failed or was cancelled. */
+  errorMessage?: string;
+}
+
 export const ListTriggerTypes = InterfaceFunction<() => TriggerType[]>();
 export const ListActionTypes = InterfaceFunction<() => ActionType[]>();
 export const ListDataNodeTypes = InterfaceFunction<() => DataNodeType[]>();
 export const InvokeProcedure =
   InterfaceFunction<(id: string, payload?: unknown) => Promise<string>>();
+/**
+ * Run a saved procedure now, from any of its triggers (a schedule, a
+ * webhook, a manual one…), as "Run now" in the builder does: a graph with
+ * blocking issues is refused, and the payload defaults to the trigger's last
+ * one. Resolves once the run is stored. Waits until the automation module
+ * has started.
+ */
+export const RunProcedure =
+  InterfaceFunction<
+    (id: string, options?: RunProcedureOptions) => Promise<ProcedureRunOutcome>
+  >();
+/**
+ * Create or refresh a procedure shipped as code, keyed by `declaration.id`.
+ * Safe to call on every boot: the procedure is created once, refreshed only
+ * while it is still what was declared last, and never overwritten once
+ * someone changed it. Waits until the automation module has started.
+ * A rejection can occur after storage. Retry the same declaration to repair
+ * synchronization without advancing its revision or version.
+ */
+export const DeclareProcedure =
+  InterfaceFunction<
+    (declaration: ProcedureDeclaration) => Promise<DeclaredProcedure>
+  >();
