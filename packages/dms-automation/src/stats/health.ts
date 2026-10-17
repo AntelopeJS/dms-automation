@@ -143,9 +143,12 @@ export function procedureHealth(
     .map(durationOf)
     .filter((d): d is number => d !== null);
   const lastRun = sorted[0];
-  const streak = streakOf(sorted);
+  // A run cancelled by a module going away says nothing of the procedure: the
+  // state and the failure streak come from the runs that ended on their own.
+  const decided = sorted.filter((r) => r.status !== "cancelled");
+  const streak = streakOf(decided);
   const health: ProcedureHealth = {
-    state: stateOf(procedure, lastRun, failed),
+    state: stateOf(procedure, decided[0], failed),
     runs: inWindow.length,
     ok,
     failed,

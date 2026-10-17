@@ -79,7 +79,15 @@ function durationOf(run: DockRun): number | null {
 	return run.endedAt ? new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime() : null
 }
 
+// A run cancelled by a module going away is neither a failure nor a success.
+function runIcon(run: DockRun): { name: string; class: string } {
+	if (run.status === 'failed') return { name: 'i-ph-x-circle', class: 'text-error' }
+	if (run.status === 'cancelled') return { name: 'i-ph-prohibit', class: 'text-warning' }
+	return { name: 'i-ph-check-circle', class: 'text-success' }
+}
+
 function runLine(run: DockRun): string {
+	if (run.status === 'cancelled') return `${processI18n('$dms_automation.runs.status.cancelled')} · ${run.errorMessage ?? ''}`
 	if (run.status !== 'failed') return processI18n('$dms_automation.feed.completedPlain')
 	const step = stepTitle(run.failedStep, processI18n)
 	return step ? `${step} · ${run.errorMessage ?? ''}` : (run.errorMessage ?? '')
@@ -126,11 +134,7 @@ function runLine(run: DockRun): string {
 					class="flex w-full items-center gap-3 border-b border-default px-3 py-2 text-left text-xs hover:bg-elevated/60"
 					@click="emit('open-trace', run._id)"
 				>
-					<UIcon
-						:name="run.status === 'failed' ? 'i-ph-x-circle' : 'i-ph-check-circle'"
-						class="size-4 shrink-0"
-						:class="run.status === 'failed' ? 'text-error' : 'text-success'"
-					/>
+					<UIcon :name="runIcon(run).name" class="size-4 shrink-0" :class="runIcon(run).class" />
 					<span class="min-w-0 flex-1 truncate" :class="run.status === 'failed' ? 'text-error' : 'text-toned'">{{ runLine(run) }}</span>
 					<UBadge v-if="run.kind === 'test'" size="sm" variant="subtle" color="info">{{ $t('dms_automation.runs.kind.test') }}</UBadge>
 					<span class="font-mono text-muted">{{ describeDuration(durationOf(run)) }}</span>

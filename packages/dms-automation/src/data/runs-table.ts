@@ -61,6 +61,11 @@ const STATUS_ITEMS = [
     label: "$dms_automation.runs.status.failed",
     icon: "i-ph-x-circle",
   },
+  {
+    value: "cancelled",
+    label: "$dms_automation.runs.status.cancelled",
+    icon: "i-ph-prohibit",
+  },
 ];
 
 const KIND_ITEMS = [

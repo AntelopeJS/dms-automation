@@ -107,6 +107,7 @@
       "nameRequired": "Donnez-lui un nom pour l’enregistrer.",
       "runFailed": "{name} a échoué",
       "runFailedAt": "{name} a échoué à l’étape {step}",
+      "runCancelled": "{name} a été annulée",
       "runSucceeded": "{name} s’est exécutée avec succès",
       "showBlocks": "Afficher les blocs",
       "stale": {
@@ -157,6 +158,7 @@
         "testingHint": "Ses étapes s’affichent ici à la fin du test.",
         "again": "Relancer",
         "exit": "Quitter le débogage",
+        "cancelled": "Annulée · {duration}",
         "failed": "Échec · {duration}",
         "failedAt": "Échec à {step} · {duration}",
         "passed": "Réussie · {duration}",
@@ -812,6 +814,7 @@
       "rerunWithPayload": "Relancer avec cette charge utile",
       "retentionHint": "Les exécutions sont conservées 30 jours",
       "status": {
+        "cancelled": "Annulée",
         "failed": "En échec",
         "ok": "Réussie"
       },

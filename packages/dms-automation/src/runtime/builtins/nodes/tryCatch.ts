@@ -9,6 +9,8 @@ async function execute(
   try {
     await ctx.fireTrigger("try");
   } catch (err) {
+    // A cancelled run is not a failure to handle: it stops here too.
+    if (ctx.signal.aborted) throw err;
     const message = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Error";
     ctx.setOutputs({ error: message, name });

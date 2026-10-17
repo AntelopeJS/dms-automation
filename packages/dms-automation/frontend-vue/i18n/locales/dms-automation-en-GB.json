@@ -107,6 +107,7 @@
       "nameRequired": "Give it a name to save it.",
       "runFailed": "{name} failed",
       "runFailedAt": "{name} failed at {step}",
+      "runCancelled": "{name} was cancelled",
       "runSucceeded": "{name} ran successfully",
       "showBlocks": "Show blocks",
       "stale": {
@@ -157,6 +158,7 @@
         "testingHint": "Its steps show here when the test ends.",
         "again": "Run again",
         "exit": "Exit debug",
+        "cancelled": "Cancelled · {duration}",
         "failed": "Failed · {duration}",
         "failedAt": "Failed at {step} · {duration}",
         "passed": "Succeeded · {duration}",
@@ -812,6 +814,7 @@
       "rerunWithPayload": "Re-run with this payload",
       "retentionHint": "Runs are kept 30 days",
       "status": {
+        "cancelled": "Cancelled",
         "failed": "Failed",
         "ok": "Succeeded"
       },

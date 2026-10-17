@@ -1,3 +1,4 @@
+import { AsyncResource } from "node:async_hooks";
 import { HTTPResult } from "@antelopejs/interface-api";
 import { Logging } from "@antelopejs/interface-core/logging";
 import { GetModel } from "@antelopejs/interface-database-decorators";
@@ -26,6 +27,7 @@ import {
   parseStoredGraph,
 } from "./runProcedure";
 import { type ArmError, armErrorFrom, storeArmErrors } from "./armErrors";
+import { isModuleGone } from "./departed";
 import { diff } from "./reconcileDiff";
 import { registry } from "./registry";
 import { serialQueue } from "./serialQueue";
@@ -34,30 +36,17 @@ import {
   disableInvalidUsages,
   forkUsage,
 } from "./templateUsages";
+import {
+  type Armed,
+  handles,
+  liveMeta,
+  release,
+  TRIGGER_OP_TIMEOUT_MS,
+  teardown,
+} from "./triggerHandles";
 import { isTriggerTypeDisabled, refreshTypeSwitches } from "./typeSwitches";
 import { withTimeout } from "./withTimeout";
 
-interface HandleEntry {
-  handle: unknown;
-  type: TriggerType;
-  typeId: string;
-  configHash: string;
-  procedureId: string;
-  nodeId: string;
-}
-
-interface LiveMeta {
-  procedure: Procedure;
-  graph: ProcedureGraph;
-  nodeId: string;
-}
-
-const handles = new Map<string, HandleEntry>();
-// Latest procedure + graph for each active trigger. The activate callback
-// reads from this at fire time so graph edits take effect without
-// tearing down and re-creating the handle (which the diff in reconcile()
-// only does when typeId/config change).
-const liveMeta = new Map<string, LiveMeta>();
 // Why a desired trigger failed to arm on this instance, by key. Kept until the
 // trigger arms or is no longer desired, and written on the procedure after
 // each reconcile (storeArmErrors), so the procedures list can tell an enabled
@@ -131,32 +120,6 @@ function requestReconcile(reason: string): void {
 
 function key(procedureId: string, nodeId: string): string {
   return `${procedureId}#${nodeId}`;
-}
-
-// Upper bound on a single trigger's own activate/deactivate. A trigger
-// implementation that hangs would otherwise block the whole serialized
-// reconcile chain indefinitely.
-const TRIGGER_OP_TIMEOUT_MS = 10_000;
-
-// Tear down one trigger handle, bounded so a misbehaving deactivate can't wedge
-// the caller. Returns whether teardown succeeded; callers decide whether to drop
-// the handle or keep it for retry. Keep the definition that created EACH handle:
-// a reload can replace the registry entry while another activation is awaiting.
-async function tryDeactivate(k: string, entry: HandleEntry): Promise<boolean> {
-  try {
-    await withTimeout(
-      entry.type.deactivate(entry.handle),
-      TRIGGER_OP_TIMEOUT_MS,
-      `deactivate ${entry.typeId} for ${k}`,
-    );
-    return true;
-  } catch (err) {
-    Logging.Error(
-      `[dms-automation] failed to deactivate ${entry.typeId} for ${k}:`,
-      err,
-    );
-    return false;
-  }
 }
 
 function parseGraph(raw: string): ProcedureGraph {
@@ -242,15 +205,14 @@ async function deactivateStaleHandles(
   for (const k of toDeactivate) {
     const entry = handles.get(k);
     if (!entry) continue;
-    if (!(await tryDeactivate(k, entry))) {
+    if (!(await teardown(k, entry))) {
       // Keep the handle tracked so the NEXT reconcile retries teardown rather
       // than orphaning a possibly-still-armed trigger (a dropped-but-live cron
       // would double-fire alongside a new leader's, uncleaned by any reconcile).
       failedDeactivate.add(k);
       continue;
     }
-    handles.delete(k);
-    liveMeta.delete(k);
+    release(k, entry);
   }
   return failedDeactivate;
 }
@@ -288,8 +250,9 @@ async function activateNewHandles(
       });
       continue;
     }
+    const live: Armed = { armed: true };
     try {
-      const handle = await activateTrigger(triggerType, meta.config, k);
+      const handle = await activateTrigger(triggerType, meta.config, k, live);
       handles.set(k, {
         handle,
         type: triggerType,
@@ -297,9 +260,14 @@ async function activateNewHandles(
         configHash: configHashOf(meta.config),
         procedureId: meta.procedure._id,
         nodeId: meta.nodeId,
+        live,
       });
       activationErrors.delete(k);
     } catch (err) {
+      live.armed = false;
+      // Unregistered while this pass held it: the reconcile its departure
+      // requests arms the procedure again, or says why it cannot.
+      if (isModuleGone(err)) continue;
       Logging.Error(
         `[dms-automation] failed to activate ${meta.typeId} for ${k}:`,
         err,
@@ -361,30 +329,37 @@ async function activateTrigger(
   triggerType: TriggerType,
   config: unknown,
   liveKey: string,
+  live: Armed,
 ): Promise<unknown> {
+  // Bound to this module's context, where the reconcile runs: the trigger's
+  // module calls `emit` from its own code, and a run started in ITS context
+  // fails every interface call it makes (storing the run included) as soon as
+  // that module unloads, a hot reload for one.
+  const emit = AsyncResource.bind((payload: unknown) => {
+    if (!live.armed) return;
+    const meta = liveMeta.get(liveKey);
+    if (!meta) {
+      Logging.Warn(
+        `[dms-automation] trigger fired but no live meta for ${liveKey}; dropped`,
+      );
+      return;
+    }
+    void executeProcedure(
+      meta.procedure,
+      meta.graph,
+      meta.nodeId,
+      payload,
+      templates,
+    ).catch((err) => {
+      Logging.Error("[dms-automation] procedure execution failed:", err);
+    });
+  });
   // Bound activate like deactivate: a trigger whose activate never settles would
   // otherwise wedge the whole serialized reconcile chain — blocking even a
   // pending leadership-loss teardown. (Trigger authors must keep activate fast;
   // see README. A timed-out activate is treated as failed and retried next pass.)
   return withTimeout(
-    triggerType.activate(config, (payload) => {
-      const meta = liveMeta.get(liveKey);
-      if (!meta) {
-        Logging.Warn(
-          `[dms-automation] trigger fired but no live meta for ${liveKey}; dropped`,
-        );
-        return;
-      }
-      void executeProcedure(
-        meta.procedure,
-        meta.graph,
-        meta.nodeId,
-        payload,
-        templates,
-      ).catch((err) => {
-        Logging.Error("[dms-automation] procedure execution failed:", err);
-      });
-    }),
+    triggerType.activate(config, emit),
     TRIGGER_OP_TIMEOUT_MS,
     `activate ${triggerType.id} for ${liveKey}`,
   );
@@ -581,16 +556,21 @@ export const subscriptions = {
   /**
    * A trigger type was unregistered: tear down each handle with its own
    * definition, then reconcile so its procedures report it gone, or re-arm
-   * with the replacement. A pass already running can have armed handles from
-   * both definitions before this queued teardown starts.
+   * with the replacement. The teardown of the handles armed so far starts at
+   * once: a module unregisters its types as it stops, and the core
+   * invalidates its context right after, when its `deactivate` can no longer
+   * run. A pass already running can have armed handles from both definitions
+   * before the queued teardown starts.
    */
   async onTriggerTypeUnregistered(typeId: string): Promise<void> {
+    for (const [k, entry] of handles) {
+      if (entry.typeId === typeId) void teardown(k, entry);
+    }
     await reconciles.run(async () => {
       for (const [k, entry] of handles) {
         if (entry.typeId !== typeId) continue;
-        await tryDeactivate(k, entry); // force teardown: drop regardless of result
-        handles.delete(k);
-        liveMeta.delete(k);
+        await teardown(k, entry); // force teardown: drop regardless of result
+        release(k, entry);
       }
     });
     requestReconcile(`trigger type "${typeId}" unregistered`);
@@ -705,9 +685,8 @@ export const subscriptions = {
   /** @internal exposed for destroy() in src/index.ts */
   async _deactivateAll(): Promise<void> {
     for (const [k, entry] of handles) {
-      await tryDeactivate(k, entry); // force teardown: drop regardless of result
-      handles.delete(k);
-      liveMeta.delete(k);
+      await teardown(k, entry); // force teardown: drop regardless of result
+      release(k, entry);
     }
     activationErrors.clear();
     hydrated = false;

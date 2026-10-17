@@ -133,6 +133,10 @@ const declared = await DeclareProcedure({
   `DEFAULT_TENANT_ID` from `@antelopejs/interface-dms`, as the DMS's own actions do.
 - A trigger type registered after the automation module armed its procedures
   (modules start in parallel, hot reloads) arms them on registration.
+- When a module stops or hot-reloads, its triggers are deactivated as the core
+  unregisters its types, while its context is still valid; a run on one of its
+  steps ends `cancelled` (not `failed`, not caught by Try/Catch or Retry).
+  Runs started by `emit` run in the automation module's context.
 - `DataNodeType.evaluate` is synchronous and must be a pure transformation;
   `ActionType.execute` is async and receives an `ExecutionCtx` with a per-node
   `log(level, message, value?)`.
