@@ -138,6 +138,35 @@ test("overview: the runs chart names its compared series in its own legend", () 
   assert.ok(translated("$dms_automation.overview.comparedRuns"));
 });
 
+test("overview: each list's skeleton draws the rows its route sends", () => {
+  const controller = require("../dist/pages/overview.js")[PAGES.overview];
+  const {
+    PROCEDURE_COUNT_LINES,
+    RECENT_RUNS,
+  } = require("../dist/stats/overview.js");
+  const components = pageComponents(controller);
+  const feed = components.find(
+    (c) => c._componentName === "dms-activity-feed-block",
+  );
+  assert.equal(feed._options.maxItems, RECENT_RUNS);
+  assert.equal(feed._options.skeletonCount, RECENT_RUNS);
+  const counts = components.find(
+    (c) => c._componentName === "dms-key-value-list-block",
+  );
+  assert.equal(counts._options.skeletonCount, PROCEDURE_COUNT_LINES);
+});
+
+test("overview: the runs chart keeps the line under its total without a comparison", () => {
+  const controller = require("../dist/pages/overview.js")[PAGES.overview];
+  const card = pageComponents(controller).find(
+    (c) => c._componentName === "dms-chart-card",
+  );
+  // Its skeleton holds the change's line: a description takes it when the
+  // runs kept do not reach back to the compared period.
+  assert.equal(card._options.showDelta, true);
+  assert.ok(translated(card._options.description));
+});
+
 for (const file of ["overview", "runs"]) {
   test(`${file}: one page toolbar first in the body, keeping the ids roles grant`, () => {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
