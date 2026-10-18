@@ -11,6 +11,12 @@ import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
 import { Form } from "@antelopejs/interface-dms/base/form";
 import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { KpiCard } from "@antelopejs/interface-dms/base/kpi-card";
+import { LiveToggle } from "@antelopejs/interface-dms/base/live-toggle";
+import {
+  PAGE_TOOLBAR_LIVE_DEFAULTS,
+  PAGE_TOOLBAR_PERIOD_DEFAULTS,
+  PageToolbar,
+} from "@antelopejs/interface-dms/base/page-toolbar";
 import type { PeriodPreset } from "@antelopejs/interface-dms/base/period-selector";
 import { PeriodSelector } from "@antelopejs/interface-dms/base/period-selector";
 import { RegisterPageTopic } from "@antelopejs/interface-dms/realtime";
@@ -43,24 +49,20 @@ export function isPeriodPreset(
 }
 
 /**
- * The 24 h / 7 d / 30 d switch of a page, publishing under `scope`. The
- * overview and the run history remember one choice: the period follows the
- * user from one to the other.
+ * The 24 h / 7 d / 30 d window of a page, publishing under `scope`, with the
+ * start of the window and the period before it ("vs …") beside the presets.
+ * The overview and the run history remember one choice: the period follows
+ * the user from one to the other.
  */
-export function periodSwitch(scope: string) {
+function periodSwitch(scope: string) {
   return PeriodSelector({
+    ...PAGE_TOOLBAR_PERIOD_DEFAULTS,
     id: scope,
     rememberKey: "automation",
-    variant: "segmented",
     presets: PERIOD_PRESETS,
     defaultPreset: "last-24h",
     defaultComparison: "previous-period",
     comparisons: ["previous-period"],
-    // A single comparison would draw an on/off toggle; keep the menu.
-    comparisonControl: "menu",
-    align: "right",
-    size: "sm",
-    showRangeLabel: false,
   }).meta({
     name: "$dms_automation.permissions.period.name",
     description: "$dms_automation.permissions.period.description",
@@ -76,7 +78,7 @@ export function periodSwitch(scope: string) {
  * a `realtimeTopic`, but this refresh already reaches them: giving them one
  * too would read them twice per event.
  */
-export function liveTopics(topics: string[]) {
+function liveTopics(topics: string[]) {
   return CustomComponent("dms-automation-live-topics")
     .options({ realtimeTopic: topics })
     .meta({
@@ -88,6 +90,31 @@ export function liveTopics(topics: string[]) {
       const pageId = page.pageInfo?.fullId;
       if (!pageId) return;
       for (const topic of topics) RegisterPageTopic(pageId, topic);
+    });
+}
+
+/**
+ * The bar first in the body of the overview and the run history: how long
+ * ago the page was read with its Live / Pause, the period of `scope`, and
+ * what keeps the page live (`topics`), which draws nothing. Built by hand
+ * rather than with `pageToolbar()` to keep the `toggle` and `topics` ids
+ * roles already grant under the page's `live`.
+ */
+export function automationToolbar({
+  topics,
+  scope,
+}: {
+  topics: string[];
+  scope: string;
+}) {
+  return PageToolbar()
+    .child("toggle", LiveToggle(PAGE_TOOLBAR_LIVE_DEFAULTS))
+    .child("topics", liveTopics(topics))
+    .child("period", periodSwitch(scope))
+    .meta({
+      name: "$dms_automation.permissions.live.name",
+      description: "$dms_automation.permissions.live.description",
+      icon: "i-ph-broadcast",
     });
 }
 

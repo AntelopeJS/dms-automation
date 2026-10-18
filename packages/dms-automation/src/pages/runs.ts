@@ -1,8 +1,6 @@
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { Banner } from "@antelopejs/interface-dms/base/banner";
 import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
-import { LiveToggle } from "@antelopejs/interface-dms/base/live-toggle";
-import { HStack } from "@antelopejs/interface-dms/base/stack";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
 import { TableView } from "@antelopejs/interface-dms/base/table-view";
 import { RunsTableAPI } from "../data/runs-table";
@@ -10,10 +8,9 @@ import { RUNS_TOPIC } from "../realtime";
 import { DEFAULT_RETENTION_DAYS, runsKeptDays } from "../runtime/retention";
 import {
   API_URL,
+  automationToolbar,
   BUILDER_URL,
   kpiRow,
-  liveTopics,
-  periodSwitch,
   RUNS_PERIOD_SCOPE,
   TRACE_URL,
 } from "./shared";
@@ -64,13 +61,12 @@ export class RunsPageController extends PageController(
   },
   DefaultLayout(),
 ) {
-  // "Live · updated 12 s ago" with its pause; a stored run reads the KPIs and
-  // the list again.
-  static live = HStack()
-    .child("toggle", LiveToggle({ align: "left" }))
-    .child("topics", liveTopics([RUNS_TOPIC]));
-
-  static period = periodSwitch(RUNS_PERIOD_SCOPE);
+  // "Updated 12 s ago" with its Live / Pause and the period; a stored run
+  // reads the KPIs and the list again.
+  static live = automationToolbar({
+    topics: [RUNS_TOPIC],
+    scope: RUNS_PERIOD_SCOPE,
+  });
 
   static kpis = kpiRow(RUNS_PERIOD_SCOPE, { fetchUrl: `${API_URL}/runs/kpi` });
 

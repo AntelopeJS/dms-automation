@@ -1,5 +1,6 @@
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
+import { pageToolbar } from "@antelopejs/interface-dms/base/page-toolbar";
 import { TableView } from "@antelopejs/interface-dms/base/table-view";
 import { ProceduresTableAPI } from "../data/procedures-table";
 import {
@@ -11,6 +12,12 @@ import {
   TRACE_URL,
 } from "./shared";
 import "./category";
+
+/**
+ * Shortest interval, in seconds, between two reads of the list while runs
+ * land: each run can move a procedure from one state to another.
+ */
+const LIVE_MAX_RATE = 10;
 
 function stateTab(state: string, icon: string, navBadge = false) {
   return {
@@ -32,11 +39,20 @@ export class ProceduresPageController extends PageController(
     icon: "i-ph-flow-arrow",
     module: "automation",
     order: 3,
+    live: { maxRate: LIVE_MAX_RATE },
   },
   DefaultLayout({
     headerActions: [importProcedureButton(), newProcedureButton()],
   }),
 ) {
+  // "Updated 12 s ago" with its Live / Pause: the list follows its realtime
+  // topics, and a pause holds it still while reading.
+  static toolbar = pageToolbar({ period: false }).meta({
+    name: "$dms_automation.permissions.live.name",
+    description: "$dms_automation.permissions.live.description",
+    icon: "i-ph-broadcast",
+  });
+
   static table = TableView(ProceduresTableAPI, {
     // The tab says which procedures are listed, the counter how many.
     caption: "$dms_automation.procedures.title",

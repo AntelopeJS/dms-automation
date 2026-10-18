@@ -615,8 +615,8 @@
     },
     "permissions": {
       "live": {
-        "description": "The Live / Pause switch and how long ago the page was read.",
-        "name": "Live updates"
+        "description": "The bar above the page: how long ago it was read, its Live / Pause and, where the page has one, its period.",
+        "name": "Page toolbar"
       },
       "liveTopics": {
         "description": "Refreshes the page when a run ends or a procedure changes.",
