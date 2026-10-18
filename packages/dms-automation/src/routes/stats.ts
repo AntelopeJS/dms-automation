@@ -200,10 +200,16 @@ export class StatsController extends Controller("/api/automation/stats") {
     @AuthRawUser() _user: User,
     @Parameter("from", "query") from?: string,
     @Parameter("to", "query") to?: string,
+    @Parameter("compareFrom", "query") compareFrom?: string,
+    @Parameter("compareTo", "query") compareTo?: string,
     @Parameter("preset", "query") preset?: string,
+    @Parameter("comparison", "query") comparison?: string,
   ) {
-    const window = periodWindow({ from, to, preset });
-    return runsPerDayChart(await loadStatsContext(window.from), window);
+    // Compared as the KPIs are: the window the scope resolved, kept runs only.
+    const window = await withKeptComparison(
+      periodWindow({ from, to, compareFrom, compareTo, preset, comparison }),
+    );
+    return runsPerDayChart(await loadStatsContext(earliestOf(window)), window);
   }
 
   /** Failing and paused whatever the period; degraded over the period. */
