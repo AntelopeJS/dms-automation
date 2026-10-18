@@ -109,11 +109,16 @@ export class OverviewPageController extends PageController(
         "runsPerDay",
         ChartCard({
           title: "$dms_automation.overview.runsPerDay",
-          // The card draws no legend for a stacked chart: say it in words.
-          description: "$dms_automation.overview.runsPerDayLegend",
           icon: "i-ph-chart-bar",
           fetchUrl: `${STATS_URL}/runs-per-day`,
           periodScope: SCOPE,
+          // The chart's legend names its series: succeeded, failed, and the
+          // dashed runs of the compared period. The card's own legend would
+          // key "Period" in one colour, which stacked bars do not have.
+          showLegend: false,
+          showSeriesLegend: true,
+          // The change of the total, with the compared one ("vs 120").
+          showDelta: true,
           chart: ChartColumn({
             stacked: true,
             height: "260px",

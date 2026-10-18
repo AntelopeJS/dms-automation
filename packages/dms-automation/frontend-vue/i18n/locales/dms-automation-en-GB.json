@@ -591,7 +591,6 @@
     },
     "overview": {
       "proceduresWeek": "Procedures · last 7 days",
-      "runsPerDayLegend": "Succeeded runs in green, failed runs in red",
       "allRuns": "Run history",
       "byTrigger": "By trigger",
       "byTriggerHint": "How many procedures each trigger starts",
@@ -609,6 +608,7 @@
       "noRunsHint": "Runs show up here as soon as a procedure fires.",
       "noTriggers": "No trigger placed yet",
       "recentRuns": "Recent runs",
+      "comparedRuns": "Runs, compared period",
       "runsPerDay": "Runs",
       "succeeded": "Succeeded",
       "title": "Overview"
