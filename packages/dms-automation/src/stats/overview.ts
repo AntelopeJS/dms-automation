@@ -267,7 +267,8 @@ function formatDuration(ms: number | null): string {
   return `${(ms / MS_PER_SECOND).toFixed(1)} s`;
 }
 
-const RECENT_RUNS = 8;
+/** Runs the overview's recent runs show; its skeleton draws as many rows. */
+export const RECENT_RUNS = 8;
 
 /** The overview's recent runs, newest first, each linking to its trace. */
 export function recentRunItems(
@@ -327,6 +328,12 @@ const COUNTED_STATES: readonly ProcedureState[] = [
   "paused",
   "draft",
 ];
+
+/**
+ * Lines of the overview's procedure counts, always all of them: the total and
+ * one per state. Its skeleton draws as many rows.
+ */
+export const PROCEDURE_COUNT_LINES = COUNTED_STATES.length + 1;
 
 /** The tone of a state's count once it is above 0. */
 const COUNT_TONE: Partial<Record<ProcedureState, KeyValueItem["tone"]>> = {
