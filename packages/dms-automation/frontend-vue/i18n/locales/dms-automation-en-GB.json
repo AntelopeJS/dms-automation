@@ -460,7 +460,7 @@
       "failed": "Failed",
       "runs": "Runs",
       "success-rate": "Success rate",
-      "vsPrevious": "vs previous period"
+      "vsCompared": "vs compared period"
     },
     "library": {
       "webhookBaseError": "Couldn’t get the server’s address, so the full URL can’t be shown.",
@@ -653,7 +653,7 @@
         "name": "New procedure dialog"
       },
       "period": {
-        "description": "The 24 h / 7 d / 30 d window of the figures",
+        "description": "The 24 h / 7 d / 30 d window of the figures and what they are compared with",
         "name": "Period switch"
       },
       "runPeek": {

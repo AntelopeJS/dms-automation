@@ -12,7 +12,10 @@ import { Form } from "@antelopejs/interface-dms/base/form";
 import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { KpiCard } from "@antelopejs/interface-dms/base/kpi-card";
 import type { PageToolbarPeriodOptions } from "@antelopejs/interface-dms/base/page-toolbar";
-import type { PeriodPreset } from "@antelopejs/interface-dms/base/period-selector";
+import type {
+  PeriodComparison,
+  PeriodPreset,
+} from "@antelopejs/interface-dms/base/period-selector";
 import { RegisterPageTopic } from "@antelopejs/interface-dms/realtime";
 
 /** Base URL of the module's pages. */
@@ -43,6 +46,16 @@ export function isPeriodPreset(
 }
 
 /**
+ * What the KPIs can be compared with, in the menu beside the window: the
+ * period before it, the same window a year earlier, or nothing.
+ */
+const PERIOD_COMPARISONS: PeriodComparison[] = [
+  "previous-period",
+  "previous-year",
+  "none",
+];
+
+/**
  * Keeps a page declared with `live` in step with `topics`: each event they
  * publish refreshes every block of the page through its Live / Pause. The
  * DMS KPI card takes no realtime topic of its own, and a custom block binds
@@ -67,8 +80,8 @@ export function liveTopics(topics: string[]) {
 
 /**
  * The `period` of the `pageToolbar()` first in the body of the overview and
- * the run history: the 24 h / 7 d / 30 d window of `scope`, with the period
- * before it ("vs …") beside the presets. The two pages remember one choice:
+ * the run history: the 24 h / 7 d / 30 d window of `scope`, with a menu of
+ * what it is compared with ("vs …") beside the presets. The two pages remember one choice:
  * the period follows the user from one to the other.
  */
 export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
@@ -77,7 +90,7 @@ export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
     rememberKey: "automation",
     presets: PERIOD_PRESETS,
     defaultComparison: "previous-period",
-    comparisons: ["previous-period"],
+    comparisons: PERIOD_COMPARISONS,
     meta: {
       name: "$dms_automation.permissions.period.name",
       description: "$dms_automation.permissions.period.description",
@@ -143,7 +156,8 @@ export function kpiRow(
         showSparkline: sparkline,
         sparklineAccent: "auto",
         invert,
-        compareLabel: "$dms_automation.kpi.vsPrevious",
+        // Worded for any comparison the period offers: the toolbar names it.
+        compareLabel: "$dms_automation.kpi.vsCompared",
         valueFormat: metric === "success-rate" ? "percent" : "number",
       }),
     );

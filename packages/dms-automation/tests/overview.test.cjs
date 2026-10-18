@@ -173,6 +173,46 @@ test("a sliding period ends at the request, its comparison with it", () => {
   assert.equal(week.to.getTime(), NOW.getTime());
 });
 
+test("the compared window is the one the scope resolved, a year back too", () => {
+  const { periodWindow } = require("../dist/routes/stats.js");
+  const YEAR = 365 * 24 * 3600 * 1000;
+  const query = {
+    from: ago(24).toISOString(),
+    to: NOW.toISOString(),
+    compareFrom: new Date(ago(24).getTime() - YEAR).toISOString(),
+    compareTo: new Date(NOW.getTime() - YEAR).toISOString(),
+    comparison: "previous-year",
+  };
+  const week = periodWindow({ ...query, preset: "last-7-days" }, NOW);
+  assert.equal(week.compareFrom.getTime(), ago(24).getTime() - YEAR);
+  assert.equal(week.compareTo.getTime(), NOW.getTime() - YEAR);
+  // A sliding window keeps its year back as it follows the request.
+  const later = new Date(NOW.getTime() + 50 * 1000);
+  const sliding = periodWindow({ ...query, preset: "last-24h" }, later);
+  assert.equal(sliding.compareTo.getTime(), later.getTime() - YEAR);
+});
+
+test("no comparison: no compared window, whatever dates come with it", () => {
+  const { periodWindow } = require("../dist/routes/stats.js");
+  const window = periodWindow({
+    from: ago(24).toISOString(),
+    to: NOW.toISOString(),
+    compareFrom: ago(48).toISOString(),
+    compareTo: ago(24).toISOString(),
+    comparison: "none",
+  });
+  assert.equal(window.compareFrom, undefined);
+  assert.equal(window.compareTo, undefined);
+  // Without a comparison, stale compared dates are not even read.
+  assert.doesNotThrow(() =>
+    periodWindow({
+      from: ago(24).toISOString(),
+      compareFrom: "garbage",
+      comparison: "none",
+    }),
+  );
+});
+
 test("a period that cannot be read is refused", () => {
   const { periodWindow } = require("../dist/routes/stats.js");
   const refused = (query) =>

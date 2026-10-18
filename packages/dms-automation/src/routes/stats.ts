@@ -57,9 +57,13 @@ function checkedSpan(from: Date, to: Date, what: string): void {
   }
 }
 
-/** A period query, with the preset the DMS period scope names it by. */
+/**
+ * A period query, with the preset and the comparison the DMS period scope
+ * names them by.
+ */
 export interface PresetQuery extends PeriodQuery {
   preset?: string;
+  comparison?: string;
 }
 
 /**
@@ -83,12 +87,18 @@ function shifted(window: StatsWindow, ms: number): StatsWindow {
  * The window a period query asks for, or a 400: a date that is not one, a
  * window that ends before it starts or spans more than a year, rather than
  * a silent default or minutes of work. A sliding preset ends at the request,
- * not at the minute the page computed it.
+ * not at the minute the page computed it. The compared window is the one the
+ * scope resolved (the period before, or the same window a year earlier);
+ * "none" compares with nothing, whatever dates come with it.
  */
 export function periodWindow(
-  { preset, ...query }: PresetQuery,
+  { preset, comparison, ...query }: PresetQuery,
   now: Date = new Date(),
 ): StatsWindow {
+  if (comparison === "none") {
+    delete query.compareFrom;
+    delete query.compareTo;
+  }
   for (const [name, raw] of Object.entries(query)) checkedDate(name, raw);
   let window = windowOf(query, now);
   checkedSpan(window.from, window.to, "the period");
@@ -112,7 +122,9 @@ function earliestOf(window: StatsWindow): Date {
 /**
  * The window, without its comparison when the runs kept do not reach back to
  * it: past the retention (30 days by default), or before the first run, the
- * compared period is empty and every change would read "new".
+ * compared period is empty and every change would read "new". The same
+ * window a year earlier is past the default retention: the cards then show
+ * no change rather than a comparison with nothing.
  */
 async function withKeptComparison(window: StatsWindow): Promise<StatsWindow> {
   if (!window.compareFrom) return window;
@@ -170,8 +182,16 @@ export class StatsController extends Controller("/api/automation/stats") {
     @Parameter("compareFrom", "query") compareFrom?: string,
     @Parameter("compareTo", "query") compareTo?: string,
     @Parameter("preset", "query") preset?: string,
+    @Parameter("comparison", "query") comparison?: string,
   ) {
-    return kpiAnswer(metric, { from, to, compareFrom, compareTo, preset });
+    return kpiAnswer(metric, {
+      from,
+      to,
+      compareFrom,
+      compareTo,
+      preset,
+      comparison,
+    });
   }
 
   @Get("/runs-per-day")

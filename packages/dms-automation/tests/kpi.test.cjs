@@ -111,6 +111,42 @@ test("without a comparison window there is no delta", () => {
   assert.equal(payload.previousValue, undefined);
 });
 
+test("compared with the same window a year earlier", () => {
+  const YEAR = 365 * 24 * HOUR;
+  const yearBack = (status, hoursBeforeTo) => {
+    const r = run(status, hoursBeforeTo);
+    r.startedAt = new Date(r.startedAt.getTime() - YEAR);
+    r.endedAt = new Date(r.endedAt.getTime() - YEAR);
+    return r;
+  };
+  // 20 runs a year ago, 5 of them failed; the day before has 10 more, ignored.
+  const lastYear = [
+    ...Array.from({ length: 15 }, (_, i) => yearBack("ok", 1 + i)),
+    ...Array.from({ length: 5 }, (_, i) => yearBack("failed", 16 + i)),
+    ...earlier("ok", 10),
+  ];
+  const now = Array.from({ length: 10 }, (_, i) => run("ok", 1 + i));
+  const yearWindow = {
+    from,
+    to,
+    compareFrom: new Date(from.getTime() - YEAR),
+    compareTo: new Date(to.getTime() - YEAR),
+  };
+  const all = [...now, ...lastYear];
+  const runsKpi = kpiPayload("runs", all, yearWindow);
+  assert.equal(runsKpi.value, 10);
+  assert.equal(runsKpi.previousValue, 20);
+  assert.equal(runsKpi.delta, -50);
+  const rate = kpiPayload("success-rate", all, yearWindow);
+  assert.equal(rate.previousValue, 75);
+  assert.equal(kpiPayload("failed", all, yearWindow).previousValue, 5);
+  // The sparkline draws the current window only.
+  assert.equal(
+    runsKpi.sparkline.reduce((a, b) => a + b, 0),
+    10,
+  );
+});
+
 test("hours start on the hour; windows longer than two days bucket by day", () => {
   const sliding = {
     from: new Date("2026-10-06T12:07:33Z"),
