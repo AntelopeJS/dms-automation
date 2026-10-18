@@ -62,6 +62,9 @@ export class ProceduresPageController extends PageController(
     quickFilters: [{ field: "triggerTypes", icon: "i-ph-lightning" }],
     // The states move with every run and every change of a procedure.
     realtimeTopic: ["automation.procedures", "automation.runs"],
+    // Paused, the rows stay as they stood through a search, a sort or a tab,
+    // with "N new · Show" counting the changes since.
+    liveHold: true,
     tabs: [
       // The failing tab publishes its count as the menu badge of the page.
       stateTab("failing", "i-ph-x-circle", true),

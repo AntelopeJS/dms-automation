@@ -111,6 +111,34 @@ test("the overview and the run history share one period and its comparison menu"
 });
 
 for (const file of ["overview", "runs"]) {
+  test(`${file}: every figure of the period shows the comparison its menu picks`, () => {
+    const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
+    const scope = childOf(controller.live, "period")._options.id;
+    const figures = pageComponents(controller).filter(
+      (c) =>
+        ["dms-kpi-card", "dms-chart-card"].includes(c._componentName) &&
+        c._options.periodScope === scope,
+    );
+    // Four KPIs on both pages, and the runs chart on the overview.
+    assert.equal(figures.length, file === "overview" ? 5 : 4);
+    for (const figure of figures) {
+      assert.notEqual(figure._options.showDelta, false, figure._options.title);
+    }
+  });
+}
+
+test("overview: the runs chart names its compared series in its own legend", () => {
+  const controller = require("../dist/pages/overview.js")[PAGES.overview];
+  const card = pageComponents(controller).find(
+    (c) => c._componentName === "dms-chart-card",
+  );
+  assert.equal(card._options.showSeriesLegend, true);
+  // "Period" in one colour would not match the green and red bars.
+  assert.equal(card._options.showLegend, false);
+  assert.ok(translated("$dms_automation.overview.comparedRuns"));
+});
+
+for (const file of ["overview", "runs"]) {
   test(`${file}: one page toolbar first in the body, keeping the ids roles grant`, () => {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
     const blocks = pageBlocks(controller);
@@ -131,6 +159,36 @@ for (const file of ["overview", "runs"]) {
     assert.equal(controller.period, undefined);
   });
 }
+
+test("the live tables hold their rows while paused", () => {
+  const runs = require("../dist/pages/runs.js")[PAGES.runs];
+  assert.deepEqual(runs.table._options.liveHold, {
+    whileRowOpen: true,
+    whileScrolled: true,
+  });
+  const procedures = require("../dist/pages/procedures.js")[PAGES.procedures];
+  assert.equal(procedures.table._options.liveHold, true);
+});
+
+test("every data block of the overview and the run history follows the live topics", () => {
+  // The topics block refreshes every block of the page through the live
+  // gate: none needs a topic of its own, which would read it twice.
+  for (const file of ["overview", "runs"]) {
+    const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
+    const topics = childOf(controller.live, "topics")._options.realtimeTopic;
+    assert.ok(topics.includes("automation.runs"), file);
+    const blocks = pageComponents(controller).filter(
+      (c) => c._componentName !== "dms-automation-live-topics",
+    );
+    for (const block of blocks) {
+      assert.equal(
+        block._options?.realtimeTopic,
+        undefined,
+        block._componentName,
+      );
+    }
+  }
+});
 
 test("procedures: a live-only page toolbar first in the body", () => {
   const controller = require("../dist/pages/procedures.js")[PAGES.procedures];

@@ -117,6 +117,10 @@ export class RunsPageController extends PageController(
     pageSize: 25,
     // One click opens the run beside the list, like a log.
     rowClick: "single",
+    // Paused, the rows stay as they stood through a search, a sort or a page,
+    // with "N new · Show" counting the runs since; live, the list holds alone
+    // while a run is open beside it or the user scrolled down to read.
+    liveHold: { whileRowOpen: true, whileScrolled: true },
     footer: { hint: "$dms_automation.runs.retentionHint" },
     emptyStates: {
       firstRun: {
