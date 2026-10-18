@@ -460,7 +460,7 @@
       "failed": "Échecs",
       "runs": "Exécutions",
       "success-rate": "Taux de succès",
-      "vsPrevious": "vs période précédente"
+      "vsCompared": "vs période comparée"
     },
     "library": {
       "webhookBaseError": "Impossible d’obtenir l’adresse du serveur : l’URL complète ne peut pas être affichée.",
@@ -653,7 +653,7 @@
         "name": "Fenêtre « Nouvelle procédure »"
       },
       "period": {
-        "description": "La période (24 h / 7 j / 30 j) des indicateurs",
+        "description": "La période (24 h / 7 j / 30 j) des indicateurs et ce à quoi ils sont comparés",
         "name": "Sélecteur de période"
       },
       "runPeek": {
