@@ -3,6 +3,8 @@ import type { GroupPort, JsonSchema } from "./useGraphConnect";
 export interface PortRef {
   name: string;
   type?: string;
+  /** The field's title, shown on the canvas in place of the key. */
+  title?: string;
 }
 
 export interface NodeKindUI {
