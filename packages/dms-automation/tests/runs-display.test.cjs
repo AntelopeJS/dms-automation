@@ -28,6 +28,8 @@ test("a run opens in a right drawer on one click, deep linked, and re-runs with 
   assert.equal(peek.target.size, undefined);
   assert.equal(peek.target.overlay, undefined);
   assert.equal(peek.target.title, "$dms_automation.runs.peekTitle");
+  // The header names the run's procedure, not a bare "Run".
+  assert.equal(peek.target.rowTitle, "$dms_automation.runs.peekHeading");
   assert.equal(peek.target.positionLabel, "$dms_automation.runs.peekPosition");
   assert.equal(peek.target.deepLink, true);
   // A link to a run the retention deleted says so in the panel.

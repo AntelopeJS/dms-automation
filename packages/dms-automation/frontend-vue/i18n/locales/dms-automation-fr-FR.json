@@ -802,6 +802,7 @@
       "listTitle": "Exécutions",
       "peek": "Aperçu",
       "peekPosition": "Exécution {index} sur {total}",
+      "peekHeading": "{procedureName}",
       "peekNotFound": "Cette exécution n’est plus conservée",
       "peekNotFoundHint": "La rétention des exécutions l’a peut-être supprimée, ou le lien est erroné.",
       "rowMenu": "Actions pour cette exécution de {procedureName}",

@@ -151,6 +151,8 @@ export class RunsPageController extends PageController(
             type: "drawer",
             direction: "right",
             title: "$dms_automation.runs.peekTitle",
+            // Named after the run's procedure, as the row menu is.
+            rowTitle: "$dms_automation.runs.peekHeading",
             positionLabel: "$dms_automation.runs.peekPosition",
             deepLink: true,
             // A `?record=` link to a run the retention has deleted since.

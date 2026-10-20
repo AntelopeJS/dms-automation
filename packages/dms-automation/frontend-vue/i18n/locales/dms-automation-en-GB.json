@@ -802,6 +802,7 @@
       "listTitle": "Runs",
       "peek": "Quick look",
       "peekPosition": "Run {index} of {total}",
+      "peekHeading": "{procedureName}",
       "peekNotFound": "This run is no longer kept",
       "peekNotFoundHint": "The run retention may have deleted it, or the link is wrong.",
       "rowMenu": "Actions for this run of {procedureName}",
