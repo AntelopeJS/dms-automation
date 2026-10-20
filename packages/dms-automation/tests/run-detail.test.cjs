@@ -3,7 +3,7 @@ const { test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
 // GET /api/automation/runs/:id against in-memory tables: the run comes with
-// what started it, worded by the server, for the trace and the side panel.
+// what started it, worded by the server, for the trace and the run drawer.
 
 // GetModel builds its models on a registered schema: hand it a bare one, the
 // data access is replaced below.

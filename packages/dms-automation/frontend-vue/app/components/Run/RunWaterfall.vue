@@ -244,7 +244,7 @@ const ticks = computed(() => {
 })
 
 // The row layout: the name and the time on one line and the bar under them
-// in a narrow column (a phone, the side panel); name, bar and time side by
+// in a narrow column (a phone, the run drawer); name, bar and time side by
 // side when there is room.
 const ROW_GRID = 'grid grid-cols-[minmax(0,1fr)_4.5rem] items-center gap-x-3 gap-y-1.5 @xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_4.5rem]'
 const BAR_CELL = 'order-last col-span-2 @xl:order-none @xl:col-span-1'

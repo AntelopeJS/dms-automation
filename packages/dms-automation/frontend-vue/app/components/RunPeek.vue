@@ -4,9 +4,9 @@ import { builderRunUrl, opensInBuilder, type RunDetail, useAutomationRuns } from
 import { useRunActions } from '../composables/useRunActions'
 import { describeDateTime, describeDuration } from '../utils/describe'
 
-// The quick look at a run, in the run history's side panel: what it did, where
-// it failed, the path it took and its payload, with the next actions. The DMS
-// panel draws the header, "Run x of y" and the J / K navigation.
+// The quick look at a run, in the run history's drawer: what it did, where it
+// failed, the path it took and its payload, with the next actions. The DMS
+// drawer draws the row header, "Run x of y" and the J / K navigation.
 
 const props = defineProps<{
 	rowData?: { _id?: string }

@@ -119,7 +119,7 @@ export class RunsPageController extends PageController(
     defaultDisplay: "grouped",
     pagination: "pages",
     pageSize: 25,
-    // One click opens the run beside the list, like a log.
+    // One click opens the run in a drawer over the list, like a log.
     rowClick: "single",
     footer: { hint: "$dms_automation.runs.retentionHint" },
     emptyStates: {
@@ -146,7 +146,10 @@ export class RunsPageController extends PageController(
           isDefault: true,
           deepLink: true,
           target: {
-            type: "sidePanel",
+            // A detail panel: a right drawer, resizable and opened again at
+            // the user's width, carrying the row header and J / K.
+            type: "drawer",
+            direction: "right",
             title: "$dms_automation.runs.peekTitle",
             positionLabel: "$dms_automation.runs.peekPosition",
             deepLink: true,
