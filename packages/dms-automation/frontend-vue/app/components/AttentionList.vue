@@ -193,8 +193,8 @@ function dismiss(row: AttentionRow) {
 				:actions="[{ label: $t('dms_automation.common.retry'), icon: 'i-ph-arrow-clockwise', onClick: refresh }]"
 			/>
 		</div>
+		<!-- The empty state has its own padding: no taller than the skeleton. -->
 		<div v-else-if="rows.length === 0">
-			<!-- The empty state has its own padding: no taller than the skeleton. -->
 			<DmsEmptyState
 				size="sm"
 				icon="i-ph-check-circle"
