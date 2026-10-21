@@ -2,13 +2,16 @@ import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { Banner } from "@antelopejs/interface-dms/base/banner";
 import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
+import { pageToolbar } from "@antelopejs/interface-dms/base/page-toolbar";
 import { TableView } from "@antelopejs/interface-dms/base/table-view";
 import { RunsTableAPI } from "../data/runs-table";
 import { RUNS_TOPIC } from "../realtime";
 import { DEFAULT_RETENTION_DAYS, runsKeptDays } from "../runtime/retention";
 import {
   API_URL,
-  automationToolbar,
+  LIVE_TOOLBAR_META,
+  liveTopics,
+  toolbarPeriod,
   BUILDER_URL,
   kpiRow,
   RUNS_PERIOD_SCOPE,
@@ -63,10 +66,11 @@ export class RunsPageController extends PageController(
 ) {
   // "Updated 12 s ago" with its Live / Pause and the period; a stored run
   // reads the KPIs and the list again.
-  static live = automationToolbar({
-    topics: [RUNS_TOPIC],
-    scope: RUNS_PERIOD_SCOPE,
-  });
+  static live = pageToolbar({
+    leading: { topics: liveTopics([RUNS_TOPIC]) },
+    live: { childId: "toggle" },
+    period: toolbarPeriod(RUNS_PERIOD_SCOPE),
+  }).meta(LIVE_TOOLBAR_META);
 
   static kpis = kpiRow(RUNS_PERIOD_SCOPE, { fetchUrl: `${API_URL}/runs/kpi` });
 

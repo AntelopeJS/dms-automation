@@ -8,11 +8,14 @@ import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { KeyValueList } from "@antelopejs/interface-dms/base/key-value-list";
 import { ButtonVariant } from "@antelopejs/interface-dms/base";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
+import { pageToolbar } from "@antelopejs/interface-dms/base/page-toolbar";
 import { TopListCard } from "@antelopejs/interface-dms/base/top-list-card";
 import { PROCEDURES_TOPIC, RUNS_TOPIC } from "../realtime";
 import {
   API_URL,
-  automationToolbar,
+  LIVE_TOOLBAR_META,
+  liveTopics,
+  toolbarPeriod,
   BUILDER_URL,
   kpiRow,
   newProcedureButton,
@@ -78,10 +81,11 @@ export class OverviewPageController extends PageController(
    * "Updated 12 s ago" with its Live / Pause, the period and the one before
    * it, and what keeps the page live: a run stored, a procedure changed.
    */
-  static live = automationToolbar({
-    topics: [RUNS_TOPIC, PROCEDURES_TOPIC],
-    scope: SCOPE,
-  });
+  static live = pageToolbar({
+    leading: { topics: liveTopics([RUNS_TOPIC, PROCEDURES_TOPIC]) },
+    live: { childId: "toggle" },
+    period: toolbarPeriod(SCOPE),
+  }).meta(LIVE_TOOLBAR_META);
 
   /**
    * One line saying how automation is doing, the next action, and the first

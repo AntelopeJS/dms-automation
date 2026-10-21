@@ -131,7 +131,7 @@ for (const file of ["overview", "runs"]) {
     assert.equal(controller.live._componentName, "dms-page-toolbar-block");
     assert.deepEqual(
       controller.live._children.map((child) => child.id),
-      ["toggle", "topics", "period"],
+      ["topics", "toggle", "period"],
     );
     const toggle = childOf(controller.live, "toggle");
     assert.equal(toggle._componentName, "dms-live-toggle-block");
