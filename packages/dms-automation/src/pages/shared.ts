@@ -11,18 +11,10 @@ import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
 import { Form } from "@antelopejs/interface-dms/base/form";
 import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { KpiCard } from "@antelopejs/interface-dms/base/kpi-card";
-import type {
-  ComponentBuilder,
-  ComponentInfo,
-} from "@antelopejs/interface-dms/component";
-import {
-  PAGE_TOOLBAR_PERIOD_CHILD_ID,
-  type PageToolbarPeriodOptions,
-} from "@antelopejs/interface-dms/base/page-toolbar";
+import type { PageToolbarPeriodOptions } from "@antelopejs/interface-dms/base/page-toolbar";
 import type {
   PeriodComparison,
   PeriodPreset,
-  PeriodSelectorProps,
 } from "@antelopejs/interface-dms/base/period-selector";
 import { RegisterPageTopic } from "@antelopejs/interface-dms/realtime";
 import { DEFAULT_RETENTION_DAYS, runsKeptDays } from "../runtime/retention";
@@ -76,28 +68,6 @@ export function offeredComparisons(
 }
 
 /**
- * Offers the comparisons of the retention the project configured, read when
- * the page registers: the page classes are built when the module loads,
- * before `construct()` reads `runs.retentionDays`.
- *
- * `pageToolbar()` takes no option transform for the controls it places, so
- * this reaches its period child through the toolbar's `componentInfo`. To
- * drop once dms lets a `pageToolbar()` child carry a transform.
- */
-export function withRetainedComparisons<T>(
-  toolbar: ComponentBuilder<T>,
-): ComponentBuilder<T> {
-  const { children } = toolbar.componentInfo as ComponentInfo<T>;
-  const period = children?.find(
-    (child) => child.id === PAGE_TOOLBAR_PERIOD_CHILD_ID,
-  )?.component as ComponentBuilder<PeriodSelectorProps> | undefined;
-  period?.transformOptions((options) =>
-    options ? { ...options, comparisons: offeredComparisons() } : options,
-  );
-  return toolbar;
-}
-
-/**
  * Keeps a page declared with `live` in step with `topics`: each event they
  * publish refreshes every block of the page through its Live / Pause. The
  * DMS KPI card takes no realtime topic of its own, and a custom block binds
@@ -132,8 +102,13 @@ export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
     rememberKey: "automation",
     presets: PERIOD_PRESETS,
     defaultComparison: "previous-period",
-    // What the default retention reaches; see withRetainedComparisons().
+    // What the default retention reaches; the transform below offers what
+    // the configured one does, read when the page registers: the page
+    // classes are built when the module loads, before `construct()` reads
+    // `runs.retentionDays`.
     comparisons: offeredComparisons(DEFAULT_RETENTION_DAYS),
+    transformOptions: (options) =>
+      options && { ...options, comparisons: offeredComparisons() },
     meta: {
       name: "$dms_automation.permissions.period.name",
       description: "$dms_automation.permissions.period.description",
