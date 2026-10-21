@@ -3,9 +3,7 @@ const { test } = require("node:test");
 const {
   attentionRows,
   healthHero,
-  PROCEDURE_COUNT_LINES,
   procedureCounts,
-  RECENT_RUNS,
   recentRunItems,
   runsPerDayChart,
 } = require("../dist/stats/overview.js");
@@ -120,20 +118,6 @@ test("the procedure counts add up to the total, one line per state", () => {
     total.value,
   );
   assert.equal(counts[2].to, "/procedures?tab=degraded");
-});
-
-test("the overview's lists send as many lines as their skeletons draw", () => {
-  // The counts always hold every line, even with no procedure at all.
-  assert.equal(
-    procedureCounts(context([], []), "/procedures").length,
-    PROCEDURE_COUNT_LINES,
-  );
-  // The recent runs stop at the rows drawn while they load.
-  const runs = Array.from({ length: RECENT_RUNS + 3 }, (_, i) =>
-    run("p", "ok", i + 1),
-  );
-  const ctx = context([procedure("p", "Sync")], runs);
-  assert.equal(recentRunItems(ctx, "/trace").length, RECENT_RUNS);
 });
 
 test("a run of a deleted procedure keeps its name", () => {

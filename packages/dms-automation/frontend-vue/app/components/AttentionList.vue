@@ -62,10 +62,6 @@ const busy = ref<string | null>(null)
 
 const TONES = { failing: 'error', degraded: 'warning', paused: 'neutral' } as const
 
-// Two rows are as tall as the empty state (161 and 156 px): the card keeps its
-// height whether the list loads empty or with the usual one or two rows.
-const SKELETON_ROWS = 2
-
 function reason(row: AttentionRow): string {
 	const f = row.lastFailure
 	const step = stepTitle(f?.step, processI18n)
@@ -174,16 +170,9 @@ function dismiss(row: AttentionRow) {
 			</UButton>
 		</template>
 
-		<!-- Rows the size of loaded ones: a name, two lines of reason. -->
-		<ul v-if="isLoading && data === null" class="divide-y divide-default" aria-busy="true">
-			<li v-for="i in SKELETON_ROWS" :key="i" class="flex flex-col gap-1 px-4 py-3">
-				<USkeleton class="my-1 h-3 w-1/2" />
-				<div>
-					<USkeleton class="my-0.5 h-3 w-4/5" />
-					<USkeleton class="my-0.5 h-3 w-3/5" />
-				</div>
-			</li>
-		</ul>
+		<div v-if="isLoading && data === null" class="flex flex-col gap-3 p-4">
+			<USkeleton v-for="i in 3" :key="i" class="h-12 w-full" />
+		</div>
 		<div v-else-if="hasError" class="p-4" :title="errorDetail">
 			<DmsEmptyState
 				variant="error"
@@ -193,8 +182,7 @@ function dismiss(row: AttentionRow) {
 				:actions="[{ label: $t('dms_automation.common.retry'), icon: 'i-ph-arrow-clockwise', onClick: refresh }]"
 			/>
 		</div>
-		<!-- The empty state has its own padding: no taller than the skeleton. -->
-		<div v-else-if="rows.length === 0">
+		<div v-else-if="rows.length === 0" class="p-4">
 			<DmsEmptyState
 				size="sm"
 				icon="i-ph-check-circle"

@@ -610,7 +610,6 @@
       "recentRuns": "Recent runs",
       "comparedRuns": "Runs, compared period",
       "runsPerDay": "Runs",
-      "runsPerDayHint": "Runs in the period",
       "succeeded": "Succeeded",
       "title": "Overview"
     },

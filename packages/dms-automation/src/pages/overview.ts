@@ -10,7 +10,6 @@ import { ButtonVariant } from "@antelopejs/interface-dms/base";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
 import { TopListCard } from "@antelopejs/interface-dms/base/top-list-card";
 import { PROCEDURES_TOPIC, RUNS_TOPIC } from "../realtime";
-import { PROCEDURE_COUNT_LINES, RECENT_RUNS } from "../stats/overview";
 import {
   API_URL,
   automationToolbar,
@@ -120,10 +119,6 @@ export class OverviewPageController extends PageController(
           showSeriesLegend: true,
           // The change of the total, with the compared one ("vs 120").
           showDelta: true,
-          // Shown when the runs kept do not reach back to the compared
-          // period, which then has no change: the line under the total stays,
-          // where the skeleton held it.
-          description: "$dms_automation.overview.runsPerDayHint",
           chart: ChartColumn({
             stacked: true,
             height: "260px",
@@ -156,10 +151,8 @@ export class OverviewPageController extends PageController(
           title: "$dms_automation.overview.recentRuns",
           fetchUrl: `${STATS_URL}/recent-runs`,
           groupByDay: false,
-          // As many rows as the route sends: the skeleton holds the card's
-          // height, and the row of cards around it.
-          maxItems: RECENT_RUNS,
-          skeletonCount: RECENT_RUNS,
+          maxItems: 8,
+          skeletonCount: 6,
           card: true,
           actions: [
             { label: "$dms_automation.overview.allRuns", to: RUNS_URL },
@@ -176,7 +169,7 @@ export class OverviewPageController extends PageController(
           // The state of the procedure list, whose tabs the lines open.
           title: "$dms_automation.overview.proceduresWeek",
           fetchUrl: `${STATS_URL}/procedures`,
-          skeletonCount: PROCEDURE_COUNT_LINES,
+          skeletonCount: 5,
           card: true,
         }),
       )

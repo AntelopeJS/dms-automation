@@ -610,7 +610,6 @@
       "recentRuns": "Exécutions récentes",
       "comparedRuns": "Exécutions, période comparée",
       "runsPerDay": "Exécutions",
-      "runsPerDayHint": "Exécutions sur la période",
       "succeeded": "Réussies",
       "title": "Vue d’ensemble"
     },
