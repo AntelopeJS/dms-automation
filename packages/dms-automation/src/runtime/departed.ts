@@ -1,4 +1,4 @@
-import { MODULE_CONTEXT_INVALIDATED_CODE } from "@antelopejs/interface-core";
+import { isModuleContextInvalidatedError } from "@antelopejs/interface-core";
 import type { GraphNode } from "../types/graph";
 import { registry } from "./registry";
 
@@ -16,11 +16,9 @@ const MAX_CAUSES = 8;
 export function isModuleGone(err: unknown): boolean {
   let current = err;
   for (let depth = 0; current && depth < MAX_CAUSES; depth++) {
-    // The code, not the class: the module that threw may hold its own copy of
-    // interface-core.
-    const { code, cause } = current as { code?: unknown; cause?: unknown };
-    if (code === MODULE_CONTEXT_INVALIDATED_CODE) return true;
-    current = cause;
+    // The core's guard holds for an error from another copy of interface-core.
+    if (isModuleContextInvalidatedError(current)) return true;
+    current = (current as { cause?: unknown }).cause;
   }
   return false;
 }

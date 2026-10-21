@@ -286,3 +286,29 @@ test("a type unregistered during the run cancels it; one never there fails it", 
   assert.equal(failed.status, "failed");
   assert.equal(failed.failedNodeId, "second");
 });
+
+const {
+  MODULE_CONTEXT_INVALIDATED_CODE,
+} = require("@antelopejs/interface-core");
+const { isModuleGone } = require("../dist/runtime/departed.js");
+
+// A step stops with the error of a module that went away, often wrapped by
+// the code between: the run is cancelled, not failed, whichever copy of
+// interface-core the module that threw resolved.
+
+test("a departed module's error is recognized through its causes, from any copy", () => {
+  const foreignCopy = Object.assign(new Error("other copy"), {
+    code: MODULE_CONTEXT_INVALIDATED_CODE,
+  });
+  assert.equal(isModuleGone(foreignCopy), true);
+  const wrapped = new Error("step failed", {
+    cause: new Error("action failed", { cause: foreignCopy }),
+  });
+  assert.equal(isModuleGone(wrapped), true);
+});
+
+test("any other failure is not a departure", () => {
+  assert.equal(isModuleGone(new Error("boom")), false);
+  assert.equal(isModuleGone({ code: MODULE_CONTEXT_INVALIDATED_CODE }), false);
+  assert.equal(isModuleGone(undefined), false);
+});
