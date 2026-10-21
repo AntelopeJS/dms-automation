@@ -40,17 +40,12 @@ describe("run drawer and log", () => {
       respond,
     });
     assert.doesNotMatch(html, /Failing call/);
-    // Pushed down and flush with the body's edge over its padding, as a DMS
-    // form's footer; a narrow drawer wraps the buttons, not their labels.
-    const footer = html.match(/<div class="(sticky [^"]*)">/)[1].split(" ");
-    for (const name of [
-      "mt-auto",
-      "-mb-[var(--dms-form-foot-pb,0px)]",
-      "flex-wrap",
-      "bg-default",
-    ]) {
-      assert.ok(footer.includes(name), name);
-    }
+    // The body fills the drawer, and its actions go in the DMS footer, which
+    // keeps them at the bottom; a narrow drawer wraps the buttons, not their
+    // labels.
+    assert.match(html, /^<div class="flex flex-1 flex-col gap-4">/);
+    assert.match(html, /<div data-stub="DmsContainerFooter" justify="start">/);
+    assert.doesNotMatch(html, /dms-form-foot|min-height/);
     assert.equal(html.match(/class="whitespace-nowrap"/g).length, 2);
   });
 

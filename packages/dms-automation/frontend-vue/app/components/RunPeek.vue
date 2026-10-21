@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { builderRunUrl, opensInBuilder, type RunDetail, useAutomationRuns } from '../composables/useAutomationRuns'
-import { useFillScrollArea } from '../composables/useFillScrollArea'
 import { useRunActions } from '../composables/useRunActions'
 import { describeDateTime, describeDuration } from '../utils/describe'
 
 // The quick look at a run, in the run history's drawer: what it did, where it
 // failed, the path it took and its payload, with the next actions. The DMS
 // drawer draws the row header (the procedure's name, "Run x of y" and the
-// J / K navigation): the body does not name the run again.
+// J / K navigation): the body does not name the run again. Its root grows to
+// the drawer's height (the drawer body is a flex column), so the DMS footer
+// sits at the bottom while the run is short.
 
 const props = defineProps<{
 	rowData?: { _id?: string }
@@ -46,17 +47,13 @@ const sections = computed(() => [
 	{ label: t('dms_automation.trace.tabs.logs'), value: 'logs', badge: run.value?.logCount ?? run.value?.logs?.entries.length },
 ])
 
-// The actions sit at the bottom of the drawer, the content scrolling under them.
-const root = ref<HTMLElement>()
-const minHeight = useFillScrollArea(root)
-
 function go(url: string) {
 	void router.push(url)
 }
 </script>
 
 <template>
-	<div ref="root" class="flex flex-col gap-4" :style="{ minHeight }">
+	<div class="flex flex-1 flex-col gap-4">
 		<div v-if="loading && !run" class="flex flex-col gap-3">
 			<USkeleton class="h-6 w-60" />
 			<USkeleton class="h-24 w-full" />
@@ -97,12 +94,10 @@ function go(url: string) {
 			<DmsAutomationRunPayload v-else-if="section === 'payload'" :raw="run.triggerPayload" :kept="run.payloadKept" />
 			<DmsAutomationRunLogList v-else :api-url="apiUrl" :run-id="run._id" :log="run.logs" :names="names" />
 
-			<!-- Flush with the drawer's bottom edge, over the body's padding (as a
-				DMS form's footer). Labels stay on one line: a narrow drawer wraps the
-				buttons instead, Re-run being an icon with its name in a tooltip. -->
-			<div
-				class="sticky bottom-[calc(var(--dms-form-foot-pb,0px)*-1)] z-10 -mx-[var(--dms-form-foot-px,0px)] mt-auto -mb-[var(--dms-form-foot-pb,0px)] flex flex-wrap items-center gap-2 border-t border-default bg-default px-[var(--dms-form-foot-px,0px)] pt-3 pb-[var(--dms-form-foot-pb,12px)]"
-			>
+			<!-- The DMS footer of a drawer's body. Labels stay on one line: a
+				narrow drawer wraps the buttons instead, Re-run being an icon with its
+				name in a tooltip. -->
+			<DmsContainerFooter justify="start">
 				<UTooltip v-if="run.procedure && run.payloadKept" :text="$t('dms_automation.runs.rerunWithPayload')">
 					<UButton
 						color="neutral"
@@ -129,7 +124,7 @@ function go(url: string) {
 						</UButton>
 					</span>
 				</UTooltip>
-			</div>
+			</DmsContainerFooter>
 		</template>
 	</div>
 </template>
