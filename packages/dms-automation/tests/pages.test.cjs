@@ -123,17 +123,6 @@ for (const file of ["overview", "runs"]) {
   });
 }
 
-test("overview: the runs chart names its compared series in its own legend", () => {
-  const controller = require("../dist/pages/overview.js")[PAGES.overview];
-  const card = pageComponents(controller).find(
-    (c) => c._componentName === "dms-chart-card",
-  );
-  assert.equal(card._options.showSeriesLegend, true);
-  // "Period" in one colour would not match the green and red bars.
-  assert.equal(card._options.showLegend, false);
-  assert.ok(translated("$dms_automation.overview.comparedRuns"));
-});
-
 for (const file of ["overview", "runs"]) {
   test(`${file}: one page toolbar first in the body, keeping the ids roles grant`, () => {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];

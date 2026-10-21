@@ -63,6 +63,9 @@ function periodSwitch(scope: string) {
     defaultPreset: "last-24h",
     defaultComparison: "previous-period",
     comparisons: ["previous-period"],
+    // Said beside the window ("vs …"), with no control of its own: a single
+    // comparison would otherwise draw an on/off toggle.
+    comparisonControl: "hidden",
   }).meta({
     name: "$dms_automation.permissions.period.name",
     description: "$dms_automation.permissions.period.description",
