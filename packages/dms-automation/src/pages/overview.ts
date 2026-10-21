@@ -16,6 +16,7 @@ import {
   LIVE_TOOLBAR_META,
   liveTopics,
   toolbarPeriod,
+  withRetainedComparisons,
   BUILDER_URL,
   kpiRow,
   newProcedureButton,
@@ -81,11 +82,13 @@ export class OverviewPageController extends PageController(
    * "Updated 12 s ago" with its Live / Pause, the period and the one before
    * it, and what keeps the page live: a run stored, a procedure changed.
    */
-  static live = pageToolbar({
-    leading: { topics: liveTopics([RUNS_TOPIC, PROCEDURES_TOPIC]) },
-    live: { childId: "toggle" },
-    period: toolbarPeriod(SCOPE),
-  }).meta(LIVE_TOOLBAR_META);
+  static live = withRetainedComparisons(
+    pageToolbar({
+      leading: { topics: liveTopics([RUNS_TOPIC, PROCEDURES_TOPIC]) },
+      live: { childId: "toggle" },
+      period: toolbarPeriod(SCOPE),
+    }).meta(LIVE_TOOLBAR_META),
+  );
 
   /**
    * One line saying how automation is doing, the next action, and the first

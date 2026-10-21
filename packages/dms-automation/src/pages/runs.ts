@@ -12,6 +12,7 @@ import {
   LIVE_TOOLBAR_META,
   liveTopics,
   toolbarPeriod,
+  withRetainedComparisons,
   BUILDER_URL,
   kpiRow,
   RUNS_PERIOD_SCOPE,
@@ -66,11 +67,13 @@ export class RunsPageController extends PageController(
 ) {
   // "Updated 12 s ago" with its Live / Pause and the period; a stored run
   // reads the KPIs and the list again.
-  static live = pageToolbar({
-    leading: { topics: liveTopics([RUNS_TOPIC]) },
-    live: { childId: "toggle" },
-    period: toolbarPeriod(RUNS_PERIOD_SCOPE),
-  }).meta(LIVE_TOOLBAR_META);
+  static live = withRetainedComparisons(
+    pageToolbar({
+      leading: { topics: liveTopics([RUNS_TOPIC]) },
+      live: { childId: "toggle" },
+      period: toolbarPeriod(RUNS_PERIOD_SCOPE),
+    }).meta(LIVE_TOOLBAR_META),
+  );
 
   static kpis = kpiRow(RUNS_PERIOD_SCOPE, { fetchUrl: `${API_URL}/runs/kpi` });
 
