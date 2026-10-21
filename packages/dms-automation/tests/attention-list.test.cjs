@@ -96,5 +96,6 @@ test("needs attention: the empty state adds no padding of its own", async () => 
     isLoading: false,
     data: { items: [], total: 0 },
   });
-  assert.match(html, /<div><section data-empty/);
+  // The comment inside the branch is kept by the development compile only.
+  assert.match(html, /<div>(?:<!--[^>]*-->)?<section data-empty/);
 });
