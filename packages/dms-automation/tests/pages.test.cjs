@@ -84,7 +84,7 @@ function childOf(component, id) {
   return component._children.find((child) => child.id === id)?.component;
 }
 
-test("the overview and the run history share one period and its comparison menu", () => {
+test("the overview and the run history share one period, compared with the one before", () => {
   const selectors = ["overview", "runs"].map((file) => {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
     return childOf(controller.live, "period")._options;
@@ -96,14 +96,10 @@ test("the overview and the run history share one period and its comparison menu"
       "last-7-days",
       "last-30-days",
     ]);
-    assert.deepEqual(options.comparisons, [
-      "previous-period",
-      "previous-year",
-      "none",
-    ]);
+    assert.deepEqual(options.comparisons, ["previous-period"]);
     assert.equal(options.defaultComparison, "previous-period");
-    // "vs previous period ▾" beside the window, not hidden.
-    assert.equal(options.comparisonControl, "menu");
+    // Said beside the window ("vs …"), with no control of its own.
+    assert.equal(options.comparisonControl, "hidden");
     assert.equal(options.rangeLabel, "relative");
     assert.notEqual(options.showRangeLabel, false);
   }

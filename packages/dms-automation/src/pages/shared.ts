@@ -17,10 +17,7 @@ import {
   PAGE_TOOLBAR_PERIOD_DEFAULTS,
   PageToolbar,
 } from "@antelopejs/interface-dms/base/page-toolbar";
-import type {
-  PeriodComparison,
-  PeriodPreset,
-} from "@antelopejs/interface-dms/base/period-selector";
+import type { PeriodPreset } from "@antelopejs/interface-dms/base/period-selector";
 import { PeriodSelector } from "@antelopejs/interface-dms/base/period-selector";
 import { RegisterPageTopic } from "@antelopejs/interface-dms/realtime";
 
@@ -52,20 +49,10 @@ export function isPeriodPreset(
 }
 
 /**
- * What the KPIs can be compared with, in the menu beside the window: the
- * period before it, the same window a year earlier, or nothing.
- */
-const PERIOD_COMPARISONS: PeriodComparison[] = [
-  "previous-period",
-  "previous-year",
-  "none",
-];
-
-/**
  * The 24 h / 7 d / 30 d window of a page, publishing under `scope`, with the
- * start of the window and a menu of what it is compared with ("vs …") beside
- * the presets. The overview and the run history remember one choice: the
- * period follows the user from one to the other.
+ * start of the window and the period before it ("vs …") beside the presets.
+ * The overview and the run history remember one choice: the period follows
+ * the user from one to the other.
  */
 function periodSwitch(scope: string) {
   return PeriodSelector({
@@ -75,9 +62,7 @@ function periodSwitch(scope: string) {
     presets: PERIOD_PRESETS,
     defaultPreset: "last-24h",
     defaultComparison: "previous-period",
-    comparisons: PERIOD_COMPARISONS,
-    // The toolbar defaults hide the comparison control: offer the menu.
-    comparisonControl: "menu",
+    comparisons: ["previous-period"],
   }).meta({
     name: "$dms_automation.permissions.period.name",
     description: "$dms_automation.permissions.period.description",
@@ -180,8 +165,7 @@ export function kpiRow(
         showSparkline: sparkline,
         sparklineAccent: "auto",
         invert,
-        // Worded for any comparison the period offers: the toolbar names it.
-        compareLabel: "$dms_automation.kpi.vsCompared",
+        compareLabel: "$dms_automation.kpi.vsPrevious",
         valueFormat: metric === "success-rate" ? "percent" : "number",
       }),
     );

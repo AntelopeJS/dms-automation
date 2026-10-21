@@ -303,16 +303,8 @@ export class RunsController extends Controller("/api/automation/runs") {
     @Parameter("compareFrom", "query") compareFrom?: string,
     @Parameter("compareTo", "query") compareTo?: string,
     @Parameter("preset", "query") preset?: string,
-    @Parameter("comparison", "query") comparison?: string,
   ) {
-    return kpiAnswer(metric, {
-      from,
-      to,
-      compareFrom,
-      compareTo,
-      preset,
-      comparison,
-    });
+    return kpiAnswer(metric, { from, to, compareFrom, compareTo, preset });
   }
 
   /**

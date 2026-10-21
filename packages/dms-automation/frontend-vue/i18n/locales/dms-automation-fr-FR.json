@@ -460,7 +460,7 @@
       "failed": "Échecs",
       "runs": "Exécutions",
       "success-rate": "Taux de succès",
-      "vsCompared": "vs période comparée"
+      "vsPrevious": "vs période précédente"
     },
     "library": {
       "webhookBaseError": "Impossible d’obtenir l’adresse du serveur : l’URL complète ne peut pas être affichée.",
@@ -591,6 +591,7 @@
     },
     "overview": {
       "proceduresWeek": "Procédures · 7 derniers jours",
+      "runsPerDayLegend": "Exécutions réussies en vert, en échec en rouge",
       "allRuns": "Historique",
       "byTrigger": "Par déclencheur",
       "byTriggerHint": "Nombre de procédures lancées par chaque déclencheur",
@@ -608,7 +609,6 @@
       "noRunsHint": "Les exécutions apparaissent ici dès qu’une procédure se déclenche.",
       "noTriggers": "Aucun déclencheur placé",
       "recentRuns": "Exécutions récentes",
-      "comparedRuns": "Exécutions, période comparée",
       "runsPerDay": "Exécutions",
       "succeeded": "Réussies",
       "title": "Vue d’ensemble"
@@ -653,7 +653,7 @@
         "name": "Fenêtre « Nouvelle procédure »"
       },
       "period": {
-        "description": "La période (24 h / 7 j / 30 j) des indicateurs et ce à quoi ils sont comparés",
+        "description": "La période (24 h / 7 j / 30 j) des indicateurs",
         "name": "Sélecteur de période"
       },
       "runPeek": {
