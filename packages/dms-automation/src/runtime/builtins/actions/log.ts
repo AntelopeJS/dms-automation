@@ -28,6 +28,8 @@ export const logAction: ActionType<LogInput, LogOutput> = {
   name: "$dms_automation.types.log.name",
   description: "$dms_automation.types.log.description",
   icon: "i-ph-terminal",
+  // Writes to the run's log and the server log only: a test runs it as is.
+  sideEffects: false,
   inputSchema: {
     type: "object",
     properties: {

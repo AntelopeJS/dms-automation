@@ -19,7 +19,7 @@ nodeKinds.register("data", execute, {
   continuationPorts: [],
   sidePorts: [],
   ui: {
-    label: "Data",
+    label: "$dms_automation.nodes.kinds.data",
     icon: "i-ph-function",
     category: "data",
     hasTriggerIn: false,

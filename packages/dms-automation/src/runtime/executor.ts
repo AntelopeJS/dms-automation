@@ -21,11 +21,14 @@ import { validateGraph } from "./validate";
 export interface RunOptions {
   procedureId?: string;
   templateCache?: TemplateCache;
+  /** A test run: actions that can simulate do (see `ActionType.dryRun`). */
+  dryRun?: boolean;
 }
 
 interface RunCtx {
   procedureId: string;
   runId: string;
+  dryRun: boolean;
   runStart: number;
   /** Accumulating fire tree for this run. */
   fires: FireNode[];
@@ -148,6 +151,7 @@ export async function run(
   const runCtx: RunCtx = {
     procedureId,
     runId,
+    dryRun: options.dryRun === true,
     runStart,
     fires: [],
     entries: [],
@@ -472,6 +476,7 @@ function makeNodeCtx(
     runId: runCtx.runId,
     nodeId: node.id,
     signal: runCtx.signal,
+    dryRun: runCtx.dryRun,
     log(level, message, value) {
       appendEntry(runCtx, {
         source: "log",

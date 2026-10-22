@@ -39,7 +39,7 @@ nodeKinds.register("retry", execute, {
   continuationPorts: ["main"],
   sidePorts: ["body", "exhausted"],
   ui: {
-    label: "Retry",
+    label: "$dms_automation.nodes.kinds.retry",
     icon: "i-ph-arrow-counter-clockwise",
     category: "flow",
     hasTriggerIn: true,
