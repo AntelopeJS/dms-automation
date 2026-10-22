@@ -173,6 +173,7 @@ function propsOf(schema: JsonSchema | undefined) {
 	return Object.entries(schema.properties).map(([name, p]) => ({
 		name,
 		type: Array.isArray(p?.type) ? p?.type[0] : p?.type,
+		title: p?.title,
 	}))
 }
 
