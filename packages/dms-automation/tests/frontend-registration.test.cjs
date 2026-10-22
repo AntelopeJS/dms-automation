@@ -21,7 +21,12 @@ test("registers Vue with the automation configuration and original priority", as
   const load = Module._load;
   mock.method(Module, "_load", (name, parent, isMain) => {
     if (Object.hasOwn(mocks, name)) return mocks[name];
-    if (name.startsWith("./") && name !== "./types/constants") return {};
+    if (
+      name.startsWith("./") &&
+      name !== "./types/constants" &&
+      name !== "./frontend-module"
+    )
+      return {};
     return load(name, parent, isMain);
   });
   const exports = require(filename);

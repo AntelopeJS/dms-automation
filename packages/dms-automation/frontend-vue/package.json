@@ -31,7 +31,7 @@
     "vue-tsc": "^3.1.1"
   },
   "engines": {
-    "@antelopejs/dms-frontend": ">=0.6.3 <0.7.0"
+    "@antelopejs/dms-frontend": ">=0.6.3 <0.8.0"
   },
   "packageManager": "pnpm@10.6.5"
 }

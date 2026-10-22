@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/dms-automation",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Visual automation builder for the AntelopeJS DMS: procedures as node graphs started by schedules, webhooks, manual runs or DMS events, with a trace for every run.",
   "keywords": [
     "antelopejs",
@@ -101,5 +101,6 @@
     "skills": [
       "./skills"
     ]
-  }
+  },
+  "dmsFrontend": "dist/frontend-module.js"
 }
