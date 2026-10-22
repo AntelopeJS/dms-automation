@@ -26,7 +26,7 @@ export function useRunActions(options: { apiUrl: string; traceUrl: string }) {
     asking = true;
     let result: RerunResult | undefined;
     try {
-      await confirmFrom(`${options.apiUrl}/runs/{id}/rerun-confirm`, {
+      await confirmFrom(`${options.apiUrl}/runs/{{row.id}}/rerun-confirm`, {
         params: { id: runId, name: procedureName },
         fallback: { color: "warning", icon: "i-ph-arrow-clockwise" },
         onConfirm: async () => {
