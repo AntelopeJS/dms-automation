@@ -48,6 +48,22 @@ export function stepTitle(
   return step.nodeId;
 }
 
+/** A data port of a node: the schema property it wires by, and its title. */
+export interface PortName {
+  name: string;
+  /** The property's `title`, plain text or a `$`-prefixed DMS i18n key. */
+  title?: string;
+}
+
+/**
+ * The words a port reads as on the canvas: its field's title when one is
+ * declared, else its key. Edges and handles keep wiring by the key.
+ */
+export function portLabel(port: PortName, t: Translate): string {
+  const title = port.title?.trim();
+  return title ? t(title) : port.name;
+}
+
 const MS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
 

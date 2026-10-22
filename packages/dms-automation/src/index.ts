@@ -1,7 +1,6 @@
 import "./db";
 import "./pages";
 import "./routes";
-import path from "node:path";
 import { ImplementInterface } from "@antelopejs/interface-core";
 import { Logging } from "@antelopejs/interface-core/logging";
 import { RegisterSchema } from "@antelopejs/interface-database-decorators";
@@ -33,7 +32,8 @@ import {
 } from "./runtime/retention";
 import { subscriptions } from "./runtime/subscriptions";
 import { isOriginAttributionWorking } from "./runtime/typeOrigin";
-import { FRONTEND_MODULE_NAME, SCHEMA_NAME } from "./types/constants";
+import { SCHEMA_NAME } from "./types/constants";
+import { frontendModule } from "./frontend-module";
 
 export interface Config {
   /** Multi-instance coordination. Omit for standalone (single-instance) behavior. */
@@ -75,14 +75,7 @@ export async function construct(config: Config): Promise<void> {
     await import("./implementations/dms-automation"),
   );
 
-  await AddFrontendModule({
-    name: FRONTEND_MODULE_NAME,
-    sourcePath: path.join(__dirname, "../frontend-vue"),
-    renderer: { name: "vue", version: "3" },
-    configKey: "dmsAutomation",
-    options: { authHeaderName: "x-dashboard-auth" },
-    priority: 0,
-  });
+  await AddFrontendModule(frontendModule());
 }
 
 export function getConfig(): Config {
