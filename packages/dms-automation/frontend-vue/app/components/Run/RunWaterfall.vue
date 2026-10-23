@@ -244,10 +244,13 @@ const ticks = computed(() => {
 })
 
 // The row layout: the name and the time on one line and the bar under them
-// in a narrow column (a phone, the side panel); name, bar and time side by
+// in a narrow column (a phone, the run drawer); name, bar and time side by
 // side when there is room.
 const ROW_GRID = 'grid grid-cols-[minmax(0,1fr)_4.5rem] items-center gap-x-3 gap-y-1.5 @xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_4.5rem]'
 const BAR_CELL = 'order-last col-span-2 @xl:order-none @xl:col-span-1'
+// A step's name wraps while its bar takes a line of its own (a phone, a narrow
+// drawer); beside the bar it keeps to one line.
+const NAME_CLASS = 'break-words @xl:truncate'
 </script>
 
 <template>
@@ -310,7 +313,7 @@ const BAR_CELL = 'order-last col-span-2 @xl:order-none @xl:col-span-1'
 						/>
 						<span class="flex min-w-0 flex-col">
 							<span class="flex min-w-0 items-center gap-1.5">
-								<span class="truncate text-sm text-highlighted">{{ stepTitle(row.step.name, processI18n) }}</span>
+								<span :class="NAME_CLASS" class="text-sm text-highlighted">{{ stepTitle(row.step.name, processI18n) }}</span>
 								<UBadge v-if="row.tag" color="neutral" variant="soft" size="sm" class="shrink-0 font-mono">{{ row.tag }}</UBadge>
 								<UBadge v-if="row.step.handled" color="warning" variant="subtle" size="sm" class="shrink-0">
 									{{ $t('dms_automation.trace.handled') }}
@@ -356,7 +359,7 @@ const BAR_CELL = 'order-last col-span-2 @xl:order-none @xl:col-span-1'
 				<span class="flex min-w-0 items-center gap-2">
 					<UIcon name="i-ph-circle-dashed" class="size-4 shrink-0 text-muted" />
 					<span class="flex min-w-0 flex-col">
-						<span class="truncate text-sm text-muted">{{ stepTitle(step.name, processI18n) }}</span>
+						<span :class="NAME_CLASS" class="text-sm text-muted">{{ stepTitle(step.name, processI18n) }}</span>
 						<span class="truncate font-mono text-[11px] text-muted">
 							{{ step.reason === 'stopped' ? $t('dms_automation.trace.notReached') : $t('dms_automation.trace.branchNotTaken') }}
 						</span>

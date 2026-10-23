@@ -119,7 +119,7 @@ export class RunsPageController extends PageController(
     defaultDisplay: "grouped",
     pagination: "pages",
     pageSize: 25,
-    // One click opens the run beside the list, like a log.
+    // One click opens the run in a drawer over the list, like a log.
     rowClick: "single",
     // Paused, the rows stay as they stood through a search, a sort or a page,
     // with "N new · Show" counting the runs since; live, the list holds alone
@@ -150,8 +150,13 @@ export class RunsPageController extends PageController(
           isDefault: true,
           deepLink: true,
           target: {
-            type: "sidePanel",
+            // A detail panel: a right drawer, resizable and opened again at
+            // the user's width, carrying the row header and J / K.
+            type: "drawer",
+            direction: "right",
             title: "$dms_automation.runs.peekTitle",
+            // Named after the run's procedure, as the row menu is.
+            rowTitle: "$dms_automation.runs.peekHeading",
             positionLabel: "$dms_automation.runs.peekPosition",
             deepLink: true,
             // A `?record=` link to a run the retention has deleted since.

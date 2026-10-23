@@ -16,13 +16,20 @@ test("the run history uses the DMS grouped display, by day, counted", () => {
   assert.equal(options.defaultDisplay, "grouped");
 });
 
-test("a run opens in the side panel on one click, deep linked, and re-runs with its payload", () => {
+test("a run opens in a right drawer on one click, deep linked, and re-runs with its payload", () => {
   const { RunsPageController } = require("../dist/pages/runs.js");
   const [peek, rerun, trace] =
     RunsPageController.table._options.rowActions.custom;
   assert.equal(peek.isDefault, true);
   assert.equal(peek.deepLink, true);
-  assert.equal(peek.target.type, "sidePanel");
+  assert.equal(peek.target.type, "drawer");
+  assert.equal(peek.target.direction, "right");
+  // The 600px default, resized and remembered by the user.
+  assert.equal(peek.target.size, undefined);
+  assert.equal(peek.target.overlay, undefined);
+  assert.equal(peek.target.title, "$dms_automation.runs.peekTitle");
+  // The header names the run's procedure, not a bare "Run".
+  assert.equal(peek.target.rowTitle, "$dms_automation.runs.peekHeading");
   assert.equal(peek.target.positionLabel, "$dms_automation.runs.peekPosition");
   assert.equal(peek.target.deepLink, true);
   // A link to a run the retention deleted says so in the panel.

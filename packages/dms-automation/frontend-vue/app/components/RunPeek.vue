@@ -4,9 +4,12 @@ import { builderRunUrl, opensInBuilder, type RunDetail, useAutomationRuns } from
 import { useRunActions } from '../composables/useRunActions'
 import { describeDateTime, describeDuration } from '../utils/describe'
 
-// The quick look at a run, in the run history's side panel: what it did, where
-// it failed, the path it took and its payload, with the next actions. The DMS
-// panel draws the header, "Run x of y" and the J / K navigation.
+// The quick look at a run, in the run history's drawer: what it did, where it
+// failed, the path it took and its payload, with the next actions. The DMS
+// drawer draws the row header (the procedure's name, "Run x of y" and the
+// J / K navigation): the body does not name the run again. Its root grows to
+// the drawer's height (the drawer body is a flex column), so the DMS footer
+// sits at the bottom while the run is short.
 
 const props = defineProps<{
 	rowData?: { _id?: string }
@@ -50,7 +53,7 @@ function go(url: string) {
 </script>
 
 <template>
-	<div class="flex flex-col gap-4">
+	<div class="flex flex-1 flex-col gap-4">
 		<div v-if="loading && !run" class="flex flex-col gap-3">
 			<USkeleton class="h-6 w-60" />
 			<USkeleton class="h-24 w-full" />
@@ -62,7 +65,6 @@ function go(url: string) {
 		<template v-else-if="run">
 			<div class="flex flex-col gap-1">
 				<div class="flex flex-wrap items-center gap-2">
-					<h3 class="text-base font-semibold text-highlighted">{{ procedureName }}</h3>
 					<DmsStatusPill
 						:tone="failed ? 'error' : 'success'"
 						:label="failed ? $t('dms_automation.runs.status.failed') : $t('dms_automation.runs.status.ok')"
@@ -92,8 +94,10 @@ function go(url: string) {
 			<DmsAutomationRunPayload v-else-if="section === 'payload'" :raw="run.triggerPayload" :kept="run.payloadKept" />
 			<DmsAutomationRunLogList v-else :api-url="apiUrl" :run-id="run._id" :log="run.logs" :names="names" />
 
-			<!-- One line in a narrow panel: Re-run as an icon, its name in a tooltip. -->
-			<div class="sticky bottom-0 flex items-center gap-2 border-t border-default bg-default pt-3">
+			<!-- The DMS footer of a drawer's body. Labels stay on one line: a
+				narrow drawer wraps the buttons instead, Re-run being an icon with its
+				name in a tooltip. -->
+			<DmsContainerFooter justify="start">
 				<UTooltip v-if="run.procedure && run.payloadKept" :text="$t('dms_automation.runs.rerunWithPayload')">
 					<UButton
 						color="neutral"
@@ -104,17 +108,23 @@ function go(url: string) {
 						@click="rerun(run._id, procedureName)"
 					/>
 				</UTooltip>
-				<UButton color="neutral" variant="outline" icon="i-ph-path" @click="go(`${traceUrl}?run=${encodeURIComponent(run._id)}`)">
+				<UButton
+					color="neutral"
+					variant="outline"
+					icon="i-ph-path"
+					class="whitespace-nowrap"
+					@click="go(`${traceUrl}?run=${encodeURIComponent(run._id)}`)"
+				>
 					{{ $t('dms_automation.runs.trace') }}
 				</UButton>
 				<UTooltip v-if="run.procedure" :text="opensInBuilder(run) ? '' : $t('dms_automation.trace.builderDraftHint')" :disabled="opensInBuilder(run)">
 					<span class="ml-auto inline-flex">
-						<UButton color="primary" icon="i-ph-bug" :disabled="!opensInBuilder(run)" @click="go(builderRunUrl(builderUrl, run))">
+						<UButton color="primary" icon="i-ph-bug" class="whitespace-nowrap" :disabled="!opensInBuilder(run)" @click="go(builderRunUrl(builderUrl, run))">
 							{{ $t('dms_automation.trace.debugInBuilder') }}
 						</UButton>
 					</span>
 				</UTooltip>
-			</div>
+			</DmsContainerFooter>
 		</template>
 	</div>
 </template>
