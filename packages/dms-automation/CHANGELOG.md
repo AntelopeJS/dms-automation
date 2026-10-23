@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.6.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.5.1...v0.6.0)
+
+### 🚀 Enhancements
+
+- **frontend:** The frontend registration as a pure function, declared as dmsFrontend ([#67](https://github.com/AntelopeJS/dms-automation/pull/67))
+- **pages:** Adopt the DMS page toolbar on the overview, run history and procedures ([#60](https://github.com/AntelopeJS/dms-automation/pull/60))
+- **pages:** Offer a comparison menu on the overview and run history ([#64](https://github.com/AntelopeJS/dms-automation/pull/64))
+- **runs:** Open the run preview in a right drawer instead of the side panel ([#63](https://github.com/AntelopeJS/dms-automation/pull/63))
+
+### 🩹 Fixes
+
+- **builder:** Label node ports with their field's translated title ([#59](https://github.com/AntelopeJS/dms-automation/pull/59))
+- **frontend:** Fill the id of server-worded confirm dialogs ([#61](https://github.com/AntelopeJS/dms-automation/pull/61))
+- **builder:** Confirm real effects before a test run and let actions dry-run ([#58](https://github.com/AntelopeJS/dms-automation/pull/58))
+- **overview:** Size each block's skeleton as what it loads ([#65](https://github.com/AntelopeJS/dms-automation/pull/65))
+
+### 📦 Build
+
+- Implement interface-dms-automation 0.4 ([#68](https://github.com/AntelopeJS/dms-automation/pull/68))
+- Run on @antelopejs/dms 0.10 and @antelopejs/dms-frontend 0.8 ([#69](https://github.com/AntelopeJS/dms-automation/pull/69))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/interface-dms-automation v0.4.0 ([2611d5d](https://github.com/AntelopeJS/dms-automation/commit/2611d5d))
+
+### ❤️ Contributors
+
+- Maxime Westhoven <maxime@altab.be>
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.5.1
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.5.0...v0.5.1)
