@@ -4,6 +4,13 @@
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.5.1...v0.6.0)
 
+### Upgrade notes
+
+- Runs on `@antelopejs/dms` 0.10 (`@antelopejs/interface-dms >=0.8.0`) and implements `@antelopejs/interface-dms-automation` 0.4.
+- Block and permission ids: on the Overview and the Run history, the period selector moved into the page toolbar, from `<page>.period` to `<page>.live.period` (`live`, `live.toggle` and `live.topics` are unchanged). A custom role that granted `period` must be granted `live.period` again ([#60](https://github.com/AntelopeJS/dms-automation/pull/60)).
+- `POST /api/automation/procedures/:id/test` answers `409` with the draft's `realEffects` while a step would act for real; call it again with `confirmRealEffects: true` to run it. `POST /api/automation/procedures/:id/test-effects` lists those steps ([#58](https://github.com/AntelopeJS/dms-automation/pull/58)).
+- i18n keys removed: `dms_automation.kpi.vsPrevious` and `dms_automation.overview.runsPerDayLegend` (the comparison is the DMS's, [#64](https://github.com/AntelopeJS/dms-automation/pull/64), split from #60). A project that overrides them can drop its overrides.
+
 ### 🚀 Enhancements
 
 - **frontend:** The frontend registration as a pure function, declared as dmsFrontend ([#67](https://github.com/AntelopeJS/dms-automation/pull/67))
