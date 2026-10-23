@@ -41,6 +41,7 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+
 packages:
 
   '@antelopejs/interface-core@0.2.4':
@@ -1674,6 +1675,7 @@ packages:
 
   zod@4.6.7:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
+
 snapshots:
 
   '@antelopejs/interface-core@0.2.4':
