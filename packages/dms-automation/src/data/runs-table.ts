@@ -40,8 +40,8 @@ import { ProceduresTableAPI } from "./procedures-table";
 // Runs are history: the table view only reads and exports them. Everything the
 // list draws is stored on the run when it ends (its duration, its trigger, the
 // step it failed at), so the built-in routes serve it straight from the table,
-// with their own `list` permission check. The procedure's name comes from the
-// relation, which follows a rename.
+// with their own `list` permission check. The procedure's name is stored on
+// the run and rewritten when the procedure is renamed.
 const runRoutes = {
   get: TableViewRoutes.Get,
   list: TableViewRoutes.List,

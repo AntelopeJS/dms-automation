@@ -2,6 +2,7 @@ import {
   Controller,
   HTTPResult,
   JSONBody,
+  MultiParameter,
   Parameter,
 } from "@antelopejs/interface-api";
 import {
@@ -200,10 +201,36 @@ interface CountBatchBody {
 
 const MAX_COUNT_QUERIES = 50;
 
+/** A procedure as the runs table's relation picker lists it. */
+export interface ProcedureOption {
+  procedureId: string;
+  _id: string;
+  name: string;
+}
+
+/**
+ * The picker's options, sorted by name: those of the `ids` asked for when
+ * there are (`?ids=`: how a picked procedure's chip and field name it), else
+ * those the search matches.
+ */
+export function procedureOptions(
+  procedures: Array<{ _id: string; name: string }>,
+  search: unknown,
+  ids: string[] = [],
+): ProcedureOption[] {
+  const q = folded(queryText(search));
+  const asked = new Set(ids);
+  return procedures
+    .map((p) => ({ procedureId: p._id, _id: p._id, name: p.name }))
+    .filter((p) => asked.size === 0 || asked.has(p.procedureId))
+    .filter((p) => !q || folded(p.name).includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 const procedureSummaryRoutes = {
   // `select` feeds the procedure picker of the runs table (its relation
   // filter): `{ procedureId, name }` read straight from the Procedure table,
-  // filtered by the picker's search and sorted by name.
+  // narrowed to `?ids=` or to the picker's search, sorted by name.
   select: {
     method: "GET",
     args: [
@@ -211,19 +238,20 @@ const procedureSummaryRoutes = {
       Parameter("search", "query"),
       Parameter("offset", "query"),
       Parameter("limit", "query"),
+      MultiParameter("ids", "query"),
     ],
+    // Each parameter is bound to a request input by its decorator, so
+    // the framework hands them in positionally.
+    // oxlint-disable-next-line eslint/max-params
     func: async (
       _user: User,
       search?: string,
       offset?: string,
       limit?: string,
+      ids?: string[],
     ) => {
-      const q = folded(queryText(search));
       const procedures = await GetModel(ProcedureModel, DATABASE_NAME).getAll();
-      const options = procedures
-        .map((p) => ({ procedureId: p._id, _id: p._id, name: p.name }))
-        .filter((p) => !q || folded(p.name).includes(q))
-        .sort((a, b) => a.name.localeCompare(b.name));
+      const options = procedureOptions(procedures, search, ids);
       const off = toInt(offset, 0, 0);
       const lim = toInt(limit, DEFAULT_PAGE_SIZE, 1);
       return {
