@@ -30,7 +30,7 @@ importers:
         specifier: '>=0.7.2 <1.0.0'
         version: 0.7.2(baf8655f8e54b8fbf2a9669a652c5bcb)
       '@antelopejs/interface-dms-automation':
-        specifier: '>=0.3.0 <0.4.0'
+        specifier: '>=0.4.0 <0.5.0'
         version: link:../interface-dms-automation
       defu:
         specifier: ^6.1.4
@@ -2309,6 +2309,7 @@ packages:
 
   zod@4.6.7:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
+
 snapshots:
 
   '@antelopejs/core@1.16.0':
