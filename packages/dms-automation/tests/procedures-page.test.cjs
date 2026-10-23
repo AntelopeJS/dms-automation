@@ -170,3 +170,31 @@ test("sorting on the status orders the states by severity, either way", () => {
     names(sortRows(ROWS, "status")),
   );
 });
+
+test("the picker's options narrow to the ids asked for, whatever the page size", () => {
+  const { procedureOptions } = require("../dist/data/procedures-table.js");
+  const procedures = [
+    { _id: "p-a", name: "Alpha" },
+    { _id: "p-z", name: "Zulu" },
+    { _id: "p-m", name: "Mike" },
+  ];
+  // `?ids=p-z`: the row of that id alone, not the first one by name.
+  assert.deepEqual(procedureOptions(procedures, undefined, ["p-z"]), [
+    { procedureId: "p-z", _id: "p-z", name: "Zulu" },
+  ]);
+  assert.deepEqual(
+    procedureOptions(procedures, undefined, ["p-z", "p-m", "gone"]).map(
+      (p) => p.name,
+    ),
+    ["Mike", "Zulu"],
+  );
+  // No ids: every procedure the search matches, by name.
+  assert.deepEqual(
+    procedureOptions(procedures, true).map((p) => p.name),
+    ["Alpha", "Mike", "Zulu"],
+  );
+  assert.deepEqual(
+    procedureOptions(procedures, "ik").map((p) => p.name),
+    ["Mike"],
+  );
+});
