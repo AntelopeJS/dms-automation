@@ -31,6 +31,7 @@ import { isModuleGone } from "./departed";
 import { diff } from "./reconcileDiff";
 import { registry } from "./registry";
 import { serialQueue } from "./serialQueue";
+import { type RealEffectStep, realEffectStepsOf } from "./sideEffects";
 import {
   bumpVersionOfUsages,
   disableInvalidUsages,
@@ -663,6 +664,13 @@ export const subscriptions = {
       templates,
       { kind: "test" },
     );
+  },
+  /**
+   * The steps a test run of this graph executes for real (see
+   * `realEffectStepsOf`): what the user confirms before a test.
+   */
+  realEffectsOf(graph: ProcedureGraph): RealEffectStep[] {
+    return realEffectStepsOf(graph, templates);
   },
   /** Whether a template exists: what a group node may reference. */
   hasTemplate(id: string): boolean {

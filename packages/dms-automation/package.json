@@ -50,7 +50,7 @@
     "test:runs-display": "pnpm run build && node --test tests/runs-display.test.cjs",
     "test:type-origin": "pnpm run build && node --test tests/type-origin.test.cjs",
     "test:type-display": "node --test tests/type-display.test.cjs",
-    "test:unit": "pnpm run build && node --test tests/health.test.cjs tests/kpi.test.cjs tests/graph-issues.test.cjs tests/trace.test.cjs tests/schedule.test.cjs tests/pages.test.cjs tests/procedures-page.test.cjs tests/wording.test.cjs tests/health-banner.test.cjs tests/runtime-nodes.test.cjs tests/runs-api.test.cjs tests/run-detail.test.cjs tests/graph-connect.test.cjs tests/library.test.cjs tests/template-delete.test.cjs tests/overview.test.cjs tests/declared-procedures.test.cjs tests/trigger-rearm.test.cjs tests/module-departure.test.cjs tests/run-procedure.test.cjs",
+    "test:unit": "pnpm run build && node --test tests/health.test.cjs tests/kpi.test.cjs tests/graph-issues.test.cjs tests/trace.test.cjs tests/schedule.test.cjs tests/pages.test.cjs tests/procedures-page.test.cjs tests/wording.test.cjs tests/health-banner.test.cjs tests/runtime-nodes.test.cjs tests/runs-api.test.cjs tests/run-detail.test.cjs tests/graph-connect.test.cjs tests/library.test.cjs tests/template-delete.test.cjs tests/template-comments.test.cjs tests/overview.test.cjs tests/declared-procedures.test.cjs tests/trigger-rearm.test.cjs tests/module-departure.test.cjs tests/run-procedure.test.cjs tests/dry-run.test.cjs tests/test-run-confirm.test.cjs tests/confirm-from.test.cjs",
     "dev": "ajs project run -w -p playground",
     "lint": "oxlint && oxfmt --check . && cd frontend-vue && pnpm lint && antelopejs-check-interface-ranges",
     "typecheck": "pnpm --filter @antelopejs/interface-dms-automation typecheck && tsc --noEmit",
@@ -67,11 +67,11 @@
     "@antelopejs/interface-api": ">=0.0.15 <1.0.0",
     "@antelopejs/interface-api-util": ">=0.1.3 <1.0.0",
     "@antelopejs/interface-core": ">=0.2.4 <1.0.0",
-    "@antelopejs/interface-data-api": ">=0.2.2 <1.0.0",
+    "@antelopejs/interface-data-api": ">=0.3.0 <1.0.0",
     "@antelopejs/interface-database": ">=0.1.10 <1.0.0",
     "@antelopejs/interface-database-decorators": ">=0.1.9 <1.0.0",
     "@antelopejs/interface-dms": ">=0.8.0 <1.0.0",
-    "@antelopejs/interface-dms-automation": ">=0.3.0 <0.4.0",
+    "@antelopejs/interface-dms-automation": ">=0.4.0 <0.5.0",
     "defu": "^6.1.4",
     "node-cron": "^4.2.1",
     "zod": "^3.25.76"
@@ -101,5 +101,6 @@
     "skills": [
       "./skills"
     ]
-  }
+  },
+  "dmsFrontend": "dist/frontend-module.js"
 }

@@ -303,8 +303,16 @@ export class RunsController extends Controller("/api/automation/runs") {
     @Parameter("compareFrom", "query") compareFrom?: string,
     @Parameter("compareTo", "query") compareTo?: string,
     @Parameter("preset", "query") preset?: string,
+    @Parameter("comparison", "query") comparison?: string,
   ) {
-    return kpiAnswer(metric, { from, to, compareFrom, compareTo, preset });
+    return kpiAnswer(metric, {
+      from,
+      to,
+      compareFrom,
+      compareTo,
+      preset,
+      comparison,
+    });
   }
 
   /**
@@ -458,6 +466,17 @@ export class RunsController extends Controller("/api/automation/runs") {
         icon: "i-ph-eye-slash",
         label: "$dms_automation.runs.rerunRedacted",
       });
+    }
+    // A test acts for real through these steps: named before it runs again.
+    for (const step of plan.draft
+      ? subscriptions.realEffectsOf(plan.draft)
+      : []) {
+      const line: ConfirmDialogImpact = {
+        icon: "i-ph-lightning",
+        label: step.typeName,
+      };
+      if (step.label) line.count = step.label;
+      impact.push(line);
     }
     return serializeConfirmDialog({
       title: isTest

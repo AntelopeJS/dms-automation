@@ -8,17 +8,18 @@ import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { KeyValueList } from "@antelopejs/interface-dms/base/key-value-list";
 import { ButtonVariant } from "@antelopejs/interface-dms/base";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
-import { LiveToggle } from "@antelopejs/interface-dms/base/live-toggle";
-import { HStack } from "@antelopejs/interface-dms/base/stack";
+import { pageToolbar } from "@antelopejs/interface-dms/base/page-toolbar";
 import { TopListCard } from "@antelopejs/interface-dms/base/top-list-card";
 import { PROCEDURES_TOPIC, RUNS_TOPIC } from "../realtime";
+import { PROCEDURE_COUNT_LINES, RECENT_RUNS } from "../stats/overview";
 import {
   API_URL,
+  LIVE_TOOLBAR_META,
+  liveTopics,
+  toolbarPeriod,
   BUILDER_URL,
   kpiRow,
-  liveTopics,
   newProcedureButton,
-  periodSwitch,
   PROCEDURES_URL,
   RUNS_URL,
   TRACE_URL,
@@ -78,19 +79,14 @@ export class OverviewPageController extends PageController(
   }),
 ) {
   /**
-   * "Live · updated 12 s ago" with its pause, and what keeps the page live:
-   * a run stored, a procedure changed.
+   * "Updated 12 s ago" with its Live / Pause, the period and the one before
+   * it, and what keeps the page live: a run stored, a procedure changed.
    */
-  static live = HStack()
-    .child("toggle", LiveToggle({ align: "left" }))
-    .child("topics", liveTopics([RUNS_TOPIC, PROCEDURES_TOPIC]))
-    .meta({
-      name: "$dms_automation.permissions.live.name",
-      description: "$dms_automation.permissions.live.description",
-      icon: "i-ph-broadcast",
-    });
-
-  static period = periodSwitch(SCOPE);
+  static live = pageToolbar({
+    leading: { topics: liveTopics([RUNS_TOPIC, PROCEDURES_TOPIC]) },
+    live: { childId: "toggle" },
+    period: toolbarPeriod(SCOPE),
+  }).meta(LIVE_TOOLBAR_META);
 
   /**
    * One line saying how automation is doing, the next action, and the first
@@ -118,11 +114,20 @@ export class OverviewPageController extends PageController(
         "runsPerDay",
         ChartCard({
           title: "$dms_automation.overview.runsPerDay",
-          // The card draws no legend for a stacked chart: say it in words.
-          description: "$dms_automation.overview.runsPerDayLegend",
           icon: "i-ph-chart-bar",
           fetchUrl: `${STATS_URL}/runs-per-day`,
           periodScope: SCOPE,
+          // The chart's legend names its series: succeeded, failed, and the
+          // dashed runs of the compared period. The card's own legend would
+          // key "Period" in one colour, which stacked bars do not have.
+          showLegend: false,
+          showSeriesLegend: true,
+          // The change of the total, with the compared one ("vs 120").
+          showDelta: true,
+          // Shown when the runs kept do not reach back to the compared
+          // period, which then has no change: the line under the total stays,
+          // where the skeleton held it.
+          description: "$dms_automation.overview.runsPerDayHint",
           chart: ChartColumn({
             stacked: true,
             height: "260px",
@@ -155,8 +160,10 @@ export class OverviewPageController extends PageController(
           title: "$dms_automation.overview.recentRuns",
           fetchUrl: `${STATS_URL}/recent-runs`,
           groupByDay: false,
-          maxItems: 8,
-          skeletonCount: 6,
+          // As many rows as the route sends: the skeleton holds the card's
+          // height, and the row of cards around it.
+          maxItems: RECENT_RUNS,
+          skeletonCount: RECENT_RUNS,
           card: true,
           actions: [
             { label: "$dms_automation.overview.allRuns", to: RUNS_URL },
@@ -173,7 +180,7 @@ export class OverviewPageController extends PageController(
           // The state of the procedure list, whose tabs the lines open.
           title: "$dms_automation.overview.proceduresWeek",
           fetchUrl: `${STATS_URL}/procedures`,
-          skeletonCount: 5,
+          skeletonCount: PROCEDURE_COUNT_LINES,
           card: true,
         }),
       )

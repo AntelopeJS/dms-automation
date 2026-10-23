@@ -25,7 +25,8 @@
         "thu": "Le jeudi à {time}",
         "tue": "Le mardi à {time}",
         "wed": "Le mercredi à {time}"
-      }
+      },
+      "testNeedsConfirm": "Des étapes de ce brouillon agissent pour de vrai : confirmez-les avant de tester."
     },
     "attention": {
       "degradedInPeriod": "{failed} exécution sur {runs} en échec sur la période · la dernière à {when}, aucune depuis | {failed} exécutions sur {runs} en échec sur la période · la dernière à {when}, aucune depuis",
@@ -183,7 +184,7 @@
         "problems": "Problèmes",
         "recentRuns": "Exécutions récentes",
         "selectNode": "Sélectionner le nœud",
-        "sideEffects": "Les effets sont réels : pointez les étapes HTTP vers un bac à sable pour un essai à blanc.",
+        "sideEffects": "Les étapes qui savent simuler ont été simulées ; les autres ont agi pour de vrai.",
         "testRun": "Résultat du test",
         "toggle": "Afficher ou masquer le panneau"
       },
@@ -408,6 +409,11 @@
       "wiredField": {
         "from": "Depuis",
         "unwire": "Débrancher"
+      },
+      "testEffects": {
+        "title": "Tester avec des effets réels ?",
+        "description": "Ce test agit pour de vrai : {count} étape ci-dessous modifie quelque chose hors de l’exécution (envoi, écriture, appel d’un service) et ne peut pas être simulée. Les étapes qui savent simuler sont simulées. | Ce test agit pour de vrai : {count} étapes ci-dessous modifient quelque chose hors de l’exécution (envoi, écriture, appel d’un service) et ne peuvent pas être simulées. Les étapes qui savent simuler sont simulées.",
+        "confirm": "Tester pour de vrai"
       }
     },
     "feed": {
@@ -460,7 +466,7 @@
       "failed": "Échecs",
       "runs": "Exécutions",
       "success-rate": "Taux de succès",
-      "vsPrevious": "vs période précédente"
+      "vsCompared": "vs période comparée"
     },
     "library": {
       "webhookBaseError": "Impossible d’obtenir l’adresse du serveur : l’URL complète ne peut pas être affichée.",
@@ -587,11 +593,24 @@
         "group": "Groupe",
         "helper": "Utilitaire",
         "trigger": "Déclencheur"
+      },
+      "kinds": {
+        "action": "Action",
+        "data": "Donnée",
+        "delay": "Attente",
+        "foreach": "Pour chaque",
+        "forRange": "Pour un intervalle",
+        "if": "Si",
+        "parallel": "En parallèle",
+        "retry": "Réessayer",
+        "setVariable": "Définir une variable",
+        "switch": "Selon",
+        "trigger": "Déclencheur",
+        "tryCatch": "Essayer / En cas d’erreur"
       }
     },
     "overview": {
       "proceduresWeek": "Procédures · 7 derniers jours",
-      "runsPerDayLegend": "Exécutions réussies en vert, en échec en rouge",
       "allRuns": "Historique",
       "byTrigger": "Par déclencheur",
       "byTriggerHint": "Nombre de procédures lancées par chaque déclencheur",
@@ -609,14 +628,16 @@
       "noRunsHint": "Les exécutions apparaissent ici dès qu’une procédure se déclenche.",
       "noTriggers": "Aucun déclencheur placé",
       "recentRuns": "Exécutions récentes",
+      "comparedRuns": "Exécutions, période comparée",
       "runsPerDay": "Exécutions",
+      "runsPerDayHint": "Exécutions sur la période",
       "succeeded": "Réussies",
       "title": "Vue d’ensemble"
     },
     "permissions": {
       "live": {
-        "description": "Le bouton Direct / Pause et le temps écoulé depuis la dernière lecture de la page.",
-        "name": "Mises à jour en direct"
+        "description": "La barre en haut de la page : le temps écoulé depuis sa dernière lecture, son bouton Direct / Pause et, quand la page en a une, sa période.",
+        "name": "Barre de la page"
       },
       "liveTopics": {
         "description": "Recharge la page quand une exécution se termine ou qu’une procédure change.",
@@ -653,7 +674,7 @@
         "name": "Fenêtre « Nouvelle procédure »"
       },
       "period": {
-        "description": "La période (24 h / 7 j / 30 j) des indicateurs",
+        "description": "La période (24 h / 7 j / 30 j) des indicateurs et ce à quoi ils sont comparés",
         "name": "Sélecteur de période"
       },
       "runPeek": {
@@ -768,7 +789,7 @@
       "retentionConfigured": "Les exécutions plus anciennes que la durée de conservation du projet sont supprimées",
       "retentionForever": "Les exécutions sont conservées sans limite",
       "retest": "Relancer le test",
-      "retestConfirmDescription": "Exécute à nouveau le brouillon testé, depuis le même déclencheur, avec la même charge utile. Le résultat est enregistré comme test et ne compte pas dans les chiffres. Les effets sont réels.",
+      "retestConfirmDescription": "Exécute à nouveau le brouillon testé, depuis le même déclencheur, avec la même charge utile. Le résultat est enregistré comme test et ne compte pas dans les chiffres. Les étapes qui savent simuler sont simulées ; celles listées agissent pour de vrai.",
       "retestConfirmTitle": "Relancer ce test ?",
       "scopedTo": "Exécutions de {name}",
       "searchRuns": "Rechercher une procédure, une erreur, une étape, un chemin ou un identifiant…",

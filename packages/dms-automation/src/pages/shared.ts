@@ -11,9 +11,13 @@ import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
 import { Form } from "@antelopejs/interface-dms/base/form";
 import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { KpiCard } from "@antelopejs/interface-dms/base/kpi-card";
-import type { PeriodPreset } from "@antelopejs/interface-dms/base/period-selector";
-import { PeriodSelector } from "@antelopejs/interface-dms/base/period-selector";
+import type { PageToolbarPeriodOptions } from "@antelopejs/interface-dms/base/page-toolbar";
+import type {
+  PeriodComparison,
+  PeriodPreset,
+} from "@antelopejs/interface-dms/base/period-selector";
 import { RegisterPageTopic } from "@antelopejs/interface-dms/realtime";
+import { DEFAULT_RETENTION_DAYS, runsKeptDays } from "../runtime/retention";
 
 /** Base URL of the module's pages. */
 const MODULE_URL = "/modules/automation";
@@ -43,29 +47,24 @@ export function isPeriodPreset(
 }
 
 /**
- * The 24 h / 7 d / 30 d switch of a page, publishing under `scope`. The
- * overview and the run history remember one choice: the period follows the
- * user from one to the other.
+ * Days of runs a year-back comparison of the longest preset (30D) needs: the
+ * year, then the window itself.
  */
-export function periodSwitch(scope: string) {
-  return PeriodSelector({
-    id: scope,
-    rememberKey: "automation",
-    variant: "segmented",
-    presets: PERIOD_PRESETS,
-    defaultPreset: "last-24h",
-    defaultComparison: "previous-period",
-    comparisons: ["previous-period"],
-    // A single comparison would draw an on/off toggle; keep the menu.
-    comparisonControl: "menu",
-    align: "right",
-    size: "sm",
-    showRangeLabel: false,
-  }).meta({
-    name: "$dms_automation.permissions.period.name",
-    description: "$dms_automation.permissions.period.description",
-    icon: "i-ph-calendar-blank",
-  });
+const YEAR_BACK_DAYS = 365 + 30;
+
+/**
+ * What the KPIs can be compared with, in the menu beside the window: the
+ * period before it, or nothing; the same window a year earlier only when the
+ * runs are kept long enough to reach it (`runs.retentionDays`, 30 by default:
+ * not offered).
+ */
+export function offeredComparisons(
+  keptDays: number = runsKeptDays(),
+): PeriodComparison[] {
+  const reachesYearBack = keptDays <= 0 || keptDays >= YEAR_BACK_DAYS;
+  return reachesYearBack
+    ? ["previous-period", "previous-year", "none"]
+    : ["previous-period", "none"];
 }
 
 /**
@@ -90,6 +89,43 @@ export function liveTopics(topics: string[]) {
       for (const topic of topics) RegisterPageTopic(pageId, topic);
     });
 }
+
+/**
+ * The `period` of the `pageToolbar()` first in the body of the overview and
+ * the run history: the 24 h / 7 d / 30 d window of `scope`, with a menu of
+ * what it is compared with ("vs …") beside the presets. The two pages remember one choice:
+ * the period follows the user from one to the other.
+ */
+export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
+  return {
+    id: scope,
+    rememberKey: "automation",
+    presets: PERIOD_PRESETS,
+    defaultComparison: "previous-period",
+    // What the default retention reaches; the transform below offers what
+    // the configured one does, read when the page registers: the page
+    // classes are built when the module loads, before `construct()` reads
+    // `runs.retentionDays`.
+    comparisons: offeredComparisons(DEFAULT_RETENTION_DAYS),
+    transformOptions: (options) =>
+      options && { ...options, comparisons: offeredComparisons() },
+    meta: {
+      name: "$dms_automation.permissions.period.name",
+      description: "$dms_automation.permissions.period.description",
+      icon: "i-ph-calendar-blank",
+    },
+  };
+}
+
+/**
+ * The roles-editor metadata of that toolbar, which roles grant as the page's
+ * `live`; its toggle keeps the `toggle` id they already grant.
+ */
+export const LIVE_TOOLBAR_META = {
+  name: "$dms_automation.permissions.live.name",
+  description: "$dms_automation.permissions.live.description",
+  icon: "i-ph-broadcast",
+};
 
 /** The run history's period scope, which links from the overview name. */
 export const RUNS_PERIOD_SCOPE = "automation-runs";
@@ -138,7 +174,8 @@ export function kpiRow(
         showSparkline: sparkline,
         sparklineAccent: "auto",
         invert,
-        compareLabel: "$dms_automation.kpi.vsPrevious",
+        // Worded for any comparison the period offers: the toolbar names it.
+        compareLabel: "$dms_automation.kpi.vsCompared",
         valueFormat: metric === "success-rate" ? "percent" : "number",
       }),
     );

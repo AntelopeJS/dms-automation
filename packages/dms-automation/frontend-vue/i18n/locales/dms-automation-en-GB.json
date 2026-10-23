@@ -25,7 +25,8 @@
         "thu": "Thursdays at {time}",
         "tue": "Tuesdays at {time}",
         "wed": "Wednesdays at {time}"
-      }
+      },
+      "testNeedsConfirm": "Some steps of this draft act for real: confirm them before testing."
     },
     "attention": {
       "degradedInPeriod": "{failed} of {runs} runs failed in this period · last at {when}, none since",
@@ -183,7 +184,7 @@
         "problems": "Problems",
         "recentRuns": "Recent runs",
         "selectNode": "Select node",
-        "sideEffects": "Side effects are real: point HTTP steps at a sandbox to dry-run.",
+        "sideEffects": "Steps that can simulate were simulated; the others acted for real.",
         "testRun": "Test run",
         "toggle": "Show or hide the dock"
       },
@@ -408,6 +409,11 @@
       "wiredField": {
         "from": "From",
         "unwire": "Unwire"
+      },
+      "testEffects": {
+        "title": "Test with real effects?",
+        "description": "This test acts for real: {count} step below changes something outside the run (sends, writes, calls a service) and can’t be simulated. Steps that can simulate are simulated. | This test acts for real: {count} steps below change something outside the run (send, write, call a service) and can’t be simulated. Steps that can simulate are simulated.",
+        "confirm": "Test for real"
       }
     },
     "feed": {
@@ -460,7 +466,7 @@
       "failed": "Failed",
       "runs": "Runs",
       "success-rate": "Success rate",
-      "vsPrevious": "vs previous period"
+      "vsCompared": "vs compared period"
     },
     "library": {
       "webhookBaseError": "Couldn’t get the server’s address, so the full URL can’t be shown.",
@@ -587,11 +593,24 @@
         "group": "Group",
         "helper": "Helper",
         "trigger": "Trigger"
+      },
+      "kinds": {
+        "action": "Action",
+        "data": "Data",
+        "delay": "Delay",
+        "foreach": "For each",
+        "forRange": "For range",
+        "if": "If",
+        "parallel": "Parallel",
+        "retry": "Retry",
+        "setVariable": "Set variable",
+        "switch": "Switch",
+        "trigger": "Trigger",
+        "tryCatch": "Try / Catch"
       }
     },
     "overview": {
       "proceduresWeek": "Procedures · last 7 days",
-      "runsPerDayLegend": "Succeeded runs in green, failed runs in red",
       "allRuns": "Run history",
       "byTrigger": "By trigger",
       "byTriggerHint": "How many procedures each trigger starts",
@@ -609,14 +628,16 @@
       "noRunsHint": "Runs show up here as soon as a procedure fires.",
       "noTriggers": "No trigger placed yet",
       "recentRuns": "Recent runs",
+      "comparedRuns": "Runs, compared period",
       "runsPerDay": "Runs",
+      "runsPerDayHint": "Runs in the period",
       "succeeded": "Succeeded",
       "title": "Overview"
     },
     "permissions": {
       "live": {
-        "description": "The Live / Pause switch and how long ago the page was read.",
-        "name": "Live updates"
+        "description": "The bar above the page: how long ago it was read, its Live / Pause and, where the page has one, its period.",
+        "name": "Page toolbar"
       },
       "liveTopics": {
         "description": "Refreshes the page when a run ends or a procedure changes.",
@@ -653,7 +674,7 @@
         "name": "New procedure dialog"
       },
       "period": {
-        "description": "The 24 h / 7 d / 30 d window of the figures",
+        "description": "The 24 h / 7 d / 30 d window of the figures and what they are compared with",
         "name": "Period switch"
       },
       "runPeek": {
@@ -768,7 +789,7 @@
       "retentionConfigured": "Older runs are deleted after the retention period set for this project",
       "retentionForever": "Runs are kept forever",
       "retest": "Run the test again",
-      "retestConfirmDescription": "Runs the draft this test ran, from the same trigger, with the same payload. It is stored as a test and doesn’t count in the figures. Side effects are real.",
+      "retestConfirmDescription": "Runs the draft this test ran, from the same trigger, with the same payload. It is stored as a test and doesn’t count in the figures. Steps that can simulate are simulated; the ones listed act for real.",
       "retestConfirmTitle": "Run this test again?",
       "scopedTo": "Runs of {name}",
       "searchRuns": "Search procedures, errors, steps, paths or run ids…",

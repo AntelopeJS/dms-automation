@@ -18,7 +18,7 @@ import {
   stateRank,
   timeOf,
 } from "./health";
-import { bucketStarts, runsPerBucket } from "./kpi";
+import { bucketStarts, kpiPayload, runsPerBucket } from "./kpi";
 
 /** The last failure, as the overview links to it. */
 interface FailureRef {
@@ -267,7 +267,8 @@ function formatDuration(ms: number | null): string {
   return `${(ms / MS_PER_SECOND).toFixed(1)} s`;
 }
 
-const RECENT_RUNS = 8;
+/** Runs the overview's recent runs show; its skeleton draws as many rows. */
+export const RECENT_RUNS = 8;
 
 /** The overview's recent runs, newest first, each linking to its trace. */
 export function recentRunItems(
@@ -327,6 +328,12 @@ const COUNTED_STATES: readonly ProcedureState[] = [
   "paused",
   "draft",
 ];
+
+/**
+ * Lines of the overview's procedure counts, always all of them: the total and
+ * one per state. Its skeleton draws as many rows.
+ */
+export const PROCEDURE_COUNT_LINES = COUNTED_STATES.length + 1;
 
 /** The tone of a state's count once it is above 0. */
 const COUNT_TONE: Partial<Record<ProcedureState, KeyValueItem["tone"]>> = {
@@ -392,19 +399,62 @@ export function triggerCounts(ctx: StatsContext): TopListItem[] {
   return [...counts.values()].sort((a, b) => b.value - a.value);
 }
 
-/** A point of a chart series. */
+/** A point of a chart series; `null` where the window has no bucket. */
 interface ChartPoint {
   x: string;
-  y: number;
+  y: number | null;
 }
 
-/** What a `ChartCard` reads: a headline value and its series. */
+/** A series of a `ChartCard`, drawn as a line when `type` says so. */
+interface ChartSeriesPayload {
+  name: string;
+  data: ChartPoint[];
+  type?: "line";
+}
+
+/**
+ * What a `ChartCard` reads: a headline value, its series, and with a
+ * comparison the compared value, the change and the compared series.
+ */
 export interface ChartPayload {
   value: number;
-  series: Array<{ name: string; data: ChartPoint[] }>;
+  previousValue?: number;
+  delta?: number;
+  series: ChartSeriesPayload[];
+  comparisonSeries?: ChartSeriesPayload[];
 }
 
-/** Succeeded and failed runs per bucket (hour or day) of the window. */
+/**
+ * The runs of every bucket of the compared window, drawn over the buckets of
+ * the window: the first hour (or day) of the one under the first of the
+ * other. Both windows are as long, so they have as many buckets.
+ */
+function comparedRunsSeries(
+  ctx: StatsContext,
+  window: StatsWindow,
+  starts: Date[],
+): ChartSeriesPayload | undefined {
+  if (!window.compareFrom || !window.compareTo) return undefined;
+  const buckets = runsPerBucket(ctx.runs, {
+    from: window.compareFrom,
+    to: window.compareTo,
+  });
+  return {
+    name: "$dms_automation.overview.comparedRuns",
+    // A line over the stacked bars, dashed by the chart as a comparison.
+    type: "line",
+    data: starts.map((start, i) => ({
+      x: start.toISOString(),
+      y: buckets[i]?.length ?? null,
+    })),
+  };
+}
+
+/**
+ * Succeeded and failed runs per bucket (hour or day) of the window and, when
+ * the period compares, the runs of the compared window bucket by bucket with
+ * the change of the total, measured as the Runs KPI measures it.
+ */
 export function runsPerDayChart(
   ctx: StatsContext,
   window: StatsWindow,
@@ -416,9 +466,7 @@ export function runsPerDayChart(
     x: starts[i]!.toISOString(),
     y: bucket.filter((r) => r.status === status).length,
   });
-  // No comparison: the Runs KPI above already compares the same count, and
-  // without one the card shows its description, which names the colours.
-  return {
+  const chart: ChartPayload = {
     value: runs.length,
     series: [
       {
@@ -431,4 +479,11 @@ export function runsPerDayChart(
       },
     ],
   };
+  const compared = comparedRunsSeries(ctx, window, starts);
+  if (!compared) return chart;
+  const { previousValue, delta } = kpiPayload("runs", ctx.runs, window);
+  if (previousValue !== undefined) chart.previousValue = previousValue;
+  if (typeof delta === "number") chart.delta = delta;
+  chart.comparisonSeries = [compared];
+  return chart;
 }

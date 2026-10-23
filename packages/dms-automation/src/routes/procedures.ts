@@ -49,6 +49,7 @@ import {
   procedureUpdateSchema,
   runNowSchema,
   type Starter,
+  testEffectsSchema,
   testSchema,
   validateSchema,
 } from "./procedureSchemas";
@@ -472,6 +473,15 @@ export class ProceduresController extends Controller(
     const data = parseBody(testSchema, body);
     const issues = issuesOf(data.graph, false);
     if (hasBlockingIssue(issues)) throw graphRefusal(issues);
+    const realEffects = subscriptions.realEffectsOf(data.graph);
+    if (realEffects.length > 0 && data.confirmRealEffects !== true) {
+      // Warned before, never after: nothing runs until the user agreed.
+      throw new HTTPResult(409, {
+        error: "the draft has steps a test runs for real: confirm them first",
+        message: `${API}.testNeedsConfirm`,
+        realEffects,
+      });
+    }
     const runId = await subscriptions.testRun(
       id,
       data.graph,
@@ -479,6 +489,22 @@ export class ProceduresController extends Controller(
       data.triggerNodeId,
     );
     return await runOutcome(runId, false);
+  }
+
+  /**
+   * The steps a test run of the draft executes for real: actions that act
+   * outside the run and cannot simulate it. The builder lists them for the
+   * user to confirm before the test starts.
+   */
+  @Post("/:id/test-effects")
+  async testEffects(
+    @AuthRawUser() _user: User,
+    @Parameter("id", "param") id: string,
+    @JSONBody() body: unknown,
+  ) {
+    const data = parseBody(testEffectsSchema, body);
+    await loadProcedure(id);
+    return { realEffects: subscriptions.realEffectsOf(data.graph) };
   }
 
   /** The last real payload of a trigger: the default test payload. */
