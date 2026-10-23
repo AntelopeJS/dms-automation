@@ -2,7 +2,6 @@ import { Logging } from "@antelopejs/interface-core/logging";
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
 import type { Procedure } from "../db/tables/procedure.table";
 import type { ProcedureGraph } from "../types/graph";
-import { isModuleGone } from "./departed";
 import { withTimeout } from "./withTimeout";
 
 // The trigger handles armed on this instance, by `<procedureId>#<nodeId>`,
@@ -56,10 +55,6 @@ async function tryDeactivate(k: string, entry: HandleEntry): Promise<boolean> {
     );
     return true;
   } catch (err) {
-    // Its module is gone and can no longer run anything for this handle:
-    // nothing is left to tear down, and `release` keeps a stray emit from it
-    // from starting a run.
-    if (isModuleGone(err)) return true;
     Logging.Error(
       `[dms-automation] failed to deactivate ${entry.typeId} for ${k}:`,
       err,

@@ -229,11 +229,8 @@ export interface DeclaredProcedure {
   issues: ProcedureIssue[];
 }
 
-/**
- * How a run ended. `cancelled`: a module one of its steps belongs to went
- * away while it ran (a stop, a hot reload).
- */
-export type ProcedureRunStatus = "ok" | "failed" | "cancelled";
+/** How a run ended. */
+export type ProcedureRunStatus = "ok" | "failed";
 
 export interface RunProcedureOptions {
   /**
@@ -249,7 +246,7 @@ export interface RunProcedureOptions {
 export interface ProcedureRunOutcome {
   runId: string;
   status: ProcedureRunStatus;
-  /** Why the run failed or was cancelled. */
+  /** Why the run failed. */
   errorMessage?: string;
 }
 

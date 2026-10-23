@@ -91,7 +91,7 @@ const { runId: id, status } = await RunProcedure(procedureId, { payload });
 `RunProcedure(id, { payload?, triggerNodeId? })` runs from the trigger named,
 else the manual one, else the first; without `payload` it replays that
 trigger's last stored payload (or `{}`); it refuses a graph with blocking
-issues and resolves to `{ runId, status: "ok" | "failed" | "cancelled",
+issues and resolves to `{ runId, status: "ok" | "failed",
 errorMessage? }`. It also runs a paused procedure, as the builder's Run now
 does, and waits for the automation module to start.
 
@@ -148,7 +148,7 @@ const declared = await DeclareProcedure({
   (modules start in parallel, hot reloads) arms them on registration.
 - When a module stops or hot-reloads, its triggers are deactivated as the core
   unregisters its types, while its context is still valid; a run on one of its
-  steps ends `cancelled` (not `failed`, not caught by Try/Catch or Retry).
+  steps fails, like any other error.
   Runs started by `emit` run in the automation module's context.
 - `DataNodeType.evaluate` is synchronous and must be a pure transformation;
   `ActionType.execute` is async and receives an `ExecutionCtx` with a per-node

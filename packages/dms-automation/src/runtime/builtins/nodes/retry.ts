@@ -16,8 +16,6 @@ async function execute(
       // implicit continuation.
       return;
     } catch (err) {
-      // A cancelled run stops here too: another attempt cannot succeed.
-      if (ctx.signal.aborted) throw err;
       lastError = err;
       const msg = err instanceof Error ? err.message : String(err);
       ctx.log("warn", `attempt ${i + 1}/${max} failed: ${msg}`);
