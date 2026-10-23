@@ -648,6 +648,7 @@ packages:
 
   zod@4.6.7:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
+
 snapshots:
 
   '@antelopejs/tooling-configs@0.0.9(knip@6.41.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2004))':
