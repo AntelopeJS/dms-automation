@@ -13,7 +13,7 @@ nodeKinds.register("setVariable", execute, {
   continuationPorts: ["main"],
   sidePorts: [],
   ui: {
-    label: "Set variable",
+    label: "$dms_automation.nodes.kinds.setVariable",
     icon: "i-ph-database",
     category: "helper",
     hasTriggerIn: true,

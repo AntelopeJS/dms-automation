@@ -19,6 +19,7 @@ const MESSAGES = {
   "acme.action.name": "Action traduite",
   "acme.data.name": "Donnée traduite",
   "acme.data.description": "Donnée décrite",
+  "dms_automation.nodes.kinds.if": "Si",
 };
 function processI18n(value) {
   if (!value.startsWith("$")) return value;
@@ -118,6 +119,47 @@ test("builder palette labels translate keyed trigger, action and data-node types
   assert.match(html, /Action traduite/);
   assert.match(html, /Donnée traduite/);
   assert.doesNotMatch(html, /acme\.(trigger|action|data)\.name/);
+});
+
+test("builder palette labels translate keyed flow blocks", async () => {
+  const html = await render(component("Editor/BuilderPalette.vue"), {
+    nodeKinds: [
+      {
+        kind: "if",
+        meta: {
+          continuationPorts: [],
+          sidePorts: [],
+          ui: { label: "$dms_automation.nodes.kinds.if", category: "flow" },
+        },
+      },
+    ],
+    triggerTypes: [],
+    actionTypes: [],
+    dataNodeTypes: [],
+  });
+
+  assert.match(html, />Si</);
+  assert.doesNotMatch(html, /nodes\.kinds\.if/);
+});
+
+test("every built-in node kind is named by a key both locales translate", () => {
+  const { nodeKinds } = require("../dist/runtime/nodeKinds.js");
+  require("../dist/runtime/builtins");
+  const locales = ["en-GB", "fr-FR"].map((lang) =>
+    require(
+      path.join(FRONTEND, "i18n", "locales", `dms-automation-${lang}.json`),
+    ),
+  );
+  const lookup = (messages, key) =>
+    key.split(".").reduce((o, part) => o?.[part], messages);
+  for (const { kind, meta } of nodeKinds.listAll()) {
+    const label = meta.ui?.label;
+    if (label === undefined) continue;
+    assert.match(label, /^\$dms_automation\./, `kind "${kind}"`);
+    for (const messages of locales) {
+      assert.equal(typeof lookup(messages, label.slice(1)), "string", label);
+    }
+  }
 });
 
 test("node inspector shows the translated type of the selected node", async () => {

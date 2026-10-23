@@ -18,7 +18,7 @@ nodeKinds.register("if", execute, {
   continuationPorts: [],
   sidePorts: ["then", "else"],
   ui: {
-    label: "If",
+    label: "$dms_automation.nodes.kinds.if",
     icon: "i-ph-git-branch",
     category: "flow",
     hasTriggerIn: true,

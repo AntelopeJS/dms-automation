@@ -18,7 +18,7 @@ nodeKinds.register("trigger", execute, {
   continuationPorts: ["main"],
   sidePorts: [],
   ui: {
-    label: "Trigger",
+    label: "$dms_automation.nodes.kinds.trigger",
     icon: "i-ph-lightning",
     category: "trigger",
     hasTriggerIn: false,

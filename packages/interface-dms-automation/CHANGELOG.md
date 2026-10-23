@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.4.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.3.0...v0.4.0)
+
+### 🚀 Enhancements
+
+- **frontend:** The frontend registration as a pure function, declared as dmsFrontend ([#67](https://github.com/AntelopeJS/dms-automation/pull/67))
+
+### 🩹 Fixes
+
+- **frontend:** Run on @antelopejs/dms-frontend 0.7 ([#62](https://github.com/AntelopeJS/dms-automation/pull/62))
+- **builder:** Label node ports with their field's translated title ([#59](https://github.com/AntelopeJS/dms-automation/pull/59))
+- **frontend:** Fill the id of server-worded confirm dialogs ([#61](https://github.com/AntelopeJS/dms-automation/pull/61))
+- **builder:** Confirm real effects before a test run and let actions dry-run ([#58](https://github.com/AntelopeJS/dms-automation/pull/58))
+
+### 📖 Documentation
+
+- Clarify learning paths and illustrate real outcomes ([#57](https://github.com/AntelopeJS/dms-automation/pull/57))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/dms-automation v0.5.0 ([4ae0342](https://github.com/AntelopeJS/dms-automation/commit/4ae0342))
+- **release:** @antelopejs/dms-automation v0.5.1 ([8ca61ad](https://github.com/AntelopeJS/dms-automation/commit/8ca61ad))
+
+### ❤️ Contributors
+
+- Maxime Westhoven ([@mwesto](http://github.com/mwesto))
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.3.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.2.1...v0.3.0)

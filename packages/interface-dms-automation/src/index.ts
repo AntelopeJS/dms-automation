@@ -12,6 +12,14 @@ export interface ExecutionCtx {
   runId: string;
   nodeId: string;
   /**
+   * True when the step runs in a test run (the builder's **Test run**, or a
+   * re-run of one): a draft is being tried. An action that declares
+   * `dryRun` is then simulated instead of executed, and any action (or the
+   * code it calls) can tell a test from a real run. Older implementations
+   * leave it out: read it as false.
+   */
+  dryRun?: boolean;
+  /**
    * Emit a structured log entry into the current run record. The executor
    * binds this per-node so the entry is auto-tagged with the calling
    * nodeId / nodeKind.
@@ -47,6 +55,21 @@ export interface ActionType<TInput = unknown, TOutput = unknown> {
   icon: string;
   inputSchema: JsonSchema;
   outputSchema: JsonSchema;
+  /**
+   * Whether `execute` changes anything outside the run: sends a message,
+   * writes a record, calls a service. Defaults to `true`. Declare `false`
+   * for an action that only reads or computes, so a test run that uses it
+   * asks no confirmation.
+   */
+  sideEffects?: boolean;
+  /**
+   * Simulates the action in a test run: called instead of `execute`, with
+   * the same input and `ctx.dryRun` set, it must have no effect and resolve
+   * to a plausible output (the shape of `outputSchema`) for the steps that
+   * read it. Without it, a test run executes the action for real, once the
+   * user has confirmed it. Not called when `sideEffects` is `false`.
+   */
+  dryRun?(input: TInput, ctx: ExecutionCtx): Promise<TOutput>;
   execute(input: TInput, ctx: ExecutionCtx): Promise<TOutput>;
 }
 

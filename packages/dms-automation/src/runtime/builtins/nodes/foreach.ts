@@ -28,7 +28,7 @@ nodeKinds.register("foreach", execute, {
   continuationPorts: ["main"],
   sidePorts: ["body"],
   ui: {
-    label: "Foreach",
+    label: "$dms_automation.nodes.kinds.foreach",
     icon: "i-ph-arrows-clockwise",
     category: "flow",
     hasTriggerIn: true,
