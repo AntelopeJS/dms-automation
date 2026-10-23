@@ -144,6 +144,8 @@ export async function executeProcedure(
   const result = await executorRun(graph, triggerNodeId, payload, {
     procedureId,
     templateCache: templates,
+    // A test tries a draft: the actions that can simulate do.
+    dryRun: origin.kind === "test",
   });
   const endedAt = new Date();
   return await writeRun({

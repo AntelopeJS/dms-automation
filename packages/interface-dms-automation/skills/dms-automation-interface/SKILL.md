@@ -153,6 +153,14 @@ const declared = await DeclareProcedure({
 - `DataNodeType.evaluate` is synchronous and must be a pure transformation;
   `ActionType.execute` is async and receives an `ExecutionCtx` with a per-node
   `log(level, message, value?)`.
+- Test runs (the builder's **Test run**): declare `sideEffects: false` on an action
+  that only reads or computes (runs as is, no confirmation), or `dryRun(input, ctx)`
+  on one that sends, writes or calls a service — called instead of `execute` in a
+  test, it must do nothing and return a plausible `outputSchema`-shaped output. An
+  action with neither (default `sideEffects: true`) runs for real in a test, after
+  the builder listed it and the user confirmed. `ctx.dryRun` is `true` during a test
+  run (absent from older implementations: read it as false). Run now, triggers and
+  `RunProcedure` always call `execute`.
 - `DataNodeType.configSchema` is editor-only: when set, the inspector renders it as
   editable fields instead of `inputSchema`, while data-in ports still derive from
   `inputSchema`; the config value is merged into the evaluate input.

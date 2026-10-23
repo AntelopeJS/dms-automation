@@ -17,7 +17,7 @@ nodeKinds.register("switch", execute, {
   continuationPorts: [],
   sidePorts: [],
   ui: {
-    label: "Switch",
+    label: "$dms_automation.nodes.kinds.switch",
     icon: "i-ph-share-network",
     category: "flow",
     hasTriggerIn: true,

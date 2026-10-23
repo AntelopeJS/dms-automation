@@ -165,7 +165,8 @@ const groups = computed<PaletteGroup[]>(() => {
 				}
 			} else {
 				// Plain node kinds (flow / helpers) are built into this module.
-				push(BUILTIN_BUCKET, { key: k.kind, label: ui.label, icon: ui.icon ?? groupIcon, kind: k.kind, keywords: keywordsOf(ui.label, k.kind) })
+				const label = processI18n(ui.label)
+				push(BUILTIN_BUCKET, { key: k.kind, label, icon: ui.icon ?? groupIcon, kind: k.kind, keywords: keywordsOf(label, k.kind) })
 			}
 		}
 
