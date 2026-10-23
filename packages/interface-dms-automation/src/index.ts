@@ -196,20 +196,12 @@ export interface ProcedureDeclaration {
 }
 
 /**
- * What `DeclareProcedure` did:
- *   "created"   — no procedure had this id: it was stored.
- *   "updated"   — the stored procedure was still what this caller declared
- *                 last, and the declaration changed: it was replaced.
- *   "unchanged" — the stored procedure is already this declaration;
- *                 run-history metadata and subscriptions synchronize again.
- *   "kept"      — someone changed the procedure since it was declared (an
- *                 edit, a pause, a resume): it is left as they made it.
+ * What `DeclareProcedure` did. A declared procedure is written once and
+ * belongs to its users from then on:
+ *   "created" — no procedure had this id: it was stored.
+ *   "kept"    — a procedure already has this id: it is left as it is.
  */
-export type DeclaredProcedureStatus =
-  | "created"
-  | "updated"
-  | "unchanged"
-  | "kept";
+export type DeclaredProcedureStatus = "created" | "kept";
 
 /** A problem on a graph, as the builder lists it. */
 export interface ProcedureIssue {
@@ -270,12 +262,10 @@ export const RunProcedure =
     (id: string, options?: RunProcedureOptions) => Promise<ProcedureRunOutcome>
   >();
 /**
- * Create or refresh a procedure shipped as code, keyed by `declaration.id`.
- * Safe to call on every boot: the procedure is created once, refreshed only
- * while it is still what was declared last, and never overwritten once
- * someone changed it. Waits until the automation module has started.
- * A rejection can occur after storage. Retry the same declaration to repair
- * synchronization without advancing its revision or version.
+ * Create a procedure shipped as code, keyed by `declaration.id`, when no
+ * procedure has that id yet. An existing one is never touched: a later
+ * declaration answers "kept", whatever it declares. Waits until the
+ * automation module has started.
  */
 export const DeclareProcedure =
   InterfaceFunction<

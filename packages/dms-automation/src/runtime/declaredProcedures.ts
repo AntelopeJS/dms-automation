@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import type {
   DeclaredProcedure,
@@ -6,22 +5,18 @@ import type {
 } from "@antelopejs/interface-dms-automation";
 import { z } from "zod";
 import { ProcedureModel } from "../db/models/procedure.model";
-import { ProcedureRunModel } from "../db/models/procedure_run.model";
-import type { Procedure } from "../db/tables/procedure.table";
 import { PROCEDURES_TOPIC, notifyTopic } from "../realtime";
 import { saveIssues } from "../routes/procedureChecks";
 import { exportedSchema } from "../routes/procedureSchemas";
 import { DATABASE_NAME } from "../types/constants";
-import type { ProcedureGraph } from "../types/graph";
 import { type GraphIssue, hasBlockingIssue } from "./graphIssues";
-import { changesExecution } from "./graphVersion";
 import { subscriptions } from "./subscriptions";
 
 /**
  * Procedures a module ships as code (DeclareProcedure). The declared id is
- * the procedure's id; `declaredHash` remembers what was declared last, so a
- * procedure is refreshed only while it still is exactly that, and kept as is
- * once anyone changed it.
+ * the procedure's id. A declaration is stored once, when no procedure has its
+ * id; from then on the procedure belongs to its users, and a later
+ * declaration leaves it as it is.
  */
 
 const DECLARED_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
@@ -42,30 +37,6 @@ interface DeclaredContent {
   description: string;
   graph: string;
   enabled: boolean;
-}
-
-function hashOf(content: DeclaredContent): string {
-  const { name, description, graph, enabled } = content;
-  return createHash("sha256")
-    .update(JSON.stringify([name, description, graph, enabled]))
-    .digest("hex");
-}
-
-function storedContentOf(procedure: Procedure): DeclaredContent {
-  return {
-    name: procedure.name,
-    description: procedure.description ?? "",
-    graph: procedure.graph,
-    enabled: procedure.enabled,
-  };
-}
-
-/** Whether the procedure still is what was declared last. */
-function isAsDeclared(procedure: Procedure): boolean {
-  return (
-    procedure.declaredHash !== undefined &&
-    procedure.declaredHash === hashOf(storedContentOf(procedure))
-  );
 }
 
 function refusal(id: string, problems: string[]): Error {
@@ -94,111 +65,34 @@ interface Stored {
   enabled: boolean;
 }
 
-async function afterWrite(id: string, event: string): Promise<void> {
-  // Arms (or disarms) its triggers here and on every other instance.
-  await subscriptions.onProcedureChange(id);
-  notifyTopic(PROCEDURES_TOPIC, event, { procedureId: id });
-}
-
-/** Insert the procedure; false when another instance just inserted it. */
-async function insertDeclared(
-  id: string,
-  content: DeclaredContent,
-): Promise<boolean> {
-  const model = GetModel(ProcedureModel, DATABASE_NAME);
-  const now = new Date();
-  try {
-    await model.insert({
-      _id: id,
-      ...content,
-      version: 1,
-      revision: 1,
-      declaredHash: hashOf(content),
-      created_at: now,
-      updated_at: now,
-    });
-  } catch (err) {
-    if (await model.get(id)) return false;
-    throw err;
-  }
-  await afterWrite(id, "created");
-  return true;
-}
-
-/** Bring a stored procedure to `content`, unless someone changed it. */
-async function refreshDeclared(
-  existing: Procedure,
-  content: DeclaredContent,
-  graph: ProcedureGraph,
-): Promise<Stored> {
-  const hash = hashOf(content);
-  if (!isAsDeclared(existing)) {
-    return { status: "kept", enabled: existing.enabled };
-  }
-  if (existing.declaredHash === hash) {
-    // The previous call may have committed and then failed while updating
-    // history or reconciling. Retry those idempotent effects, not the write.
-    const runs = GetModel(ProcedureRunModel, DATABASE_NAME);
-    await runs.renameProcedure(existing._id, existing.name);
-    await runs.markOlderVersions(existing._id, existing.version);
-    await afterWrite(existing._id, "updated");
-    return { status: "unchanged", enabled: existing.enabled };
-  }
-  const id = existing._id;
-  const version = changesExecution(existing.graph, graph)
-    ? existing.version + 1
-    : existing.version;
-  const model = GetModel(ProcedureModel, DATABASE_NAME);
-  const applied = await model.updateAtRevision(id, existing.revision, {
-    ...content,
-    version,
-    // A builder open on the previous revision cannot save over it.
-    revision: existing.revision + 1,
-    declaredHash: hash,
-    updated_at: new Date(),
-  });
-  if (!applied) {
-    // Written since it was read: by another instance declaring the same
-    // thing (then it is this declaration), or by someone (then it stays).
-    const now = await model.get(id);
-    const same = now?.declaredHash === hash && isAsDeclared(now);
-    if (same) return refreshDeclared(now, content, graph);
-    return {
-      status: "kept",
-      enabled: now?.enabled ?? existing.enabled,
-    };
-  }
-  const runs = GetModel(ProcedureRunModel, DATABASE_NAME);
-  if (existing.name !== content.name) {
-    await runs.renameProcedure(id, content.name);
-  }
-  if (version !== existing.version) await runs.markOlderVersions(id, version);
-  await afterWrite(id, "updated");
-  return { status: "updated", enabled: content.enabled };
-}
-
+/** Store the procedure, unless one already has its id: that one is left as is. */
 async function storeDeclared(
   id: string,
   content: DeclaredContent,
-  graph: ProcedureGraph,
 ): Promise<Stored> {
   const model = GetModel(ProcedureModel, DATABASE_NAME);
-  let existing = await model.get(id);
-  if (!existing) {
-    if (await insertDeclared(id, content)) {
-      return { status: "created", enabled: content.enabled };
-    }
-    existing = await model.get(id);
-    if (!existing) throw refusal(id, ["the procedure could not be stored"]);
-  }
-  return refreshDeclared(existing, content, graph);
+  const existing = await model.get(id);
+  if (existing) return { status: "kept", enabled: existing.enabled };
+  const now = new Date();
+  await model.insert({
+    _id: id,
+    ...content,
+    version: 1,
+    revision: 1,
+    created_at: now,
+    updated_at: now,
+  });
+  // Arms its triggers here and on every other instance.
+  await subscriptions.onProcedureChange(id);
+  notifyTopic(PROCEDURES_TOPIC, "created", { procedureId: id });
+  return { status: "created", enabled: content.enabled };
 }
 
 /**
- * Create or refresh the procedure a module declares, validated as an import
- * is, and as enabling it in the builder is when it is enabled. Rejects with
- * an Error naming the problems; resolves with what was done and the graph's
- * remaining (non-blocking) issues.
+ * Create the procedure a module declares, validated as an import is, and as
+ * enabling it in the builder is when it is enabled. Rejects with an Error
+ * naming the problems; resolves with what was done and the graph's remaining
+ * (non-blocking) issues.
  */
 export async function declareProcedure(
   input: unknown,
@@ -228,6 +122,6 @@ export async function declareProcedure(
     graph: JSON.stringify(graph),
     enabled,
   };
-  const stored = await storeDeclared(id, content, graph);
+  const stored = await storeDeclared(id, content);
   return { id, ...stored, issues };
 }

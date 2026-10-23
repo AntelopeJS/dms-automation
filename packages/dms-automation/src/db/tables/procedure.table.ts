@@ -59,14 +59,6 @@ export class Procedure extends Table {
   @Field("string")
   declare armErrors?: string;
 
-  /**
-   * On a procedure a module declared (DeclareProcedure, its id the declared
-   * one): the hash of what it declared last. A procedure whose content no
-   * longer hashes to it was changed by someone, and is never overwritten.
-   */
-  @Field("string")
-  declare declaredHash?: string;
-
   @Field("date")
   declare created_at: Date;
 
