@@ -1855,7 +1855,7 @@ async function onDelete() {
 	if (!current) return
 	const name = savedName.value
 	// The server words the dialog, as the procedures table's delete does.
-	await confirmFrom(`${props.apiUrl}/procedures/{id}/delete-confirm`, {
+	await confirmFrom(`${props.apiUrl}/procedures/{{row.id}}/delete-confirm`, {
 		params: { id: current._id },
 		onConfirm: async () => {
 			await $authFetch(`${props.apiUrl}/procedures/${current._id}`, { method: 'DELETE' })
@@ -2881,6 +2881,39 @@ function exitDebug() {
 	if (queryValue('run')) void router.replace(`${builderPath()}?selected=${selectedId.value}`)
 }
 
+/** A step a test runs for real, as `POST /procedures/:id/test-effects` lists it. */
+interface RealEffectStep {
+	nodeId: string
+	typeId: string
+	typeName: string
+	label?: string
+}
+
+/**
+ * Asks before a test that acts for real: the steps that would (actions that
+ * cannot simulate) are listed. Resolves `true` at once when there are none.
+ */
+async function confirmRealEffects(procedureId: string, graph: unknown): Promise<boolean> {
+	const { realEffects } = await $authFetch<{ realEffects: RealEffectStep[] }>(`${props.apiUrl}/procedures/${procedureId}/test-effects`, {
+		method: 'POST',
+		body: { graph },
+	})
+	if (realEffects.length === 0) return true
+	return await confirm({
+		title: t('dms_automation.editor.testEffects.title'),
+		description: t('dms_automation.editor.testEffects.description', { count: realEffects.length }),
+		color: 'warning',
+		icon: 'i-ph-flask',
+		confirmLabel: t('dms_automation.editor.testEffects.confirm'),
+		initialFocus: 'cancel',
+		impact: realEffects.map((step) => ({
+			icon: 'i-ph-lightning',
+			label: processI18n(step.typeName),
+			...(step.label ? { count: step.label } : {}),
+		})),
+	})
+}
+
 async function onTestRun() {
 	const current = selected.value
 	// One test at a time: Ctrl+Enter pressed again waits for it.
@@ -2895,13 +2928,16 @@ async function onTestRun() {
 		return
 	}
 	testing.value = true
-	// The previous result leaves the canvas while this test runs.
-	overlayRun.value = null
-	overlayIsTest.value = false
 	try {
+		// Steps that act for real (an e-mail sent, a record written) are named
+		// before the test runs, never after: closing the question runs nothing.
+		if (!(await confirmRealEffects(current._id, current.graph))) return
+		// The previous result leaves the canvas while this test runs.
+		overlayRun.value = null
+		overlayIsTest.value = false
 		const res = await $authFetch<{ runId: string }>(`${props.apiUrl}/procedures/${current._id}/test`, {
 			method: 'POST',
-			body: { graph: current.graph, payload, triggerNodeId: testTriggerNodeId.value },
+			body: { graph: current.graph, payload, triggerNodeId: testTriggerNodeId.value, confirmRealEffects: true },
 		})
 		await showRun(res.runId)
 		dockTab.value = 'test'

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import { dataStyle, triggerStyle } from './styles'
-import { describeDuration, type NodeRole } from '../../../utils/describe'
+import { describeDuration, portLabel, type NodeRole } from '../../../utils/describe'
 import type { PortRef } from '../../../composables/useAutomationNodeKinds'
 
 // One node of the procedure graph. Its header names it (the label the builder
@@ -81,6 +81,10 @@ const categoryLabel = computed(() => {
 
 // The eyebrow names the type when the node has a label of its own, and the
 // node's role otherwise, so a bare node does not read its type twice.
+// A port reads as its field's title; the key it wires by stays on hover.
+const portText = (port: PortRef) => portLabel(port, processI18n)
+const portHint = (port: PortRef) => (portText(port) === port.name ? undefined : port.name)
+
 const eyebrow = computed(() => {
 	const d = props.data
 	if (d?.label && d.label !== d.typeName) return d.typeName
@@ -139,7 +143,7 @@ const rows = computed<BodyRow[]>(() => {
 				<div class="flex flex-1 items-center gap-1 pl-3">
 					<template v-if="row.leftDataIn">
 						<Handle :id="`data-in-${row.leftDataIn.name}`" type="target" :position="Position.Left" :style="dataStyle" />
-						<span>{{ row.leftDataIn.name }}</span>
+						<span :title="portHint(row.leftDataIn)">{{ portText(row.leftDataIn) }}</span>
 					</template>
 				</div>
 				<div class="flex flex-1 items-center justify-end gap-1 pr-3">
@@ -148,7 +152,7 @@ const rows = computed<BodyRow[]>(() => {
 						<Handle :id="`trigger-out-${row.rightTriggerOut}`" type="source" :position="Position.Right" :style="triggerStyle" />
 					</template>
 					<template v-else-if="row.rightDataOut">
-						<span>{{ row.rightDataOut.name }}</span>
+						<span :title="portHint(row.rightDataOut)">{{ portText(row.rightDataOut) }}</span>
 						<Handle :id="`data-out-${row.rightDataOut.name}`" type="source" :position="Position.Right" :style="dataStyle" />
 					</template>
 				</div>

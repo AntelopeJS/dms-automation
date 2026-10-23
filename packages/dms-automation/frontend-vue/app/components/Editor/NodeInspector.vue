@@ -274,7 +274,7 @@ const nodeTypeLabel = computed<string>(() => {
 	if (n.kind === 'action') return typeName(props.actionType) ?? n.typeId ?? 'Action'
 	if (n.kind === 'data') return typeName(dataNodeType.value) ?? n.typeId ?? 'Data'
 	if (n.kind === 'group') return t('dms_automation.nodes.role.group')
-	return kindUi.value?.label ?? n.kind
+	return kindUi.value?.label ? processI18n(kindUi.value.label) : n.kind
 })
 
 // A field is named by its schema title when that is a translation key, by

@@ -66,7 +66,16 @@ export const testSchema = z.object({
   graph: procedureGraphSchema,
   payload: z.unknown().optional(),
   triggerNodeId: z.string().optional(),
+  /**
+   * The user confirmed the steps the test executes for real (see
+   * `POST /:id/test-effects`); without it, a draft with such steps is
+   * refused before anything runs.
+   */
+  confirmRealEffects: z.boolean().optional(),
 });
+
+/** The draft whose real effects a test would have. */
+export const testEffectsSchema = z.object({ graph: procedureGraphSchema });
 
 const IMPORT = "$dms_automation.importProcedure";
 
