@@ -12,8 +12,12 @@ import { Form } from "@antelopejs/interface-dms/base/form";
 import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { KpiCard } from "@antelopejs/interface-dms/base/kpi-card";
 import type { PageToolbarPeriodOptions } from "@antelopejs/interface-dms/base/page-toolbar";
-import type { PeriodPreset } from "@antelopejs/interface-dms/base/period-selector";
+import type {
+  PeriodComparison,
+  PeriodPreset,
+} from "@antelopejs/interface-dms/base/period-selector";
 import { RegisterPageTopic } from "@antelopejs/interface-dms/realtime";
+import { DEFAULT_RETENTION_DAYS, runsKeptDays } from "../runtime/retention";
 
 /** Base URL of the module's pages. */
 const MODULE_URL = "/modules/automation";
@@ -43,6 +47,27 @@ export function isPeriodPreset(
 }
 
 /**
+ * Days of runs a year-back comparison of the longest preset (30D) needs: the
+ * year, then the window itself.
+ */
+const YEAR_BACK_DAYS = 365 + 30;
+
+/**
+ * What the KPIs can be compared with, in the menu beside the window: the
+ * period before it, or nothing; the same window a year earlier only when the
+ * runs are kept long enough to reach it (`runs.retentionDays`, 30 by default:
+ * not offered).
+ */
+export function offeredComparisons(
+  keptDays: number = runsKeptDays(),
+): PeriodComparison[] {
+  const reachesYearBack = keptDays <= 0 || keptDays >= YEAR_BACK_DAYS;
+  return reachesYearBack
+    ? ["previous-period", "previous-year", "none"]
+    : ["previous-period", "none"];
+}
+
+/**
  * Keeps a page declared with `live` in step with `topics`: each event they
  * publish refreshes every block of the page through its Live / Pause. The
  * DMS KPI card takes no realtime topic of its own, and a custom block binds
@@ -67,8 +92,8 @@ export function liveTopics(topics: string[]) {
 
 /**
  * The `period` of the `pageToolbar()` first in the body of the overview and
- * the run history: the 24 h / 7 d / 30 d window of `scope`, with the period
- * before it ("vs …") beside the presets. The two pages remember one choice:
+ * the run history: the 24 h / 7 d / 30 d window of `scope`, with a menu of
+ * what it is compared with ("vs …") beside the presets. The two pages remember one choice:
  * the period follows the user from one to the other.
  */
 export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
@@ -77,7 +102,13 @@ export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
     rememberKey: "automation",
     presets: PERIOD_PRESETS,
     defaultComparison: "previous-period",
-    comparisons: ["previous-period"],
+    // What the default retention reaches; the transform below offers what
+    // the configured one does, read when the page registers: the page
+    // classes are built when the module loads, before `construct()` reads
+    // `runs.retentionDays`.
+    comparisons: offeredComparisons(DEFAULT_RETENTION_DAYS),
+    transformOptions: (options) =>
+      options && { ...options, comparisons: offeredComparisons() },
     meta: {
       name: "$dms_automation.permissions.period.name",
       description: "$dms_automation.permissions.period.description",
@@ -143,7 +174,8 @@ export function kpiRow(
         showSparkline: sparkline,
         sparklineAccent: "auto",
         invert,
-        compareLabel: "$dms_automation.kpi.vsPrevious",
+        // Worded for any comparison the period offers: the toolbar names it.
+        compareLabel: "$dms_automation.kpi.vsCompared",
         valueFormat: metric === "success-rate" ? "percent" : "number",
       }),
     );

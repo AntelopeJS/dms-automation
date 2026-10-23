@@ -84,7 +84,7 @@ function childOf(component, id) {
   return component._children.find((child) => child.id === id)?.component;
 }
 
-test("the overview and the run history share one period, compared with the one before", () => {
+test("the overview and the run history share one period and its comparison menu", () => {
   const selectors = ["overview", "runs"].map((file) => {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
     return childOf(controller.live, "period")._options;
@@ -96,14 +96,37 @@ test("the overview and the run history share one period, compared with the one b
       "last-7-days",
       "last-30-days",
     ]);
-    assert.deepEqual(options.comparisons, ["previous-period"]);
+    // A year back is past the default 30-day retention: not offered.
+    assert.deepEqual(options.comparisons, ["previous-period", "none"]);
     assert.equal(options.defaultComparison, "previous-period");
-    // Said beside the window ("vs …"), with no control of its own.
-    assert.equal(options.comparisonControl, "hidden");
+    // "vs previous period ▾" beside the window, not hidden.
+    assert.equal(options.comparisonControl, "menu");
     assert.equal(options.rangeLabel, "relative");
     assert.notEqual(options.showRangeLabel, false);
   }
   assert.notEqual(selectors[0].id, selectors[1].id);
+});
+
+test("a year back is offered only when the runs kept reach it", () => {
+  const { offeredComparisons } = require("../dist/pages/shared.js");
+  const withYear = ["previous-period", "previous-year", "none"];
+  const withoutYear = ["previous-period", "none"];
+  // A 30D window a year back needs 395 days of runs; 0 keeps every run.
+  assert.deepEqual(offeredComparisons(30), withoutYear);
+  assert.deepEqual(offeredComparisons(394), withoutYear);
+  assert.deepEqual(offeredComparisons(395), withYear);
+  assert.deepEqual(offeredComparisons(0), withYear);
+});
+
+test("overview: the runs chart names its compared series in its own legend", () => {
+  const controller = require("../dist/pages/overview.js")[PAGES.overview];
+  const card = pageComponents(controller).find(
+    (c) => c._componentName === "dms-chart-card",
+  );
+  assert.equal(card._options.showSeriesLegend, true);
+  // "Period" in one colour would not match the green and red bars.
+  assert.equal(card._options.showLegend, false);
+  assert.ok(translated("$dms_automation.overview.comparedRuns"));
 });
 
 for (const file of ["overview", "runs"]) {
