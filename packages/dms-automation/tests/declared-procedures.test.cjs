@@ -3,9 +3,9 @@ const { beforeEach, test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
 // DeclareProcedure against in-memory tables: a procedure shipped as code is
-// created once under its declared id, refreshed only while it is still what
-// was declared last, kept once someone changed it, and validated as an
-// import (and as enabling it in the builder when it is enabled).
+// created once under its declared id, never touched afterwards, and
+// validated as an import (and as enabling it in the builder when it is
+// enabled).
 
 // GetModel builds its models on a registered schema: hand it a bare one, the
 // data access is replaced below.
@@ -18,9 +18,6 @@ const {
 } = require("../dist/runtime/builtins");
 const { registry } = require("../dist/runtime/registry.js");
 const { ProcedureModel } = require("../dist/db/models/procedure.model.js");
-const {
-  ProcedureRunModel,
-} = require("../dist/db/models/procedure_run.model.js");
 const { subscriptions } = require("../dist/runtime/subscriptions.js");
 const { declareProcedure } = require("../dist/runtime/declaredProcedures.js");
 const {
@@ -36,7 +33,6 @@ for (const a of builtinActions) registry.addAction(a.id, a);
 for (const d of builtinDataNodes) registry.addDataNode(d.id, d);
 
 const procedures = new Map();
-const renamed = [];
 const changed = [];
 
 Object.assign(ProcedureModel.prototype, {
@@ -52,20 +48,6 @@ Object.assign(ProcedureModel.prototype, {
     procedures.set(doc._id, structuredClone(doc));
     return [doc._id];
   },
-  update: async (id, patch) => {
-    procedures.set(id, { ...procedures.get(id), ...patch });
-    return 1;
-  },
-  updateAtRevision: async (id, revision, patch) => {
-    const row = procedures.get(id);
-    if (!row || row.revision !== revision) return false;
-    procedures.set(id, { ...row, ...patch });
-    return true;
-  },
-});
-Object.assign(ProcedureRunModel.prototype, {
-  renameProcedure: async (id, name) => renamed.push([id, name]),
-  markOlderVersions: async () => {},
 });
 subscriptions.onProcedureChange = async (id) => {
   changed.push(id);
@@ -99,7 +81,6 @@ const declaration = (extra = {}) => ({
 
 beforeEach(() => {
   procedures.clear();
-  renamed.length = 0;
   changed.length = 0;
 });
 
@@ -114,7 +95,7 @@ test("a first declaration stores the procedure under its id, enabled and armed",
   assert.equal(stored.enabled, true);
   assert.equal(stored.version, 1);
   assert.equal(stored.revision, 1);
-  assert.ok(stored.declaredHash);
+  assert.equal("declaredHash" in stored, false);
   assert.deepEqual(JSON.parse(stored.graph).nodes[1].config, {
     message: "hello",
   });
@@ -122,107 +103,38 @@ test("a first declaration stores the procedure under its id, enabled and armed",
   assert.deepEqual(changed, ["shop.welcome"]);
 });
 
-test("declaring the same thing again preserves the stored procedure", async () => {
+test("a later declaration leaves the stored procedure as it is", async () => {
   await declareProcedure(declaration());
-  const before = structuredClone(procedures.get("shop.welcome"));
-  changed.length = 0;
-
-  const result = await declareProcedure(declaration());
-  assert.equal(result.status, "unchanged");
-  assert.deepEqual(procedures.get("shop.welcome"), before);
-  assert.equal(procedures.size, 1);
-});
-
-for (const failedStep of ["rename", "version"]) {
-  test(`a retry repairs run history after a failed ${failedStep} without a new revision`, async (t) => {
-    await declareProcedure(declaration());
-    const run = { name: "Welcome", version: 1, currentVersion: 1 };
-    let failing = true;
-    t.mock.method(
-      ProcedureRunModel.prototype,
-      "renameProcedure",
-      async (_id, name) => {
-        if (failing && failedStep === "rename")
-          throw new Error("history unavailable");
-        run.name = name;
-      },
-    );
-    t.mock.method(
-      ProcedureRunModel.prototype,
-      "markOlderVersions",
-      async (_id, version) => {
-        if (failing && failedStep === "version")
-          throw new Error("history unavailable");
-        if (run.version < version) run.currentVersion = version;
-      },
-    );
-    const next = declaration({ name: "Updated", graph: graphOf("new") });
-    await assert.rejects(declareProcedure(next), /history unavailable/);
-    const committed = structuredClone(procedures.get(next.id));
-    failing = false;
-    const retry = await declareProcedure(next);
-    assert.equal(retry.status, "unchanged");
-    assert.deepEqual(run, { name: "Updated", version: 1, currentVersion: 2 });
-    assert.deepEqual(procedures.get(next.id), committed);
-  });
-}
-
-test("a changed declaration replaces a procedure nobody touched", async () => {
-  await declareProcedure(declaration());
-  changed.length = 0;
-
-  const result = await declareProcedure(
-    declaration({ name: "Welcome aboard", graph: graphOf("bonjour") }),
-  );
-  assert.equal(result.status, "updated");
-  const stored = procedures.get("shop.welcome");
-  assert.equal(stored.name, "Welcome aboard");
-  assert.equal(JSON.parse(stored.graph).nodes[1].config.message, "bonjour");
-  assert.equal(stored.version, 2, "the graph changed what a run does");
-  assert.equal(stored.revision, 2, "an open builder cannot save over it");
-  assert.deepEqual(renamed, [["shop.welcome", "Welcome aboard"]]);
-  assert.deepEqual(changed, ["shop.welcome"]);
-});
-
-test("a procedure someone edited is kept as they made it", async () => {
-  await declareProcedure(declaration());
-  // An edit from the builder: new graph, new revision, same declaredHash.
+  // An edit from the builder, then a declaration that changed upstream.
   const row = procedures.get("shop.welcome");
   procedures.set("shop.welcome", {
     ...row,
     graph: JSON.stringify(graphOf("edited by hand")),
+    enabled: false,
     revision: 2,
   });
+  const before = structuredClone(procedures.get("shop.welcome"));
   changed.length = 0;
 
   const result = await declareProcedure(
-    declaration({ graph: graphOf("new upstream text") }),
+    declaration({
+      name: "Welcome aboard",
+      graph: graphOf("new upstream text"),
+    }),
   );
   assert.equal(result.status, "kept");
-  const graph = JSON.parse(procedures.get("shop.welcome").graph);
-  assert.equal(graph.nodes[1].config.message, "edited by hand");
+  assert.equal(result.enabled, false, "the stored state, not the declared one");
+  assert.deepEqual(procedures.get("shop.welcome"), before);
   assert.deepEqual(changed, []);
 });
 
-test("a paused procedure stays paused", async () => {
+test("a deleted procedure is created again by the next declaration", async () => {
   await declareProcedure(declaration());
-  const row = procedures.get("shop.welcome");
-  procedures.set("shop.welcome", { ...row, enabled: false, revision: 2 });
+  procedures.delete("shop.welcome");
 
   const result = await declareProcedure(declaration());
-  assert.equal(result.status, "kept");
-  assert.equal(result.enabled, false);
-  assert.equal(procedures.get("shop.welcome").enabled, false);
-});
-
-test("a procedure back to exactly what was declared is refreshed again", async () => {
-  await declareProcedure(declaration());
-  const row = procedures.get("shop.welcome");
-  // Paused, then resumed: the content is the declared one again.
-  procedures.set("shop.welcome", { ...row, revision: 3 });
-
-  const result = await declareProcedure(declaration({ graph: graphOf("v2") }));
-  assert.equal(result.status, "updated");
+  assert.equal(result.status, "created");
+  assert.equal(procedures.size, 1);
 });
 
 test("a disabled declaration is stored as a draft, its problems listed", async () => {
@@ -291,18 +203,6 @@ test("a malformed declaration is refused with what is wrong", async () => {
     /refused: graph\.nodes/,
   );
   assert.equal(procedures.size, 0);
-});
-
-test("two instances declaring at once store one procedure", async () => {
-  const results = await Promise.all([
-    declareProcedure(declaration()),
-    declareProcedure(declaration()),
-  ]);
-  assert.deepEqual(results.map((r) => r.status).sort(), [
-    "created",
-    "unchanged",
-  ]);
-  assert.equal(procedures.size, 1);
 });
 
 test("the interface call waits until the module has started", async () => {

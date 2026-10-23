@@ -98,10 +98,10 @@ does, and waits for the automation module to start.
 ## Shipping procedures as code
 
 `DeclareProcedure` creates a procedure from a module's backend, keyed by a stable
-id you choose (it becomes the procedure's id). Call it on every boot from
-`start()` or a `Hook.DATABASE_INITIALIZED` handler: it waits for the automation
-module to start, and never in `construct()` with `await` (deadlock: modules start
-after every construct).
+id you choose (it becomes the procedure's id). Call it from `start()` or a
+`Hook.DATABASE_INITIALIZED` handler: it waits for the automation module to
+start, and never in `construct()` with `await` (deadlock: modules start after
+every construct).
 
 ```ts
 const declared = await DeclareProcedure({
@@ -111,13 +111,12 @@ const declared = await DeclareProcedure({
   graph, // ProcedureGraph: what the builder's "Export JSON" writes under `graph`
   enabled: true, // required; enabled = triggers armed immediately
 });
-// declared.status: "created" | "updated" | "unchanged" | "kept"
+// declared.status: "created" | "kept"
 ```
 
-- Rule: a hash of the declared name, description, graph and enabled flag is kept.
-  The procedure is refreshed only while its content still matches the last
-  declaration; once anyone changed it (builder save, pause, resume, auto-disable)
-  it is `"kept"` as is. Deleting it brings it back on the next call — pause it instead.
+- Rule: written once. When a procedure already has the id, the call answers
+  `"kept"` and changes nothing, even if the declaration changed: the procedure
+  belongs to its users. Deleting it brings it back on the next call — pause it instead.
 - Validated as "Import JSON", and as enabling in the builder when `enabled`:
   missing settings, no trigger, unknown template, a webhook route another enabled
   procedure answers on → rejects with an `Error` listing the problems, nothing
