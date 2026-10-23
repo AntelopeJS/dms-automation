@@ -27,7 +27,6 @@ import {
   parseStoredGraph,
 } from "./runProcedure";
 import { type ArmError, armErrorFrom, storeArmErrors } from "./armErrors";
-import { isModuleGone } from "./departed";
 import { diff } from "./reconcileDiff";
 import { registry } from "./registry";
 import { serialQueue } from "./serialQueue";
@@ -266,9 +265,6 @@ async function activateNewHandles(
       activationErrors.delete(k);
     } catch (err) {
       live.armed = false;
-      // Unregistered while this pass held it: the reconcile its departure
-      // requests arms the procedure again, or says why it cannot.
-      if (isModuleGone(err)) continue;
       Logging.Error(
         `[dms-automation] failed to activate ${meta.typeId} for ${k}:`,
         err,

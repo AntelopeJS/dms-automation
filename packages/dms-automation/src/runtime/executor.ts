@@ -8,7 +8,6 @@ import type { FireNode, LogEntry, RunLog } from "../types/runLog";
 import "./builtins";
 import { redactHeaders } from "./boundRunLog";
 import { labelOf } from "./describe";
-import { departure, RunCancelledError } from "./departed";
 import type { ExecutionResult } from "./executionResult";
 import { flattenGroups } from "./flatten";
 import { type NodeCtx, nodeKinds } from "./nodeKinds";
@@ -46,10 +45,6 @@ interface RunCtx {
   currentFireId: string;
   cache: DataCache;
   signal: AbortSignal;
-  /** Stops the run: aborts `signal` with this reason. */
-  cancel(reason: RunCancelledError): void;
-  /** The registry's removals when the run started (see `departure` in departed.ts). */
-  typesMark: number;
   /**
    * The node each error was first thrown at. Shared by every nested context:
    * a rethrow through the enclosing nodes keeps the innermost one, whatever
@@ -142,10 +137,10 @@ export async function run(
   const procedureId = options.procedureId ?? "unknown";
   const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const runStart = Date.now();
-  // Aborted when a module a step belongs to goes away while the run is on
-  // (see `departure` in departed.ts): the run then stops as `cancelled`.
-  const controller = new AbortController();
-  const signal = controller.signal;
+  // No caller supplies an external abort signal today; keep a never-aborting
+  // signal so the node-execution contract (NodeCtx.signal) and the executor's
+  // cancellation guards stay in place for future cancellable runs.
+  const signal = new AbortController().signal;
 
   const cache = new DataCache();
   const runCtx: RunCtx = {
@@ -161,10 +156,6 @@ export async function run(
     currentFireId: "",
     cache,
     signal,
-    cancel: (reason) => {
-      if (!signal.aborted) controller.abort(reason);
-    },
-    typesMark: registry.removalMark(),
     failedAt: new Map(),
   };
 
@@ -218,7 +209,6 @@ export async function run(
   try {
     await runSubWalk(topSubWalk, runCtx);
   } catch (err) {
-    if (signal.aborted) return cancelledRun(signal.reason, runCtx, rootFire);
     const message = err instanceof Error ? err.message : String(err);
     closeFire(runCtx, rootFire);
     const result: ExecutionResult = {
@@ -249,25 +239,6 @@ function emptyFailure(errorMessage: string, runCtx: RunCtx): ExecutionResult {
     errorMessage,
     logs: toRunLog(runCtx),
   };
-}
-
-// A run a departed module stopped: not a failure of the procedure, so no
-// failed step is kept on the run, and the health figures leave it out.
-function cancelledRun(
-  reason: unknown,
-  runCtx: RunCtx,
-  rootFire: FireNode,
-): ExecutionResult {
-  const errorMessage =
-    reason instanceof Error ? reason.message : String(reason);
-  runCtx.currentFireId = rootFire.id;
-  appendEntry(runCtx, {
-    source: "exec",
-    level: "warn",
-    message: `run cancelled: ${errorMessage}`,
-  });
-  closeFire(runCtx, rootFire);
-  return { status: "cancelled", errorMessage, logs: toRunLog(runCtx) };
 }
 
 /**
@@ -349,15 +320,7 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
         );
         subwalk.recordBranch(node.id, auto);
       }
-    } catch (caught) {
-      // A departed module cancels the whole run: no Try/Catch or Retry
-      // around this step can bring the module back.
-      const cancelled = departure(caught, node, runCtx.typesMark);
-      if (cancelled) runCtx.cancel(cancelled);
-      // Once cancelled, every step still open ends on the same reason.
-      const err: unknown = runCtx.signal.aborted
-        ? runCtx.signal.reason
-        : caught;
+    } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (!runCtx.failedAt.has(err)) runCtx.failedAt.set(err, nodeId);
       appendEntry(runCtx, {
@@ -562,11 +525,6 @@ function makeDataNodeEvaluator(
       throw new Error(`data node "${nodeId}" is missing typeId`);
     }
     const type = registry.getDataNode(dn.typeId);
-    if (!type && registry.removedSince("data", dn.typeId, runCtx.typesMark)) {
-      throw new RunCancelledError(
-        `"${dn.typeId}" was unregistered while the run was on`,
-      );
-    }
     if (!type) {
       throw new Error(
         `data node "${nodeId}" references unknown type "${dn.typeId}"`,

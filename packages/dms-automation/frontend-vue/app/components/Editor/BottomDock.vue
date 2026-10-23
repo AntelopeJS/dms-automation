@@ -79,15 +79,12 @@ function durationOf(run: DockRun): number | null {
 	return run.endedAt ? new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime() : null
 }
 
-// A run cancelled by a module going away is neither a failure nor a success.
 function runIcon(run: DockRun): { name: string; class: string } {
 	if (run.status === 'failed') return { name: 'i-ph-x-circle', class: 'text-error' }
-	if (run.status === 'cancelled') return { name: 'i-ph-prohibit', class: 'text-warning' }
 	return { name: 'i-ph-check-circle', class: 'text-success' }
 }
 
 function runLine(run: DockRun): string {
-	if (run.status === 'cancelled') return `${processI18n('$dms_automation.runs.status.cancelled')} · ${run.errorMessage ?? ''}`
 	if (run.status !== 'failed') return processI18n('$dms_automation.feed.completedPlain')
 	const step = stepTitle(run.failedStep, processI18n)
 	return step ? `${step} · ${run.errorMessage ?? ''}` : (run.errorMessage ?? '')

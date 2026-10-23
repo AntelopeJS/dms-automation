@@ -13,7 +13,7 @@ const automation = require("@antelopejs/interface-dms-automation");
 // A project registers its own node types and stops (a hot reload, a stop):
 // the core takes its registrations back, then invalidates its context. Its
 // triggers must be torn down while they still can be, without an error, and
-// a run on its steps must end as cancelled, still stored by this module.
+// a run on its steps fails, like any other error, still stored by this module.
 
 // GetModel builds its models on a registered schema: hand it a bare one, the
 // data access is replaced below.
@@ -134,7 +134,7 @@ function projectTypes() {
   return { project, gate, entered };
 }
 
-test("a departing project's triggers go quietly and its run is cancelled", async (t) => {
+test("a departing project's triggers go quietly and its run fails", async (t) => {
   const errors = t.mock.method(Logging, "Error", () => {});
   RunWithResponsibleModule(SELF, () =>
     ImplementInterface(automation, implementation),
@@ -160,9 +160,9 @@ test("a departing project's triggers go quietly and its run is cancelled", async
 
   await until(() => runs.length === 1, "the run to be stored");
   const [run] = runs;
-  assert.equal(run.status, "cancelled");
-  assert.match(run.errorMessage, /"project\.after" was unregistered/);
-  assert.equal(run.failedNodeId, undefined);
+  assert.equal(run.status, "failed");
+  assert.match(run.errorMessage, /project\.after/);
+  assert.equal(run.failedNodeId, "after");
   assert.equal(run.storedBy, SELF);
 
   // A timer the project left behind starts nothing.
@@ -176,7 +176,7 @@ test("a departing project's triggers go quietly and its run is cancelled", async
   await subscriptions._deactivateAll();
 });
 
-// The executor alone: what ends a run as cancelled, and what still fails it.
+// The executor alone: a module gone mid-run is an ordinary step error.
 
 const { ModuleContextInvalidatedError } = require("@antelopejs/interface-core");
 const { builtinTriggers } = require("../dist/runtime/builtins");
@@ -184,8 +184,6 @@ const { registry } = require("../dist/runtime/registry.js");
 const { run } = require("../dist/runtime/executor.js");
 
 for (const type of builtinTriggers) registry.addTrigger(type.id, type);
-
-const manual = node("t", "trigger", "manual");
 
 function action(id, execute) {
   registry.addAction(id, {
@@ -199,20 +197,19 @@ function action(id, execute) {
   });
 }
 
-const ranCatch = [];
-action("tests.gone", async () => {
-  throw new ModuleContextInvalidatedError(PROJECT);
-});
-action("tests.caught", async () => {
-  ranCatch.push(true);
-  return {};
-});
-
-test("a step whose module is gone cancels the run, past a Try/Catch", async () => {
+test("a Try/Catch catches a step whose module is gone, like any error", async () => {
+  const caught = [];
+  action("tests.gone", async () => {
+    throw new ModuleContextInvalidatedError(PROJECT);
+  });
+  action("tests.caught", async () => {
+    caught.push(true);
+    return {};
+  });
   const result = await run(
     {
       nodes: [
-        manual,
+        node("t", "trigger", "manual"),
         node("try", "tryCatch"),
         node("gone", "action", "tests.gone"),
         node("caught", "action", "tests.caught"),
@@ -227,62 +224,6 @@ test("a step whose module is gone cancels the run, past a Try/Catch", async () =
     "t",
     {},
   );
-  assert.equal(result.status, "cancelled");
-  assert.match(result.errorMessage, /"tests\.gone" was unloaded/);
-  assert.equal(result.failedNodeId, undefined);
-  assert.deepEqual(ranCatch, []);
-  assert.equal(
-    result.logs.entries.at(-1).message.startsWith("run cancelled"),
-    true,
-  );
-});
-
-test("a Retry does not try a step whose module is gone again", async () => {
-  let attempts = 0;
-  action("tests.gone-counted", async () => {
-    attempts += 1;
-    throw new ModuleContextInvalidatedError(PROJECT);
-  });
-  const result = await run(
-    {
-      nodes: [
-        manual,
-        { ...node("retry", "retry"), config: { maxAttempts: 3 } },
-        node("gone", "action", "tests.gone-counted"),
-      ],
-      triggerEdges: [
-        edge("t", "retry"),
-        { ...edge("retry", "gone"), from: { node: "retry", branch: "body" } },
-      ],
-      dataEdges: [],
-    },
-    "t",
-    {},
-  );
-  assert.equal(result.status, "cancelled");
-  assert.equal(attempts, 1);
-});
-
-test("a type unregistered during the run cancels it; one never there fails it", async () => {
-  action("tests.first", async () => {
-    registry.removeAction("tests.second");
-    return {};
-  });
-  action("tests.second", async () => ({}));
-  const graph = {
-    nodes: [
-      manual,
-      node("first", "action", "tests.first"),
-      node("second", "action", "tests.second"),
-    ],
-    triggerEdges: [edge("t", "first"), edge("first", "second")],
-    dataEdges: [],
-  };
-  const cancelled = await run(graph, "t", {});
-  assert.equal(cancelled.status, "cancelled");
-
-  // Gone before the run started: the procedure cannot run, a failure.
-  const failed = await run(graph, "t", {});
-  assert.equal(failed.status, "failed");
-  assert.equal(failed.failedNodeId, "second");
+  assert.equal(result.status, "ok");
+  assert.deepEqual(caught, [true]);
 });
