@@ -11,8 +11,8 @@ import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
 import { Form } from "@antelopejs/interface-dms/base/form";
 import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { KpiCard } from "@antelopejs/interface-dms/base/kpi-card";
+import type { PageToolbarPeriodOptions } from "@antelopejs/interface-dms/base/page-toolbar";
 import type { PeriodPreset } from "@antelopejs/interface-dms/base/period-selector";
-import { PeriodSelector } from "@antelopejs/interface-dms/base/period-selector";
 import { RegisterPageTopic } from "@antelopejs/interface-dms/realtime";
 
 /** Base URL of the module's pages. */
@@ -43,32 +43,6 @@ export function isPeriodPreset(
 }
 
 /**
- * The 24 h / 7 d / 30 d switch of a page, publishing under `scope`. The
- * overview and the run history remember one choice: the period follows the
- * user from one to the other.
- */
-export function periodSwitch(scope: string) {
-  return PeriodSelector({
-    id: scope,
-    rememberKey: "automation",
-    variant: "segmented",
-    presets: PERIOD_PRESETS,
-    defaultPreset: "last-24h",
-    defaultComparison: "previous-period",
-    comparisons: ["previous-period"],
-    // A single comparison would draw an on/off toggle; keep the menu.
-    comparisonControl: "menu",
-    align: "right",
-    size: "sm",
-    showRangeLabel: false,
-  }).meta({
-    name: "$dms_automation.permissions.period.name",
-    description: "$dms_automation.permissions.period.description",
-    icon: "i-ph-calendar-blank",
-  });
-}
-
-/**
  * Keeps a page declared with `live` in step with `topics`: each event they
  * publish refreshes every block of the page through its Live / Pause. The
  * DMS KPI card takes no realtime topic of its own, and a custom block binds
@@ -90,6 +64,37 @@ export function liveTopics(topics: string[]) {
       for (const topic of topics) RegisterPageTopic(pageId, topic);
     });
 }
+
+/**
+ * The `period` of the `pageToolbar()` first in the body of the overview and
+ * the run history: the 24 h / 7 d / 30 d window of `scope`, with the period
+ * before it ("vs …") beside the presets. The two pages remember one choice:
+ * the period follows the user from one to the other.
+ */
+export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
+  return {
+    id: scope,
+    rememberKey: "automation",
+    presets: PERIOD_PRESETS,
+    defaultComparison: "previous-period",
+    comparisons: ["previous-period"],
+    meta: {
+      name: "$dms_automation.permissions.period.name",
+      description: "$dms_automation.permissions.period.description",
+      icon: "i-ph-calendar-blank",
+    },
+  };
+}
+
+/**
+ * The roles-editor metadata of that toolbar, which roles grant as the page's
+ * `live`; its toggle keeps the `toggle` id they already grant.
+ */
+export const LIVE_TOOLBAR_META = {
+  name: "$dms_automation.permissions.live.name",
+  description: "$dms_automation.permissions.live.description",
+  icon: "i-ph-broadcast",
+};
 
 /** The run history's period scope, which links from the overview name. */
 export const RUNS_PERIOD_SCOPE = "automation-runs";

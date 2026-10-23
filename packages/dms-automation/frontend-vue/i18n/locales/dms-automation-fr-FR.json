@@ -635,8 +635,8 @@
     },
     "permissions": {
       "live": {
-        "description": "Le bouton Direct / Pause et le temps écoulé depuis la dernière lecture de la page.",
-        "name": "Mises à jour en direct"
+        "description": "La barre en haut de la page : le temps écoulé depuis sa dernière lecture, son bouton Direct / Pause et, quand la page en a une, sa période.",
+        "name": "Barre de la page"
       },
       "liveTopics": {
         "description": "Recharge la page quand une exécution se termine ou qu’une procédure change.",

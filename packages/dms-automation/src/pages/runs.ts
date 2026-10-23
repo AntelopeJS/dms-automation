@@ -1,19 +1,19 @@
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { Banner } from "@antelopejs/interface-dms/base/banner";
 import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
-import { LiveToggle } from "@antelopejs/interface-dms/base/live-toggle";
-import { HStack } from "@antelopejs/interface-dms/base/stack";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
+import { pageToolbar } from "@antelopejs/interface-dms/base/page-toolbar";
 import { TableView } from "@antelopejs/interface-dms/base/table-view";
 import { RunsTableAPI } from "../data/runs-table";
 import { RUNS_TOPIC } from "../realtime";
 import { DEFAULT_RETENTION_DAYS, runsKeptDays } from "../runtime/retention";
 import {
   API_URL,
+  LIVE_TOOLBAR_META,
+  liveTopics,
+  toolbarPeriod,
   BUILDER_URL,
   kpiRow,
-  liveTopics,
-  periodSwitch,
   RUNS_PERIOD_SCOPE,
   TRACE_URL,
 } from "./shared";
@@ -64,13 +64,13 @@ export class RunsPageController extends PageController(
   },
   DefaultLayout(),
 ) {
-  // "Live · updated 12 s ago" with its pause; a stored run reads the KPIs and
-  // the list again.
-  static live = HStack()
-    .child("toggle", LiveToggle({ align: "left" }))
-    .child("topics", liveTopics([RUNS_TOPIC]));
-
-  static period = periodSwitch(RUNS_PERIOD_SCOPE);
+  // "Updated 12 s ago" with its Live / Pause and the period; a stored run
+  // reads the KPIs and the list again.
+  static live = pageToolbar({
+    leading: { topics: liveTopics([RUNS_TOPIC]) },
+    live: { childId: "toggle" },
+    period: toolbarPeriod(RUNS_PERIOD_SCOPE),
+  }).meta(LIVE_TOOLBAR_META);
 
   static kpis = kpiRow(RUNS_PERIOD_SCOPE, { fetchUrl: `${API_URL}/runs/kpi` });
 
@@ -121,6 +121,10 @@ export class RunsPageController extends PageController(
     pageSize: 25,
     // One click opens the run beside the list, like a log.
     rowClick: "single",
+    // Paused, the rows stay as they stood through a search, a sort or a page,
+    // with "N new · Show" counting the runs since; live, the list holds alone
+    // while a run is open beside it or the user scrolled down to read.
+    liveHold: { whileRowOpen: true, whileScrolled: true },
     footer: { hint: "$dms_automation.runs.retentionHint" },
     emptyStates: {
       firstRun: {

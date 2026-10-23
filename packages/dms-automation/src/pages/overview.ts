@@ -8,17 +8,17 @@ import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { KeyValueList } from "@antelopejs/interface-dms/base/key-value-list";
 import { ButtonVariant } from "@antelopejs/interface-dms/base";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
-import { LiveToggle } from "@antelopejs/interface-dms/base/live-toggle";
-import { HStack } from "@antelopejs/interface-dms/base/stack";
+import { pageToolbar } from "@antelopejs/interface-dms/base/page-toolbar";
 import { TopListCard } from "@antelopejs/interface-dms/base/top-list-card";
 import { PROCEDURES_TOPIC, RUNS_TOPIC } from "../realtime";
 import {
   API_URL,
+  LIVE_TOOLBAR_META,
+  liveTopics,
+  toolbarPeriod,
   BUILDER_URL,
   kpiRow,
-  liveTopics,
   newProcedureButton,
-  periodSwitch,
   PROCEDURES_URL,
   RUNS_URL,
   TRACE_URL,
@@ -78,19 +78,14 @@ export class OverviewPageController extends PageController(
   }),
 ) {
   /**
-   * "Live · updated 12 s ago" with its pause, and what keeps the page live:
-   * a run stored, a procedure changed.
+   * "Updated 12 s ago" with its Live / Pause, the period and the one before
+   * it, and what keeps the page live: a run stored, a procedure changed.
    */
-  static live = HStack()
-    .child("toggle", LiveToggle({ align: "left" }))
-    .child("topics", liveTopics([RUNS_TOPIC, PROCEDURES_TOPIC]))
-    .meta({
-      name: "$dms_automation.permissions.live.name",
-      description: "$dms_automation.permissions.live.description",
-      icon: "i-ph-broadcast",
-    });
-
-  static period = periodSwitch(SCOPE);
+  static live = pageToolbar({
+    leading: { topics: liveTopics([RUNS_TOPIC, PROCEDURES_TOPIC]) },
+    live: { childId: "toggle" },
+    period: toolbarPeriod(SCOPE),
+  }).meta(LIVE_TOOLBAR_META);
 
   /**
    * One line saying how automation is doing, the next action, and the first
