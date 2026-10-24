@@ -1,3 +1,4 @@
+import { IsDuplicateKeyError } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import type {
   DeclaredProcedure,
@@ -74,14 +75,22 @@ async function storeDeclared(
   const existing = await model.get(id);
   if (existing) return { status: "kept", enabled: existing.enabled };
   const now = new Date();
-  await model.insert({
-    _id: id,
-    ...content,
-    version: 1,
-    revision: 1,
-    created_at: now,
-    updated_at: now,
-  });
+  try {
+    await model.insert({
+      _id: id,
+      ...content,
+      version: 1,
+      revision: 1,
+      created_at: now,
+      updated_at: now,
+    });
+  } catch (error) {
+    // Declared at the same moment elsewhere (another instance): that
+    // declaration stored it, this one keeps it.
+    if (!IsDuplicateKeyError(error)) throw error;
+    const stored = await model.get(id);
+    return { status: "kept", enabled: stored?.enabled ?? content.enabled };
+  }
   // Arms its triggers here and on every other instance.
   await subscriptions.onProcedureChange(id);
   notifyTopic(PROCEDURES_TOPIC, "created", { procedureId: id });

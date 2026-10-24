@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { beforeEach, test } = require("node:test");
-const { Schema } = require("@antelopejs/interface-database");
+const { DuplicateKeyError, Schema } = require("@antelopejs/interface-database");
 
 // DeclareProcedure against in-memory tables: a procedure shipped as code is
 // created once under its declared id, never touched afterwards, and
@@ -44,7 +44,7 @@ Object.assign(ProcedureModel.prototype, {
       .filter((p) => p.enabled)
       .map((p) => structuredClone(p)),
   insert: async (doc) => {
-    if (procedures.has(doc._id)) throw new Error("E11000 duplicate key");
+    if (procedures.has(doc._id)) throw new DuplicateKeyError("_id", ["_id"]);
     procedures.set(doc._id, structuredClone(doc));
     return [doc._id];
   },
@@ -126,6 +126,43 @@ test("a later declaration leaves the stored procedure as it is", async () => {
   assert.equal(result.enabled, false, "the stored state, not the declared one");
   assert.deepEqual(procedures.get("shop.welcome"), before);
   assert.deepEqual(changed, []);
+});
+
+test("two declarations at the same moment: one creates, the other keeps", async () => {
+  // Both read before either writes, as two instances starting together do.
+  const get = ProcedureModel.prototype.get;
+  let release;
+  const bothRead = new Promise((resolve) => (release = resolve));
+  let reads = 0;
+  ProcedureModel.prototype.get = async (id) => {
+    const found = await get(id);
+    if (++reads === 2) release();
+    await bothRead;
+    return found;
+  };
+  try {
+    const results = await Promise.all([
+      declareProcedure(declaration()),
+      declareProcedure(declaration()),
+    ]);
+    assert.deepEqual(results.map((r) => r.status).sort(), ["created", "kept"]);
+    assert.ok(results.every((r) => r.enabled === true));
+    assert.equal(procedures.size, 1);
+  } finally {
+    ProcedureModel.prototype.get = get;
+  }
+});
+
+test("an insert failing for another reason still rejects", async () => {
+  const insert = ProcedureModel.prototype.insert;
+  ProcedureModel.prototype.insert = async () => {
+    throw new Error("connection lost");
+  };
+  try {
+    await assert.rejects(declareProcedure(declaration()), /connection lost/);
+  } finally {
+    ProcedureModel.prototype.insert = insert;
+  }
 });
 
 test("a deleted procedure is created again by the next declaration", async () => {
