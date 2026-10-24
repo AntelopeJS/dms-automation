@@ -4,6 +4,15 @@
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.6.0...v0.7.0)
 
+### Upgrade notes
+
+- Implements `@antelopejs/interface-dms-automation` `>=0.5.0 <0.6.0` (see its 0.5.0 notes) and runs on `@antelopejs/dms` `>=0.11.0`, `@antelopejs/interface-dms` `>=0.9.0` and `@antelopejs/dms-frontend` `>=0.9.0 <0.10.0` ([#74](https://github.com/AntelopeJS/dms-automation/pull/74)).
+- **Breaking:** a module gone mid-run fails the run like any other error ([#71](https://github.com/AntelopeJS/dms-automation/pull/71)). The `cancelled` status is removed from runs, filters, health figures and the builder. No migration: a run already stored as `cancelled` matches no status filter.
+- **Breaking:** `DeclareProcedure` writes a declared procedure once ([#73](https://github.com/AntelopeJS/dms-automation/pull/73)). A later declaration answers `kept` and leaves the stored procedure as it is (its users own it from then on); a deleted procedure is created again. The `declaredHash` field is removed. If arming fails after the insert, the triggers arm at the next start.
+- A procedure declared twice at the same moment (two instances starting together) is created by one call and `kept` by the other, through the database's `DuplicateKeyError` ([#75](https://github.com/AntelopeJS/dms-automation/pull/75)). Requires `@antelopejs/interface-database` `>=0.1.11` and a driver that throws it (`@antelopejs/mongodb` ≥ 1.5.0, `@antelopejs/postgres` ≥ 0.2.2).
+- The in-memory tests of `DeclareProcedure` restore their fakes without unbound methods ([#77](https://github.com/AntelopeJS/dms-automation/pull/77)).
+- The procedure picker answers `?ids=`, so a picked procedure is named ([#72](https://github.com/AntelopeJS/dms-automation/pull/72)).
+
 ### 🩹 Fixes
 
 - **runs:** The procedure picker answers ?ids=, so a picked procedure is named ([#72](https://github.com/AntelopeJS/dms-automation/pull/72))
