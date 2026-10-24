@@ -1,5 +1,48 @@
 # Changelog
 
+## v0.5.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.4.0...v0.5.0)
+
+### 🚀 Enhancements
+
+- **pages:** Adopt the DMS page toolbar on the overview, run history and procedures ([#60](https://github.com/AntelopeJS/dms-automation/pull/60))
+- **pages:** Offer a comparison menu on the overview and run history ([#64](https://github.com/AntelopeJS/dms-automation/pull/64))
+- **runs:** Open the run preview in a right drawer instead of the side panel ([#63](https://github.com/AntelopeJS/dms-automation/pull/63))
+
+### 🩹 Fixes
+
+- **overview:** Size each block's skeleton as what it loads ([#65](https://github.com/AntelopeJS/dms-automation/pull/65))
+- **runs:** The procedure picker answers ?ids=, so a picked procedure is named ([#72](https://github.com/AntelopeJS/dms-automation/pull/72))
+
+### 💅 Refactors
+
+- **runtime:** ⚠️  A module gone mid-run fails the run like any other error ([#71](https://github.com/AntelopeJS/dms-automation/pull/71))
+- ⚠️  Write declared procedures once ([#73](https://github.com/AntelopeJS/dms-automation/pull/73))
+
+### 📖 Documentation
+
+- **changelog:** Upgrade notes of dms-automation 0.6.0 ([#70](https://github.com/AntelopeJS/dms-automation/pull/70))
+
+### 📦 Build
+
+- Implement interface-dms-automation 0.4 ([#68](https://github.com/AntelopeJS/dms-automation/pull/68))
+- Run on @antelopejs/dms 0.10 and @antelopejs/dms-frontend 0.8 ([#69](https://github.com/AntelopeJS/dms-automation/pull/69))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/dms-automation v0.6.0 ([90d3ae8](https://github.com/AntelopeJS/dms-automation/commit/90d3ae8))
+
+#### ⚠️ Breaking Changes
+
+- **runtime:** ⚠️  A module gone mid-run fails the run like any other error ([#71](https://github.com/AntelopeJS/dms-automation/pull/71))
+- ⚠️  Write declared procedures once ([#73](https://github.com/AntelopeJS/dms-automation/pull/73))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+- Maxime Westhoven <maxime@altab.be>
+
 ## v0.4.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.3.0...v0.4.0)
