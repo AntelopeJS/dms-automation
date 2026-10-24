@@ -4,6 +4,12 @@
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.4.0...v0.5.0)
 
+### Upgrade notes
+
+- **Breaking:** `ProcedureRunStatus` loses `"cancelled"` ([#71](https://github.com/AntelopeJS/dms-automation/pull/71)). A module that goes away mid-run gives a failed run, like any other error. A consumer that tests `"cancelled"` no longer compiles: drop that branch. A run already stored as `cancelled` matches no status filter.
+- **Breaking:** `DeclaredProcedureStatus` is `"created" | "kept"` ([#73](https://github.com/AntelopeJS/dms-automation/pull/73)). `DeclareProcedure` creates the procedure when no procedure has its id, then never touches it: a later call answers `kept` and writes nothing, even if the declaration changed. `updated` and `unchanged` are gone.
+- Implemented by `@antelopejs/dms-automation` 0.7, which declares `>=0.5.0 <0.6.0`.
+
 ### 🚀 Enhancements
 
 - **pages:** Adopt the DMS page toolbar on the overview, run history and procedures ([#60](https://github.com/AntelopeJS/dms-automation/pull/60))
