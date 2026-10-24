@@ -35,19 +35,22 @@ for (const d of builtinDataNodes) registry.addDataNode(d.id, d);
 const procedures = new Map();
 const changed = [];
 
+const readProcedure = async (id) =>
+  procedures.has(id) ? structuredClone(procedures.get(id)) : undefined;
+const insertProcedure = async (doc) => {
+  if (procedures.has(doc._id)) throw new DuplicateKeyError("_id", ["_id"]);
+  procedures.set(doc._id, structuredClone(doc));
+  return [doc._id];
+};
+
 Object.assign(ProcedureModel.prototype, {
-  get: async (id) =>
-    procedures.has(id) ? structuredClone(procedures.get(id)) : undefined,
+  get: readProcedure,
   getAll: async () => [...procedures.values()].map((p) => structuredClone(p)),
   listEnabled: async () =>
     [...procedures.values()]
       .filter((p) => p.enabled)
       .map((p) => structuredClone(p)),
-  insert: async (doc) => {
-    if (procedures.has(doc._id)) throw new DuplicateKeyError("_id", ["_id"]);
-    procedures.set(doc._id, structuredClone(doc));
-    return [doc._id];
-  },
+  insert: insertProcedure,
 });
 subscriptions.onProcedureChange = async (id) => {
   changed.push(id);
@@ -130,12 +133,11 @@ test("a later declaration leaves the stored procedure as it is", async () => {
 
 test("two declarations at the same moment: one creates, the other keeps", async () => {
   // Both read before either writes, as two instances starting together do.
-  const get = ProcedureModel.prototype.get;
   let release;
   const bothRead = new Promise((resolve) => (release = resolve));
   let reads = 0;
   ProcedureModel.prototype.get = async (id) => {
-    const found = await get(id);
+    const found = await readProcedure(id);
     if (++reads === 2) release();
     await bothRead;
     return found;
@@ -149,19 +151,18 @@ test("two declarations at the same moment: one creates, the other keeps", async 
     assert.ok(results.every((r) => r.enabled === true));
     assert.equal(procedures.size, 1);
   } finally {
-    ProcedureModel.prototype.get = get;
+    ProcedureModel.prototype.get = readProcedure;
   }
 });
 
 test("an insert failing for another reason still rejects", async () => {
-  const insert = ProcedureModel.prototype.insert;
   ProcedureModel.prototype.insert = async () => {
     throw new Error("connection lost");
   };
   try {
     await assert.rejects(declareProcedure(declaration()), /connection lost/);
   } finally {
-    ProcedureModel.prototype.insert = insert;
+    ProcedureModel.prototype.insert = insertProcedure;
   }
 });
 
