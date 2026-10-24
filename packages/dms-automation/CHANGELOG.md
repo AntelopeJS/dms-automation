@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.7.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.6.0...v0.7.0)
+
+### 🩹 Fixes
+
+- **runs:** The procedure picker answers ?ids=, so a picked procedure is named ([#72](https://github.com/AntelopeJS/dms-automation/pull/72))
+- **declare:** A procedure declared twice at the same moment is kept ([#75](https://github.com/AntelopeJS/dms-automation/pull/75))
+
+### 💅 Refactors
+
+- **runtime:** ⚠️  A module gone mid-run fails the run like any other error ([#71](https://github.com/AntelopeJS/dms-automation/pull/71))
+- ⚠️  Write declared procedures once ([#73](https://github.com/AntelopeJS/dms-automation/pull/73))
+
+### 📖 Documentation
+
+- **changelog:** Upgrade notes of dms-automation 0.6.0 ([#70](https://github.com/AntelopeJS/dms-automation/pull/70))
+- **changelog:** Upgrade notes of interface-dms-automation 0.5.0 ([#76](https://github.com/AntelopeJS/dms-automation/pull/76))
+
+### 📦 Build
+
+- **deps:** Run on dms 0.11, dms-frontend 0.9 and implement interface-dms-automation 0.5 ([#74](https://github.com/AntelopeJS/dms-automation/pull/74))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/interface-dms-automation v0.5.0 ([5a21f51](https://github.com/AntelopeJS/dms-automation/commit/5a21f51))
+
+### ✅ Tests
+
+- **declare:** Restore the in-memory fakes without unbound methods ([#77](https://github.com/AntelopeJS/dms-automation/pull/77))
+
+#### ⚠️ Breaking Changes
+
+- **runtime:** ⚠️  A module gone mid-run fails the run like any other error ([#71](https://github.com/AntelopeJS/dms-automation/pull/71))
+- ⚠️  Write declared procedures once ([#73](https://github.com/AntelopeJS/dms-automation/pull/73))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.6.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.5.1...v0.6.0)
