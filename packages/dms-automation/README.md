@@ -58,10 +58,10 @@ Module 0.5 uses interface 0.3, including `DeclareProcedure` and `RunProcedure`. 
 
 | Package | Version |
 | --- | --- |
-| `@antelopejs/dms` | `>=0.9.0 <1.0.0` |
-| `@antelopejs/interface-dms` | `>=0.7.0 <1.0.0` |
+| `@antelopejs/dms` | `>=0.11.0 <1.0.0` |
+| `@antelopejs/interface-dms` | `>=0.9.0 <1.0.0` |
 | `@antelopejs/dms-frontend` (renderer) | `>=0.6.0 <0.7.0` |
-| `@antelopejs/interface-dms-automation` | `>=0.3.0 <0.4.0` |
+| `@antelopejs/interface-dms-automation` | `>=0.5.0 <0.6.0` |
 | API provider | `@antelopejs/api`, for webhooks |
 | Database | an `@antelopejs/interface-database` implementation |
 
