@@ -54,7 +54,7 @@
     "dev": "ajs project run -w -p playground",
     "lint": "oxlint && oxfmt --check . && cd frontend-vue && pnpm lint && antelopejs-check-interface-ranges",
     "typecheck": "pnpm --filter @antelopejs/interface-dms-automation typecheck && tsc --noEmit",
-    "lint:fix": "oxlint --fix --max-warnings=1000000 && oxfmt . && cd frontend-vue && pnpm lint:fix",
+    "lint:fix": "oxlint --fix && oxfmt . && cd frontend-vue && pnpm lint:fix",
     "format": "oxfmt .",
     "frontend:dev": "cd playground && pnpm frontend:dev",
     "release": "pnpm --filter @antelopejs/interface-dms-automation build && pnpm --dir frontend-vue install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test:frontend-registration && pnpm run verify:interface && release-it",

@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   # `pnpm run checks` covers typecheck, lint, format, knip, the node:test
-  # suite (built once, inside `pnpm test`), size, ratchet and sync.
+  # suite (the module builds once, inside `pnpm test`), size, ratchet and sync.
   checks:
     uses: AntelopeJS/.github/.github/workflows/ci-node.yml@v1
     with:
@@ -34,8 +34,8 @@ jobs:
       # Frontend build/typecheck run in the consuming generated Inertia
       # workspace, where the host DMS composables and SDK aliases resolve.
 
-  # Branch protection requires a check named `ubuntu`; a called workflow
-  # reports as `checks / checks`.
+  # The main and next rulesets require a check named `ubuntu`; a called
+  # workflow reports as `checks / checks`.
   ubuntu:
     if: always()
     needs: [checks]

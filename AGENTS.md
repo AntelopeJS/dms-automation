@@ -8,7 +8,7 @@ A pnpm workspace with two published packages. The root holds the tool configs an
 | ----------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `packages/interface-dms-automation`       | `@antelopejs/interface-dms-automation`, the contract other modules use to declare their nodes |
 | `packages/dms-automation`                 | `@antelopejs/dms-automation`, the module that implements it                                 |
-| `packages/dms-automation/frontend-vue`    | The Vue layer. ESLint and Prettier own it, not oxlint and oxfmt                             |
+| `packages/dms-automation/frontend-vue`    | The Vue layer. oxlint skips it and ESLint lints it; Prettier formats its `.vue` files, oxfmt the rest |
 | `packages/dms-automation/playground`      | A standalone project with its own lockfile, outside the workspace install                  |
 
 Run a package script from its own directory: `pnpm --dir packages/dms-automation <script>`.
@@ -20,10 +20,9 @@ Run a package script from its own directory: `pnpm --dir packages/dms-automation
 
 ## What `pnpm run checks` does not run
 
-- `pnpm test` builds the interface and the module once, then runs every `packages/dms-automation/tests/*.test.cjs` file. The `test:*` scripts in that package run one file each, and rebuild first.
 - The docs check runs in CI only (`docs-files` in `.github/workflows/ci.yml`), as does `pnpm --dir packages/interface-dms-automation check:exports`, which needs the built `dist`.
 - The frontend build and typecheck need a generated Inertia workspace: set `DMS_FRONTEND_WORKSPACE` to its absolute path, then run `pnpm --dir packages/dms-automation/frontend-vue build` or `typecheck`.
-- The playground: install it with `pnpm --dir packages/dms-automation/playground install --ignore-workspace`, then `pnpm --dir packages/dms-automation dev`. In an orb, `.agents/playground` installs MongoDB, the AntelopeJS CLI and the playground before the `dms-auto-play-back` service starts.
+- The playground needs MongoDB, a root `pnpm run build`, then in `packages/dms-automation/playground`: `pnpm install --ignore-workspace`, `pnpm run build` and `pnpm exec ajs project modules install`. `.agents/playground` runs that sequence, and the `dms-auto-play-back` orb service runs it before `pnpm dev`.
 - `pnpm --dir packages/dms-automation knip:all` also reports unused files and exports. Confirm each finding before you remove it.
 
 <!-- antelopejs-guardrails:start -->
