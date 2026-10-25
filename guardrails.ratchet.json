@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "antelopejs/no-comments": 861,
+    "antelopejs/no-fs-read-in-tests": 8,
+    "anti-slop/no-known-value-widening": 42,
+    "anti-slop/no-runtime-typeof": 67,
+    "anti-slop/no-shape-in-symbol-names": 7,
+    "anti-slop/no-unknown-parameters": 76,
+    "anti-slop/no-unknown-returns": 12,
+    "anti-slop/no-unsafe-dictionary-type": 72,
+    "anti-slop/require-safety-comment-for-type-assertion": 99
+  },
+  "oversizeFiles": {
+    "packages/dms-automation/frontend-vue/app/components/Editor.vue": 138211,
+    "packages/dms-automation/frontend-vue/app/components/Editor/GraphCanvas.vue": 59759,
+    "packages/dms-automation/frontend-vue/app/components/Editor/NodeInspector.vue": 24602,
+    "packages/dms-automation/frontend-vue/app/components/Templates.vue": 20540,
+    "packages/dms-automation/frontend-vue/i18n/locales/dms-automation-en-GB.json": 54129,
+    "packages/dms-automation/frontend-vue/i18n/locales/dms-automation-fr-FR.json": 61881,
+    "packages/dms-automation/src/runtime/subscriptions.ts": 25748
+  }
+}

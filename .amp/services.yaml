@@ -1,6 +1,6 @@
 services:
   dms-auto-play-back:
-    command: pnpm --dir packages/dms-automation/playground dev
+    command: .agents/playground && pnpm --dir packages/dms-automation/playground dev
     port: 5010
     health: /dms/sitelayout
 
