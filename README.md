@@ -96,9 +96,7 @@ pnpm --dir packages/dms-automation/playground install --ignore-workspace
 pnpm build                                        # interface first, then the module
 pnpm --dir packages/dms-automation dev            # playground backend
 pnpm --dir packages/dms-automation frontend:dev   # dashboard, in a second terminal
-pnpm lint
-pnpm typecheck
-pnpm --dir packages/dms-automation test
+pnpm run checks                                   # typecheck, lint, format, knip, tests, size, ratchet, sync
 ```
 
 <details>
