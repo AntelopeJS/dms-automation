@@ -8,7 +8,7 @@ A pnpm workspace with two published packages. The root holds the tool configs an
 | ----------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `packages/interface-dms-automation`       | `@antelopejs/interface-dms-automation`, the contract other modules use to declare their nodes |
 | `packages/dms-automation`                 | `@antelopejs/dms-automation`, the module that implements it                                 |
-| `packages/dms-automation/frontend-vue`    | The Vue layer. oxlint skips it and ESLint lints it; Prettier formats its `.vue` files, oxfmt the rest |
+| `packages/dms-automation/frontend-vue`    | The Vue layer. oxlint skips it and ESLint lints it. oxfmt gates everything but `.vue`; its own `format` runs Prettier over all of it, so run the root `pnpm run format` after it |
 | `packages/dms-automation/playground`      | A standalone project with its own lockfile, outside the workspace install                  |
 
 Run a package script from its own directory: `pnpm --dir packages/dms-automation <script>`.
@@ -16,7 +16,7 @@ Run a package script from its own directory: `pnpm --dir packages/dms-automation
 ## Versioning
 
 - The module implements the interface, so it depends on it through `>=<interface version> <0.<minor + 1>.0`. A breaking interface minor never reaches a module that does not implement it. Any other module depends on the interface alone, with a wide range.
-- Release the interface first (**Release DMS automation interface**), then the module. The module workflow refuses to start until the interface version its range is floored at is on npm.
+- Release the interface first (**Release DMS automation interface**), then the module. The module workflow refuses to start until the interface version in the tree is on npm, and the module's range is floored at that version.
 
 ## What `pnpm run checks` does not run
 
