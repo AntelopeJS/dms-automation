@@ -22,8 +22,8 @@ Run a package script from its own directory: `pnpm --dir packages/dms-automation
 
 - The docs check runs in CI only (`docs-files` in `.github/workflows/ci.yml`), as does `pnpm --dir packages/interface-dms-automation check:exports`, which needs the built `dist`.
 - The frontend build and typecheck need a generated Inertia workspace: set `DMS_FRONTEND_WORKSPACE` to its absolute path, then run `pnpm --dir packages/dms-automation/frontend-vue build` or `typecheck`.
-- The playground needs MongoDB, a root `pnpm run build`, then in `packages/dms-automation/playground`: `pnpm install --ignore-workspace`, `pnpm run build` and `pnpm exec ajs project modules install`. `.agents/playground` runs that sequence, and the `dms-auto-play-back` orb service runs it before `pnpm dev`.
-- `pnpm --dir packages/dms-automation knip:all` also reports unused files and exports. Confirm each finding before you remove it.
+- The playground needs MongoDB, then `pnpm --dir packages/dms-automation/playground install --ignore-workspace`, a root `pnpm run build`, and in `packages/dms-automation/playground`: `pnpm run build` and `pnpm exec ajs project modules install`. `.agents/playground` runs that sequence, and the `dms-auto-play-back` orb service runs it before `pnpm dev`.
+- `pnpm --dir packages/dms-automation knip:all` also reports unused files and exports.
 
 <!-- antelopejs-guardrails:start -->
 <!-- Managed by @antelopejs/tooling-configs. `antelopejs-sync` rewrites everything between these markers; write repository-specific guidance outside them. -->
