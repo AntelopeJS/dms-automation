@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "automation-nightly-report",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "Run a procedure every night that e-mails a sales report.",
+      "expect": {
+        "skills": ["dms-automation"],
+        "acceptable": ["dms-mailing", "dms-automation-interface", "dms"]
+      }
+    },
+    {
+      "id": "dms-automation-failing-cron-casual",
+      "area": "modules",
+      "style": "casual",
+      "prompt": "my nightly procedure says failing and idk why, where do i look",
+      "expect": {
+        "skills": ["dms-automation"],
+        "acceptable": ["dms", "dms-automation-interface"]
+      }
+    },
+    {
+      "id": "dms-automation-test-run-real-effects",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "My procedure has an HTTP request node that charges a customer. If I press Test run in the builder, will it call the real service, and how does the builder protect me?",
+      "expect": {
+        "skills": ["dms-automation"],
+        "acceptable": ["dms", "dms-automation-interface"],
+        "mustMention": ["confirmRealEffects", "dryRun"]
+      }
+    },
+    {
+      "id": "dms-automation-table-watch-replica-set",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "Start a procedure whenever a row of my orders table changes. My local MongoDB is a single standalone server, what do I have to set up?",
+      "expect": {
+        "skills": ["dms-automation"],
+        "acceptable": ["dms", "dms-database"],
+        "mustMention": ["database.table-watch", "replicaSet=rs0"]
+      }
+    },
+    {
+      "id": "dms-automation-avoid-register-trigger",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "My module must offer a new trigger type in the procedure editor that fires when a delivery arrives. Should it be singleton or replicated?",
+      "expect": {
+        "skills": ["dms-automation-interface"],
+        "acceptable": ["dms-module", "dms"],
+        "avoid": ["dms-automation"]
+      }
+    }
+  ]
+}

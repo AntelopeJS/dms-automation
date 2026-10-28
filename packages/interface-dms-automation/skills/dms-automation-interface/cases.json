@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "automation-custom-action",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "Declare a new automation action from my module so it appears in the procedure editor.",
+      "expect": {
+        "skills": ["dms-automation-interface"],
+        "acceptable": ["dms-automation", "dms-module"]
+      }
+    },
+    {
+      "id": "dms-automation-interface-add-node-casual",
+      "area": "modules",
+      "style": "casual",
+      "prompt": "how do i add my own node to the automation editor",
+      "expect": {
+        "skills": ["dms-automation-interface"],
+        "acceptable": ["dms-automation", "dms-module", "dms"]
+      }
+    },
+    {
+      "id": "dms-automation-interface-register-action",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "Write the start and stop functions of my bakery module so it adds a Place restock order action to the DMS procedure editor. The action calls a supplier for real, so a builder test run must not trigger it.",
+      "expect": {
+        "skills": ["dms-automation-interface"],
+        "acceptable": ["dms-automation", "dms-module", "dms"],
+        "mustMention": ["RegisterActionType", "UnregisterActionType", "dryRun"]
+      }
+    },
+    {
+      "id": "dms-automation-interface-avoid-retention",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "How long does the automation module keep run traces, and how do I stop credentials from showing up in them?",
+      "expect": {
+        "skills": ["dms-automation"],
+        "acceptable": ["dms"],
+        "mustMention": ["runs.retentionDays", "runs.sensitiveNames"],
+        "avoid": ["dms-automation-interface"]
+      }
+    }
+  ]
+}
