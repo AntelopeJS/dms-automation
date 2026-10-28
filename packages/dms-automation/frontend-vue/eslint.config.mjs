@@ -2,6 +2,7 @@ import eslint from "@eslint/js";
 import ts from "typescript-eslint";
 import vue from "eslint-plugin-vue";
 import globals from "globals";
+import automation from "./eslint-rules/index.mjs";
 
 export default ts.config(
   { ignores: ["dist/**", "node_modules/**"] },
@@ -21,4 +22,14 @@ export default ts.config(
     },
   },
   { files: ["**/*.ts"], languageOptions: { parser: ts.parser } },
+  {
+    files: ["app/**/*.{ts,vue}"],
+    plugins: { automation },
+    rules: { "automation/confirm-from-row-tokens": "error" },
+  },
+  {
+    files: ["app/**/*.vue"],
+    plugins: { automation },
+    rules: { "automation/no-comment-before-else": "error" },
+  },
 );

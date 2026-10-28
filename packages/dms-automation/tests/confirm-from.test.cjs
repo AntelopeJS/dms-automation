@@ -1,8 +1,7 @@
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
 const path = require("node:path");
 const { test } = require("node:test");
-const { FRONTEND } = require("./frontend.cjs");
+const { FRONTEND } = require("./helpers/frontend.cjs");
 
 // The dialogs the server words are read by the host's `confirmFrom(url, …)`,
 // which fills only the URL's `{{row.X}}` tokens from its `params`: any other
@@ -37,25 +36,4 @@ test("re-run asks the dialog of the run it re-runs", async () => {
   );
 
   assert.deepEqual(asked, ["/api/automation/runs/run-1/rerun-confirm"]);
-});
-
-function* sources(dir) {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const file = path.join(dir, entry.name);
-    if (entry.isDirectory()) yield* sources(file);
-    else if (/\.(ts|vue)$/.test(entry.name)) yield file;
-  }
-}
-
-test("every confirmFrom URL names its fill-ins as row tokens", () => {
-  const offending = [];
-  for (const file of sources(path.join(FRONTEND, "app"))) {
-    const source = fs.readFileSync(file, "utf8");
-    for (const [, url] of source.matchAll(/confirmFrom\(\s*(`[^`]*`)/g)) {
-      const bare = url.replace(/\$\{[^}]*\}|\{\{[^}]*\}\}/g, "");
-      if (/\{[^}]*\}/.test(bare))
-        offending.push(`${path.relative(FRONTEND, file)}: ${url}`);
-    }
-  }
-  assert.deepEqual(offending, []);
 });
