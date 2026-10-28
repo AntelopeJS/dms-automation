@@ -8,6 +8,7 @@ on:
   # another, and a filter on `main` left every intermediate level without any
   # gate -- only the secret scanner ran.
   pull_request:
+  workflow_dispatch: null
 
 permissions:
   contents: read
@@ -19,7 +20,7 @@ concurrency:
 jobs:
   # `pnpm run checks` covers typecheck, lint, format, knip, the node:test
   # suite (the module builds once, inside `pnpm test`), size, ratchet and sync.
-  checks:
+  ci:
     uses: AntelopeJS/.github/.github/workflows/ci-node.yml@v1
     with:
       docs-files: |
@@ -33,12 +34,15 @@ jobs:
       extra-commands: pnpm --dir packages/interface-dms-automation check:exports
       # Frontend build/typecheck run in the consuming generated Inertia
       # workspace, where the host DMS composables and SDK aliases resolve.
+    permissions:
+      contents: write
+      actions: write
 
   # The main and next rulesets require a check named `ubuntu`; a called
-  # workflow reports as `checks / checks`.
+  # workflow reports as `ci / Node .nvmrc`.
   ubuntu:
     if: always()
-    needs: [checks]
+    needs: [ci]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
