@@ -58,7 +58,7 @@ export interface PlacedInstance {
   groupPath: string[];
 }
 
-// Enters no template: a stored graph only holds references to them.
+/** Enters no template: a stored graph only holds references to them. */
 const NO_TEMPLATES: TemplateCache = { get: () => undefined };
 
 /**

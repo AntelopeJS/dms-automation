@@ -30,12 +30,14 @@ interface WebhookHandle {
 
 const DEFAULT_METHOD = "POST";
 
-// A webhook answers anyone, without authentication: it must never shadow a
-// route of the server's API or of the DMS. These prefixes are refused even
-// before their routes are registered; any other registered route is found in
-// the router (see webhookRouteConflict).
+/**
+ * A webhook answers anyone, without authentication: it must never shadow a
+ * route of the server's API or of the DMS. These prefixes are refused even
+ * before their routes are registered; any other registered route is found in
+ * the router (see webhookRouteConflict).
+ */
 const RESERVED_PREFIXES = ["/api", "/auth", "/dms", "/modules", "/settings"];
-// Letters, digits, `-._~`, `/` between segments and `:` for route parameters.
+/** Letters, digits, `-._~`, `/` between segments and `:` for route parameters. */
 const PATH_PATTERN = /^\/[A-Za-z0-9._~:/-]*$/;
 const UNSAFE_SEGMENTS = /\/\/|(^|\/)\.\.?(\/|$)/;
 
@@ -80,10 +82,12 @@ export function webhookRouteOf(config: Record<string, unknown> | undefined): {
   return { method, path: path.length > 1 ? path.replace(/\/+$/, "") : path };
 }
 
-// The ids of the routes this module's webhooks registered: the save check
-// leaves them out (a procedure's armed webhook is not a conflict with
-// itself), while arming counts them (two webhooks on one route are refused
-// when the second arms).
+/**
+ * The ids of the routes this module's webhooks registered: the save check
+ * leaves them out (a procedure's armed webhook is not a conflict with
+ * itself), while arming counts them (two webhooks on one route are refused
+ * when the second arms).
+ */
 const armedRoutes = new Set<string>();
 
 const segmentsOf = (path: string) => path.split("/").filter(Boolean);
@@ -218,14 +222,20 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
       params: { type: "object" },
     },
   },
+  /**
+   * An already armed webhook on this route is a conflict like any route:
+   * the router would hand every call to the first one.
+   */
   async activate(config, emit) {
     const { method, path } = webhookRouteOf({ ...config });
-    // An already armed webhook on this route is a conflict like any route:
-    // the router would hand every call to the first one.
     const problem =
       webhookPathProblem(config.path) ?? webhookRouteConflict(method, path);
     if (problem) throw new TriggerArmError(problem);
 
+    /**
+     * A body over the size limit rejects with a 413: the caller is told,
+     * and the procedure does not run on a payload it never received.
+     */
     const handler: RouteHandler = {
       mode: "handler",
       method,
@@ -234,8 +244,6 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
       properties: {},
       proto: {},
       callback: async (ctx: RequestContext) => {
-        // A body over the size limit rejects with a 413: the caller is told,
-        // and the procedure does not run on a payload it never received.
         const buf = await ReadBody(ctx);
         const body =
           buf.length > 0

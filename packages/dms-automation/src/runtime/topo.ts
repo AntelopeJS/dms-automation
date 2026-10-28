@@ -15,6 +15,12 @@ import type { ProcedureGraph } from "../types/graph";
  * no port discrimination.
  *
  * Throws when a cycle is detected within the reachable subgraph.
+ *
+ * Seed-port filter: only enqueue immediate downstreams of the seed that
+ * leave through the matching port (or any, if sourcePort is undefined).
+ *
+ * BFS the rest with no port filter — liveness inside the sub-walk is
+ * enforced by branch decisions, not by edge filtering at topo time.
  */
 export function topoFromPort(
   graph: ProcedureGraph,
@@ -24,8 +30,6 @@ export function topoFromPort(
   const reachable = new Set<string>();
   const queue: string[] = [];
 
-  // Seed-port filter: only enqueue immediate downstreams of the seed that
-  // leave through the matching port (or any, if sourcePort is undefined).
   for (const e of graph.triggerEdges) {
     if (e.from.node !== sourceNodeId) continue;
     if (sourcePort !== undefined && e.from.branch !== sourcePort) continue;
@@ -35,8 +39,6 @@ export function topoFromPort(
     }
   }
 
-  // BFS the rest with no port filter — liveness inside the sub-walk is
-  // enforced by branch decisions, not by edge filtering at topo time.
   const adj = adjacency(graph);
   while (queue.length > 0) {
     const cur = queue.shift() as string;

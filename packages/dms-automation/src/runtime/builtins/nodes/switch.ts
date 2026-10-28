@@ -22,7 +22,6 @@ nodeKinds.register("switch", execute, {
     category: "flow",
     hasTriggerIn: true,
     hasMainTriggerOut: false,
-    // Dynamic from config.cases, then "default" appended.
     dynamicTriggerOutsFromConfig: "cases",
     staticTriggerOuts: ["default"],
     staticDataIns: [{ name: "value" }],

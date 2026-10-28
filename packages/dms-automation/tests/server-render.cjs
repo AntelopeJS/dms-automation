@@ -6,15 +6,17 @@ const {
   component,
 } = require("./helpers/frontend.cjs");
 
-// Server renders of the pages and components, for the render tests: what a
-// render reads from the backend (answered by `respond`) and what it hands
-// the browser. The pages render on the renderer's real data layer and the
-// DMS's real `useApiData`, as installed by frontend-vue.
+/**
+ * Server renders of the pages and components, for the render tests: what a
+ * render reads from the backend (answered by `respond`) and what it hands
+ * the browser. The pages render on the renderer's real data layer and the
+ * DMS's real `useApiData`, as installed by frontend-vue.
+ */
 
 const vue = frontendRequire("vue");
 const { renderToString } = frontendRequire("vue/server-renderer");
 
-// What the renderer imports of Inertia and vue-i18n serves the browser only.
+/** What the renderer imports of Inertia and vue-i18n serves the browser only. */
 const BROWSER_ONLY = {
   "@inertiajs/vue3": {
     Link: {},
@@ -63,8 +65,6 @@ const t = (key, params) =>
 const same = (value) => value;
 const noop = () => {};
 
-// The application's auto-imports: Vue's API, the renderer's, the DMS
-// layers' the components call, and the module's own composables.
 for (const [name, value] of Object.entries(vue))
   if (/^[a-z]/.test(name)) globalThis[name] = value;
 for (const name of [
@@ -119,8 +119,10 @@ for (const name of ["useAutomationNodeKinds", "useAutomationRuns"])
     path.join(FRONTEND, "app/composables", `${name}.ts`),
   )[name];
 
-// Every DMS, Nuxt UI and module component the templates use renders its
-// default slot, its props as attributes.
+/**
+ * Every DMS, Nuxt UI and module component the templates use renders its
+ * default slot, its props as attributes.
+ */
 const stubs = new Map();
 function stub(name) {
   if (!stubs.has(name))

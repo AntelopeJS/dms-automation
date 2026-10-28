@@ -14,13 +14,14 @@ const WEEKDAY_KEY = /\.days\.(\w+)$/;
  * A schedule as an impact line of the delete dialog: the dialog draws a `$`
  * key with its own params, so the schedule's words go in `params` when no
  * other line uses them; the expression is shown as written otherwise.
+ *
+ * A weekday is a nested key the dialog cannot compose: one key per day.
  */
 function scheduleImpact(cron: string, params: Record<string, unknown>): string {
   const text = cronText(cron);
   if (typeof text === "string") return text;
   const own: Record<string, unknown> = { ...text.params };
   let key = text.key;
-  // A weekday is a nested key the dialog cannot compose: one key per day.
   const day = own.day as { key?: string } | undefined;
   if (day && typeof day === "object") {
     const weekday = WEEKDAY_KEY.exec(day.key ?? "")?.[1];
@@ -59,6 +60,8 @@ function stopImpact(
  * The delete dialog, worded for the procedure: what stops answering, how
  * often it ran this week (`runCount`), and, for an enabled one, its name to
  * type. A disabled one is told the delete cannot be undone.
+ *
+ * An enabled procedure is deleted by typing its name.
  */
 export function deleteDialogOf(
   procedure: Procedure,
@@ -81,7 +84,6 @@ export function deleteDialogOf(
       ? stopImpact(parseGraphSafe(procedure.graph), params)
       : [],
   };
-  // An enabled procedure is deleted by typing its name.
   if (procedure.enabled) dialog.confirmText = procedure.name;
   return dialog;
 }

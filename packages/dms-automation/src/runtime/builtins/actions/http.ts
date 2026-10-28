@@ -88,8 +88,8 @@ for (const [address, prefix] of [
 const nat64 = new BlockList();
 nat64.addSubnet("64:ff9b::", 96, "ipv6");
 
+/** The URL parser serializes any IPv6 spelling as hexadecimal groups. */
 function embeddedIpv4(address: string): string {
-  // The URL parser serializes any IPv6 spelling as hexadecimal groups.
   const groups = new URL(`http://[${address}]`).hostname
     .slice(1, -1)
     .split(":");
@@ -176,10 +176,12 @@ function redirected(
   return { ...init, method: "GET", body: undefined, headers };
 }
 
+/**
+ * Redirects are followed here so every hop is checked: a public URL can
+ * redirect to an internal one.
+ */
 async function send(url: URL, init: RequestInit): Promise<Response> {
   if (!options.blockPrivateNetwork) return fetch(url, init);
-  // Redirects are followed here so every hop is checked: a public URL can
-  // redirect to an internal one.
   let target = url;
   let request = init;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -308,6 +310,10 @@ function parseJson(res: Response, body: string): unknown {
   }
 }
 
+/**
+ * Titles are what a problem calls the field ("Fill in “URL”."); the
+ * inspector shows its own translated labels.
+ */
 export const httpAction: ActionType<HttpInput, HttpOutput> = {
   id: "http.request",
   name: "$dms_automation.types.http.name",
@@ -316,8 +322,6 @@ export const httpAction: ActionType<HttpInput, HttpOutput> = {
   inputSchema: {
     type: "object",
     properties: {
-      // Titles are what a problem calls the field ("Fill in “URL”."); the
-      // inspector shows its own translated labels.
       url: { type: "string", title: "URL" },
       method: {
         type: "string",
@@ -325,7 +329,6 @@ export const httpAction: ActionType<HttpInput, HttpOutput> = {
         default: "GET",
         title: "Method",
       },
-      // Header values are masked in the run log: they often carry a token.
       headers: { type: "object", title: "Headers", "x-redact": "headers" },
       body: { type: ["object", "string"], title: "Body" },
       timeoutMs: {
@@ -354,6 +357,12 @@ export const httpAction: ActionType<HttpInput, HttpOutput> = {
       json: {},
     },
   },
+  /**
+   * The timeout covers the whole exchange, reading the body included.
+   * fetch refuses a body on GET and HEAD: drop it, and say so in the log
+   * rather than failing the step with the runtime's cryptic message.
+   * An object body is sent as JSON: say so, unless the graph set a type.
+   */
   async execute(input, ctx) {
     const method = input.method ?? "GET";
     const url = checkUrl(input.url);
@@ -366,20 +375,16 @@ export const httpAction: ActionType<HttpInput, HttpOutput> = {
     if (requested > MAX_TIMEOUT_MS) {
       ctx.log("warn", `timeoutMs capped at ${MAX_TIMEOUT_MS} (5 minutes)`);
     }
-    // The timeout covers the whole exchange, reading the body included.
     const init: RequestInit = {
       method,
       headers,
       signal: AbortSignal.timeout(timeoutMs),
     };
-    // fetch refuses a body on GET and HEAD: drop it, and say so in the log
-    // rather than failing the step with the runtime's cryptic message.
     if (input.body !== undefined && BODYLESS_METHODS.has(method)) {
       ctx.log("warn", `${method} request: body ignored`);
     } else if (input.body !== undefined) {
       const isText = typeof input.body === "string";
       init.body = isText ? (input.body as string) : JSON.stringify(input.body);
-      // An object body is sent as JSON: say so, unless the graph set a type.
       if (!isText && !headers.has("content-type")) {
         headers.set("content-type", "application/json");
       }

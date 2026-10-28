@@ -3,12 +3,14 @@ const path = require("node:path");
 const { test } = require("node:test");
 const { FRONTEND } = require("./helpers/frontend.cjs");
 
-// The dialogs the server words are read by the host's `confirmFrom(url, …)`,
-// which fills only the URL's `{{row.X}}` tokens from its `params`: any other
-// token (`{id}`) reaches the API as it is, `%7Bid%7D`, and the dialog never
-// opens.
+/**
+ * The dialogs the server words are read by the host's `confirmFrom(url, …)`,
+ * which fills only the URL's `{{row.X}}` tokens from its `params`: any other
+ * token (`{id}`) reaches the API as it is, `%7Bid%7D`, and the dialog never
+ * opens.
+ */
 
-// The host's rule (dms-core `interpolateUrl`), for the run below.
+/** The host's rule (dms-core `interpolateUrl`), for the run below. */
 const ROW_TOKEN = /\{\{\s*row\.([^{}\s]+)\s*\}\}/g;
 const fill = (url, row) =>
   url.replace(ROW_TOKEN, (_, key) => encodeURIComponent(String(row[key])));

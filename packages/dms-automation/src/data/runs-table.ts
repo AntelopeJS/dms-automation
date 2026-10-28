@@ -37,11 +37,13 @@ import { stepText, triggerText, triggerTypeText } from "../runtime/wording";
 import { DATABASE_NAME } from "../types/constants";
 import { ProceduresTableAPI } from "./procedures-table";
 
-// Runs are history: the table view only reads and exports them. Everything the
-// list draws is stored on the run when it ends (its duration, its trigger, the
-// step it failed at), so the built-in routes serve it straight from the table,
-// with their own `list` permission check. The procedure's name is stored on
-// the run and rewritten when the procedure is renamed.
+/**
+ * Runs are history: the table view only reads and exports them. Everything the
+ * list draws is stored on the run when it ends (its duration, its trigger, the
+ * step it failed at), so the built-in routes serve it straight from the table,
+ * with their own `list` permission check. The procedure's name is stored on
+ * the run and rewritten when the procedure is renamed.
+ */
 const runRoutes = {
   get: TableViewRoutes.Get,
   list: TableViewRoutes.List,
@@ -77,7 +79,7 @@ const KIND_ITEMS = [
   },
 ];
 
-// The trigger types the filter offers: the module's own, by their name.
+/** The trigger types the filter offers: the module's own, by their name. */
 const TRIGGER_TYPE_ITEMS = builtinTriggers.map((t) => ({
   value: t.id,
   label: t.name,
@@ -98,8 +100,7 @@ function errorContains(row: ValueProxy<RunsTableAPI>, text: string) {
     .and(row.key("triggerPayload").match(clearCredentialPattern()).not());
 }
 
-// The data API hands a filter the row sixth.
-// oxlint-disable-next-line eslint/max-params
+// oxlint-disable-next-line eslint/max-params -- the data API hands a filter the row sixth
 const errorFilter: FilterFunction<RunsTableAPI, RunsTableAPI> = (
   _c,
   _e,
@@ -135,14 +136,18 @@ export class RunsTableAPI extends DataController(
   runRoutes,
   Controller("/api/automation/tables/runs"),
 ) {
-  // The built-in routes read through `this.model`, bound to the module's named
-  // database: runs are written there by the runtime.
+  /**
+   * The built-in routes read through `this.model`, bound to the module's named
+   * database: runs are written there by the runtime.
+   */
   @ModelReference()
   @Model(ProcedureRunModel, DATABASE_NAME)
   declare model: ProcedureRunModel;
 
-  // The row id, so the run drawer and the trace link can read the full run.
-  // The search finds a run by its id or the start of it.
+  /**
+   * The row id, so the run drawer and the trace link can read the full run.
+   * The search finds a run by its id or the start of it.
+   */
   @Searchable()
   @Filter((_ctx, id, _key, value) =>
     id.match(`(?i)^${escapeRegex(value.trim())}`),
@@ -169,7 +174,6 @@ export class RunsTableAPI extends DataController(
       nowWithinMs: 60_000,
       nowLabel: "$dms_automation.runs.justNow",
     }),
-    // The grouped display counts each day with a date-range filter on it.
     filterable: true,
     order: 1,
   })
@@ -193,9 +197,11 @@ export class RunsTableAPI extends DataController(
   @Access(AccessMode.ReadOnly)
   declare procedureName: string;
 
-  // Filter-only relation: the funnel and the quick filter pick a procedure
-  // through the procedures controller's `select` route, and the row keeps the
-  // raw id (the drawer and "View runs" links filter on it).
+  /**
+   * Filter-only relation: the funnel and the quick filter pick a procedure
+   * through the procedures controller's `select` route, and the row keeps the
+   * raw id (the drawer and "View runs" links filter on it).
+   */
   @Filter((_ctx, id, _key, value, mode) =>
     procedureFilter(id, value.trim(), mode),
   )
@@ -215,7 +221,6 @@ export class RunsTableAPI extends DataController(
   @Access(AccessMode.ReadOnly)
   declare procedureId: string;
 
-  // The search finds a webhook run by its path.
   @Searchable()
   @Filter((_ctx, summary, _key, value) =>
     summary.key("path").default("").match(containing(value)),
@@ -269,7 +274,6 @@ export class RunsTableAPI extends DataController(
   @Access(AccessMode.ReadOnly)
   declare status: string;
 
-  // The search finds a failed run by the label of the step it failed at.
   @Searchable()
   @Filter((_ctx, step, _key, value) =>
     step.key("label").default("").match(containing(value)),
@@ -313,8 +317,6 @@ export class RunsTableAPI extends DataController(
     name: "$dms_automation.runs.cols.kind",
     size: 110,
     type: new DefaultDataTypes.SelectType({ items: KIND_ITEMS }),
-    // Told apart by their icons; neutral keeps the test pill legible in the
-    // light theme.
     display: new DefaultDisplays.StatusPillDisplay({
       tones: { run: "neutral", rerun: "info", test: "neutral" },
       subField: "versionText",
@@ -350,14 +352,16 @@ export class RunsTableAPI extends DataController(
   @Access(AccessMode.ReadOnly)
   declare triggerType: string;
 
-  // Searched, never served as it is stored: a run stored before the project
-  // marked a name as sensitive may hold that credential. The list reads
-  // `errorText`.
+  /**
+   * Searched, never served as it is stored: a run stored before the project
+   * marked a name as sensitive may hold that credential. The list reads
+   * `errorText`.
+   */
   @Searchable()
   @Filter(errorFilter)
   declare errorMessage: string;
 
-  // Read by the error search only (see `errorContains`), never served.
+  /** Read by the error search only (see `errorContains`), never served. */
   declare triggerPayload: string;
 
   /**

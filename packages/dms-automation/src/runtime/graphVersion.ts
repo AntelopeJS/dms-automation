@@ -1,7 +1,9 @@
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 
-// What a node carries for the canvas only: where it sits and how it looks.
-// Changing it changes nothing a run does.
+/**
+ * What a node carries for the canvas only: where it sits and how it looks.
+ * Changing it changes nothing a run does.
+ */
 const VISUAL_NODE_KEYS = new Set([
   "position",
   "width",

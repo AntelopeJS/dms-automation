@@ -2,11 +2,6 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
-// RunProcedure: what "Run now" does, from code, for a procedure whatever its
-// triggers. InvokeProcedure only starts one with a manual trigger.
-
-// GetModel builds its models on a registered schema: hand it a bare one, the
-// data access is replaced below.
 Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
 
 const { ProcedureModel } = require("../dist/db/models/procedure.model.js");
@@ -44,7 +39,7 @@ const edge = (from, to) => ({
   to: { node: to },
 });
 
-// A schedule and a webhook start it; nothing else does.
+/** A schedule and a webhook start it; nothing else does. */
 const scheduled = {
   _id: "reports.weekly",
   name: "Weekly report",

@@ -2,11 +2,6 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
-// Test run from the builder: a draft with steps that act for real is refused
-// until the user confirmed them, so the warning comes before the run.
-
-// GetModel builds its models on a registered schema: hand it a bare one, the
-// data access is replaced below.
 Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
 
 const { ProcedureModel } = require("../dist/db/models/procedure.model.js");

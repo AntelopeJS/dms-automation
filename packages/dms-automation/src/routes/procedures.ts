@@ -190,8 +190,10 @@ export class ProceduresController extends Controller(
     return { ...listed, results: listed.results.map(served) };
   }
 
-  // Per-procedure rows (trigger, state, last runs, success, avg): the
-  // builder's procedure switcher reads them. Declared before "/:id".
+  /**
+   * Per-procedure rows (trigger, state, last runs, success, avg): the
+   * builder's procedure switcher reads them. Declared before "/:id".
+   */
   @Get("/summary")
   async summary(@AuthRawUser() _user: User) {
     return await getProceduresSummary();
@@ -236,7 +238,12 @@ export class ProceduresController extends Controller(
     return { _id: id, ...warning };
   }
 
-  /** "Import JSON": an exported procedure becomes a new disabled draft. */
+  /**
+   * "Import JSON": an exported procedure becomes a new disabled draft.
+   *
+   * No `issues` list: the DMS would map its paths onto form fields
+   * before reading `field`, and the error would miss the JSON field.
+   */
   @Post("/import")
   async importJson(@AuthRawUser() _user: User, @JSONBody() body: unknown) {
     const { json } = parseBody(importSchema, body);
@@ -253,8 +260,6 @@ export class ProceduresController extends Controller(
     if (!parsed.success) {
       throw new HTTPResult(400, {
         field: "json",
-        // No `issues` list: the DMS would map its paths onto form fields
-        // before reading `field`, and the error would miss the JSON field.
         message: importErrorOf(parsed.error.issues),
       });
     }
@@ -308,6 +313,11 @@ export class ProceduresController extends Controller(
    * Save a procedure. The save is refused (409 `stale`) when the procedure
    * was written since it was loaded at `expectedRevision`. The version moves
    * on only when the graph changes; the revision on every save.
+   *
+   * Moving or restyling nodes is a new revision, not a new version. A
+   * procedure written by someone else between the read and this write is the
+   * stale case above. The runs of the previous graph now read as an older
+   * version.
    */
   @Put("/:id")
   async update(
@@ -324,7 +334,6 @@ export class ProceduresController extends Controller(
     });
     const graph = JSON.stringify(data.graph);
     const current = existing.version;
-    // Moving or restyling nodes is a new revision, not a new version.
     const version = changesExecution(existing.graph, data.graph)
       ? current + 1
       : current;
@@ -344,21 +353,27 @@ export class ProceduresController extends Controller(
     }
     const model = GetModel(ProcedureModel, DATABASE_NAME);
     if (!(await model.updateAtRevision(id, existing.revision, patch))) {
-      // Written by someone else between the read and this write.
       throw stale(await loadProcedure(id));
     }
     const runs = GetModel(ProcedureRunModel, DATABASE_NAME);
     if (existing.name !== data.name) {
       await runs.renameProcedure(id, data.name);
     }
-    // The runs of the previous graph now read as an older version.
     if (version !== current) await runs.markOlderVersions(id, version);
     await subscriptions.onProcedureChange(id);
     notifyTopic(PROCEDURES_TOPIC, "updated", { procedureId: id });
     return { _id: id, version, revision, issues };
   }
 
-  /** Pause or resume a procedure without touching its graph. */
+  /**
+   * Pause or resume a procedure without touching its graph.
+   *
+   * A new revision (the graph, and so the version, stays): a builder
+   * still open on the old one cannot save it back over a pause or a resume.
+   *
+   * Undoing a resume puts the pause back as it was: a resume leaves its
+   * time and author in place.
+   */
   @Put("/:id/enabled")
   async setEnabled(
     @AuthRawUser() user: User,
@@ -370,15 +385,11 @@ export class ProceduresController extends Controller(
     if (enabled) {
       await checkSavable(graphOf(procedure), true, { procedureId: id });
     }
-    // A new revision (the graph, and so the version, stays): a builder
-    // still open on the old one cannot save it back over a pause or a resume.
     const patch: Partial<Procedure> = {
       enabled,
       revision: procedure.revision + 1,
       updated_at: new Date(),
     };
-    // Undoing a resume puts the pause back as it was: a resume leaves its
-    // time and author in place.
     if (!enabled && procedure.enabled && !restorePause) {
       patch.pausedAt = new Date();
       patch.pausedBy = user.name ?? user.email;
@@ -463,6 +474,8 @@ export class ProceduresController extends Controller(
   /**
    * Test run: execute a draft graph without saving it. The run is kept as a
    * `test` run so it has a trace, and never counts in the health figures.
+   * Nothing runs until the user agreed to its real effects: the warning comes
+   * before the run, never after.
    */
   @Post("/:id/test")
   async test(
@@ -475,7 +488,6 @@ export class ProceduresController extends Controller(
     if (hasBlockingIssue(issues)) throw graphRefusal(issues);
     const realEffects = subscriptions.realEffectsOf(data.graph);
     if (realEffects.length > 0 && data.confirmRealEffects !== true) {
-      // Warned before, never after: nothing runs until the user agreed.
       throw new HTTPResult(409, {
         error: "the draft has steps a test runs for real: confirm them first",
         message: `${API}.testNeedsConfirm`,
@@ -527,6 +539,7 @@ export class ProceduresController extends Controller(
     return { triggers: savedTriggersOf(graphOf(await loadProcedure(id))) };
   }
 
+  /** Over-fetch one row so the client can tell whether a next page exists. */
   @Get("/:id/runs")
   async runs(
     @AuthRawUser() _user: User,
@@ -537,7 +550,6 @@ export class ProceduresController extends Controller(
     const params = pageParams(page, limit);
     await loadProcedure(id);
     const model = GetModel(ProcedureRunModel, DATABASE_NAME);
-    // Over-fetch one row so the client can tell whether a next page exists.
     return await model.listByProcedure(id, params.page, params.limit, true);
   }
 }

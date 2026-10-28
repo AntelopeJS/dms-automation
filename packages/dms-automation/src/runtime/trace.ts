@@ -94,9 +94,11 @@ export interface TriggerSeed {
 const topLevel = (flatId: string) =>
   flatId.split(FLAT_ID_SEPARATOR)[0] ?? flatId;
 
-// The executor seeds the walk with the trigger's output instead of running
-// it, so the log has no step for it: the trace starts with one, at 0 ms,
-// whose output is the payload.
+/**
+ * The executor seeds the walk with the trigger's output instead of running
+ * it, so the log has no step for it: the trace starts with one, at 0 ms,
+ * whose output is the payload.
+ */
 function triggerStep(
   log: RunLog | undefined,
   trigger: TriggerSeed,
@@ -120,6 +122,10 @@ function valueOf(entry: LogEntry): StepValue {
     : {};
 }
 
+/**
+ * A Retry sets `error` on its output only when every attempt failed: it
+ * then goes on by its `exhausted` branch.
+ */
 function closeStep(step: TraceStep, entry: LogEntry, status: StepStatus) {
   const value = valueOf(entry);
   step.status = status;
@@ -127,8 +133,6 @@ function closeStep(step: TraceStep, entry: LogEntry, status: StepStatus) {
   if (value.inputs !== undefined) step.inputs = value.inputs;
   if (value.output !== undefined) step.output = value.output;
   if (status === "failed") step.error = entry.message;
-  // A Retry sets `error` on its output only when every attempt failed: it
-  // then goes on by its `exhausted` branch.
   const output = (step.output as { value?: { error?: unknown } } | undefined)
     ?.value;
   if (status === "ok" && step.name.kind === "retry" && output?.error) {
@@ -152,6 +156,9 @@ function depthOf(fires: Map<string, FireNode>, fireId: string): number {
  * the next "executed" or error entry of the same node and fire closes it. A
  * log written before steps recorded their duration still gives the order and
  * the failures, without timings.
+ *
+ * The shape of another version, or a log with a gap, says nothing reliable
+ * about the steps this run skipped or the edges it took.
  */
 export function traceOf(
   graph: ProcedureGraph | undefined,
@@ -166,8 +173,6 @@ export function traceOf(
   readSteps(log, steps, name);
   if (log?.truncated) markCut(steps);
   markHandled(steps);
-  // The shape of another version, or a log with a gap, says nothing reliable
-  // about the steps this run skipped or the edges it took.
   const shape = options.outdated ? undefined : graph;
   const trace: RunTrace = {
     steps,
@@ -209,6 +214,7 @@ function readSteps(
   }
 }
 
+/** The step that fired this port is still running while its port runs. */
 function openStep(
   entry: LogEntry,
   fires: Map<string, FireNode>,
@@ -227,7 +233,6 @@ function openStep(
   };
   const fire = fires.get(entry.fireId);
   if (fire?.parentFireId) {
-    // The step that fired this port is still running while its port runs.
     const parent = open.get(`${fire.parentFireId}#${fire.sourceNodeId}`);
     if (parent !== undefined) step.parent = parent;
     if (fire.port) step.port = fire.port;
@@ -258,15 +263,19 @@ function namer(graph: ProcedureGraph | undefined, options: TraceOptions) {
   };
 }
 
-// A log cut in the middle can keep a step's start and drop its end: the
-// step did not run on forever, its end is just not known.
+/**
+ * A log cut in the middle can keep a step's start and drop its end: the
+ * step did not run on forever, its end is just not known.
+ */
 function markCut(steps: TraceStep[]) {
   for (const step of steps)
     if (step.status === "running") step.status = "truncated";
 }
 
-// A failure is caught when a step around it — the Try/Catch, the Retry —
-// still ended well.
+/**
+ * A failure is caught when a step around it — the Try/Catch, the Retry —
+ * still ended well.
+ */
 function markHandled(steps: TraceStep[]) {
   for (const step of steps) {
     if (step.status !== "failed") continue;
@@ -281,6 +290,7 @@ function markHandled(steps: TraceStep[]) {
   }
 }
 
+/** The steps the failure kept from running come first. */
 function skippedSteps(
   graph: ProcedureGraph | undefined,
   steps: readonly TraceStep[],
@@ -302,7 +312,6 @@ function skippedSteps(
       name: name(n.id),
       reason: stopped.has(n.id) ? "stopped" : "branch",
     }));
-  // The steps the failure kept from running come first.
   return [
     ...skipped.filter((s) => s.reason === "stopped"),
     ...skipped.filter((s) => s.reason === "branch"),

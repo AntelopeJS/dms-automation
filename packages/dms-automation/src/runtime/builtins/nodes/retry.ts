@@ -1,6 +1,17 @@
 import type { GraphNode } from "../../../types/graph";
 import { type NodeCtx, nodeKinds } from "../../nodeKinds";
 
+/**
+ * First success: just return — `main` auto-propagates as the
+ * implicit continuation.
+ *
+ * Redirect the continuation to `exhausted` so its downstream folds back
+ * into the parent flow (linear) and `main` is suppressed.
+ *
+ * `exhausted` is a side port — on exhaustion the execute calls
+ * ctx.continueWith("exhausted") to elevate it to the continuation for
+ * that particular run.
+ */
 async function execute(
   node: GraphNode,
   _inputs: Record<string, unknown>,
@@ -12,8 +23,6 @@ async function execute(
     ctx.setOutputs({ attempt: i });
     try {
       await ctx.fireTrigger("body", { iteration: i });
-      // First success: just return — `main` auto-propagates as the
-      // implicit continuation.
       return;
     } catch (err) {
       lastError = err;
@@ -25,14 +34,9 @@ async function execute(
     lastError instanceof Error ? lastError.message : String(lastError);
   const name = lastError instanceof Error ? lastError.name : "Error";
   ctx.setOutputs({ attempt: max - 1, error: message, name });
-  // Redirect the continuation to `exhausted` so its downstream folds back
-  // into the parent flow (linear) and `main` is suppressed.
   ctx.continueWith("exhausted");
 }
 
-// `exhausted` is a side port — on exhaustion the execute calls
-// ctx.continueWith("exhausted") to elevate it to the continuation for
-// that particular run.
 nodeKinds.register("retry", execute, {
   continuationPorts: ["main"],
   sidePorts: ["body", "exhausted"],

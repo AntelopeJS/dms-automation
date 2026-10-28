@@ -17,9 +17,11 @@ export type BusMessage = ChangeMessage & { origin: string };
 
 type Handler = (msg: BusMessage) => void;
 
-// Validate a parsed payload before acting on it: a malformed/cross-version
-// message (or a channel collision) must not reach applyChange (e.g. delete an
-// undefined id) or defeat the self-echo skip with a missing origin.
+/**
+ * Validate a parsed payload before acting on it: a malformed/cross-version
+ * message (or a channel collision) must not reach applyChange (e.g. delete an
+ * undefined id) or defeat the self-echo skip with a missing origin.
+ */
 function isBusMessage(value: unknown): value is BusMessage {
   if (!value || typeof value !== "object") return false;
   const m = value as Record<string, unknown>;
@@ -35,12 +37,17 @@ let publisher: RedisClient | undefined;
 let subscriber: RedisClient | undefined;
 let started = false;
 
-/** Subscribe to the reconcile channel. Call once, in redis mode only. */
+/**
+ * Subscribe to the reconcile channel. Call once, in redis mode only.
+ *
+ * Claim the slot SYNCHRONOUSLY, before any await, so a concurrent start()
+ * can't pass the guard and create a second subscriber (which would deliver
+ * every message twice). If init fails (e.g. redis down at boot), the claim is
+ * rolled back and the half-created subscriber torn down, so a retry can
+ * re-init cleanly.
+ */
 export async function start(handler: Handler): Promise<void> {
   if (started) return;
-  // Claim the slot SYNCHRONOUSLY, before any await, so a concurrent start()
-  // can't pass the guard and create a second subscriber (which would deliver
-  // every message twice). Rolled back below if init fails, allowing a retry.
   started = true;
   let sub: RedisClient | undefined;
   try {
@@ -65,8 +72,6 @@ export async function start(handler: Handler): Promise<void> {
     publisher = client;
     subscriber = sub;
   } catch (err) {
-    // Init failed (e.g. redis down at boot). Roll back the claim and tear down
-    // the half-created subscriber so a retry can re-init cleanly.
     started = false;
     if (sub) await sub.quit().catch(() => {});
     throw err;

@@ -47,16 +47,20 @@ import {
 import { isTriggerTypeDisabled, refreshTypeSwitches } from "./typeSwitches";
 import { withTimeout } from "./withTimeout";
 
-// Why a desired trigger failed to arm on this instance, by key. Kept until the
-// trigger arms or is no longer desired, and written on the procedure after
-// each reconcile (storeArmErrors), so the procedures list can tell an enabled
-// procedure that will never start from a healthy one.
+/**
+ * Why a desired trigger failed to arm on this instance, by key. Kept until the
+ * trigger arms or is no longer desired, and written on the procedure after
+ * each reconcile (storeArmErrors), so the procedures list can tell an enabled
+ * procedure that will never start from a healthy one.
+ */
 const activationErrors = new Map<string, ArmError>();
 
-// Module-level cache of every workspace-global template. Populated by
-// hydrate() at boot and kept in sync by onTemplateChange / onTemplateDelete.
-// Read via the local `getTemplate` helper, which is handed to the executor as
-// the `TemplateCache` (see executeProcedure) consumed by resolveSubgraph.
+/**
+ * Module-level cache of every workspace-global template. Populated by
+ * hydrate() at boot and kept in sync by onTemplateChange / onTemplateDelete.
+ * Read via the local `getTemplate` helper, which is handed to the executor as
+ * the `TemplateCache` (see executeProcedure) consumed by resolveSubgraph.
+ */
 const templateCache = new Map<string, AutomationTemplateRow>();
 
 function getTemplate(id: string): AutomationTemplateRow | undefined {
@@ -84,27 +88,33 @@ function noTriggerToRun(
 
 const templates = { get: getTemplate };
 
-// Leadership gate, read LIVE so there is a single source of truth. start()
-// sets it (via useLeadershipSource) on every boot: memory/standalone injects
-// `() => true`, so the sole instance activates every trigger; redis mode
-// injects the leader module's `isLeader`, so this reflects the actual lock
-// holder with no second copy to drift.
+/**
+ * Leadership gate, read LIVE so there is a single source of truth. start()
+ * sets it (via useLeadershipSource) on every boot: memory/standalone injects
+ * `() => true`, so the sole instance activates every trigger; redis mode
+ * injects the leader module's `isLeader`, so this reflects the actual lock
+ * holder with no second copy to drift.
+ */
 let amLeader: () => boolean = () => true;
 
-// Serialize reconciles: a leadership transition, a route edit, and a bus
-// message can land near-simultaneously, and reconcile mutates the shared
-// handle map. Callers (route handlers, leadership promotion) get THIS
-// reconcile's real outcome. Tearing down the handles of an unregistered
-// trigger type goes through the same queue, so a reconcile queued after it
-// never sees them.
+/**
+ * Serialize reconciles: a leadership transition, a route edit, and a bus
+ * message can land near-simultaneously, and reconcile mutates the shared
+ * handle map. Callers (route handlers, leadership promotion) get THIS
+ * reconcile's real outcome. Tearing down the handles of an unregistered
+ * trigger type goes through the same queue, so a reconcile queued after it
+ * never sees them.
+ */
 const reconciles = serialQueue();
 
 function queueReconcile(): Promise<void> {
   return reconciles.run(() => reconcile());
 }
 
-// Whether hydrate() ran: before it, the database may not be ready and the
-// boot reconcile arms everything anyway.
+/**
+ * Whether hydrate() ran: before it, the database may not be ready and the
+ * boot reconcile arms everything anyway.
+ */
 let hydrated = false;
 
 /**
@@ -148,13 +158,15 @@ interface DesiredTriggerSet {
   desiredMeta: Map<string, DesiredMeta>;
 }
 
-// Build the desired trigger map (and the procedure/node metadata activation
-// needs) from the enabled procedures. Singleton triggers run only on the leader.
-// Followers omit them from the desired map, so the diff deactivates any they were
-// holding and never activates new ones. Replicated triggers are always desired.
-// Fail closed: a registered type whose classification isn't explicitly
-// "replicated" is treated as singleton so a mislabeled type can't fan out to
-// every instance. (Unregistered types fall through and are skipped at activation.)
+/**
+ * Build the desired trigger map (and the procedure/node metadata activation
+ * needs) from the enabled procedures. Singleton triggers run only on the leader.
+ * Followers omit them from the desired map, so the diff deactivates any they were
+ * holding and never activates new ones. Replicated triggers are always desired.
+ * Fail closed: a registered type whose classification isn't explicitly
+ * "replicated" is treated as singleton so a mislabeled type can't fan out to
+ * every instance. (Unregistered types fall through and are skipped at activation.)
+ */
 function computeDesiredTriggers(
   enabled: Procedure[],
   leader: boolean,
@@ -194,10 +206,17 @@ function computeDesiredTriggers(
   return { desired, desiredMeta };
 }
 
-// Tear down stale handles first. Returns the keys whose teardown failed so the
-// activate pass skips re-arming them (a config change puts the same key in BOTH
-// lists — re-activating over a failed teardown would overwrite the kept handle
-// and orphan the still-armed old trigger).
+/**
+ * Tear down stale handles first. Returns the keys whose teardown failed so the
+ * activate pass skips re-arming them (a config change puts the same key in BOTH
+ * lists — re-activating over a failed teardown would overwrite the kept handle
+ * and orphan the still-armed old trigger).
+ *
+ * A handle whose teardown fails stays tracked so the NEXT reconcile retries
+ * it rather than orphaning a possibly-still-armed trigger (a dropped-but-live
+ * cron would double-fire alongside a new leader's, uncleaned by any
+ * reconcile).
+ */
 async function deactivateStaleHandles(
   toDeactivate: Iterable<string>,
 ): Promise<Set<string>> {
@@ -206,9 +225,6 @@ async function deactivateStaleHandles(
     const entry = handles.get(k);
     if (!entry) continue;
     if (!(await teardown(k, entry))) {
-      // Keep the handle tracked so the NEXT reconcile retries teardown rather
-      // than orphaning a possibly-still-armed trigger (a dropped-but-live cron
-      // would double-fire alongside a new leader's, uncleaned by any reconcile).
       failedDeactivate.add(k);
       continue;
     }
@@ -227,14 +243,16 @@ function armedWebhooks(): ArmedWebhook[] {
     }));
 }
 
+/**
+ * Don't re-arm a key whose old handle we just failed to tear down — that
+ * would overwrite the kept handle. The next reconcile retries teardown first.
+ */
 async function activateNewHandles(
   toActivate: Iterable<string>,
   desiredMeta: Map<string, DesiredMeta>,
   failedDeactivate: Set<string>,
 ): Promise<void> {
   for (const k of toActivate) {
-    // Don't re-arm a key whose old handle we just failed to tear down — that
-    // would overwrite the kept handle. The next reconcile retries teardown first.
     if (failedDeactivate.has(k)) continue;
     const meta = desiredMeta.get(k);
     if (!meta) continue;
@@ -281,9 +299,11 @@ async function activateNewHandles(
   }
 }
 
-// Refresh the live procedure/graph for every desired subscription — including
-// those whose handle was reused. This is what makes graph edits take effect on
-// the next trigger fire without re-activating.
+/**
+ * Refresh the live procedure/graph for every desired subscription — including
+ * those whose handle was reused. This is what makes graph edits take effect on
+ * the next trigger fire without re-activating.
+ */
 function refreshLiveMeta(desiredMeta: Map<string, DesiredMeta>): void {
   for (const [k, meta] of desiredMeta) {
     liveMeta.set(k, {
@@ -294,13 +314,15 @@ function refreshLiveMeta(desiredMeta: Map<string, DesiredMeta>): void {
   }
 }
 
+/**
+ * Snapshot leadership ONCE for the whole pass. Reading it per-node would let a
+ * leadership flip mid-loop arm some singletons and skip others (a partial,
+ * inconsistent set); a queued follow-up reconcile reconciles the new state.
+ */
 async function reconcile(): Promise<void> {
   await refreshTypeSwitches();
   const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
   const enabled = await procedureModel.listEnabled();
-  // Snapshot leadership ONCE for the whole pass. Reading it per-node would let a
-  // leadership flip mid-loop arm some singletons and skip others (a partial,
-  // inconsistent set); a queued follow-up reconcile reconciles the new state.
   const leader = amLeader();
 
   const { desired, desiredMeta } = computeDesiredTriggers(enabled, leader);
@@ -322,16 +344,23 @@ async function reconcile(): Promise<void> {
   await storeArmErrors(desiredMeta, activationErrors);
 }
 
+/**
+ * Activate a trigger with its `emit` bound to this module's context, where the
+ * reconcile runs: the trigger's module calls `emit` from its own code, and a
+ * run started in ITS context fails every interface call it makes (storing the
+ * run included) as soon as that module unloads, a hot reload for one.
+ *
+ * Activate is bounded like deactivate: one that never settles would wedge the
+ * whole serialized reconcile chain, a pending leadership-loss teardown
+ * included. A timed-out activate counts as failed and is retried next pass
+ * (trigger authors keep activate fast; see README).
+ */
 async function activateTrigger(
   triggerType: TriggerType,
   config: unknown,
   liveKey: string,
   live: Armed,
 ): Promise<unknown> {
-  // Bound to this module's context, where the reconcile runs: the trigger's
-  // module calls `emit` from its own code, and a run started in ITS context
-  // fails every interface call it makes (storing the run included) as soon as
-  // that module unloads, a hot reload for one.
   const emit = AsyncResource.bind((payload: unknown) => {
     if (!live.armed) return;
     const meta = liveMeta.get(liveKey);
@@ -351,10 +380,6 @@ async function activateTrigger(
       Logging.Error("[dms-automation] procedure execution failed:", err);
     });
   });
-  // Bound activate like deactivate: a trigger whose activate never settles would
-  // otherwise wedge the whole serialized reconcile chain — blocking even a
-  // pending leadership-loss teardown. (Trigger authors must keep activate fast;
-  // see README. A timed-out activate is treated as failed and retried next pass.)
   return withTimeout(
     triggerType.activate(config, emit),
     TRIGGER_OP_TIMEOUT_MS,
@@ -371,22 +396,26 @@ async function hydrateTemplates(): Promise<void> {
   }
 }
 
-// Disable the procedures a template change leaves invalid, then reconcile
-// trigger subscriptions so the live cache picks up the latest graph (and
-// drops handles for now-disabled procedures). One reconcile covers every
-// affected procedure — reconcile() rebuilds the full desired-handle map from
-// `listEnabled()`. Queued so it serializes with bus/leadership reconciles
-// against the shared handle map.
+/**
+ * Disable the procedures a template change leaves invalid, then reconcile
+ * trigger subscriptions so the live cache picks up the latest graph (and
+ * drops handles for now-disabled procedures). One reconcile covers every
+ * affected procedure — reconcile() rebuilds the full desired-handle map from
+ * `listEnabled()`. Queued so it serializes with bus/leadership reconciles
+ * against the shared handle map.
+ */
 async function revalidateProceduresUsingTemplate(
   templateId: string,
 ): Promise<void> {
   if (await disableInvalidUsages(templateId)) await queueReconcile();
 }
 
-// Refresh this instance's template cache for a created/updated template.
-// Drops the entry if the row vanished between write and refresh, so executor
-// calls fail loudly rather than serving stale data. Shared by the local
-// onTemplateChange hook and the bus replay path.
+/**
+ * Refresh this instance's template cache for a created/updated template.
+ * Drops the entry if the row vanished between write and refresh, so executor
+ * calls fail loudly rather than serving stale data. Shared by the local
+ * onTemplateChange hook and the bus replay path.
+ */
 async function refreshTemplateCache(id: string): Promise<void> {
   const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
   const t = await templateModel.getById(id);
@@ -397,15 +426,17 @@ async function refreshTemplateCache(id: string): Promise<void> {
   }
 }
 
-// Apply a change to THIS instance's live state. The single source of truth for
-// what each change kind means locally, shared by the route hooks (via
-// notifyChange) and the bus replay path (onBusMessage) so the two can never
-// drift. For templates the cache is refreshed FIRST so re-validation of usages
-// sees the new shape (a removed port's now-invalid edge would otherwise be
-// missed); a delete drops the entry so dangling references fail validation and
-// auto-disable their consumer.
-// Per-kind cache update for a template change. "template-change" refreshes the
-// affected entry; "template-delete" drops it. Both then re-validate usages.
+/**
+ * Apply a change to THIS instance's live state. The single source of truth for
+ * what each change kind means locally, shared by the route hooks (via
+ * notifyChange) and the bus replay path (onBusMessage) so the two can never
+ * drift. For templates the cache is refreshed FIRST so re-validation of usages
+ * sees the new shape (a removed port's now-invalid edge would otherwise be
+ * missed); a delete drops the entry so dangling references fail validation and
+ * auto-disable their consumer.
+ * Per-kind cache update for a template change. "template-change" refreshes the
+ * affected entry; "template-delete" drops it. Both then re-validate usages.
+ */
 const templateCacheUpdateByKind: Record<
   Exclude<ChangeMessage["kind"], "procedure">,
   (id: string) => Promise<void> | void
@@ -425,12 +456,14 @@ async function applyChange(msg: ChangeMessage): Promise<void> {
   await revalidateProceduresUsingTemplate(msg.id);
 }
 
-// Apply a change locally AND fan it out to peers. The one choke point every
-// mutation path goes through, so propagation can't be forgotten per call site.
-// Publish happens in `finally`: the route has already committed the change to
-// the DB before calling this, so peers must be told to reconcile even if THIS
-// instance's local apply throws (a local DB hiccup) — otherwise the cluster
-// diverges. A local failure still propagates to the caller after publishing.
+/**
+ * Apply a change locally AND fan it out to peers. The one choke point every
+ * mutation path goes through, so propagation can't be forgotten per call site.
+ * Publish happens in `finally`: the route has already committed the change to
+ * the DB before calling this, so peers must be told to reconcile even if THIS
+ * instance's local apply throws (a local DB hiccup) — otherwise the cluster
+ * diverges. A local failure still propagates to the caller after publishing.
+ */
 async function notifyChange(msg: ChangeMessage): Promise<void> {
   try {
     await applyChange(msg);
@@ -444,14 +477,16 @@ export const subscriptions = {
    * Boot-time entry point. Loads every template into the in-memory cache so
    * the executor can resolve template-instance group nodes synchronously,
    * then reconciles trigger subscriptions from the enabled-procedure set.
+   *
+   * Once it ran, a trigger type registered late (a module starting after us)
+   * re-arms the procedures waiting for it.
+   *
+   * Through the chain so a bus replay arriving during boot (the subscriber is
+   * live before hydrate in redis mode) can't race this initial reconcile.
    */
   async hydrate(): Promise<void> {
     await hydrateTemplates();
-    // From here a trigger type registered late (a module starting after us)
-    // re-arms the procedures waiting for it.
     hydrated = true;
-    // Through the chain so a bus replay arriving during boot (the subscriber is
-    // live before hydrate in redis mode) can't race this initial reconcile.
     await queueReconcile();
   },
   /**
@@ -475,9 +510,11 @@ export const subscriptions = {
   async onBecameLeader(): Promise<void> {
     await queueReconcile();
   },
+  /**
+   * The leader module has cleared its lock state, so reconcile now reads
+   * `amLeader() === false` and deactivates singletons; replicated untouched.
+   */
   async onLostLeadership(): Promise<void> {
-    // The leader module has cleared its lock state, so reconcile now reads
-    // `amLeader() === false` and deactivates singletons; replicated untouched.
     await queueReconcile();
   },
   async onProcedureChange(_procedureId?: string): Promise<void> {
@@ -510,7 +547,7 @@ export const subscriptions = {
    * Failures are logged and dropped; the edit self-heals on the next reconcile.
    */
   async onBusMessage(msg: BusMessage): Promise<void> {
-    if (msg.origin === instanceId) return; // we already applied this in-process
+    if (msg.origin === instanceId) return;
     try {
       await applyChange(msg);
     } catch (err) {
@@ -566,7 +603,7 @@ export const subscriptions = {
     await reconciles.run(async () => {
       for (const [k, entry] of handles) {
         if (entry.typeId !== typeId) continue;
-        await teardown(k, entry); // force teardown: drop regardless of result
+        await teardown(k, entry);
         release(k, entry);
       }
     });
@@ -689,7 +726,7 @@ export const subscriptions = {
   /** @internal exposed for destroy() in src/index.ts */
   async _deactivateAll(): Promise<void> {
     for (const [k, entry] of handles) {
-      await teardown(k, entry); // force teardown: drop regardless of result
+      await teardown(k, entry);
       release(k, entry);
     }
     activationErrors.clear();
