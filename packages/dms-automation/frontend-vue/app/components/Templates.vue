@@ -2,58 +2,20 @@
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { isIconName } from './IconPicker.vue'
 import { queryString } from '../utils/automation'
+import {
+	schemaTypeOf,
+	usageRowsOf,
+	type ProcedureSummary,
+	type TemplateRow,
+	type TemplateUsage,
+	type TemplateUsages,
+} from '../build/utils/templates'
 
 // The library's templates: reusable groups other procedures place as linked
 // blocks. The detail edits the name, icon and description, lists the ports
 // (edited inside the graph) and where the template is used — procedures and
 // other templates; deleting forks every usage into a local group so they keep
 // working. The picked template is kept in the URL (`?template=`).
-
-interface JsonSchema {
-	type?: string | string[]
-	[key: string]: unknown
-}
-
-interface TemplatePort {
-	name: string
-	kind: 'data' | 'trigger'
-	direction: 'in' | 'out'
-	schema?: JsonSchema
-}
-
-interface TemplateRow {
-	_id: string
-	name: string
-	description: string
-	icon: string
-	ports: TemplatePort[]
-	subgraph: unknown
-	usageCount?: number
-	updated_at?: string
-}
-
-interface TemplateUsage {
-	procedureId: string
-	nodeId: string
-	groupPath: string[]
-}
-
-interface TemplateNesting {
-	templateId: string
-	nodeId: string
-	groupPath: string[]
-}
-
-interface TemplateUsages {
-	procedures: TemplateUsage[]
-	templates: TemplateNesting[]
-}
-
-interface ProcedureSummary {
-	procedureId: string
-	name: string
-	status: 'failing' | 'degraded' | 'healthy' | 'paused' | 'draft'
-}
 
 const props = defineProps<{
 	apiUrl: string
@@ -181,20 +143,7 @@ function backToList() {
 }
 
 /** One line per procedure or template placing it, with how many times. */
-const usageRows = computed(() => {
-	const rows = new Map<string, { kind: 'procedure' | 'template'; id: string; first: TemplateUsage | TemplateNesting; count: number }>()
-	for (const usage of usages.value.procedures) {
-		const row = rows.get(`p:${usage.procedureId}`)
-		if (row) row.count++
-		else rows.set(`p:${usage.procedureId}`, { kind: 'procedure', id: usage.procedureId, first: usage, count: 1 })
-	}
-	for (const nesting of usages.value.templates) {
-		const row = rows.get(`t:${nesting.templateId}`)
-		if (row) row.count++
-		else rows.set(`t:${nesting.templateId}`, { kind: 'template', id: nesting.templateId, first: nesting, count: 1 })
-	}
-	return [...rows.values()]
-})
+const usageRows = computed(() => usageRowsOf(usages.value))
 
 const NAME_ID = 'template-name'
 const NAME_MAX = 200
@@ -310,14 +259,6 @@ function ownersOf(found: TemplateUsages): string {
 		templateCount ? t('dms_automation.templates.ownerTemplates', { count: templateCount }, templateCount) : '',
 	].filter(Boolean)
 	return parts.length === 2 ? t('dms_automation.templates.ownersAnd', { first: parts[0], second: parts[1] }) : parts[0]!
-}
-
-function schemaTypeOf(p: TemplatePort): string {
-	if (p.kind !== 'data') return '—'
-	const type = p.schema?.type
-	if (typeof type === 'string') return type
-	if (Array.isArray(type)) return type.join(' | ')
-	return 'any'
 }
 </script>
 
