@@ -8,7 +8,7 @@ const path = require("node:path");
 // `import.meta.env.SSR` true. Packages resolve from frontend-vue, as the
 // generated application resolves them.
 
-const FRONTEND = path.resolve(__dirname, "../frontend-vue");
+const FRONTEND = path.resolve(__dirname, "../../frontend-vue");
 const frontendRequire = Module.createRequire(
   path.join(FRONTEND, "package.json"),
 );

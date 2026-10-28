@@ -1,7 +1,11 @@
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { test } = require("node:test");
-const { FRONTEND, frontendRequire, component } = require("./frontend.cjs");
+const {
+  FRONTEND,
+  frontendRequire,
+  component,
+} = require("./helpers/frontend.cjs");
 
 // Registered trigger / action / data-node types may declare `name` and
 // `description` as `$`-prefixed DMS i18n keys. These tests render the

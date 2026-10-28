@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
-const { frontendRequire, component } = require("./frontend.cjs");
+const { frontendRequire, component } = require("./helpers/frontend.cjs");
 
 // "Needs attention" keeps its height from the skeleton to the list: rows the
 // shape of loaded ones, as many as the empty state is tall, and an empty
