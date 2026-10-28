@@ -125,6 +125,30 @@ test("a late trigger type arms its procedures, and a reload re-arms them", async
   await subscriptions._deactivateAll();
 });
 
+test("a follower leaves a singleton trigger unarmed until it leads, and disarms it when it stops leading", async (t) => {
+  t.after(async () => {
+    subscriptions.useLeadershipSource(() => true);
+    internal.RegisterTriggerType.unregister(TYPE_ID);
+    await subscriptions._deactivateAll();
+  });
+  const singleton = recordingType();
+  singleton.cluster = "singleton";
+  internal.RegisterTriggerType.register(TYPE_ID, singleton);
+  let leader = false;
+  subscriptions.useLeadershipSource(() => leader);
+
+  await subscriptions.hydrate();
+  assert.equal(singleton.armed.size, 0);
+
+  leader = true;
+  await subscriptions.onBecameLeader();
+  assert.equal(singleton.armed.size, 2);
+
+  leader = false;
+  await subscriptions.onLostLeadership();
+  assert.equal(singleton.armed.size, 0);
+});
+
 test("a reload during activation releases each definition's own handles", async (t) => {
   t.after(async () => {
     await subscriptions._deactivateAll();
