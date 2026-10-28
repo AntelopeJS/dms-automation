@@ -8,10 +8,6 @@ const {
   serverRender,
 } = require("./server-render.cjs");
 
-// The run drawer on a server render: what it reads and hands over, and how
-// it lays out in the DMS drawer (the row header names the run, the actions
-// stay at the bottom, a narrow drawer wraps rather than cuts).
-
 describe("run drawer and log", () => {
   test("reads the run of the row opened through useApiData, and hands it over", async () => {
     const render = await serverRender(
@@ -40,9 +36,6 @@ describe("run drawer and log", () => {
       respond,
     });
     assert.doesNotMatch(html, /Failing call/);
-    // The body fills the drawer, and its actions go in the DMS footer, which
-    // keeps them at the bottom; a narrow drawer wraps the buttons, not their
-    // labels.
     assert.match(html, /^<div class="flex flex-1 flex-col gap-4">/);
     assert.match(html, /<div data-stub="DmsContainerFooter" justify="start">/);
     assert.doesNotMatch(html, /dms-form-foot|min-height/);

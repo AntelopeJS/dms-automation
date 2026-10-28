@@ -47,6 +47,8 @@ async function purge(retentionDays: number): Promise<void> {
  * Purge the runs past retention (`runs.retentionDays`) now and every hour
  * after, on the instance `isLeader` names (every instance in standalone
  * mode). `0` keeps every run.
+ *
+ * The purge must never keep the process alive on shutdown.
  */
 export function startRetention(isLeader: () => boolean): void {
   stopRetention();
@@ -60,7 +62,6 @@ export function startRetention(isLeader: () => boolean): void {
   };
   tick();
   timer = setInterval(tick, PURGE_INTERVAL_MS);
-  // The purge must never keep the process alive on shutdown.
   timer.unref?.();
 }
 

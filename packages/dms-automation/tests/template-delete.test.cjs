@@ -2,13 +2,6 @@ const assert = require("node:assert/strict");
 const { beforeEach, test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
-// DELETE /api/automation/templates/:id against in-memory tables: every usage,
-// in procedures (nested groups included) and in other templates, becomes a
-// local group named after the template; a usage left behind keeps the
-// template and answers 409 `fork-incomplete`.
-
-// GetModel builds its models on a registered schema: hand it a bare one, the
-// data access is replaced below.
 Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
 
 const {
@@ -37,8 +30,10 @@ Object.assign(ProcedureModel.prototype, {
   getAll: async () => [...procedures.values()].map((p) => ({ ...p })),
 });
 
-// Stands in for the runtime's fork of one procedure usage (the runtime's forkUsage):
-// the node at `groupPath` becomes a local group. `brokenFork` makes it miss.
+/**
+ * Stands in for the runtime's fork of one procedure usage (the runtime's forkUsage):
+ * the node at `groupPath` becomes a local group. `brokenFork` makes it miss.
+ */
 let brokenFork = false;
 subscriptions.forkUsageToLocal = async (procedureId, nodeId, groupPath) => {
   if (brokenFork) return;

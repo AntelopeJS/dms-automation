@@ -51,7 +51,7 @@ export interface GraphIssueOptions {
   templates?: { has(id: string): boolean };
 }
 
-// Sentinels and data nodes are not steps: nothing has to trigger them.
+/** Sentinels and data nodes are not steps: nothing has to trigger them. */
 const NOT_TRIGGERED_KINDS = new Set(["trigger", "data", "groupInput", "group"]);
 
 const TYPE_LOOKUP: Record<string, (id: string) => unknown> = {
@@ -71,10 +71,12 @@ const CONFIG_CHECKS: Record<
   (config: Record<string, unknown>) => ConfigProblem | undefined
 > = {
   [cronTrigger.id]: (config) => cronProblem(config.cron),
+  /**
+   * This module's armed webhooks are left out: a procedure's own webhook
+   * is no conflict, and another procedure's is checked on the procedures.
+   */
   [webhookTrigger.id]: (config) => {
     const { method, path } = webhookRouteOf(config);
-    // This module's armed webhooks are left out: a procedure's own webhook
-    // is no conflict, and another procedure's is checked on the procedures.
     return (
       webhookPathProblem(config.path) ??
       webhookRouteConflict(method, path, armedWebhookRouteIds())
@@ -132,7 +134,7 @@ function settingsSchemaOf(node: GraphNode): JsonSchema | undefined {
   if (node.kind === "action" && node.typeId) {
     return registry.getAction(node.typeId)?.inputSchema;
   }
-  if (node.kind === "data") return undefined; // fed by wires, not settings
+  if (node.kind === "data") return undefined;
   return nodeKinds.metaOf(node.kind)?.ui?.configSchema;
 }
 
@@ -299,7 +301,14 @@ function typeIssues(
   return [];
 }
 
-/** The settings of every node that keep it from running. */
+/**
+ * The settings of every node that keep it from running.
+ *
+ * A setting left empty is reported once, as missing.
+ *
+ * An empty setting is only a warning on a draft: the user may still
+ * be filling the node in.
+ */
 function configIssues(
   graph: ProcedureGraph,
   options: GraphIssueOptions,
@@ -313,7 +322,6 @@ function configIssues(
         .map((e) => e.to.field),
     );
     const problems = settingsProblems(node, wired);
-    // A setting left empty is reported once, as missing.
     const check = node.kind === "trigger" && CONFIG_CHECKS[node.typeId ?? ""];
     const checked =
       check && !problems.some((p) => p.missing)
@@ -321,8 +329,6 @@ function configIssues(
         : undefined;
     if (checked) problems.push(checked);
     for (const { missing, ...problem } of problems) {
-      // An empty setting is only a warning on a draft: the user may still
-      // be filling the node in.
       const severity = missing && !options.enabling ? "warning" : "error";
       issues.push({ severity, ...problem, nodeId: reportOn });
     }

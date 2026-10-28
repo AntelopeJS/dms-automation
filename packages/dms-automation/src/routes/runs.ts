@@ -117,6 +117,8 @@ function neighbourOf(run: RunSummary | undefined) {
  * a row it ends, and how long a success takes around its date. A test is
  * compared with the tests, which run drafts, and a production run with the
  * production runs: a broken draft says nothing of the saved procedure.
+ *
+ * This failure and the ones since the last success.
  */
 export async function historyOf(
   run: ProcedureRun,
@@ -144,7 +146,6 @@ export async function historyOf(
   const lastSuccess = lastSuccessSummary
     ? await model.get(lastSuccessSummary._id)
     : undefined;
-  // This failure and the ones since the last success.
   const failuresInRow =
     run.status === "failed"
       ? 1 +
@@ -319,19 +320,23 @@ export class RunsController extends Controller("/api/automation/runs") {
    * The banner of Run history opened on one procedure (`?procedure=<id>`,
    * the "View runs" links): whose runs the list shows, and the way back to
    * every run. No banner without a procedure.
+   *
+   * An empty `?procedure=` filters nothing, so the banner says nothing.
+   *
+   * A deleted procedure is still named by its runs.
+   *
+   * The KPIs read every run: their cards cannot take the page's filter.
    */
   @Get("/scope/banner")
   async scopeBanner(
     @AuthRawUser() _user: User,
     @Parameter("procedure", "query") procedureParam?: string,
   ): Promise<BannerContent> {
-    // An empty `?procedure=` filters nothing, so the banner says nothing.
     const procedureId = procedureParam?.trim();
     if (!procedureId) return {};
     const procedure = await GetModel(ProcedureModel, DATABASE_NAME).get(
       procedureId,
     );
-    // A deleted procedure is still named by its runs.
     const [run] = procedure
       ? []
       : await GetModel(ProcedureRunModel, DATABASE_NAME).listByProcedure(
@@ -344,7 +349,6 @@ export class RunsController extends Controller("/api/automation/runs") {
       title: name
         ? { key: "dms_automation.runs.scopedTo", params: { name } }
         : "$dms_automation.runs.scopedToMissing",
-      // The KPIs read every run: their cards cannot take the page's filter.
       description: "$dms_automation.runs.scopedKpis",
       tone: "info",
       size: "sm",
@@ -366,6 +370,11 @@ export class RunsController extends Controller("/api/automation/runs") {
    * `graphOutdated` when it is not that one), and the runs it is compared
    * with (the last success, the previous run). Its log is read from
    * `/:id/logs`.
+   *
+   * The stored run, as a plain object, without what is served elsewhere
+   * (the log) or only read here (the draft, the step names).
+   *
+   * A test ran a draft, not a saved version.
    */
   @Get("/:id")
   async getOne(
@@ -383,8 +392,6 @@ export class RunsController extends Controller("/api/automation/runs") {
       payload.kept ? payload.payload : null,
     );
     const history = await historyOf(run);
-    // The stored run, as a plain object, without what is served elsewhere
-    // (the log) or only read here (the draft, the step names).
     const {
       logs,
       graphSnapshot: _snapshot,
@@ -392,7 +399,6 @@ export class RunsController extends Controller("/api/automation/runs") {
       ...stored
     } = run;
     return Object.assign(stored, {
-      // A test ran a draft, not a saved version.
       procedureVersion: run.kind === "test" ? null : run.procedureVersion,
       logCount: logs?.entries.length ?? 0,
       logTruncated: logs?.truncated,
@@ -436,6 +442,8 @@ export class RunsController extends Controller("/api/automation/runs") {
    * saved procedure, or the draft a test ran), what differs from the first
    * time (a paused procedure, headers whose value was not kept), or why it
    * cannot be re-run.
+   *
+   * A test acts for real through these steps: named before it runs again.
    */
   @Get("/:id/rerun-confirm")
   async rerunConfirm(
@@ -467,7 +475,6 @@ export class RunsController extends Controller("/api/automation/runs") {
         label: "$dms_automation.runs.rerunRedacted",
       });
     }
-    // A test acts for real through these steps: named before it runs again.
     for (const step of plan.draft
       ? subscriptions.realEffectsOf(plan.draft)
       : []) {

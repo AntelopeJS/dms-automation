@@ -106,6 +106,15 @@ export class OverviewPageController extends PageController(
     sparkline: true,
   });
 
+  /**
+   * The chart's legend names its series: succeeded, failed, and the
+   * dashed runs of the compared period. The card's own legend would
+   * key "Period" in one colour, which stacked bars do not have.
+   *
+   * Shown when the runs kept do not reach back to the compared
+   * period, which then has no change: the line under the total stays,
+   * where the skeleton held it.
+   */
   static activity = Grid({ gap: "1rem", minColumnWidth: "420px" }).child(
     "row",
     GridRow()
@@ -117,16 +126,9 @@ export class OverviewPageController extends PageController(
           icon: "i-ph-chart-bar",
           fetchUrl: `${STATS_URL}/runs-per-day`,
           periodScope: SCOPE,
-          // The chart's legend names its series: succeeded, failed, and the
-          // dashed runs of the compared period. The card's own legend would
-          // key "Period" in one colour, which stacked bars do not have.
           showLegend: false,
           showSeriesLegend: true,
-          // The change of the total, with the compared one ("vs 120").
           showDelta: true,
-          // Shown when the runs kept do not reach back to the compared
-          // period, which then has no change: the line under the total stays,
-          // where the skeleton held it.
           description: "$dms_automation.overview.runsPerDayHint",
           chart: ChartColumn({
             stacked: true,
@@ -134,7 +136,6 @@ export class OverviewPageController extends PageController(
             xaxisType: "datetime",
             color: ["success", "error"],
             roundedCorners: true,
-            // One tooltip per bucket, with both series and the bucket's hour.
             rawOptions: [
               {
                 key: "tooltip",
@@ -151,6 +152,10 @@ export class OverviewPageController extends PageController(
       ),
   );
 
+  /**
+   * As many rows as the route sends: the skeleton holds the card's
+   * height, and the row of cards around it.
+   */
   static summary = Grid({ gap: "1rem", minColumnWidth: "320px" }).child(
     "row",
     GridRow()
@@ -160,8 +165,6 @@ export class OverviewPageController extends PageController(
           title: "$dms_automation.overview.recentRuns",
           fetchUrl: `${STATS_URL}/recent-runs`,
           groupByDay: false,
-          // As many rows as the route sends: the skeleton holds the card's
-          // height, and the row of cards around it.
           maxItems: RECENT_RUNS,
           skeletonCount: RECENT_RUNS,
           card: true,
@@ -177,7 +180,6 @@ export class OverviewPageController extends PageController(
       .child(
         "procedures",
         KeyValueList({
-          // The state of the procedure list, whose tabs the lines open.
           title: "$dms_automation.overview.proceduresWeek",
           fetchUrl: `${STATS_URL}/procedures`,
           skeletonCount: PROCEDURE_COUNT_LINES,

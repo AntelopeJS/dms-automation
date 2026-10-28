@@ -64,8 +64,10 @@ export class RunsPageController extends PageController(
   },
   DefaultLayout(),
 ) {
-  // "Updated 12 s ago" with its Live / Pause and the period; a stored run
-  // reads the KPIs and the list again.
+  /**
+   * "Updated 12 s ago" with its Live / Pause and the period; a stored run
+   * reads the KPIs and the list again.
+   */
   static live = pageToolbar({
     leading: { topics: liveTopics([RUNS_TOPIC]) },
     live: { childId: "toggle" },
@@ -74,19 +76,32 @@ export class RunsPageController extends PageController(
 
   static kpis = kpiRow(RUNS_PERIOD_SCOPE, { fetchUrl: `${API_URL}/runs/kpi` });
 
-  // Opened on one procedure (the "View runs" links): which one, and the way
-  // back to every run.
+  /**
+   * Opened on one procedure (the "View runs" links): which one, and the way
+   * back to every run.
+   */
   static scope = Banner({
     fetchUrl: `${API_URL}/runs/scope/banner?procedure={{query.procedure}}`,
   });
 
+  /**
+   * `?procedure=<id>` lists the runs of one procedure (see `scope`).
+   *
+   * Paused, the rows stay as they stood through a search, a sort or a page,
+   * with "N new · Show" counting the runs since; live, the list holds alone
+   * while a run is open beside it or the user scrolled down to read.
+   *
+   * A `?record=` link to a run the retention has deleted since.
+   *
+   * Worded for the run: a test, a paused procedure, redacted
+   * headers, or why it cannot be re-run.
+   */
   static table = TableView(RunsTableAPI, {
     caption: "$dms_automation.runs.listTitle",
     labelKey: "_id",
     rowIdKey: "_id",
     defaultSort: { field: "startedAt", desc: true },
     searchPlaceholder: "$dms_automation.runs.searchRuns",
-    // `?procedure=<id>` lists the runs of one procedure (see `scope`).
     queryParamFilters: { procedure: { field: "procedureId", mode: "is" } },
     tabs: [
       {
@@ -119,11 +134,7 @@ export class RunsPageController extends PageController(
     defaultDisplay: "grouped",
     pagination: "pages",
     pageSize: 25,
-    // One click opens the run in a drawer over the list, like a log.
     rowClick: "single",
-    // Paused, the rows stay as they stood through a search, a sort or a page,
-    // with "N new · Show" counting the runs since; live, the list holds alone
-    // while a run is open beside it or the user scrolled down to read.
     liveHold: { whileRowOpen: true, whileScrolled: true },
     footer: { hint: "$dms_automation.runs.retentionHint" },
     emptyStates: {
@@ -141,7 +152,6 @@ export class RunsPageController extends PageController(
       details: false,
       delete: false,
       hasSelection: false,
-      // Named after the procedure rather than the run's id.
       menuLabel: "$dms_automation.runs.rowMenu",
       custom: [
         {
@@ -150,16 +160,12 @@ export class RunsPageController extends PageController(
           isDefault: true,
           deepLink: true,
           target: {
-            // A detail panel: a right drawer, resizable and opened again at
-            // the user's width, carrying the row header and J / K.
             type: "drawer",
             direction: "right",
             title: "$dms_automation.runs.peekTitle",
-            // Named after the run's procedure, as the row menu is.
             rowTitle: "$dms_automation.runs.peekHeading",
             positionLabel: "$dms_automation.runs.peekPosition",
             deepLink: true,
-            // A `?record=` link to a run the retention has deleted since.
             notFound: {
               title: "$dms_automation.runs.peekNotFound",
               description: "$dms_automation.runs.peekNotFoundHint",
@@ -177,8 +183,6 @@ export class RunsPageController extends PageController(
             method: "POST",
             successMessage: "$dms_automation.runs.rerunStarted",
           },
-          // Worded for the run: a test, a paused procedure, redacted
-          // headers, or why it cannot be re-run.
           confirm: { from: `${API_URL}/runs/{{row._id}}/rerun-confirm` },
         },
         {

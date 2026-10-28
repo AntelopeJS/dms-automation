@@ -2,9 +2,11 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { frontendRequire, component } = require("./helpers/frontend.cjs");
 
-// "Needs attention" keeps its height from the skeleton to the list: rows the
-// shape of loaded ones, as many as the empty state is tall, and an empty
-// state with no padding of its own around it.
+/**
+ * "Needs attention" keeps its height from the skeleton to the list: rows the
+ * shape of loaded ones, as many as the empty state is tall, and an empty
+ * state with no padding of its own around it.
+ */
 
 const vue = frontendRequire("vue");
 const { renderToString } = frontendRequire("vue/server-renderer");
@@ -81,7 +83,6 @@ const row = (procedureId) => ({
 test("needs attention: the skeleton draws two rows padded as loaded rows are", async () => {
   const loading = await render({ isLoading: true, data: null });
   assert.equal(loading.match(ROW_PADDING)?.length, 2);
-  // A name and two lines of reason per row.
   assert.equal(loading.match(/data-skeleton/g)?.length, 6);
   const loaded = await render({
     isLoading: false,
@@ -96,6 +97,5 @@ test("needs attention: the empty state adds no padding of its own", async () => 
     isLoading: false,
     data: { items: [], total: 0 },
   });
-  // The comment inside the branch is kept by the development compile only.
   assert.match(html, /<div>(?:<!--[^>]*-->)?<section data-empty/);
 });

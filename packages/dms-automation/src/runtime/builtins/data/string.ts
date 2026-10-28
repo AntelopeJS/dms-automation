@@ -1,13 +1,4 @@
-// `String(value)` is the contract these nodes were built against, not an
-// oversight: a stored procedure that wires string.split into string.concat has
-// always seen "a,b,c", and a graph that routes on switch.value has always seen
-// "[object Object]" for a structured input. Replacing it with a JSON form was
-// tried and reverted -- it changed the output of arrays (never "[object
-// Object]" to begin with), rendered a Date quoted, collapsed Error, Map and
-// RegExp to "{}", and could throw on a cycle inside a workflow run, where
-// String() could not. Changing it needs a migration and tests, and this
-// repository has neither.
-/* oxlint-disable typescript/no-base-to-string */
+/* oxlint-disable typescript/no-base-to-string -- String(value) is the contract these nodes were built against; a JSON form changes the output of arrays, dates, errors and cycles. */
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
 
 const strProp = { type: "string", default: "" };

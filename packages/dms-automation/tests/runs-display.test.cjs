@@ -24,28 +24,22 @@ test("a run opens in a right drawer on one click, deep linked, and re-runs with 
   assert.equal(peek.deepLink, true);
   assert.equal(peek.target.type, "drawer");
   assert.equal(peek.target.direction, "right");
-  // The 600px default, resized and remembered by the user.
   assert.equal(peek.target.size, undefined);
   assert.equal(peek.target.overlay, undefined);
   assert.equal(peek.target.title, "$dms_automation.runs.peekTitle");
-  // The header names the run's procedure, not a bare "Run".
   assert.equal(peek.target.rowTitle, "$dms_automation.runs.peekHeading");
   assert.equal(peek.target.positionLabel, "$dms_automation.runs.peekPosition");
   assert.equal(peek.target.deepLink, true);
-  // A link to a run the retention deleted says so in the panel.
   assert.deepEqual(peek.target.notFound, {
     title: "$dms_automation.runs.peekNotFound",
     description: "$dms_automation.runs.peekNotFoundHint",
   });
-  // The row menu is named after the procedure, not the run's id.
   assert.equal(
     RunsPageController.table._options.rowActions.menuLabel,
     "$dms_automation.runs.rowMenu",
   );
   assert.equal(RunsPageController.table._options.rowClick, "single");
   assert.equal(rerun.target.url, "/api/automation/runs/{{row._id}}/rerun");
-  // The server words the confirmation for the run (a test, a paused
-  // procedure, redacted headers), or says why it cannot be re-run.
   assert.deepEqual(rerun.confirm, {
     from: "/api/automation/runs/{{row._id}}/rerun-confirm",
   });
@@ -98,7 +92,6 @@ test("the page reads its KPIs and list again when a run is stored", () => {
 
 test("the outcome follows the start, so a narrow list still shows it", () => {
   const { RunsPageController } = require("../dist/pages/runs.js");
-  // Columns are served in their order.
   const columns = RunsPageController.table._options.columns;
   const visible = columns
     .filter((c) => c.isVisible !== false)

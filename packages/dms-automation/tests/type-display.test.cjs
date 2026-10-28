@@ -7,16 +7,20 @@ const {
   component,
 } = require("./helpers/frontend.cjs");
 
-// Registered trigger / action / data-node types may declare `name` and
-// `description` as `$`-prefixed DMS i18n keys. These tests render the
-// components that display them and check both forms: keys come out
-// translated, plain strings come out as written.
+/**
+ * Registered trigger / action / data-node types may declare `name` and
+ * `description` as `$`-prefixed DMS i18n keys. These tests render the
+ * components that display them and check both forms: keys come out
+ * translated, plain strings come out as written.
+ */
 
 const vue = frontendRequire("vue");
 const { renderToString } = frontendRequire("vue/server-renderer");
 
-// Stand-in for the host's `processI18n`: `$` marks a key, anything else is
-// returned verbatim (dms-core `resolveI18nKey`).
+/**
+ * Stand-in for the host's `processI18n`: `$` marks a key, anything else is
+ * returned verbatim (dms-core `resolveI18nKey`).
+ */
 const MESSAGES = {
   "acme.trigger.name": "Déclencheur traduit",
   "acme.trigger.description": "Description traduite",
@@ -31,9 +35,7 @@ function processI18n(value) {
   return MESSAGES[key] ?? key;
 }
 
-// Nuxt auto-imports the components below resolve at setup time.
 globalThis.useTranslation = () => ({ processI18n });
-// `te` finds no key: components fall back to the text they were given.
 globalThis.useI18n = () => ({
   t: (key) => key,
   te: () => false,
@@ -203,8 +205,6 @@ test("describe helpers translate keyed step names and show the server's schedule
       ? `${key.slice(1)}${Object.keys(params).length ? JSON.stringify(params) : ""}`
       : key;
 
-  // Triggers and schedules are worded by the server: a schedule node reads
-  // as the text it sent, its expression until then.
   assert.equal(
     summarizeNode(
       "trigger",
@@ -272,7 +272,6 @@ test("schema tables drop the description column when no field has one", async ()
 });
 
 test("a webhook endpoint offers no URL to copy until the server's address is known", async () => {
-  // The address is still being read.
   globalThis.useApiData = () => ({
     data: vue.ref(null),
     error: vue.ref(null),
@@ -307,8 +306,6 @@ test("dates are written through the page's regional format", () => {
   const { describeDateTime, describeTime } = require(
     path.join(FRONTEND, "app/utils/describe.ts"),
   );
-  // As `useRegionalFormat().dateTimeFormat` does for a user who set a time
-  // zone and a 12-hour clock: their settings, unless the text names a zone.
   const regional = (options) =>
     new Intl.DateTimeFormat("en-GB", {
       ...options,

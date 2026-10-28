@@ -230,13 +230,15 @@ export class ProcedureRunModel extends BasicDataModel(
       .run();
   }
 
+  /**
+   * Over-fetch one extra row as a "has next page" probe. The caller trims
+   * the surplus row and uses its presence to decide whether a next page
+   * exists.
+   */
   async listByProcedure(
     procedureId: string,
     page: number,
     limit: number,
-    // Over-fetch one extra row as a "has next page" probe. The caller trims
-    // the surplus row and uses its presence to decide whether a next page
-    // exists.
     peek = false,
   ): Promise<RunSummary[]> {
     return (await this.table

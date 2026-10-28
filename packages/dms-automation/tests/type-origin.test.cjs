@@ -5,8 +5,10 @@ const { internal } = require("@antelopejs/interface-dms-automation");
 
 const SELF = "dms-automation";
 
-// typeOrigin captures its own module id at import time from the call stack, so
-// load it under an explicit ownership context to stand in for a real boot.
+/**
+ * typeOrigin captures its own module id at import time from the call stack, so
+ * load it under an explicit ownership context to stand in for a real boot.
+ */
 let typeOrigin;
 RunWithResponsibleModule(SELF, () => {
   typeOrigin = require("../dist/runtime/typeOrigin.js");
@@ -30,14 +32,9 @@ function registerTrigger(module, id) {
   );
 }
 
-// Guards the exact RegisteringProxy internals typeOrigin reads: an
-// interface-core release that moves the registration bookkeeping again must
-// fail here rather than silently flatten the builder palette.
 test("attribution resolves our own types back to this module", () => {
   registerTrigger(SELF, "tests.own");
   assert.equal(typeOrigin.isOriginAttributionWorking("tests.own"), true);
-  // Our own types stay unlabeled — the palette lists them in the leading
-  // built-in section.
   assert.deepEqual(typeOrigin.triggerTypeOrigin("tests.own"), {});
 });
 

@@ -127,8 +127,6 @@ test("a key nested in a composed text is composed, a name is kept", () => {
   assert.equal(asParam("Notify the team"), "Notify the team");
 });
 
-// The routes the builder, the trace and the library read send the text next
-// to the trigger: the browser no longer words triggers itself.
 test("the saved triggers of a procedure come with their text", () => {
   const { savedTriggersOf } = require("../dist/routes/procedures.js");
   const graph = {

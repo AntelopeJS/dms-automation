@@ -50,7 +50,6 @@ const day = { from: ago(24), to: NOW };
 const week = { from: ago(7 * 24), to: NOW };
 
 test("the health line's degraded state follows the window", () => {
-  // Failed three days ago, fine since: degraded over 7 days, not over 24 h.
   const ctx = context(
     [procedure("p", "Export")],
     [run("p", "failed", 72), run("p", "ok", 2)],
@@ -123,12 +122,10 @@ test("the procedure counts add up to the total, one line per state", () => {
 });
 
 test("the overview's lists send as many lines as their skeletons draw", () => {
-  // The counts always hold every line, even with no procedure at all.
   assert.equal(
     procedureCounts(context([], []), "/procedures").length,
     PROCEDURE_COUNT_LINES,
   );
-  // The recent runs stop at the rows drawn while they load.
   const runs = Array.from({ length: RECENT_RUNS + 3 }, (_, i) =>
     run("p", "ok", i + 1),
   );
@@ -157,14 +154,12 @@ test("the runs chart buckets on the hour, without a comparison", () => {
   });
   assert.equal(chart.value, 2);
   assert.equal(chart.series[0].data[0].x, ago(24).toISOString());
-  // "No comparison": no compared series, no change, no compared total.
   assert.equal("comparisonSeries" in chart, false);
   assert.equal("delta" in chart, false);
   assert.equal("previousValue" in chart, false);
 });
 
 test("the runs chart draws the period before, bucket by bucket", () => {
-  // 12 runs 30 h ago and 2 runs 26 h ago in the day before; 9 runs now.
   const before = [
     ...Array.from({ length: 12 }, () => run("p", "ok", 30)),
     run("p", "failed", 26),
@@ -182,10 +177,8 @@ test("the runs chart draws the period before, bucket by bucket", () => {
   assert.equal(chart.previousValue, 14);
   assert.equal(chart.delta, -35.7);
   const [compared] = chart.comparisonSeries;
-  // A dashed line over the bars, named for the legend.
   assert.equal(compared.type, "line");
   assert.equal(compared.name, "$dms_automation.overview.comparedRuns");
-  // On the buckets of the window: 30 h ago is 18 h into the day before.
   assert.deepEqual(
     compared.data.map((p) => p.x),
     chart.series[0].data.map((p) => p.x),
@@ -207,7 +200,6 @@ test("the runs chart compares with the same window a year earlier", () => {
     return r;
   };
   const lastYear = Array.from({ length: 20 }, () => yearAgo("ok", 3));
-  // The day before is not the comparison: it stays out of the series.
   const dayBefore = Array.from({ length: 5 }, () => run("p", "ok", 30));
   const now = Array.from({ length: 10 }, () => run("p", "failed", 3));
   const ctx = context(
@@ -268,7 +260,6 @@ test("a sliding period ends at the request, its comparison with it", () => {
   assert.equal(sliding.to.getTime(), later.getTime());
   assert.equal(sliding.from.getTime(), ago(24).getTime() + 50 * 1000);
   assert.equal(sliding.compareTo.getTime(), ago(24).getTime() + 50 * 1000);
-  // A calendar preset already ends at midnight: it stays as asked.
   const week = periodWindow({ ...query, preset: "last-7-days" }, later);
   assert.equal(week.to.getTime(), NOW.getTime());
 });
@@ -286,7 +277,6 @@ test("the compared window is the one the scope resolved, a year back too", () =>
   const week = periodWindow({ ...query, preset: "last-7-days" }, NOW);
   assert.equal(week.compareFrom.getTime(), ago(24).getTime() - YEAR);
   assert.equal(week.compareTo.getTime(), NOW.getTime() - YEAR);
-  // A sliding window keeps its year back as it follows the request.
   const later = new Date(NOW.getTime() + 50 * 1000);
   const sliding = periodWindow({ ...query, preset: "last-24h" }, later);
   assert.equal(sliding.compareTo.getTime(), later.getTime() - YEAR);
@@ -303,7 +293,6 @@ test("no comparison: no compared window, whatever dates come with it", () => {
   });
   assert.equal(window.compareFrom, undefined);
   assert.equal(window.compareTo, undefined);
-  // Without a comparison, stale compared dates are not even read.
   assert.doesNotThrow(() =>
     periodWindow({
       from: ago(24).toISOString(),

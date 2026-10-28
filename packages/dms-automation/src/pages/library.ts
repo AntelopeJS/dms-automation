@@ -10,7 +10,7 @@ export const TEMPLATES_TOPIC = "automation.templates";
 
 type CatalogKind = "triggers" | "actions" | "dataNodes" | "flow";
 
-// The builder palette's group icons, so a block family reads the same in both.
+/** The builder palette's group icons, so a block family reads the same in both. */
 const CATALOG_ICONS: Record<CatalogKind, string> = {
   triggers: "i-ph-lightning",
   actions: "i-ph-gear",

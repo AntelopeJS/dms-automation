@@ -79,16 +79,10 @@ class Problems {
 const quotedList = (ids: readonly string[]) =>
   ids.map((id) => `"${id}"`).join(", ");
 
-// Divergence (>1 outgoing trigger edge) and per-source branch labels are
-// derived from the kind registry — the source of truth is each kind's
-// declared port shape, not a hand-maintained list. `group` isn't in the
-// registry (it's handled by `flatten.ts`), and `groupInput` registers with
-// no ports so `mayDiverge` returns false for it even though its outgoing
-// edges are one-per-declared-port and managed by the editor — both are
-// therefore allowed unconditionally below.
-
-// Two nodes sharing an id: edges cannot tell them apart and the executor
-// keeps only the last one.
+/**
+ * Two nodes sharing an id: edges cannot tell them apart and the executor
+ * keeps only the last one.
+ */
 function checkDuplicateNodeIds(graph: ProcedureGraph, problems: Problems) {
   const seen = new Set<string>();
   const reported = new Set<string>();
@@ -135,6 +129,20 @@ function checkUnknownNodeRefs(
   }
 }
 
+/**
+ * Divergence (>1 outgoing trigger edge) and per-source branch labels are
+ * derived from the kind registry — the source of truth is each kind's
+ * declared port shape, not a hand-maintained list. `group` isn't in the
+ * registry (it's handled by `flatten.ts`), and `groupInput` registers with
+ * no ports so `mayDiverge` returns false for it even though its outgoing
+ * edges are one-per-declared-port and managed by the editor — both are
+ * therefore allowed unconditionally below.
+ *
+ * Trigger-kind nodes are entry points and may legitimately fan out into
+ * parallel paths; if/switch are branching nodes; groupInput emits one edge
+ * per declared trigger-in port; group nodes delegate fan-out to their
+ * declared trigger-out ports.
+ */
 function checkTriggerDivergence(
   graph: ProcedureGraph,
   nodeById: Map<string, GraphNode>,
@@ -150,11 +158,7 @@ function checkTriggerDivergence(
   for (const [sourceId, count] of outgoingBySource) {
     if (count < 2) continue;
     const src = nodeById.get(sourceId);
-    if (!src) continue; // already reported as unknown
-    // Trigger-kind nodes are entry points and may legitimately fan out into
-    // parallel paths; if/switch are branching nodes; groupInput emits one edge
-    // per declared trigger-in port; group nodes delegate fan-out to their
-    // declared trigger-out ports.
+    if (!src) continue;
     const allowedByRegistry = nodeKinds.mayDiverge(src.kind);
     const allowedByGroup = src.kind === "group" || src.kind === "groupInput";
     if (!allowedByRegistry && !allowedByGroup) {
@@ -183,9 +187,11 @@ function checkTriggerDivergence(
   }
 }
 
-// Trigger nodes are entry points: the run seeds their output and fires their
-// continuation. A trigger node with an incoming trigger edge can never run
-// (its `execute` throws), so reject it here with a clear message.
+/**
+ * Trigger nodes are entry points: the run seeds their output and fires their
+ * continuation. A trigger node with an incoming trigger edge can never run
+ * (its `execute` throws), so reject it here with a clear message.
+ */
 function checkTriggerNodesAreEntryPoints(
   graph: ProcedureGraph,
   nodeById: Map<string, GraphNode>,
@@ -221,9 +227,11 @@ function checkDataFanIn(graph: ProcedureGraph, problems: Problems): void {
   }
 }
 
-// Cycle detection over trigger edges: a single Kahn's pass over every node the
-// edges reference. Shares the executor's `kahn` helper. Skipped once an earlier
-// check has failed (unknown refs would make the pass meaningless).
+/**
+ * Cycle detection over trigger edges: a single Kahn's pass over every node the
+ * edges reference. Shares the executor's `kahn` helper. Skipped once an earlier
+ * check has failed (unknown refs would make the pass meaningless).
+ */
 function checkTriggerCycles(graph: ProcedureGraph, problems: Problems): void {
   if (graph.triggerEdges.length === 0 || problems.hasError) return;
   const allReferencedNodes = new Set<string>();
@@ -244,9 +252,11 @@ function checkTriggerCycles(graph: ProcedureGraph, problems: Problems): void {
   );
 }
 
-// Data nodes are evaluated on demand, pulling their inputs from other data
-// nodes: a loop among them can never be evaluated. Other nodes only read the
-// last output of their source, so a data edge back to them is no cycle.
+/**
+ * Data nodes are evaluated on demand, pulling their inputs from other data
+ * nodes: a loop among them can never be evaluated. Other nodes only read the
+ * last output of their source, so a data edge back to them is no cycle.
+ */
 function checkDataCycles(
   graph: ProcedureGraph,
   nodeById: Map<string, GraphNode>,
@@ -281,6 +291,8 @@ function checkDataCycles(
  *    nodes.
  *  - every edge endpoint must reference an existing node.
  *  - group nodes have valid port wiring and recursively-valid subgraphs.
+ *
+ * The run starts from the triggers of the top level only.
  */
 export function graphProblems(
   graph: ProcedureGraph,
@@ -299,7 +311,6 @@ export function graphProblems(
   checkDataCycles(graph, nodeById, problems);
 
   for (const node of graph.nodes) {
-    // The run starts from the triggers of the top level only.
     if (depth > 0 && node.kind === "trigger") {
       problems.error(
         "nestedTrigger",
@@ -462,6 +473,16 @@ function validateGroupDataOutWiring(
  *  - at least one trigger-in port exists (otherwise the group can never start);
  *  - subgraph is recursively valid (findings prefixed with `group:<id> > `
  *    and reported on the group).
+ *
+ * At least one trigger-input port (applies to template instances too --
+ * otherwise the group can never start).
+ *
+ * Template instances are validated at template-write time (Task C4.3);
+ * skip sentinel-presence and port-wiring checks here.
+ *
+ * Recursive subgraph validation. Findings propagate up with the
+ * `group:<id> > ` prefix so their source stays attributable, and are
+ * reported on this group, the node of this graph that holds them.
  */
 function validateGroupNode(
   node: GroupNode,
@@ -473,8 +494,6 @@ function validateGroupNode(
   if (!validateGroupBodySource(node, problems)) return;
   validateGroupPortNames(node, problems);
 
-  // At least one trigger-input port (applies to template instances too --
-  // otherwise the group can never start).
   const hasTriggerIn = node.ports.some(
     (p) => p.kind === "trigger" && p.direction === "in",
   );
@@ -487,8 +506,6 @@ function validateGroupNode(
     );
   }
 
-  // Template instances are validated at template-write time (Task C4.3);
-  // skip sentinel-presence and port-wiring checks here.
   const subgraph = node.subgraph;
   if (node.templateId !== undefined || !subgraph) return;
 
@@ -511,9 +528,6 @@ function validateGroupNode(
     return;
   }
 
-  // Recursive subgraph validation. Findings propagate up with the
-  // `group:<id> > ` prefix so their source stays attributable, and are
-  // reported on this group, the node of this graph that holds them.
   for (const inner of graphProblems(subgraph, depth + 1)) {
     problems.list.push({
       ...inner,

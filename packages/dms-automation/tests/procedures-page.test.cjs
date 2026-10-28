@@ -112,7 +112,6 @@ const names = (rows) => rows.map((r) => r.name);
 
 test("an empty search or filter, sent as a bare parameter, keeps every row", () => {
   const { applyQuery } = require("../dist/data/procedures-table.js");
-  // The API hands `?search` and `?filter_status` without a value in as `true`.
   assert.equal(
     applyQuery(ROWS, { search: true, filter_status: true }).length,
     4,
@@ -164,7 +163,6 @@ test("sorting on the status orders the states by severity, either way", () => {
     "Nightly",
     "Payments",
   ]);
-  // No sort: the procedures that need attention first.
   assert.deepEqual(
     names(sortRows(ROWS, true)),
     names(sortRows(ROWS, "status")),
@@ -178,7 +176,6 @@ test("the picker's options narrow to the ids asked for, whatever the page size",
     { _id: "p-z", name: "Zulu" },
     { _id: "p-m", name: "Mike" },
   ];
-  // `?ids=p-z`: the row of that id alone, not the first one by name.
   assert.deepEqual(procedureOptions(procedures, undefined, ["p-z"]), [
     { procedureId: "p-z", _id: "p-z", name: "Zulu" },
   ]);
@@ -188,7 +185,6 @@ test("the picker's options narrow to the ids asked for, whatever the page size",
     ),
     ["Mike", "Zulu"],
   );
-  // No ids: every procedure the search matches, by name.
   assert.deepEqual(
     procedureOptions(procedures, true).map((p) => p.name),
     ["Alpha", "Mike", "Zulu"],

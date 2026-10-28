@@ -30,6 +30,10 @@ function constant(
   };
 }
 
+/**
+ * `default: null` (not an empty schema) so a freshly-dropped, unedited
+ * JSON constant emits an explicit null rather than `undefined`.
+ */
 export const constantNodes: DataNodeType[] = [
   constant("const.string", "i-ph-text-aa", { type: "string", default: "" }),
   constant("const.number", "i-ph-hash", { type: "number", default: 0 }),
@@ -37,11 +41,5 @@ export const constantNodes: DataNodeType[] = [
     type: "boolean",
     default: false,
   }),
-  constant(
-    "const.json",
-    "i-ph-brackets-curly",
-    // `default: null` (not an empty schema) so a freshly-dropped, unedited
-    // JSON constant emits an explicit null rather than `undefined`.
-    { default: null },
-  ),
+  constant("const.json", "i-ph-brackets-curly", { default: null }),
 ];

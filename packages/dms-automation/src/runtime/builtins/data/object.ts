@@ -2,7 +2,7 @@ import type { DataNodeType } from "@antelopejs/interface-dms-automation";
 
 const objProp = { type: "object", default: {} };
 const pathProp = { type: "string", default: "" };
-const anyVal = {}; // any
+const anyVal = {};
 const resultObj = { type: "object" };
 const resultArrStr = { type: "array", items: { type: "string" } };
 const resultArrAny = { type: "array" };

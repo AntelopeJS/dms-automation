@@ -15,7 +15,7 @@ import { API_MESSAGES as API, invalid } from "./requests";
 
 /** What the procedures routes check before they save or run a graph. */
 
-// The toast of a refused graph, after its first blocking issue.
+/** The toast of a refused graph, after its first blocking issue. */
 const REFUSAL_OF_ISSUE: Record<string, string> = {
   noTrigger: `${API}.noTrigger`,
   webhookPathTaken: `${API}.webhookPathTaken`,
