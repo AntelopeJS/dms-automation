@@ -78,7 +78,6 @@ const procedureSummaryRoutes = {
       Parameter("limit", "query"),
       MultiParameter("ids", "query"),
     ],
-    // oxlint-disable-next-line eslint/max-params -- each parameter is bound to a request input by its decorator, so the framework hands them in positionally
     func: async (
       _user: User,
       search?: string,
