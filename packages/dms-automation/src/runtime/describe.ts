@@ -1,11 +1,13 @@
 import {
   type GraphNode,
   isGroupNode,
+  parseGraph,
   type ProcedureGraph,
 } from "../types/graph";
 import { nodeKinds } from "./nodeKinds";
 import { registry } from "./registry";
 import { scheduleTimeZone } from "./schedule";
+import { isString } from "../types/guards";
 
 /** Separator the flattener puts between a group id and an inner node id. */
 const FLAT_ID_SEPARATOR = "__";
@@ -40,8 +42,8 @@ function typeNameOf(node: GraphNode): string | undefined {
 
 /** The label the builder gave a node, if any. */
 export function labelOf(node: GraphNode): string | undefined {
-  const label = (node as GraphNode & { label?: unknown }).label;
-  return typeof label === "string" && label.trim() ? label.trim() : undefined;
+  const { label } = node;
+  return isString(label) && label.trim() ? label.trim() : undefined;
 }
 
 /**
@@ -128,7 +130,7 @@ const DEFAULT_WEBHOOK_METHOD = "POST";
 
 function configString(node: GraphNode, key: string): string | undefined {
   const value = node.config?.[key];
-  return typeof value === "string" && value ? value : undefined;
+  return isString(value) && value ? value : undefined;
 }
 
 export function summarizeTrigger(node: GraphNode): TriggerSummary {
@@ -161,7 +163,7 @@ export function triggersOf(graph: ProcedureGraph): TriggerSummary[] {
 /** Parse a stored graph, or `undefined` when it does not parse. */
 export function parseGraphSafe(raw: string): ProcedureGraph | undefined {
   try {
-    const graph = JSON.parse(raw) as ProcedureGraph;
+    const graph = parseGraph(raw);
     return Array.isArray(graph?.nodes) ? graph : undefined;
   } catch {
     return undefined;

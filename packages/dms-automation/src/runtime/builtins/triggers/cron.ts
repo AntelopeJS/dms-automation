@@ -2,6 +2,8 @@ import type { TriggerType } from "@antelopejs/interface-dms-automation";
 import cron, { type ScheduledTask } from "node-cron";
 import { TriggerArmError } from "../../armErrors";
 import type { ConfigProblem } from "../../validate";
+import type { DataValue } from "../../../types/dataValue";
+import { isString } from "../../../types/guards";
 
 /** The schedule a new schedule trigger starts with: Mondays at 09:00. */
 export const DEFAULT_SCHEDULE = "0 9 * * 1";
@@ -15,11 +17,11 @@ interface CronOutput {
 }
 
 /** Why a cron expression can never fire, or undefined when it is valid. */
-export function cronProblem(expression: unknown): ConfigProblem | undefined {
-  if (typeof expression === "string" && cron.validate(expression)) {
+export function cronProblem(expression: DataValue): ConfigProblem | undefined {
+  if (isString(expression) && cron.validate(expression)) {
     return undefined;
   }
-  const value = typeof expression === "string" ? expression : "";
+  const value = isString(expression) ? expression : "";
   return {
     code: "cronInvalid",
     params: { cron: value },
@@ -61,12 +63,9 @@ export const cronTrigger: TriggerType<CronConfig, CronOutput> = {
     });
     return task;
   },
-  async deactivate(handle) {
-    const task = handle as ScheduledTask | undefined;
+  async deactivate(task: ScheduledTask | undefined) {
     if (!task) return;
     await task.stop();
-    if (typeof task.destroy === "function") {
-      await task.destroy();
-    }
+    await task.destroy?.();
   },
 };

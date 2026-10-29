@@ -3,6 +3,7 @@ import { GetModel } from "@antelopejs/interface-database-decorators";
 import type {
   DeclaredProcedure,
   DeclaredProcedureStatus,
+  ProcedureDeclaration,
 } from "@antelopejs/interface-dms-automation";
 import { z } from "zod";
 import { ProcedureModel } from "../db/models/procedure.model";
@@ -12,6 +13,7 @@ import { exportedSchema } from "../routes/procedureSchemas";
 import { DATABASE_NAME } from "../types/constants";
 import { type GraphIssue, hasBlockingIssue } from "./graphIssues";
 import { subscriptions } from "./subscriptions";
+import { isObject, isString } from "../types/guards";
 
 /**
  * Procedures a module ships as code (DeclareProcedure). The declared id is
@@ -47,8 +49,8 @@ function refusal(id: string, problems: string[]): Error {
 }
 
 function idOf(input: unknown): string {
-  const id = (input as { id?: unknown } | null)?.id;
-  return typeof id === "string" ? id : "";
+  const id = isObject(input) && "id" in input ? input.id : undefined;
+  return isString(id) ? id : "";
 }
 
 /**
@@ -110,7 +112,7 @@ async function storeDeclared(
  * (non-blocking) issues.
  */
 export async function declareProcedure(
-  input: unknown,
+  input: ProcedureDeclaration,
 ): Promise<DeclaredProcedure> {
   const parsed = declarationSchema.safeParse(input);
   if (!parsed.success) {

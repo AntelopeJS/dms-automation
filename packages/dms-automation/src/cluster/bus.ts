@@ -1,6 +1,7 @@
 import { Logging } from "@antelopejs/interface-core/logging";
 import { GetClient } from "@antelopejs/interface-redis";
 import { instanceId } from "./instance";
+import { isObject, isString } from "../types/guards";
 
 type RedisClient = Awaited<ReturnType<typeof GetClient>>;
 
@@ -23,12 +24,12 @@ type Handler = (msg: BusMessage) => void;
  * undefined id) or defeat the self-echo skip with a missing origin.
  */
 function isBusMessage(value: unknown): value is BusMessage {
-  if (!value || typeof value !== "object") return false;
-  const m = value as Record<string, unknown>;
-  if (typeof m.origin !== "string") return false;
-  if (m.kind === "procedure") return true;
-  if (m.kind === "template-change" || m.kind === "template-delete") {
-    return typeof m.id === "string";
+  if (!isObject(value)) return false;
+  if (!("origin" in value) || !isString(value.origin)) return false;
+  if (!("kind" in value)) return false;
+  if (value.kind === "procedure") return true;
+  if (value.kind === "template-change" || value.kind === "template-delete") {
+    return "id" in value && isString(value.id);
   }
   return false;
 }

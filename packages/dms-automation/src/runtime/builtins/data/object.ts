@@ -1,4 +1,5 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
+import { isObject, isPropertyBag } from "../../../types/guards";
 
 const objProp = { type: "object", default: {} };
 const pathProp = { type: "string", default: "" };
@@ -12,9 +13,10 @@ function getPath(obj: unknown, path: string): unknown {
   const parts = path.split(".");
   let cur: unknown = obj;
   for (const p of parts) {
-    if (cur === null || cur === undefined || typeof cur !== "object")
+    if (!isPropertyBag(cur)) {
       return null;
-    cur = (cur as Record<string, unknown>)[p];
+    }
+    cur = cur[p];
   }
   return cur ?? null;
 }
@@ -24,20 +26,14 @@ function setPath(
   path: string,
   value: unknown,
 ): Record<string, unknown> {
-  const base =
-    obj && typeof obj === "object"
-      ? { ...(obj as Record<string, unknown>) }
-      : {};
+  const base = isPropertyBag(obj) ? { ...obj } : {};
   if (!path) return base;
   const parts = path.split(".");
   let cur: Record<string, unknown> = base;
   for (let i = 0; i < parts.length - 1; i++) {
     const k = parts[i]!;
     const next = cur[k];
-    const nextObj =
-      next && typeof next === "object"
-        ? { ...(next as Record<string, unknown>) }
-        : {};
+    const nextObj = isPropertyBag(next) ? { ...next } : {};
     cur[k] = nextObj;
     cur = nextObj;
   }
@@ -90,11 +86,9 @@ export const objectNodes: DataNodeType[] = [
     icon: "i-ph-list",
     inputSchema: { type: "object", properties: { obj: objProp } },
     outputSchema: { type: "object", properties: { result: resultArrStr } },
-    evaluate: (i) => {
-      const { obj } = i as { obj: unknown };
+    evaluate: ({ obj }: { obj: unknown }) => {
       return {
-        result:
-          obj && typeof obj === "object" ? Object.keys(obj as object) : [],
+        result: isObject(obj) ? Object.keys(obj) : [],
       };
     },
   },
@@ -106,11 +100,9 @@ export const objectNodes: DataNodeType[] = [
     icon: "i-ph-list-bullets",
     inputSchema: { type: "object", properties: { obj: objProp } },
     outputSchema: { type: "object", properties: { result: resultArrAny } },
-    evaluate: (i) => {
-      const { obj } = i as { obj: unknown };
+    evaluate: ({ obj }: { obj: unknown }) => {
       return {
-        result:
-          obj && typeof obj === "object" ? Object.values(obj as object) : [],
+        result: isObject(obj) ? Object.values(obj) : [],
       };
     },
   },
@@ -122,12 +114,9 @@ export const objectNodes: DataNodeType[] = [
     icon: "i-ph-stack",
     inputSchema: { type: "object", properties: { a: objProp, b: objProp } },
     outputSchema: { type: "object", properties: { result: resultObj } },
-    evaluate: (i) => {
-      const { a, b } = i as { a: unknown; b: unknown };
-      const ao =
-        a && typeof a === "object" ? (a as Record<string, unknown>) : {};
-      const bo =
-        b && typeof b === "object" ? (b as Record<string, unknown>) : {};
+    evaluate: ({ a, b }: { a: unknown; b: unknown }) => {
+      const ao = isPropertyBag(a) ? { ...a } : {};
+      const bo = isPropertyBag(b) ? { ...b } : {};
       return { result: { ...ao, ...bo } };
     },
   },

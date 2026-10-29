@@ -1,5 +1,6 @@
 import { Logging } from "@antelopejs/interface-core/logging";
 import { PublishMessage } from "@antelopejs/interface-dms";
+import type { DataRecord } from "./types/dataValue";
 
 /**
  * A run was stored: run lists, KPIs and health figures change.
@@ -20,7 +21,7 @@ export const PROCEDURES_TOPIC = "automation.procedures";
 export function notifyTopic(
   topic: string,
   type: string,
-  payload?: Record<string, unknown>,
+  payload?: DataRecord,
 ): void {
   PublishMessage(topic, type, payload ? { payload } : undefined).catch(
     (err: unknown) => {

@@ -17,12 +17,16 @@ import {
 import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
 import { parseBody } from "./requests";
+import type { DataValue } from "../types/dataValue";
 
 /** The body of a type-config PUT endpoint (action-types, trigger-types). */
 const configBodySchema = z.object({ enabled: z.boolean() });
 
 /** 404 for a type no module registered: there is nothing to configure. */
-function assertRegistered(type: unknown, id: string): void {
+function assertRegistered(
+  type: ActionType | TriggerType | undefined,
+  id: string,
+): void {
   if (!type) throw new HTTPResult(404, { error: `type "${id}" not found` });
 }
 
@@ -49,9 +53,9 @@ export async function listWithSwitches<T extends { id: string }, S>(
  */
 export async function switchType(
   kind: SwitchableKind,
-  type: unknown,
+  type: ActionType | TriggerType | undefined,
   id: string,
-  body: unknown,
+  body: DataValue,
 ): Promise<{ id: string }> {
   assertRegistered(type, id);
   const { enabled } = parseBody(configBodySchema, body);

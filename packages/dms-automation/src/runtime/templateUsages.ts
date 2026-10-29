@@ -11,6 +11,7 @@ import { DATABASE_NAME } from "../types/constants";
 import {
   type GraphNode,
   isGroupNode,
+  parseGraph,
   type ProcedureGraph,
   walkNodesRecursive,
 } from "../types/graph";
@@ -72,7 +73,7 @@ export async function disableInvalidUsages(
     if (!p) continue;
     let graph: ProcedureGraph;
     try {
-      graph = JSON.parse(p.graph) as ProcedureGraph;
+      graph = parseGraph(p.graph);
     } catch (err) {
       Logging.Error(
         `[dms-automation] template cascade: skipping procedure "${id}" — graph JSON parse failed:`,
@@ -133,7 +134,7 @@ export async function forkUsage(
   if (!p) return;
   let graph: ProcedureGraph;
   try {
-    graph = JSON.parse(p.graph) as ProcedureGraph;
+    graph = parseGraph(p.graph);
   } catch {
     return;
   }
@@ -143,8 +144,7 @@ export async function forkUsage(
   if (!tpl) return;
   delete node.templateId;
   node.subgraph = structuredClone(tpl.subgraph);
-  const group = node as GraphNode & { label?: string };
-  if (!labelOf(group)) group.label = tpl.name;
+  if (!labelOf(node)) node.label = tpl.name;
   const version = nextVersion(p);
   await procedureModel.update(procedureId, {
     graph: JSON.stringify(graph),

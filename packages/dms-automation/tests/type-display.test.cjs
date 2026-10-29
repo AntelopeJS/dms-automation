@@ -163,7 +163,7 @@ test("every built-in node kind is named by a key both locales translate", () => 
     if (label === undefined) continue;
     assert.match(label, /^\$dms_automation\./, `kind "${kind}"`);
     for (const messages of locales) {
-      assert.equal(typeof lookup(messages, label.slice(1)), "string", label);
+      assert.match(lookup(messages, label.slice(1)), /\S/, label);
     }
   }
 });

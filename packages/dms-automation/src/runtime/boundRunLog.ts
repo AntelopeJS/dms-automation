@@ -1,4 +1,5 @@
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
+import { isBigInt, isNumber, isObject, isString } from "../types/guards";
 
 /**
  * Budgets for what a single run persists. A run is stored as one document, so
@@ -18,10 +19,10 @@ const TRIGGER_PAYLOAD_PREVIEW_CHARS = 4096;
  * Serialized size of a value in bytes, as an estimate of its stored size.
  * Values JSON can't encode (circular structures) count as over budget.
  */
-function byteSize(value: unknown): number {
+function byteSize(value: LogEntry | FireNode | FireNode[]): number {
   try {
     const json = JSON.stringify(value, (_key, v: unknown) =>
-      typeof v === "bigint" ? v.toString() : v,
+      isBigInt(v) ? v.toString() : v,
     );
     return json === undefined ? 0 : Buffer.byteLength(json);
   } catch {
@@ -169,8 +170,8 @@ export function isSensitiveHeader(name: string): boolean {
   );
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return isObject(value) && !Array.isArray(value);
 }
 
 /**
@@ -240,7 +241,7 @@ function credentialValues(group: unknown): string[] {
   return Object.entries(group)
     .filter(([name]) => isSensitiveHeader(name))
     .flatMap(([, value]) => [value].flat())
-    .filter((value): value is string => typeof value === "string");
+    .filter(isString);
 }
 
 /**
@@ -264,7 +265,7 @@ export function secretsOf(payload: unknown): string[] {
 export function scrubSecrets<T>(value: T, secrets: readonly string[]): T {
   if (secrets.length === 0) return value;
   const scrub = (v: unknown): unknown => {
-    if (typeof v === "string") {
+    if (isString(v)) {
       return secrets.reduce((text, s) => text.replaceAll(s, REDACTED), v);
     }
     if (Array.isArray(v)) return v.map(scrub);
@@ -318,20 +319,18 @@ export type StoredPayload =
  * redacted on read, for the trace, a re-run and Run now alike.
  */
 export function readTriggerPayload(stored: string | undefined): StoredPayload {
-  let parsed: unknown = null;
+  let parsed: unknown;
   try {
     parsed = stored ? JSON.parse(stored) : null;
   } catch {
     return { kept: true, payload: stored };
   }
-  const marker = parsed as { truncated?: unknown; originalBytes?: unknown };
   if (
-    marker &&
-    typeof marker === "object" &&
-    marker.truncated === true &&
-    typeof marker.originalBytes === "number"
+    isRecord(parsed) &&
+    parsed.truncated === true &&
+    isNumber(parsed.originalBytes)
   ) {
-    return { kept: false, originalBytes: marker.originalBytes };
+    return { kept: false, originalBytes: parsed.originalBytes };
   }
   return { kept: true, payload: redactPayload(parsed) };
 }

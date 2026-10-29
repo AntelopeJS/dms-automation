@@ -67,7 +67,7 @@ test("the trace lists the trigger, the steps that ran and the skipped ones", asy
   );
   const failed = trace.steps[2];
   assert.equal(failed.error, "HTTP 502 Bad Gateway");
-  assert.equal(typeof failed.durationMs, "number");
+  assert.ok(Number.isFinite(failed.durationMs));
   assert.equal(trace.steps[1].name.label, "Say hello");
   assert.deepEqual(
     trace.skipped.map((s) => s.nodeId),

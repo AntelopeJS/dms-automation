@@ -26,7 +26,7 @@ function constant(
     inputSchema: { type: "object", properties: {} },
     configSchema: { type: "object", properties: { value: valueSchema } },
     outputSchema: { type: "object", properties: { value: valueSchema } },
-    evaluate: (input) => ({ value: (input as { value: unknown }).value }),
+    evaluate: ({ value }: { value: unknown }) => ({ value }),
   };
 }
 

@@ -15,6 +15,7 @@ import {
   serializeTrigger,
   switchType,
 } from "./typeConfigShared";
+import type { DataValue } from "../types/dataValue";
 
 @AuthOwnerOnly()
 export class TriggerTypesController extends Controller(
@@ -33,7 +34,7 @@ export class TriggerTypesController extends Controller(
   async setConfig(
     @AuthUserWithPermission(LibraryPageController) _user: User,
     @Parameter("id", "param") id: string,
-    @JSONBody() body: unknown,
+    @JSONBody() body: DataValue,
   ) {
     return await switchType("trigger", registry.getTrigger(id), id, body);
   }

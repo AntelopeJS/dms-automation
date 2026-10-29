@@ -1,5 +1,10 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
+const {
+  isObject,
+  isObjectOrNull,
+  isString,
+} = require("../dist/types/guards.js");
 
 const PAGES = {
   overview: "OverviewPageController",
@@ -20,7 +25,7 @@ function translated(key) {
       .slice(1)
       .split(".")
       .reduce((node, part) => node?.[part], messages);
-    return typeof value === "string" && value.length > 0;
+    return isString(value) && value.length > 0;
   });
 }
 
@@ -35,10 +40,7 @@ function* componentsOf(component) {
 function pageBlocks(controller) {
   return Object.getOwnPropertyNames(controller)
     .map((key) => controller[key])
-    .filter(
-      (value) =>
-        value && typeof value === "object" && "_componentName" in value,
-    );
+    .filter((value) => value && isObject(value) && "_componentName" in value);
 }
 
 function pageComponents(controller) {
@@ -221,7 +223,7 @@ test("procedures: a live-only page toolbar first in the body", () => {
 /** Every message of a locale, by its dotted key. */
 function messagesOf(node, prefix = "") {
   return Object.entries(node).flatMap(([key, value]) =>
-    typeof value === "object"
+    isObjectOrNull(value)
       ? messagesOf(value, `${prefix}${key}.`)
       : [[`${prefix}${key}`, value]],
   );

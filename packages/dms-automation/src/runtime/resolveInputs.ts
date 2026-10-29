@@ -1,5 +1,6 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
 import type { DataEdge, GraphNode } from "../types/graph";
+import { isPropertyBag } from "../types/guards";
 
 export type DataNodeEvaluator = (
   sourceNodeId: string,
@@ -135,11 +136,10 @@ export function resolveInputs(
       upstream = evaluateDataNode(edge.from.node);
     }
 
-    if (upstream === null || typeof upstream !== "object") continue;
+    if (!isPropertyBag(upstream)) continue;
 
-    const record = upstream as Record<string, unknown>;
-    if (edge.from.port in record) {
-      result[edge.to.field] = record[edge.from.port];
+    if (edge.from.port in upstream) {
+      result[edge.to.field] = upstream[edge.from.port];
     }
   }
 

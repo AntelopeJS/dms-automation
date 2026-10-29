@@ -1,9 +1,8 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
+import { isBoolean, isNumber, isObject, isString } from "../../../types/guards";
 
 const anyVal = { type: ["number", "string", "boolean", "null"] };
 const resultBool = { type: "boolean" };
-
-type CompareMode = "auto" | "number" | "text";
 
 const modeProp = {
   type: "string",
@@ -17,16 +16,14 @@ const DECIMAL = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 
 /** The number a value stands for: a number, or text written as a decimal. */
 function asNumber(value: unknown): number | undefined {
-  if (typeof value === "number")
-    return Number.isFinite(value) ? value : undefined;
-  if (typeof value !== "string" || !DECIMAL.test(value.trim()))
-    return undefined;
+  if (isNumber(value)) return Number.isFinite(value) ? value : undefined;
+  if (!isString(value) || !DECIMAL.test(value.trim())) return undefined;
   return Number(value);
 }
 
 function asText(value: unknown): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value);
+  if (isObject(value)) return JSON.stringify(value);
   return String(value as string | number | boolean);
 }
 
@@ -37,7 +34,7 @@ function sign(n: number): number {
 /** Kinds `auto` never equates: null, a boolean, anything else. */
 function kindRank(value: unknown): number {
   if (value === null || value === undefined) return 0;
-  return typeof value === "boolean" ? 1 : 2;
+  return isBoolean(value) ? 1 : 2;
 }
 
 /**
@@ -47,7 +44,7 @@ function kindRank(value: unknown): number {
  * ranks null before booleans before anything else, so null is never "" and
  * true is never "true".
  */
-function order(id: string, a: unknown, b: unknown, mode: CompareMode): number {
+function order(id: string, a: unknown, b: unknown, mode: unknown): number {
   const na = asNumber(a);
   const nb = asNumber(b);
   if (mode === "number") {
@@ -80,12 +77,7 @@ function cmp(
     inputSchema: { type: "object", properties: { a: anyVal, b: anyVal } },
     configSchema: { type: "object", properties: { mode: modeProp } },
     outputSchema: { type: "object", properties: { result: resultBool } },
-    evaluate: (input) => {
-      const { a, b, mode } = input as {
-        a: unknown;
-        b: unknown;
-        mode?: CompareMode;
-      };
+    evaluate: ({ a, b, mode }: { a: unknown; b: unknown; mode?: unknown }) => {
       return { result: test(order(id, a, b, mode ?? "auto")) };
     },
   };

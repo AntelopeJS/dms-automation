@@ -154,7 +154,6 @@ export async function kpiAnswer(metric: string, query: PresetQuery) {
 export class StatsController extends Controller("/api/automation/stats") {
   /** The period scope sends its preset too: the run history opens on it. */
   @Get("/health")
-  // oxlint-disable-next-line eslint/max-params -- one decorator per query input
   async health(
     @AuthRawUser() _user: User,
     @Parameter("from", "query") from?: string,
@@ -216,7 +215,6 @@ export class StatsController extends Controller("/api/automation/stats") {
 
   /** Failing and paused whatever the period; degraded over the period. */
   @Get("/attention")
-  // oxlint-disable-next-line eslint/max-params -- one decorator per query input
   async attention(
     @AuthRawUser() _user: User,
     @Parameter("from", "query") from?: string,

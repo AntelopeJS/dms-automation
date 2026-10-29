@@ -7,6 +7,7 @@ import {
   validateGraph,
 } from "../runtime/validate";
 import type { GraphNode, GroupPort, ProcedureGraph } from "../types/graph";
+import { isObject } from "../types/guards";
 
 /**
  * Shared Zod schemas for ProcedureGraph and its constituents. Imported by
@@ -51,21 +52,22 @@ function groupDepthOf(value: unknown, max: number): number {
   const pending: { graph: unknown; depth: number }[] = [
     { graph: value, depth: 0 },
   ];
-  while (pending.length > 0) {
-    const { graph, depth } = pending.pop() as (typeof pending)[number];
+  for (let item = pending.pop(); item; item = pending.pop()) {
+    const { graph, depth } = item;
     deepest = Math.max(deepest, depth);
     if (deepest > max) return deepest;
-    const nodes = (graph as { nodes?: unknown } | null)?.nodes;
+    const nodes = isObject(graph) && "nodes" in graph ? graph.nodes : undefined;
     if (!Array.isArray(nodes)) continue;
     for (const node of nodes) {
-      const subgraph = (node as { subgraph?: unknown } | null)?.subgraph;
+      const subgraph =
+        isObject(node) && "subgraph" in node ? node.subgraph : undefined;
       if (subgraph) pending.push({ graph: subgraph, depth: depth + 1 });
     }
   }
   return deepest;
 }
 
-const graphShapeSchema: z.ZodType<ProcedureGraph> = z.lazy(() =>
+const graphBodySchema: z.ZodType<ProcedureGraph> = z.lazy(() =>
   z.object({
     nodes: z.array(graphNodeSchema),
     triggerEdges: z.array(triggerEdgeSchema),
@@ -82,7 +84,7 @@ export const procedureGraphSchema: z.ZodType<
   .refine((graph) => groupDepthOf(graph, MAX_GROUP_DEPTH) <= MAX_GROUP_DEPTH, {
     message: `groups are nested more than ${MAX_GROUP_DEPTH} levels deep`,
   })
-  .pipe(graphShapeSchema);
+  .pipe(graphBodySchema);
 
 /**
  * group-specific fields — accepted but only meaningful when kind === "group"
@@ -99,7 +101,7 @@ const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
       position: z.object({ x: z.number(), y: z.number() }),
       templateId: z.string().optional(),
       ports: z.array(z.lazy(() => groupPortSchema)).optional(),
-      subgraph: graphShapeSchema.optional(),
+      subgraph: graphBodySchema.optional(),
     })
     .passthrough(),
 ) as z.ZodType<GraphNode>;

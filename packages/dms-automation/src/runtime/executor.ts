@@ -1,4 +1,5 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
+import { isObject } from "../types/guards";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
 /**
@@ -113,16 +114,19 @@ function appendEntry(
   runCtx.entries.push(entry);
 }
 
-function describeValue(v: unknown): { type: string; value: unknown } {
+interface DescribedValue {
+  type: string;
+  value: unknown;
+}
+
+function describeValue(v: unknown): DescribedValue {
   if (v === null) return { type: "null", value: null };
   if (Array.isArray(v)) return { type: "array", value: v };
   return { type: typeof v, value: v };
 }
 
-function describeRecord(
-  obj: Record<string, unknown>,
-): Record<string, { type: string; value: unknown }> {
-  const out: Record<string, { type: string; value: unknown }> = {};
+function describeRecord(obj: Record<string, unknown>) {
+  const out: Record<string, DescribedValue> = {};
   for (const [k, v] of Object.entries(obj)) out[k] = describeValue(v);
   return out;
 }
@@ -356,13 +360,13 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
  * cause is usually upstream (a division by zero, a field not found), not in
  * the node that fails on the empty value.
  */
-function withEmptySources(
-  err: unknown,
+function withEmptySources<E>(
+  err: E,
   node: GraphNode,
   inputs: Record<string, unknown>,
   graph: ProcedureGraph,
   nodeById: Map<string, GraphNode>,
-): unknown {
+): E | Error {
   if (!(err instanceof Error)) return err;
   const sources = graph.dataEdges
     .filter((e) => e.to.node === node.id)
@@ -409,7 +413,7 @@ function inputDefaults(node: GraphNode): Record<string, unknown> {
  * Only the log is masked; the node ran with the real values.
  */
 function redacted<T>(values: T, schema: JsonSchema | undefined): T {
-  if (!values || typeof values !== "object" || Array.isArray(values)) {
+  if (!isObject(values) || Array.isArray(values)) {
     return values;
   }
   const properties = (schema?.properties ?? {}) as Record<string, JsonSchema>;

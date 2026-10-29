@@ -31,7 +31,11 @@ import {
 import { subscriptions } from "../runtime/subscriptions";
 import { findTemplateRefCycle } from "../runtime/validateTemplate";
 import { DATABASE_NAME } from "../types/constants";
-import type { GroupPort, ProcedureGraph } from "../types/graph";
+import {
+  type GroupPort,
+  parseGraph,
+  type ProcedureGraph,
+} from "../types/graph";
 import type { Paginated } from "../types/pagination";
 import {
   groupPortSchema,
@@ -39,6 +43,7 @@ import {
   procedureGraphSchema,
 } from "./graphSchema";
 import { pageParams } from "./requests";
+import type { DataValue } from "../types/dataValue";
 
 /** An Iconify name, `i-<set>-<icon>`; empty keeps the default icon. */
 const ICON_PATTERN = /^i-[a-z0-9]+-[a-z0-9-]+$/;
@@ -82,7 +87,7 @@ interface ParsedTemplateBody {
   subgraph: ProcedureGraph;
 }
 
-function parseTemplateBody(body: unknown): ParsedTemplateBody {
+function parseTemplateBody(body: DataValue): ParsedTemplateBody {
   return parseAndValidate(templateBodySchema, body, (d) => d.subgraph);
 }
 
@@ -122,7 +127,7 @@ async function computeUsageCounts(
   const graphs: ProcedureGraph[] = templates.map((t) => t.subgraph);
   for (const p of await procedureModel.getAll()) {
     try {
-      graphs.push(JSON.parse(p.graph) as ProcedureGraph);
+      graphs.push(parseGraph(p.graph));
     } catch {
       continue;
     }
@@ -254,7 +259,7 @@ export class TemplatesController extends Controller(
   @Post("")
   async create(
     @AuthUserWithPermission(BuilderPageController) _user: User,
-    @JSONBody() body: unknown,
+    @JSONBody() body: DataValue,
   ): Promise<AutomationTemplateRow> {
     const data = parseTemplateBody(body);
     await assertNameFree(data.name);
@@ -290,7 +295,7 @@ export class TemplatesController extends Controller(
   async update(
     @AuthUserWithPermission(BuilderPageController) _user: User,
     @Parameter("id", "param") id: string,
-    @JSONBody() body: unknown,
+    @JSONBody() body: DataValue,
   ): Promise<AutomationTemplateRow> {
     const data = parseTemplateBody(body);
     const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);

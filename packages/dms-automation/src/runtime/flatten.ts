@@ -1,10 +1,11 @@
-import type {
-  DataEdge,
-  GroupNode,
-  ProcedureGraph,
-  TriggerEdge,
+import {
+  type DataEdge,
+  type GroupNode,
+  isGroupNode,
+  type ProcedureGraph,
+  type TriggerEdge,
+  triggerEdgeEnd,
 } from "../types/graph";
-import { triggerEdgeEnd } from "../types/graph";
 import { resolveSubgraph, type TemplateCache } from "./resolveSubgraph";
 
 /**
@@ -77,17 +78,11 @@ function flattenInner(
   const expansions = new Map<string, Expansion>();
 
   for (const node of graph.nodes) {
-    if (node.kind !== "group") {
+    if (!isGroupNode(node)) {
       result.nodes.push(node);
       continue;
     }
-    expandGroupNode(
-      node as GroupNode,
-      templateCache,
-      depth,
-      result,
-      expansions,
-    );
+    expandGroupNode(node, templateCache, depth, result, expansions);
   }
 
   for (const e of graph.triggerEdges) {
