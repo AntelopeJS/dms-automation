@@ -7,11 +7,5 @@
     "anti-slop/no-unsafe-dictionary-type": 50,
     "anti-slop/require-safety-comment-for-type-assertion": 29
   },
-  "oversizeFiles": {
-    "packages/dms-automation/frontend-vue/app/components/Editor.vue": 138211,
-    "packages/dms-automation/frontend-vue/app/components/Editor/GraphCanvas.vue": 59759,
-    "packages/dms-automation/frontend-vue/app/components/Editor/NodeInspector.vue": 24602,
-    "packages/dms-automation/frontend-vue/app/components/Templates.vue": 20540,
-    "packages/dms-automation/src/runtime/subscriptions.ts": 25708
-  }
+  "oversizeFiles": {}
 }

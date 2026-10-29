@@ -1,8 +1,23 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { TraceStep } from '../../composables/useAutomationRuns'
-import { describeDateTime, describeDuration, prettyJson } from '../../utils/describe'
+import { describeDateTime } from '../../utils/describe'
 import JsonField from './JsonField.vue'
+import NodeInspectorDocs from '../../build/components/editor/NodeInspectorDocs.vue'
+import NodeInspectorRun from '../../build/components/editor/NodeInspectorRun.vue'
+import {
+	arrayToText,
+	asBool,
+	asNumber,
+	asString,
+	dataNodeSchema,
+	isBoolish,
+	nameInWords,
+	isNumberish,
+	isStringish,
+	portsSchema,
+	textToArray,
+} from '../../build/utils/inspectorFields'
 import type { NodeKindEntry } from '../../composables/useAutomationNodeKinds'
 import type {
 	ActionType,
@@ -114,10 +129,6 @@ const typeDescription = computed(() => {
 
 const kindUi = computed(() => props.nodeKinds.find((k) => k.kind === props.node?.kind)?.meta.ui)
 
-function portsSchema(ports: Array<{ name: string; type?: string }>): JsonSchema {
-	return { properties: Object.fromEntries(ports.map((p) => [p.name, p.type ? { type: p.type } : {}])) }
-}
-
 // What the block reads: its type's fields, else its kind's data inputs and
 // settings.
 const inputSchema = computed<JsonSchema | null>(() => {
@@ -155,12 +166,6 @@ const issueText = computed(() => {
 	const prop = typeof field === 'string' ? schema.value?.properties?.[field] : undefined
 	return t(key, prop ? { ...issue.params, label: fieldLabel(String(field), prop) } : (issue.params ?? {}))
 })
-
-function unwrap(described: unknown): unknown {
-	if (!described || typeof described !== 'object') return described
-	if ('value' in described && 'type' in described) return (described as { value: unknown }).value
-	return Object.fromEntries(Object.entries(described as Record<string, unknown>).map(([k, v]) => [k, unwrap(v)]))
-}
 
 // Sentinel nodes (the group's input/output handles) are auto-managed and
 // never user-deletable, mirroring the canvas keyboard-delete guard.
@@ -228,18 +233,7 @@ const schema = computed<JsonSchema | null>(() => {
 	if (n.kind === 'data') {
 		const t = dataNodeType.value
 		if (!t) return null
-		if (!t.configSchema) return t.inputSchema ?? null
-		return {
-			type: 'object',
-			properties: {
-				...(t.inputSchema?.properties ?? {}),
-				...(t.configSchema.properties ?? {}),
-			},
-			required: [
-				...(t.inputSchema?.required ?? []),
-				...(t.configSchema.required ?? []),
-			],
-		}
+		return dataNodeSchema(t)
 	}
 	return (
 		(props.nodeKinds.find((k) => k.kind === n.kind)?.meta.ui?.configSchema as
@@ -285,12 +279,7 @@ function fieldLabel(name: string, prop: JsonSchemaProperty): string {
 	const key = `dms_automation.editor.inspector.fields.${name}`
 	if (te(key)) return t(key)
 	if (prop.title) return prop.title
-	const words = name
-		.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-		.replace(/[_-]+/g, ' ')
-		.toLowerCase()
-		.replace(/\b(id|url)(s?)\b/g, (_, word: string, plural: string) => word.toUpperCase() + plural)
-	return words.charAt(0).toUpperCase() + words.slice(1)
+	return nameInWords(name)
 }
 
 // Under a schedule: when it fires next, in the server's time zone. The
@@ -337,58 +326,6 @@ function emitUpdated(field: string, value: unknown) {
 
 function getValue(field: string): unknown {
 	return props.node?.config?.[field]
-}
-
-function asString(v: unknown): string {
-	if (v === undefined || v === null) return ''
-	if (typeof v === 'string') return v
-	return String(v)
-}
-
-function asNumber(v: unknown): number | undefined {
-	if (v === undefined || v === null || v === '') return undefined
-	const n = Number(v)
-	return Number.isNaN(n) ? undefined : n
-}
-
-function asBool(v: unknown): boolean {
-	return !!v
-}
-
-// Returns true if `prop.type` is `"string"` OR an array of scalar types that
-// includes `"string"`. Used to render a plain string input instead of a JSON
-// textarea for multi-type fields like compare-node ports. A type that also
-// takes an object or an array (an HTTP body) keeps the JSON editor, which
-// still accepts plain text.
-function isStringish(prop: JsonSchemaProperty): boolean {
-	const t = prop.type
-	if (t === 'string') return true
-	if (Array.isArray(t)) return t.includes('string') && !t.includes('object') && !t.includes('array')
-	return false
-}
-
-function isNumberish(prop: JsonSchemaProperty): boolean {
-	const t = prop.type
-	if (t === 'number' || t === 'integer') return true
-	if (Array.isArray(t) && (t.includes('number') || t.includes('integer')) && !t.includes('string')) return true
-	return false
-}
-
-function isBoolish(prop: JsonSchemaProperty): boolean {
-	const t = prop.type
-	if (t === 'boolean') return true
-	if (Array.isArray(t) && t.includes('boolean') && !t.includes('string') && !t.includes('number')) return true
-	return false
-}
-
-function arrayToText(v: unknown): string {
-	if (Array.isArray(v)) return v.map((x) => String(x)).join('\n')
-	if (typeof v === 'string') return v
-	return ''
-}
-
-function textToArray(s: string): string[] {
-	return s.split('\n').map((x) => x.trim()).filter((x) => x.length > 0)
 }
 
 
@@ -444,49 +381,20 @@ function onUnwire(field: string) {
 				{{ issueText }}
 			</div>
 
-			<div v-if="tab === 'run' && runStep" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-				<div class="flex items-center justify-between gap-2">
-					<DmsStatusPill
-						:tone="runStep.status === 'failed' ? 'error' : 'success'"
-						:label="runStep.status === 'failed' ? $t('dms_automation.runs.status.failed') : $t('dms_automation.runs.status.ok')"
-						size="sm"
-					/>
-					<span class="font-mono text-xs text-muted">{{ describeDuration(runStep.durationMs) }}</span>
-				</div>
-				<p v-if="runLabel" class="text-xs text-muted">{{ runLabel }}</p>
-				<div class="flex flex-col gap-1">
-					<span class="font-mono text-[10.5px] text-dimmed uppercase">{{ $t('dms_automation.trace.input') }}</span>
-					<pre class="max-h-56 overflow-auto rounded-md bg-elevated p-2 font-mono text-xs break-all whitespace-pre-wrap text-toned">{{ prettyJson(unwrap(runStep.inputs)) || '—' }}</pre>
-				</div>
-				<div class="flex flex-col gap-1">
-					<span class="font-mono text-[10.5px] text-dimmed uppercase">
-						{{ runStep.status === 'failed' ? $t('dms_automation.trace.error') : $t('dms_automation.trace.output') }}
-					</span>
-					<pre
-						class="max-h-56 overflow-auto rounded-md bg-elevated p-2 font-mono text-xs break-all whitespace-pre-wrap"
-						:class="runStep.status === 'failed' ? 'text-error' : 'text-toned'"
-					>{{ runStep.status === 'failed' ? runStep.error : prettyJson(unwrap(runStep.output)) || '—' }}</pre>
-				</div>
-				<UButton v-if="runTraceUrl" size="xs" variant="ghost" color="neutral" trailing-icon="i-ph-arrow-up-right" :to="runTraceUrl" class="self-start">
-					{{ $t('dms_automation.trace.openFull') }}
-				</UButton>
-			</div>
+			<NodeInspectorRun
+				v-if="tab === 'run' && runStep"
+				:run-step="runStep"
+				:run-label="runLabel"
+				:run-trace-url="runTraceUrl"
+			/>
 
-			<div v-else-if="tab === 'docs'" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-				<p class="text-sm text-toned">{{ typeDescription || $t('dms_automation.editor.inspector.noDocs') }}</p>
-				<div class="flex flex-col gap-1">
-					<span class="font-mono text-[10.5px] text-dimmed uppercase">{{ $t('dms_automation.library.inputs') }}</span>
-					<DmsAutomationSchemaTable :schema="inputSchema" />
-				</div>
-				<div v-if="branches.length" class="flex flex-col gap-1">
-					<span class="font-mono text-[10.5px] text-dimmed uppercase">{{ $t('dms_automation.editor.inspector.branches') }}</span>
-					<p class="font-mono text-xs text-toned">{{ branches.join(' · ') }}</p>
-				</div>
-				<div class="flex flex-col gap-1">
-					<span class="font-mono text-[10.5px] text-dimmed uppercase">{{ $t('dms_automation.library.outputs') }}</span>
-					<DmsAutomationSchemaTable :schema="outputSchema" />
-				</div>
-			</div>
+			<NodeInspectorDocs
+				v-else-if="tab === 'docs'"
+				:description="typeDescription"
+				:input-schema="inputSchema"
+				:branches="branches"
+				:output-schema="outputSchema"
+			/>
 
 		<div v-else class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
 			<UButton
