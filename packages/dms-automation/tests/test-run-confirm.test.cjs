@@ -11,6 +11,7 @@ const {
 const { builtinActions, builtinTriggers } = require("../dist/runtime/builtins");
 const { registry } = require("../dist/runtime/registry.js");
 const { ProceduresController } = require("../dist/routes/procedures.js");
+const { isString } = require("../dist/types/guards.js");
 
 for (const t of builtinTriggers) registry.addTrigger(t.id, t);
 for (const a of builtinActions) registry.addAction(a.id, a);
@@ -79,8 +80,7 @@ test("a test with real effects is refused until they are confirmed", async () =>
     controller.test(undefined, "p1", { graph: draft, payload: {} }),
     (err) => {
       assert.equal(err.status, 409);
-      const body =
-        typeof err.body === "string" ? JSON.parse(err.body) : err.body;
+      const body = isString(err.body) ? JSON.parse(err.body) : err.body;
       assert.equal(body.realEffects[0].nodeId, "send");
       return true;
     },

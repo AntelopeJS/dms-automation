@@ -17,6 +17,7 @@ import {
 import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
 import { parseBody } from "./requests";
+import type { DataValue } from "../types/dataValue";
 
 /** The body of a type-config PUT endpoint (action-types, trigger-types). */
 const configBodySchema = z.object({ enabled: z.boolean() });
@@ -51,7 +52,7 @@ export async function switchType(
   kind: SwitchableKind,
   type: unknown,
   id: string,
-  body: unknown,
+  body: DataValue,
 ): Promise<{ id: string }> {
   assertRegistered(type, id);
   const { enabled } = parseBody(configBodySchema, body);

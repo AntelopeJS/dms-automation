@@ -13,7 +13,7 @@ import {
 import { ProcedureModel } from "../db/models/procedure.model";
 import type { Procedure } from "../db/tables/procedure.table";
 import { DATABASE_NAME } from "../types/constants";
-import type { ProcedureGraph } from "../types/graph";
+import { parseGraph, type ProcedureGraph } from "../types/graph";
 import { MANUAL_TRIGGER_ID } from "./builtins/triggers/manual";
 import {
   type ArmedWebhook,
@@ -38,7 +38,9 @@ import {
 } from "./templateUsages";
 import {
   type Armed,
+  configHashOf,
   handles,
+  key,
   liveMeta,
   release,
   TRIGGER_OP_TIMEOUT_MS,
@@ -46,6 +48,11 @@ import {
 } from "./triggerHandles";
 import { isTriggerTypeDisabled, refreshTypeSwitches } from "./typeSwitches";
 import { withTimeout } from "./withTimeout";
+import {
+  type DataRecord,
+  isDataRecord,
+  parseJsonText,
+} from "../types/dataValue";
 
 /**
  * Why a desired trigger failed to arm on this instance, by key. Kept until the
@@ -128,18 +135,6 @@ function requestReconcile(reason: string): void {
   );
 }
 
-function key(procedureId: string, nodeId: string): string {
-  return `${procedureId}#${nodeId}`;
-}
-
-function parseGraph(raw: string): ProcedureGraph {
-  return JSON.parse(raw) as ProcedureGraph;
-}
-
-function configHashOf(config: unknown): string {
-  return JSON.stringify(config ?? {});
-}
-
 interface DesiredTrigger {
   typeId: string;
   configHash: string;
@@ -149,7 +144,7 @@ interface DesiredMeta {
   procedure: Procedure;
   graph: ProcedureGraph;
   nodeId: string;
-  config: unknown;
+  config: DataRecord;
   typeId: string;
 }
 
@@ -233,12 +228,18 @@ async function deactivateStaleHandles(
   return failedDeactivate;
 }
 
+/** The settings a handle was armed with: `configHash` is the JSON `configHashOf` wrote. */
+function configOf(configHash: string): DataRecord {
+  const config = parseJsonText(configHash);
+  return isDataRecord(config) ? config : {};
+}
+
 /** The webhooks armed here, with the procedure each belongs to. */
 function armedWebhooks(): ArmedWebhook[] {
   return [...handles]
     .filter(([, entry]) => entry.typeId === webhookTrigger.id)
     .map(([k, entry]) => ({
-      config: JSON.parse(entry.configHash) as Record<string, unknown>,
+      config: configOf(entry.configHash),
       procedure: liveMeta.get(k)?.procedure.name ?? entry.procedureId,
     }));
 }
@@ -289,11 +290,7 @@ async function activateNewHandles(
       );
       activationErrors.set(
         k,
-        namedRouteConflict(
-          armErrorFrom(err),
-          meta.config as Record<string, unknown>,
-          armedWebhooks(),
-        ),
+        namedRouteConflict(armErrorFrom(err), meta.config, armedWebhooks()),
       );
     }
   }
@@ -357,7 +354,7 @@ async function reconcile(): Promise<void> {
  */
 async function activateTrigger(
   triggerType: TriggerType,
-  config: unknown,
+  config: DataRecord,
   liveKey: string,
   live: Armed,
 ): Promise<unknown> {

@@ -1,5 +1,6 @@
 const Module = require("node:module");
 const path = require("node:path");
+const { isString } = require("../dist/types/guards.js");
 const {
   FRONTEND,
   frontendRequire,
@@ -96,7 +97,7 @@ Object.assign(globalThis, {
   }),
   useTranslation: () => ({ processI18n: same }),
   useComposedText: () => ({
-    processText: (text) => (typeof text === "string" ? text : ""),
+    processText: (text) => (isString(text) ? text : ""),
   }),
   useKeyboardPlatform: () => ({ formatShortcut: same }),
   useToast: () => ({ add: noop }),
@@ -158,7 +159,7 @@ async function serverRender(root, props, options = {}) {
   app._context.components = new Proxy(registry, {
     get: (target, name) =>
       target[name] ??
-      (typeof name === "string" && STUBBED.test(name) ? stub(name) : undefined),
+      (isString(name) && STUBBED.test(name) ? stub(name) : undefined),
   });
   app.config.globalProperties.$t = t;
   app.config.warnHandler = noop;

@@ -1,6 +1,7 @@
 import { isGroupNode, type ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
 import { type StepName, stepName } from "./describe";
+import { isObject } from "../types/guards";
 
 /**
  * How a step of a run ended. `truncated`: its start is in the log but its
@@ -117,9 +118,7 @@ function triggerStep(
 }
 
 function valueOf(entry: LogEntry): StepValue {
-  return entry.value && typeof entry.value === "object"
-    ? (entry.value as StepValue)
-    : {};
+  return isObject(entry.value) ? (entry.value as StepValue) : {};
 }
 
 /**
@@ -133,9 +132,16 @@ function closeStep(step: TraceStep, entry: LogEntry, status: StepStatus) {
   if (value.inputs !== undefined) step.inputs = value.inputs;
   if (value.output !== undefined) step.output = value.output;
   if (status === "failed") step.error = entry.message;
-  const output = (step.output as { value?: { error?: unknown } } | undefined)
-    ?.value;
-  if (status === "ok" && step.name.kind === "retry" && output?.error) {
+  const result = step.output;
+  const output =
+    isObject(result) && "value" in result ? result.value : undefined;
+  if (
+    status === "ok" &&
+    step.name.kind === "retry" &&
+    isObject(output) &&
+    "error" in output &&
+    output.error
+  ) {
     step.branch = "exhausted";
   }
 }
@@ -173,11 +179,11 @@ export function traceOf(
   readSteps(log, steps, name);
   if (log?.truncated) markCut(steps);
   markHandled(steps);
-  const shape = options.outdated ? undefined : graph;
+  const ranGraph = options.outdated ? undefined : graph;
   const trace: RunTrace = {
     steps,
-    skipped: log?.truncated ? [] : skippedSteps(shape, steps, name),
-    edgesTaken: shape ? edgesTaken(shape, steps, log) : [],
+    skipped: log?.truncated ? [] : skippedSteps(ranGraph, steps, name),
+    edgesTaken: ranGraph ? edgesTaken(ranGraph, steps, log) : [],
   };
   if (log?.truncated) trace.truncated = log.truncated;
   return trace;

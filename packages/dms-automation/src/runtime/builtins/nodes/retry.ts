@@ -18,7 +18,7 @@ async function execute(
   ctx: NodeCtx,
 ): Promise<void> {
   const max = Math.max(1, Math.floor(Number(node.config.maxAttempts ?? 3)));
-  let lastError: unknown = null;
+  let lastError: unknown;
   for (let i = 0; i < max; i++) {
     ctx.setOutputs({ attempt: i });
     try {

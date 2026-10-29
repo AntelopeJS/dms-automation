@@ -1,7 +1,6 @@
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import type {
   ProcedureRunOutcome,
-  ProcedureRunStatus,
   RunProcedureOptions,
 } from "@antelopejs/interface-dms-automation";
 import { ProcedureRunModel } from "../db/models/procedure_run.model";
@@ -86,7 +85,7 @@ export async function runResult(runId: string): Promise<ProcedureRunOutcome> {
   const run = await GetModel(ProcedureRunModel, DATABASE_NAME).get(runId);
   const outcome: ProcedureRunOutcome = {
     runId,
-    status: (run?.status ?? "ok") as ProcedureRunStatus,
+    status: run?.status ?? "ok",
   };
   if (run?.errorMessage) outcome.errorMessage = run.errorMessage;
   return outcome;

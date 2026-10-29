@@ -19,6 +19,7 @@ import {
   timeOf,
 } from "./health";
 import { bucketStarts, kpiPayload, runsPerBucket } from "./kpi";
+import { isNumber } from "../types/guards";
 
 /** The last failure, as the overview links to it. */
 interface FailureRef {
@@ -272,6 +273,13 @@ function formatDuration(ms: number | null): string {
 /** Runs the overview's recent runs show; its skeleton draws as many rows. */
 export const RECENT_RUNS = 8;
 
+/** The values a feed line names: how long it took, what failed, which step and procedure. */
+type FeedParams = {
+  duration: string;
+  error: string;
+  step?: string;
+  name?: string;
+};
 /**
  * The overview's recent runs, newest first, each linking to its trace.
  *
@@ -284,7 +292,7 @@ export function recentRunItems(
   return ctx.runs.slice(0, RECENT_RUNS).map((run) => {
     const failed = run.status === "failed";
     const step = failedStepOf(ctx, run);
-    const params: Record<string, string> = {
+    const params: FeedParams = {
       duration: formatDuration(durationOf(run)),
       error: run.errorMessage ?? "",
     };
@@ -489,7 +497,7 @@ export function runsPerDayChart(
   if (!compared) return chart;
   const { previousValue, delta } = kpiPayload("runs", ctx.runs, window);
   if (previousValue !== undefined) chart.previousValue = previousValue;
-  if (typeof delta === "number") chart.delta = delta;
+  if (isNumber(delta)) chart.delta = delta;
   chart.comparisonSeries = [compared];
   return chart;
 }

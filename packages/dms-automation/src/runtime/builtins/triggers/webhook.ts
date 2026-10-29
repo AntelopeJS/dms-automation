@@ -10,6 +10,12 @@ import {
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
 import { TriggerArmError } from "../../armErrors";
 import type { ConfigProblem } from "../../validate";
+import {
+  type DataRecord,
+  type DataValue,
+  parseJsonText,
+} from "../../../types/dataValue";
+import { isString } from "../../../types/guards";
 
 interface WebhookConfig {
   path: string;
@@ -20,7 +26,7 @@ interface WebhookOutput {
   method: string;
   headers: Record<string, string | string[] | undefined>;
   query: Record<string, string | string[]>;
-  body: unknown;
+  body: DataValue;
   params: Record<string, string>;
 }
 
@@ -49,8 +55,8 @@ function isReserved(path: string): boolean {
 }
 
 /** Why a webhook path cannot be served, or undefined when it can. */
-export function webhookPathProblem(path: unknown): ConfigProblem | undefined {
-  const value = typeof path === "string" ? path.trim() : "";
+export function webhookPathProblem(path: DataValue): ConfigProblem | undefined {
+  const value = isString(path) ? path.trim() : "";
   if (!PATH_PATTERN.test(value) || UNSAFE_SEGMENTS.test(value)) {
     return {
       code: "webhookPathInvalid",
@@ -72,13 +78,11 @@ export function webhookPathProblem(path: unknown): ConfigProblem | undefined {
  * The route a webhook config answers on, as two webhooks compare: the method,
  * and the path without its trailing slash.
  */
-export function webhookRouteOf(config: Record<string, unknown> | undefined): {
-  method: string;
-  path: string;
-} {
-  const method =
-    typeof config?.method === "string" ? config.method : DEFAULT_METHOD;
-  const path = typeof config?.path === "string" ? config.path.trim() : "";
+export function webhookRouteOf(config: DataRecord | undefined) {
+  const configuredMethod = config?.method;
+  const configuredPath = config?.path;
+  const method = isString(configuredMethod) ? configuredMethod : DEFAULT_METHOD;
+  const path = isString(configuredPath) ? configuredPath.trim() : "";
   return { method, path: path.length > 1 ? path.replace(/\/+$/, "") : path };
 }
 
@@ -135,7 +139,7 @@ export function webhookRouteConflict(
 
 /** An armed webhook of a procedure: its settings, and whose it is. */
 export interface ArmedWebhook {
-  config: Record<string, unknown>;
+  config: DataRecord;
   procedure: string;
 }
 
@@ -146,7 +150,7 @@ export interface ArmedWebhook {
  */
 export function namedRouteConflict(
   problem: ConfigProblem,
-  config: Record<string, unknown>,
+  config: DataRecord,
   armed: Iterable<ArmedWebhook>,
 ): ConfigProblem {
   if (problem.code !== "webhookRouteTaken") return problem;
@@ -179,12 +183,12 @@ function queryOf(url: URL): Record<string, string | string[]> {
 }
 
 /** The body as JSON, a decoded form, or the raw text. */
-function parseBody(text: string, contentType: string | undefined): unknown {
+function parseBody(text: string, contentType: string | undefined): DataValue {
   if (contentType?.includes("application/x-www-form-urlencoded")) {
     return Object.fromEntries(new URLSearchParams(text));
   }
   try {
-    return JSON.parse(text);
+    return parseJsonText(text);
   } catch {
     return text;
   }
@@ -269,8 +273,7 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
     armedRoutes.add(routeId);
     return { routeId } satisfies WebhookHandle;
   },
-  async deactivate(handle) {
-    const h = handle as WebhookHandle | undefined;
+  async deactivate(h: WebhookHandle | undefined) {
     if (!h?.routeId) return;
     routesProxy.unregister(h.routeId);
     armedRoutes.delete(h.routeId);

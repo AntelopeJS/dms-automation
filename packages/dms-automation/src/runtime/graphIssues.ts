@@ -23,6 +23,9 @@ import {
   graphProblems,
   type ProblemParams,
 } from "./validate";
+import type { SchemaProperty } from "./schemaProperties";
+import { type DataRecord, type DataValue, textOf } from "../types/dataValue";
+import { isNumber, isString } from "../types/guards";
 
 /** How much a problem on the graph matters: an error blocks enabling. */
 type GraphIssueSeverity = "error" | "warning";
@@ -68,7 +71,7 @@ const DISABLED_LOOKUP: Record<string, (id: string) => boolean> = {
 /** Settings a trigger type checks beyond its schema. */
 const CONFIG_CHECKS: Record<
   string,
-  (config: Record<string, unknown>) => ConfigProblem | undefined
+  (config: DataRecord) => ConfigProblem | undefined
 > = {
   [cronTrigger.id]: (config) => cronProblem(config.cron),
   /**
@@ -138,11 +141,10 @@ function settingsSchemaOf(node: GraphNode): JsonSchema | undefined {
   return nodeKinds.metaOf(node.kind)?.ui?.configSchema;
 }
 
-type SchemaProperty = {
-  title?: string;
-  minimum?: number;
-  maximum?: number;
-  enum?: unknown[];
+/** The words a problem names a setting by: its key and its label. */
+type FieldParams = {
+  field: string;
+  label: string;
 };
 
 /**
@@ -153,7 +155,7 @@ type SchemaProperty = {
 function fieldParams(
   field: string,
   property: SchemaProperty | undefined,
-): { field: string; label: string } {
+): FieldParams {
   const title = property?.title;
   if (title && !title.startsWith("$")) return { field, label: title };
   const words = field
@@ -166,15 +168,15 @@ function fieldParams(
 /** A settings problem; `missing` when the setting is only left empty. */
 type SettingProblem = ConfigProblem & { missing?: true };
 
-const isEmpty = (value: unknown) =>
+const isEmpty = (value: DataValue) =>
   value === undefined ||
   value === null ||
-  (typeof value === "string" && value.trim() === "");
+  (isString(value) && value.trim() === "");
 
 /** The required settings of a node left empty and not wired. */
 function missingSettings(
   schema: JsonSchema,
-  config: Record<string, unknown>,
+  config: DataRecord,
   wired: ReadonlySet<string>,
 ): SettingProblem[] {
   const required = Array.isArray(schema.required) ? schema.required : [];
@@ -200,18 +202,18 @@ function missingSettings(
 function invalidSetting(
   field: string,
   property: SchemaProperty,
-  value: unknown,
+  value: DataValue,
 ): ConfigProblem | undefined {
   const { minimum, maximum } = property;
   const named = fieldParams(field, property);
-  if (typeof value === "number" && minimum !== undefined && value < minimum) {
+  if (isNumber(value) && minimum !== undefined && value < minimum) {
     return {
       code: "belowMinimum",
       params: { ...named, minimum },
       message: `${named.label} must be at least ${minimum}`,
     };
   }
-  if (typeof value === "number" && maximum !== undefined && value > maximum) {
+  if (isNumber(value) && maximum !== undefined && value > maximum) {
     return {
       code: "aboveMaximum",
       params: { ...named, maximum },
@@ -221,7 +223,7 @@ function invalidSetting(
   if (property.enum && !property.enum.includes(value)) {
     return {
       code: "notInEnum",
-      params: { ...named, value: String(value) },
+      params: { ...named, value: textOf(value) },
       message: `${named.label} cannot be ${JSON.stringify(value)}`,
     };
   }

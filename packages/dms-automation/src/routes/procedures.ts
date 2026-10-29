@@ -27,7 +27,11 @@ import { subscriptions } from "../runtime/subscriptions";
 import { withFreeWebhookPaths } from "../runtime/webhookRoutes";
 import { withTriggerText } from "../runtime/wording";
 import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
-import type { GraphNode, ProcedureGraph } from "../types/graph";
+import {
+  type GraphNode,
+  parseGraph,
+  type ProcedureGraph,
+} from "../types/graph";
 import { isProductionRun } from "../types/runLog";
 import { deleteDialogOf } from "./deleteConfirm";
 import {
@@ -59,6 +63,7 @@ import {
   parseBody,
   refused,
 } from "./requests";
+import type { DataRecord, DataValue } from "../types/dataValue";
 
 async function loadProcedure(id: string): Promise<Procedure> {
   const procedure = await GetModel(ProcedureModel, DATABASE_NAME).get(id);
@@ -103,10 +108,7 @@ function slugOf(name: string): string {
   return slug || "procedure";
 }
 
-const STARTER_CONFIG: Record<
-  Starter,
-  (name: string) => Record<string, unknown>
-> = {
+const STARTER_CONFIG: Record<Starter, (name: string) => DataRecord> = {
   webhook: (name) => ({ path: `/webhooks/${slugOf(name)}`, method: "POST" }),
   "schedule.cron": () => ({ cron: DEFAULT_SCHEDULE }),
   manual: () => ({}),
@@ -153,7 +155,7 @@ async function insertDraft(
 /** A procedure as the API serves it: its graph parsed. */
 function served(procedure: Procedure) {
   const { graph, ...fields } = procedure;
-  return { ...fields, graph: JSON.parse(graph) as ProcedureGraph };
+  return { ...fields, graph: parseGraph(graph) };
 }
 
 /** The name of a copy, kept within the length a name may have. */
@@ -207,7 +209,7 @@ export class ProceduresController extends Controller(
    * their text, for the canvas and the test dock.
    */
   @Post("/validate")
-  async validate(@AuthRawUser() _user: User, @JSONBody() body: unknown) {
+  async validate(@AuthRawUser() _user: User, @JSONBody() body: DataValue) {
     const { graph, enabled, procedureId, name } = parseBody(
       validateSchema,
       body,
@@ -226,7 +228,7 @@ export class ProceduresController extends Controller(
   @Post("/new")
   async createFromStarter(
     @AuthRawUser() _user: User,
-    @JSONBody() body: unknown,
+    @JSONBody() body: DataValue,
   ) {
     const data = parseBody(newProcedureSchema, body);
     const warning = await nameWarning(data.name);
@@ -245,7 +247,7 @@ export class ProceduresController extends Controller(
    * before reading `field`, and the error would miss the JSON field.
    */
   @Post("/import")
-  async importJson(@AuthRawUser() _user: User, @JSONBody() body: unknown) {
+  async importJson(@AuthRawUser() _user: User, @JSONBody() body: DataValue) {
     const { json } = parseBody(importSchema, body);
     let raw: unknown;
     try {
@@ -323,7 +325,7 @@ export class ProceduresController extends Controller(
   async update(
     @AuthRawUser() user: User,
     @Parameter("id", "param") id: string,
-    @JSONBody() body: unknown,
+    @JSONBody() body: DataValue,
   ) {
     const data = parseBody(procedureUpdateSchema, body);
     const existing = await loadProcedure(id);
@@ -378,7 +380,7 @@ export class ProceduresController extends Controller(
   async setEnabled(
     @AuthRawUser() user: User,
     @Parameter("id", "param") id: string,
-    @JSONBody() body: unknown,
+    @JSONBody() body: DataValue,
   ) {
     const { enabled, restorePause } = parseBody(enabledSchema, body);
     const procedure = await loadProcedure(id);
@@ -464,7 +466,7 @@ export class ProceduresController extends Controller(
   async runNow(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
-    @JSONBody() body: unknown,
+    @JSONBody() body: DataValue,
   ) {
     const data = parseBody(runNowSchema, body) ?? {};
     const runId = await runNow(id, graphOf(await loadProcedure(id)), data);
@@ -481,7 +483,7 @@ export class ProceduresController extends Controller(
   async test(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
-    @JSONBody() body: unknown,
+    @JSONBody() body: DataValue,
   ) {
     const data = parseBody(testSchema, body);
     const issues = issuesOf(data.graph, false);
@@ -512,7 +514,7 @@ export class ProceduresController extends Controller(
   async testEffects(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
-    @JSONBody() body: unknown,
+    @JSONBody() body: DataValue,
   ) {
     const data = parseBody(testEffectsSchema, body);
     await loadProcedure(id);

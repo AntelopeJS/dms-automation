@@ -14,7 +14,7 @@ const KPI_METRICS = ["runs", "success-rate", "failed", "duration-p95"] as const;
 export type KpiMetric = (typeof KPI_METRICS)[number];
 
 export function isKpiMetric(value: string): value is KpiMetric {
-  return (KPI_METRICS as readonly string[]).includes(value);
+  return KPI_METRICS.some((metric) => metric === value);
 }
 
 /**

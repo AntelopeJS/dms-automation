@@ -33,6 +33,7 @@ import type { ProcedureGraph } from "../types/graph";
 import type { RunLog } from "../types/runLog";
 import { refused } from "./requests";
 import { kpiAnswer } from "./stats";
+import { isObject } from "../types/guards";
 
 /** Time on each side of a run its usual duration is read over. */
 const USUAL_DURATION_WINDOW_MS = 7 * MS_PER_DAY;
@@ -48,6 +49,12 @@ interface RunRef {
   stepDurations: Record<string, number | null>;
 }
 
+/** The graph a run is read against, and whether it is not the one that ran. */
+interface RunGraph {
+  graph?: ProcedureGraph;
+  outdated: boolean;
+}
+
 /**
  * The graph a run executed, as far as it is known: the draft a test run
  * kept, else the procedure's graph, `outdated` when that one may not be the
@@ -57,7 +64,7 @@ interface RunRef {
 function graphOf(
   run: ProcedureRun,
   procedure: Procedure | undefined,
-): { graph?: ProcedureGraph; outdated: boolean } {
+): RunGraph {
   const snapshot = run.graphSnapshot
     ? parseGraphSafe(run.graphSnapshot)
     : undefined;
@@ -187,10 +194,11 @@ function shown(run: ProcedureRun): ProcedureRun {
  * value (see REDACTED).
  */
 function redactedNamesOf(payload: unknown): string[] {
-  if (!payload || typeof payload !== "object") return [];
-  const { headers, query } = payload as { headers?: unknown; query?: unknown };
+  if (!isObject(payload)) return [];
+  const headers = "headers" in payload ? payload.headers : undefined;
+  const query = "query" in payload ? payload.query : undefined;
   return [headers, query].flatMap((group) =>
-    group && typeof group === "object"
+    isObject(group)
       ? Object.entries(group)
           .filter(([, value]) => value === REDACTED)
           .map(([name]) => name)

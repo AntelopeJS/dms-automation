@@ -12,7 +12,7 @@ interface FieldSpec {
   names?: Record<string, number>;
 }
 
-const MONTH_NAMES: Record<string, number> = {
+const MONTH_NAMES = {
   jan: 1,
   feb: 2,
   mar: 3,
@@ -27,7 +27,7 @@ const MONTH_NAMES: Record<string, number> = {
   dec: 12,
 };
 
-const DAY_NAMES: Record<string, number> = {
+const DAY_NAMES = {
   sun: 0,
   mon: 1,
   tue: 2,
@@ -114,7 +114,10 @@ function parseCron(expression: string): ParsedCron {
   const seconds = withSeconds ? parseField(parts[0]!, SECONDS) : new Set([0]);
   const [minute, hour, dayOfMonth, month, dayOfWeek] = fields.map((f, i) =>
     parseField(f, FIELDS[i]!),
-  ) as [Set<number>, Set<number>, Set<number>, Set<number>, Set<number>];
+  );
+  if (!minute || !hour || !dayOfMonth || !month || !dayOfWeek) {
+    throw new Error(`invalid cron expression "${expression}"`);
+  }
   if (dayOfWeek.has(SUNDAY_ALIAS)) dayOfWeek.add(0);
   return {
     seconds: [...seconds].sort((a, b) => a - b),

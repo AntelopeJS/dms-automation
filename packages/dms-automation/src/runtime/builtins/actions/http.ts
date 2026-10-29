@@ -1,6 +1,8 @@
 import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 import type { ActionType } from "@antelopejs/interface-dms-automation";
+import { type DataValue, parseJsonText } from "../../../types/dataValue";
+import { isObject, isString } from "../../../types/guards";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
@@ -108,7 +110,7 @@ function isPrivateAddress(address: string, family: number): boolean {
 }
 
 function checkUrl(raw: unknown): URL {
-  if (typeof raw !== "string" || raw.trim() === "") {
+  if (!isString(raw) || raw.trim() === "") {
     throw new Error("The URL is empty.");
   }
   let url: URL;
@@ -127,7 +129,7 @@ function checkUrl(raw: unknown): URL {
 
 function toHeaders(raw: unknown): Headers {
   if (raw !== undefined && raw !== null) {
-    if (typeof raw !== "object" || Array.isArray(raw)) {
+    if (!isObject(raw) || Array.isArray(raw)) {
       throw new Error(
         'Headers must be an object of names and values, like {"Accept": "application/json"}.',
       );
@@ -235,8 +237,8 @@ function failureReason(err: unknown, url: URL, timeoutMs: number): string {
   }
   const cause =
     err instanceof Error && err.cause instanceof Error ? err.cause : err;
-  const code = (cause as { code?: unknown } | null)?.code;
-  if (typeof code === "string") {
+  const code = isObject(cause) && "code" in cause ? cause.code : undefined;
+  if (isString(code)) {
     const reason = networkReason(code, url);
     if (reason) return `${reason} (${code}).`;
   }
@@ -301,10 +303,10 @@ function headersOf(res: Response): Record<string, string> {
   return out;
 }
 
-function parseJson(res: Response, body: string): unknown {
+function parseJson(res: Response, body: string): DataValue {
   if (!/\bjson\b/i.test(res.headers.get("content-type") ?? "")) return null;
   try {
-    return JSON.parse(body);
+    return parseJsonText(body);
   } catch {
     return null;
   }
@@ -383,10 +385,14 @@ export const httpAction: ActionType<HttpInput, HttpOutput> = {
     if (input.body !== undefined && BODYLESS_METHODS.has(method)) {
       ctx.log("warn", `${method} request: body ignored`);
     } else if (input.body !== undefined) {
-      const isText = typeof input.body === "string";
-      init.body = isText ? (input.body as string) : JSON.stringify(input.body);
-      if (!isText && !headers.has("content-type")) {
-        headers.set("content-type", "application/json");
+      const { body } = input;
+      if (isString(body)) {
+        init.body = body;
+      } else {
+        init.body = JSON.stringify(body);
+        if (!headers.has("content-type")) {
+          headers.set("content-type", "application/json");
+        }
       }
     }
 

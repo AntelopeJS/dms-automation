@@ -8,7 +8,11 @@ import type { Procedure } from "../db/tables/procedure.table";
 import type { ProcedureRun } from "../db/tables/procedure_run.table";
 import { RUNS_TOPIC, notifyTopic } from "../realtime";
 import { DATABASE_NAME } from "../types/constants";
-import type { GraphNode, ProcedureGraph } from "../types/graph";
+import {
+  type GraphNode,
+  parseGraph,
+  type ProcedureGraph,
+} from "../types/graph";
 import type { LogEntry, RunKind } from "../types/runLog";
 import {
   boundRunLog,
@@ -188,7 +192,7 @@ export async function loadProcedure(procedureId: string): Promise<Procedure> {
 
 export function parseStoredGraph(procedure: Procedure): ProcedureGraph {
   try {
-    return JSON.parse(procedure.graph) as ProcedureGraph;
+    return parseGraph(procedure.graph);
   } catch {
     throw new HTTPResult(400, {
       error: `procedure "${procedure._id}" has an invalid graph`,
