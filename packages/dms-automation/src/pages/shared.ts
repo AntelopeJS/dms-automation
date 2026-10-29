@@ -43,7 +43,7 @@ const PERIOD_PRESETS: PeriodPreset[] = [
 export function isPeriodPreset(
   value: string | undefined,
 ): value is PeriodPreset {
-  return (PERIOD_PRESETS as readonly (string | undefined)[]).includes(value);
+  return PERIOD_PRESETS.some((preset) => preset === value);
 }
 
 /**

@@ -23,7 +23,6 @@ import {
 import {
   byProcedure,
   type HealthProcedure,
-  type HealthRun,
   type ProcedureHealth,
   type ProcedureState,
   procedureHealth,
@@ -143,7 +142,7 @@ export function healthByProcedure(
   ctx: StatsContext,
   since: Date = new Date(ctx.now.getTime() - STATE_WINDOW_MS),
 ): Map<string, ProcedureHealth> {
-  const runsOf = byProcedure(ctx.runs as HealthRun[]);
+  const runsOf = byProcedure(ctx.runs);
   const out = new Map<string, ProcedureHealth>();
   for (const facts of ctx.procedures) {
     const { procedure, graph } = facts;
@@ -343,7 +342,7 @@ function summaryRow(
   );
   const failedStep =
     health.state === "failing" && health.lastRun?.status === "failed"
-      ? (failedStepOf(ctx, health.lastRun as StatsRun) ?? null)
+      ? (failedStepOf(ctx, health.lastRun) ?? null)
       : null;
   return {
     procedureId: procedure._id,

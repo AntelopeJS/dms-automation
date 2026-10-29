@@ -8,10 +8,11 @@ import {
   walkPlacedNodes,
 } from "../../runtime/resolveSubgraph";
 import {
-  type GroupNode,
   type GroupPort,
-  isGroupNode,
+  isTemplateInstance,
+  parseGraph,
   type ProcedureGraph,
+  type TemplateInstanceNode,
 } from "../../types/graph";
 import type { PageParams, Paginated } from "../../types/pagination";
 import {
@@ -54,7 +55,7 @@ export interface TemplateNesting {
 
 /** A template instance of a stored graph, and the local groups around it. */
 export interface PlacedInstance {
-  node: GroupNode & { templateId: string };
+  node: TemplateInstanceNode;
   groupPath: string[];
 }
 
@@ -70,9 +71,9 @@ export function* templateInstancesOf(
   graph: ProcedureGraph,
 ): Iterable<PlacedInstance> {
   for (const { node, groups } of walkPlacedNodes(graph, NO_TEMPLATES)) {
-    if (!isGroupNode(node) || !node.templateId) continue;
+    if (!isTemplateInstance(node)) continue;
     yield {
-      node: node as PlacedInstance["node"],
+      node,
       groupPath: groups.map((g) => g.id),
     };
   }
@@ -110,7 +111,7 @@ function parseRow(row: AutomationTemplate): AutomationTemplateRow {
   }
   try {
     subgraph = row.subgraph
-      ? (JSON.parse(row.subgraph) as ProcedureGraph)
+      ? parseGraph(row.subgraph)
       : { nodes: [], triggerEdges: [], dataEdges: [] };
   } catch {
     subgraph = { nodes: [], triggerEdges: [], dataEdges: [] };
@@ -184,19 +185,20 @@ export class AutomationTemplateModel extends BasicDataModel(
     id: string,
     patch: UpdateTemplatePatch,
   ): Promise<AutomationTemplateRow> {
-    const updateObj: Record<string, unknown> = {
+    const updateObj = {
       updated_at: new Date(),
+      ...(patch.name !== undefined && { name: patch.name }),
+      ...(patch.description !== undefined && {
+        description: patch.description,
+      }),
+      ...(patch.icon !== undefined && { icon: patch.icon }),
+      ...(patch.ports !== undefined && { ports: JSON.stringify(patch.ports) }),
+      ...(patch.subgraph !== undefined && {
+        subgraph: JSON.stringify(patch.subgraph),
+      }),
     };
-    if (patch.name !== undefined) updateObj.name = patch.name;
-    if (patch.description !== undefined)
-      updateObj.description = patch.description;
-    if (patch.icon !== undefined) updateObj.icon = patch.icon;
-    if (patch.ports !== undefined)
-      updateObj.ports = JSON.stringify(patch.ports);
-    if (patch.subgraph !== undefined)
-      updateObj.subgraph = JSON.stringify(patch.subgraph);
 
-    await this.update(id, updateObj as never);
+    await this.update(id, updateObj);
     const updated = await this.get(id);
     if (!updated) {
       throw new Error(`automation_template ${id} not found after update`);
@@ -219,7 +221,7 @@ export class AutomationTemplateModel extends BasicDataModel(
     for (const p of await procedureModel.getAll()) {
       let graph: ProcedureGraph;
       try {
-        graph = JSON.parse(p.graph) as ProcedureGraph;
+        graph = parseGraph(p.graph);
       } catch {
         continue;
       }

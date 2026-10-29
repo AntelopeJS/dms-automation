@@ -96,10 +96,9 @@ export function forkTemplateInstances(
   let forked = 0;
   for (const node of walkNodesRecursive(graph)) {
     if (!isGroupNode(node) || node.templateId !== template._id) continue;
-    const group = node as GroupNode & { label?: string };
-    delete group.templateId;
-    group.subgraph = structuredClone(template.subgraph);
-    if (!group.label?.trim()) group.label = template.name;
+    delete node.templateId;
+    node.subgraph = structuredClone(template.subgraph);
+    if (!node.label?.trim()) node.label = template.name;
     forked++;
   }
   return forked;

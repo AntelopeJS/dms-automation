@@ -3,6 +3,7 @@ import type { TriggerType } from "@antelopejs/interface-dms-automation";
 import type { Procedure } from "../db/tables/procedure.table";
 import type { ProcedureGraph } from "../types/graph";
 import { withTimeout } from "./withTimeout";
+import type { DataRecord } from "../types/dataValue";
 
 /**
  * Whether a handle may still start runs: cleared once it is let go.
@@ -94,4 +95,14 @@ export function release(k: string, entry: HandleEntry): void {
   if (handles.get(k) !== entry) return;
   handles.delete(k);
   liveMeta.delete(k);
+}
+
+/** The key a trigger handle is tracked under: its procedure and its node. */
+export function key(procedureId: string, nodeId: string): string {
+  return `${procedureId}#${nodeId}`;
+}
+
+/** A trigger's settings as the reconcile compares them. */
+export function configHashOf(config: DataRecord | undefined): string {
+  return JSON.stringify(config ?? {});
 }

@@ -1,4 +1,8 @@
-import type { GraphNode, ProcedureGraph } from "../types/graph";
+import {
+  type GraphNode,
+  parseGraph,
+  type ProcedureGraph,
+} from "../types/graph";
 
 /**
  * What a node carries for the canvas only: where it sits and how it looks.
@@ -46,7 +50,7 @@ export function changesExecution(
   next: ProcedureGraph,
 ): boolean {
   try {
-    const before = executableGraph(JSON.parse(stored) as ProcedureGraph);
+    const before = executableGraph(parseGraph(stored));
     return JSON.stringify(before) !== JSON.stringify(executableGraph(next));
   } catch {
     return true;

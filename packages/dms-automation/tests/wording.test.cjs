@@ -159,7 +159,7 @@ test("the saved triggers of a procedure come with their text", () => {
     key: `${CRON}.daily`,
     params: { time: `02:00 (${scheduleTimeZone()})` },
   });
-  assert.equal(typeof triggers[0].nextAt, "string");
+  assert.match(triggers[0].nextAt, /\S/);
   assert.equal(triggers[1].text, "PUT /hooks/in");
   assert.equal(triggers[1].nextAt, null);
   assert.equal(triggers[2].text, triggers[2].typeName);

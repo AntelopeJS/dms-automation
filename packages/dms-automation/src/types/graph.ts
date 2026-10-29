@@ -1,4 +1,5 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
+import type { DataRecord } from "./dataValue";
 
 /**
  * Node kind is a free-form string keyed off the runtime kind registry.
@@ -17,8 +18,10 @@ export interface GraphNode {
   id: string;
   kind: string;
   typeId?: string;
-  config: Record<string, unknown>;
+  config: DataRecord;
   position: { x: number; y: number };
+  /** The name the builder gave the node, when it gave one. */
+  label?: string;
 }
 
 /** One end of a trigger edge. `branch` is absent when the end has none. */
@@ -81,6 +84,13 @@ export function isGroupNode(n: GraphNode): n is GroupNode {
   return n.kind === "group";
 }
 
+/** A group node that places a template: it names the template it is. */
+export type TemplateInstanceNode = GroupNode & { templateId: string };
+
+export function isTemplateInstance(n: GraphNode): n is TemplateInstanceNode {
+  return isGroupNode(n) && !!n.templateId;
+}
+
 /**
  * Depth-first walk of every node in a graph, recursing into any local subgraph
  * attached to a `group` node. Template-instance group nodes (no inline
@@ -96,4 +106,9 @@ export function* walkNodesRecursive(
       yield* walkNodesRecursive(node.subgraph);
     }
   }
+}
+
+/** A graph as `JSON.stringify` stored it in a procedure or template row. */
+export function parseGraph(raw: string): ProcedureGraph {
+  return JSON.parse(raw) as ProcedureGraph;
 }

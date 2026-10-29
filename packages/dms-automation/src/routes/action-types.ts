@@ -15,6 +15,7 @@ import {
   serializeAction,
   switchType,
 } from "./typeConfigShared";
+import type { DataValue } from "../types/dataValue";
 
 @AuthOwnerOnly()
 export class ActionTypesController extends Controller(
@@ -33,7 +34,7 @@ export class ActionTypesController extends Controller(
   async setConfig(
     @AuthUserWithPermission(LibraryPageController) _user: User,
     @Parameter("id", "param") id: string,
-    @JSONBody() body: unknown,
+    @JSONBody() body: DataValue,
   ) {
     return await switchType("action", registry.getAction(id), id, body);
   }

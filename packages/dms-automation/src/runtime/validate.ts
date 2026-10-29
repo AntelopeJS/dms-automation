@@ -391,6 +391,12 @@ function validateGroupPortNames(node: GroupNode, problems: Problems): void {
   }
 }
 
+/** What the sentinels of a group's subgraph came to: how many inputs, which output. */
+interface SentinelCounts {
+  groupInputCount: number;
+  groupOutputId: string | undefined;
+}
+
 /**
  * Sentinel presence: exactly one groupInput and exactly one groupOutput. The
  * counts are returned because the port-wiring check below only runs when both
@@ -400,7 +406,7 @@ function validateGroupSentinels(
   subgraph: ProcedureGraph,
   id: string,
   problems: Problems,
-): { groupInputCount: number; groupOutputId: string | undefined } {
+): SentinelCounts {
   const groupInputs = subgraph.nodes.filter((n) => n.kind === "groupInput");
   const groupOutputs = subgraph.nodes.filter((n) => n.kind === "groupOutput");
   if (groupInputs.length !== 1) {
