@@ -1,6 +1,4 @@
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
 const { test } = require("node:test");
 
 const PAGES = {
@@ -13,15 +11,7 @@ const PAGES = {
 };
 
 const LOCALES = ["en-GB", "fr-FR"].map((locale) =>
-  JSON.parse(
-    fs.readFileSync(
-      path.resolve(
-        __dirname,
-        `../frontend-vue/i18n/locales/dms-automation-${locale}.json`,
-      ),
-      "utf8",
-    ),
-  ),
+  require(`../frontend-vue/i18n/locales/dms-automation-${locale}.json`),
 );
 
 function translated(key) {

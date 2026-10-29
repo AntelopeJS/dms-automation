@@ -1,6 +1,10 @@
 const Module = require("node:module");
 const path = require("node:path");
-const { FRONTEND, frontendRequire, component } = require("./frontend.cjs");
+const {
+  FRONTEND,
+  frontendRequire,
+  component,
+} = require("./helpers/frontend.cjs");
 
 // Server renders of the pages and components, for the render tests: what a
 // render reads from the backend (answered by `respond`) and what it hands

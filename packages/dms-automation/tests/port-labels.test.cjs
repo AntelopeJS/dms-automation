@@ -2,7 +2,11 @@ const assert = require("node:assert/strict");
 const Module = require("node:module");
 const path = require("node:path");
 const { test } = require("node:test");
-const { FRONTEND, frontendRequire, component } = require("./frontend.cjs");
+const {
+  FRONTEND,
+  frontendRequire,
+  component,
+} = require("./helpers/frontend.cjs");
 
 // A node's data ports read as their field's title on the canvas (a `$` key
 // translated, plain text as written), and as the key when no title is
