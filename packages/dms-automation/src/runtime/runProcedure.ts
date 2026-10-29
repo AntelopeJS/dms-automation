@@ -22,9 +22,6 @@ import type { ExecutionResult } from "./executionResult";
 import { run as executorRun } from "./executor";
 import type { TemplateCache } from "./resolveSubgraph";
 
-// Running a procedure and keeping its run: what the triggers, Run now,
-// Re-run and Test run share.
-
 interface RunRecord {
   graph: ProcedureGraph;
   procedureId: string;
@@ -47,6 +44,12 @@ export interface RunOrigin {
 
 const TRIGGERED_RUN: RunOrigin = { kind: "run" };
 
+/**
+ * A step may have copied a credential the trigger received (a header, a
+ * query parameter) into its inputs, output or message: none is stored.
+ *
+ * A test runs a draft: no saved version, and its graph is kept nowhere else.
+ */
 async function writeRun({
   graph,
   procedureId,
@@ -59,8 +62,6 @@ async function writeRun({
   origin,
   procedureVersion,
 }: RunRecord): Promise<string> {
-  // A step may have copied a credential the trigger received (a header, a
-  // query parameter) into its inputs, output or message: none is stored.
   const secrets = secretsOf(triggerPayload);
   const row: Partial<ProcedureRun> = {
     procedureId,
@@ -76,7 +77,6 @@ async function writeRun({
     instanceId,
     stepNames: stepNamesOf(graph),
   };
-  // A test runs a draft: no saved version, and its graph is kept nowhere else.
   if (origin.kind === "test") row.graphSnapshot = JSON.stringify(graph);
   else row.procedureVersion = procedureVersion;
   row.durationMs = endedAt.getTime() - startedAt.getTime();
@@ -128,9 +128,12 @@ async function insertRun(row: Partial<ProcedureRun>): Promise<string> {
   }
 }
 
-/** Run a graph from one of its triggers and store the run; returns its id. */
-// The run's inputs come one per argument, as every caller has them.
-// oxlint-disable-next-line eslint/max-params
+/**
+ * Run a graph from one of its triggers and store the run; returns its id. What
+ * the triggers, Run now, Re-run and Test run share. A test tries a draft: the
+ * actions that can simulate do.
+ */
+// oxlint-disable-next-line eslint/max-params -- the run's inputs come one per argument, as every caller has them
 export async function executeProcedure(
   procedure: Procedure,
   graph: ProcedureGraph,
@@ -144,7 +147,6 @@ export async function executeProcedure(
   const result = await executorRun(graph, triggerNodeId, payload, {
     procedureId,
     templateCache: templates,
-    // A test tries a draft: the actions that can simulate do.
     dryRun: origin.kind === "test",
   });
   const endedAt = new Date();

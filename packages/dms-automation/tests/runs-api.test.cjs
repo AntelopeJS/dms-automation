@@ -26,8 +26,10 @@ function run(minute, fields = {}) {
   };
 }
 
-// The model's history reads, over runs held in memory: the queries the
-// database answers, so the route's logic is what is tested.
+/**
+ * The model's history reads, over runs held in memory: the queries the
+ * database answers, so the route's logic is what is tested.
+ */
 function fakeModel(runs) {
   const matches = (r, procedureId, { tests, after, before, status }) =>
     r.procedureId === procedureId &&
@@ -51,7 +53,6 @@ function fakeModel(runs) {
 
 test("a trace compares with the last success however far back, and its neighbours", async () => {
   const lastSuccess = run(0);
-  // 120 failures since: far more than the 50 runs the history used to read.
   const failures = Array.from({ length: 120 }, (_, i) =>
     run(1 + i, { status: "failed" }),
   );
@@ -65,7 +66,6 @@ test("a trace compares with the last success however far back, and its neighbour
   assert.equal(history.lastSuccess._id, lastSuccess._id);
   assert.equal(history.failuresInRow, 121);
   assert.equal(history.previous.runId, failures.at(-1)._id);
-  // The next production run: the test in between is not one.
   assert.equal(history.next.runId, next._id);
   assert.equal(history.usualDurationMs, 100);
 });
@@ -123,7 +123,6 @@ test("a test re-runs the draft it tested; a run, the saved procedure", () => {
     procedure,
   );
   assert.equal(rerun.draft, undefined);
-  // What is replayed is the redacted payload.
   assert.equal(rerun.payload.headers.authorization, "[redacted]");
 });
 
@@ -134,8 +133,6 @@ test("a second re-run of the same run right after the first is refused", () => {
     (err) => JSON.stringify(err).includes("rerunBusy"),
   );
   release();
-  // Still refused a moment after the first one ended.
   assert.throws(() => claimRerun("double-click"));
-  // Another run is not held up.
   claimRerun("another")();
 });

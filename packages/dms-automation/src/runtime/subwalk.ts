@@ -58,6 +58,14 @@ export class SubWalk {
     return false;
   }
 
+  /**
+   * Outer walks must NOT re-propagate through ports the source's execute
+   * already claimed via ctx.fireTrigger — the nested sub-walk handled
+   * that downstream.
+   *
+   * An edge without a branch leaves by the main port: the builder draws it
+   * there, and a hand-written or imported graph often leaves it out.
+   */
   private isEdgeLive(edge: TriggerEdge): boolean {
     const source = edge.from.node;
     const port = edge.from.branch;
@@ -69,17 +77,12 @@ export class SubWalk {
 
     if (!this.executed.has(source)) return false;
 
-    // Outer walks must NOT re-propagate through ports the source's execute
-    // already claimed via ctx.fireTrigger — the nested sub-walk handled
-    // that downstream.
     if (port !== undefined && this.claimedPorts.get(source)?.has(port)) {
       return false;
     }
 
     const decision = this.branchDecisions.get(source);
     if (decision === undefined) return true;
-    // An edge without a branch leaves by the main port: the builder draws it
-    // there, and a hand-written or imported graph often leaves it out.
     return decision.has(port ?? MAIN_PORT);
   }
 

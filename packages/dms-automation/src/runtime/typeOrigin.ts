@@ -39,10 +39,7 @@ function registryEntry(
   proxy: TypeProxy,
   id: string,
 ): ProxyRegistryEntry | undefined {
-  // Reaching into an AntelopeJS internal: the runtime's registry is
-  // not on the public type, and the source and target do not overlap,
-  // so a single assertion is not expressible.
-  // oxlint-disable-next-line anti-slop/no-chained-type-assertions
+  // oxlint-disable-next-line anti-slop/no-chained-type-assertions -- the runtime registry is an AntelopeJS internal that is not on the public type, and source and target do not overlap, so a single assertion is not expressible
   return (proxy as unknown as ProxyRegistry).registered?.get(id);
 }
 

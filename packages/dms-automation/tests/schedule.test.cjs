@@ -15,7 +15,6 @@ test("the next occurrence of common schedules", () => {
     nextOccurrence("0 2 * * *", from),
     at("2026-10-08T02:00:00"),
   );
-  // 2026-10-07 is a Wednesday: next Monday is the 12th.
   assert.deepEqual(
     nextOccurrence("0 9 * * 1", from),
     at("2026-10-12T09:00:00"),
@@ -44,7 +43,6 @@ test("a schedule with seconds fires within the minute", () => {
     nextOccurrence("10 * * * * *", from),
     at("2026-10-07T10:08:10"),
   );
-  // Exactly on an occurrence: the next one, not this one.
   assert.deepEqual(
     nextOccurrence("*/15 * * * *", at("2026-10-07T10:15:00")),
     at("2026-10-07T10:30:00"),

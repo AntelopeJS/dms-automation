@@ -51,12 +51,10 @@ test("a KPI answers its value, its comparison and a sparkline", () => {
 
   assert.equal(kpiPayload("success-rate", runs, window).value, 75);
   assert.equal(kpiPayload("failed", runs, window).value, 1);
-  // In milliseconds, like the run lists.
   assert.equal(kpiPayload("duration-p95", runs, window).value, 1000);
 });
 
 test("too few runs to compare with: no change shown", () => {
-  // 2 runs the day before: "+100%" would say nothing.
   assert.equal(kpiPayload("runs", runs, window).delta, null);
 });
 
@@ -67,7 +65,6 @@ test("every KPI compares in percent of the previous value", () => {
   assert.equal(runsKpi.delta, -66.7);
   const rate = kpiPayload("success-rate", many, window);
   assert.equal(rate.previousValue, 66.7);
-  // 75 % against 66.7 %: the card prints "+12.4 %", not 8.3 points.
   assert.equal(rate.delta, 12.4);
 });
 
@@ -98,7 +95,6 @@ test("a rate's sparkline carries its value over the hours without runs", () => {
     sparkline.every((v) => v === 100),
     true,
   );
-  // A failed hour still shows.
   assert.equal(
     kpiPayload("success-rate", runs, window).sparkline.includes(0),
     true,
@@ -119,7 +115,6 @@ test("compared with the same window a year earlier", () => {
     r.endedAt = new Date(r.endedAt.getTime() - YEAR);
     return r;
   };
-  // 20 runs a year ago, 5 of them failed; the day before has 10 more, ignored.
   const lastYear = [
     ...Array.from({ length: 15 }, (_, i) => yearBack("ok", 1 + i)),
     ...Array.from({ length: 5 }, (_, i) => yearBack("failed", 16 + i)),
@@ -140,7 +135,6 @@ test("compared with the same window a year earlier", () => {
   const rate = kpiPayload("success-rate", all, yearWindow);
   assert.equal(rate.previousValue, 75);
   assert.equal(kpiPayload("failed", all, yearWindow).previousValue, 5);
-  // The sparkline draws the current window only.
   assert.equal(
     runsKpi.sparkline.reduce((a, b) => a + b, 0),
     10,

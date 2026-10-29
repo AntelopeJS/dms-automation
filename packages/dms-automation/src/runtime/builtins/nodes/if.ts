@@ -2,6 +2,10 @@ import type { GraphNode } from "../../../types/graph";
 import { type NodeCtx, nodeKinds } from "../../nodeKinds";
 import { toBoolean } from "../data/boolean";
 
+/**
+ * The chosen branch IS the continuation — outer walk auto-propagates
+ * through it; the other branch is dead.
+ */
 async function execute(
   _node: GraphNode,
   inputs: Record<string, unknown>,
@@ -9,8 +13,6 @@ async function execute(
 ): Promise<void> {
   const branch = toBoolean(inputs.cond) ? "then" : "else";
   ctx.log("info", `branch: ${branch}`);
-  // The chosen branch IS the continuation — outer walk auto-propagates
-  // through it; the other branch is dead.
   ctx.continueWith(branch);
 }
 

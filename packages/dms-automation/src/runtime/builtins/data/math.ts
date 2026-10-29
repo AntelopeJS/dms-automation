@@ -80,12 +80,14 @@ function unary(
   };
 }
 
+/**
+ * Division by zero is an expected case (an empty list's average), not an
+ * error: it gives null, which the next step can test.
+ */
 export const mathNodes: DataNodeType[] = [
   binary("math.add", "i-ph-plus", (a, b) => a + b),
   binary("math.subtract", "i-ph-minus", (a, b) => a - b),
   binary("math.multiply", "i-ph-x", (a, b) => a * b),
-  // Division by zero is an expected case (an empty list's average), not an
-  // error: it gives null, which the next step can test.
   binary("math.divide", "i-ph-divide", (a, b) => (b === 0 ? null : a / b)),
   binary("math.modulo", "i-ph-percent", (a, b) => (b === 0 ? null : a % b)),
   binary("math.power", "i-ph-arrow-up-right", Math.pow),

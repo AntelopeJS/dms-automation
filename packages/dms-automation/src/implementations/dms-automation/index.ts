@@ -21,7 +21,6 @@ export namespace internal {
       subscriptions.onTriggerTypeRegistered(id);
     },
     unregister: (id: string): void => {
-      // Each live handle retains its own definition for queued teardown.
       registry.removeTrigger(id);
       void subscriptions.onTriggerTypeUnregistered(id);
     },

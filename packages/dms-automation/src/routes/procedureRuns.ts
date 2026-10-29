@@ -13,7 +13,7 @@ import type { ProcedureGraph } from "../types/graph";
 import { graphRefusal, issuesOf } from "./procedureChecks";
 import { API_MESSAGES } from "./requests";
 
-// How many production runs Run now looks back through for a payload it kept.
+/** How many production runs Run now looks back through for a payload it kept. */
 const PAYLOAD_LOOKBACK = 50;
 
 /**

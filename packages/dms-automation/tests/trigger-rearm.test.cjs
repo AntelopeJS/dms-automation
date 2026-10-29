@@ -2,14 +2,6 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
-// Trigger types registered after the boot reconcile: modules start in
-// parallel, so a project's trigger type can arrive after the module armed
-// its procedures. Registering it must arm the procedures waiting for it,
-// unregistering must tear down every handle it armed, and registering it
-// again (a hot reload) must arm them again.
-
-// GetModel builds its models on a registered schema: hand it a bare one, the
-// data access is replaced below.
 Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
 
 const { ProcedureModel } = require("../dist/db/models/procedure.model.js");
@@ -120,14 +112,12 @@ test("a late trigger type arms its procedures, and a reload re-arms them", async
   );
   assert.equal(subscriptions.activationErrorOf("P1"), undefined);
 
-  // Hot reload: the old definition goes, a new one comes.
   internal.RegisterTriggerType.unregister(TYPE_ID);
   const second = recordingType();
   internal.RegisterTriggerType.register(TYPE_ID, second);
   await until(() => first.armed.size === 0, "every old handle to be torn down");
   await until(() => second.armed.size === 2, "the new definition to arm both");
 
-  // Gone for good: torn down, and the procedures say why they do not start.
   internal.RegisterTriggerType.unregister(TYPE_ID);
   await until(() => second.armed.size === 0, "teardown");
   await until(() => /unknownType/.test(armErrorOf("P1")), "the arm error");
@@ -157,7 +147,6 @@ test("a reload during activation releases each definition's own handles", async 
   internal.RegisterTriggerType.register(TYPE_ID, second);
   release.resolve();
   await boot;
-  // Wait behind the queued reload before observing the resulting subscriptions.
   await subscriptions.onProcedureChange();
   assert.equal(first.armed.size, 0);
   assert.equal(second.armed.size, 2);

@@ -1,6 +1,5 @@
 {
   "rules": {
-    "antelopejs/no-comments": 856,
     "anti-slop/no-known-value-widening": 42,
     "anti-slop/no-runtime-typeof": 61,
     "anti-slop/no-shape-in-symbol-names": 7,
@@ -14,6 +13,6 @@
     "packages/dms-automation/frontend-vue/app/components/Editor/GraphCanvas.vue": 59759,
     "packages/dms-automation/frontend-vue/app/components/Editor/NodeInspector.vue": 24602,
     "packages/dms-automation/frontend-vue/app/components/Templates.vue": 20540,
-    "packages/dms-automation/src/runtime/subscriptions.ts": 25748
+    "packages/dms-automation/src/runtime/subscriptions.ts": 25727
   }
 }

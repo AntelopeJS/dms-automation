@@ -25,11 +25,13 @@ export const groupPortSchema: z.ZodType<GroupPort> = z.object({
   schema: z.record(z.unknown()).optional(),
 });
 
+/**
+ * `to.branch` carries the target's trigger-in port name when the
+ * target is a group node or groupOutput sentinel. Optional otherwise.
+ */
 const triggerEdgeSchema = z.object({
   id: z.string(),
   from: z.object({ node: z.string(), branch: z.string().optional() }),
-  // `to.branch` carries the target's trigger-in port name when the
-  // target is a group node or groupOutput sentinel. Optional otherwise.
   to: z.object({ node: z.string(), branch: z.string().optional() }),
 });
 
@@ -82,6 +84,11 @@ export const procedureGraphSchema: z.ZodType<
   })
   .pipe(graphShapeSchema);
 
+/**
+ * group-specific fields — accepted but only meaningful when kind === "group"
+ *
+ * Allow other transient fields (e.g. UI metadata) without rejecting.
+ */
 const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
   z
     .object({
@@ -90,12 +97,10 @@ const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
       typeId: z.string().optional(),
       config: z.record(z.unknown()),
       position: z.object({ x: z.number(), y: z.number() }),
-      // group-specific fields — accepted but only meaningful when kind === "group"
       templateId: z.string().optional(),
       ports: z.array(z.lazy(() => groupPortSchema)).optional(),
       subgraph: graphShapeSchema.optional(),
     })
-    // Allow other transient fields (e.g. UI metadata) without rejecting.
     .passthrough(),
 ) as z.ZodType<GraphNode>;
 

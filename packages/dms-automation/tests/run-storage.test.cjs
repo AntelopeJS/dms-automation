@@ -51,7 +51,6 @@ function entries(n, value) {
 test("procedure_runs indexes serve the startedAt sort and per-procedure history", () => {
   const { indexes } = getMetadata(ProcedureRun, DatumStaticMetadata);
   assert.deepEqual(indexes.startedAt, ["startedAt"]);
-  // Order matters: equality on procedureId first, then the sort key.
   assert.deepEqual(indexes.procedureId_startedAt, ["procedureId", "startedAt"]);
   assert.equal(indexes.procedureId, undefined);
 });
@@ -67,7 +66,6 @@ test("too many entries are cut to the entry budget with a notice", () => {
 
   assert.equal(bounded.entries.length, MAX_LOG_ENTRIES);
   assert.equal(bounded.truncated, total - (MAX_LOG_ENTRIES - 1));
-  // Head entries are kept in order.
   assert.deepEqual(
     bounded.entries.slice(0, 3).map((e) => e.seq),
     [1, 2, 3],
@@ -118,11 +116,9 @@ test("an oversized log keeps its errors, its start and its end", () => {
   const seqs = bounded.entries.map((e) => e.seq);
 
   assert.equal(bounded.entries.length, MAX_LOG_ENTRIES);
-  // The failure in the middle survives, so does the end of the run.
   assert.ok(seqs.includes(total / 2 + 1));
   assert.ok(seqs.includes(total));
   assert.ok(seqs.includes(1));
-  // Entries stay in the order they were written, the notice last.
   assert.deepEqual(
     seqs.slice(0, -1),
     seqs.slice(0, -1).sort((a, b) => a - b),
@@ -131,7 +127,6 @@ test("an oversized log keeps its errors, its start and its end", () => {
 });
 
 test("an oversized log keeps only the fires its kept entries hang from", () => {
-  // One fire per iteration, under the root, one entry each: a long loop.
   const total = MAX_LOG_ENTRIES * 3;
   const fires = [ROOT];
   const log = { fires, entries: [] };
@@ -178,7 +173,6 @@ test("a webhook payload is stored without the value of its credential headers", 
     "content-type": "application/json",
   });
   assert.deepEqual(stored.payload.body, payload.body);
-  // The run itself received them in full.
   assert.equal(payload.headers.authorization, "Bearer SUPER-SECRET");
   assert.doesNotMatch(serializeTriggerPayload(payload), /SUPER-SECRET|abc/);
 });
@@ -263,7 +257,6 @@ test("a credential a step copied from the trigger is scrubbed from its log", () 
   const scrubbed = JSON.stringify(scrubSecrets(log, secrets));
   assert.doesNotMatch(scrubbed, /SECRET/);
   assert.match(scrubbed, /got \[redacted\]/);
-  // Short values (theme=dark) are too common to scrub.
   assert.ok(!secrets.includes("dark"));
   assert.equal(scrubSecrets(log, []), log);
 });
@@ -349,7 +342,6 @@ test("a run read after a name became sensitive hides it in its payload, error an
 
   assert.doesNotMatch(JSON.stringify(rewritten), /OLDSECRET99|OLDQTOKEN77/);
   assert.equal(rewritten.errorMessage, '"[redacted]" is not a valid URL.');
-  // A run rewritten, or stored since, needs nothing.
   assert.equal(redactedStoredRun({ ...old, ...rewritten }), undefined);
   assert.equal(
     redactedStoredRun({

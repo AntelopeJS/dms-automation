@@ -1,10 +1,12 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
-// Side-effect import: every `nodes/<kind>.ts` registers itself on load,
-// so anything consuming the registry (the `/api/automation/node-kinds`
-// route, the validator, executors) sees the built-ins immediately —
-// not only after the first run.
+/**
+ * Side-effect import: every `nodes/<kind>.ts` registers itself on load,
+ * so anything consuming the registry (the `/api/automation/node-kinds`
+ * route, the validator, executors) sees the built-ins immediately —
+ * not only after the first run.
+ */
 import "./builtins";
 import { redactHeaders } from "./boundRunLog";
 import { labelOf } from "./describe";
@@ -89,12 +91,14 @@ type AppendedEntry = Pick<
   "source" | "level" | "message" | "value"
 > & { node?: { id: string; kind: string } };
 
+/**
+ * `value` is set rather than spread: an entry without one has no `value`
+ * key at all, which is what the wire format and its readers expect.
+ */
 function appendEntry(
   runCtx: RunCtx,
   { source, level, message, node, value }: AppendedEntry,
 ): void {
-  // `value` is set rather than spread: an entry without one has no `value`
-  // key at all, which is what the wire format and its readers expect.
   const entry: LogEntry = {
     fireId: runCtx.currentFireId,
     ts: nowOffset(runCtx.runStart),
@@ -127,6 +131,19 @@ function describeRecord(
  * Execute a ProcedureGraph starting from `triggerNodeId`. The executor
  * looks actions up from the kind registry; no per-run hook or registry
  * handle is needed from the caller.
+ *
+ * No caller supplies an external abort signal today; keep a never-aborting
+ * signal so the node-execution contract (NodeCtx.signal) and the executor's
+ * cancellation guards stay in place for future cancellable runs.
+ *
+ * Open a synthetic "run" fire so the initial "run started" entry has
+ * somewhere to attach. The fire's source is the trigger seed; port is
+ * null (no port discrimination at bootstrap).
+ *
+ * Flatten away all group nodes so the executor never has to special-case
+ * them. After this point the graph is a flat ProcedureGraph with no
+ * `group` / `groupInput` / `groupOutput` nodes; inner-node ids carry a
+ * `<groupId>__` prefix per nesting level.
  */
 export async function run(
   graph: ProcedureGraph,
@@ -137,9 +154,6 @@ export async function run(
   const procedureId = options.procedureId ?? "unknown";
   const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const runStart = Date.now();
-  // No caller supplies an external abort signal today; keep a never-aborting
-  // signal so the node-execution contract (NodeCtx.signal) and the executor's
-  // cancellation guards stay in place for future cancellable runs.
   const signal = new AbortController().signal;
 
   const cache = new DataCache();
@@ -152,16 +166,12 @@ export async function run(
     entries: [],
     fireSeq: { n: 0 },
     eventSeq: { n: 0 },
-    // Placeholder; replaced as soon as the top-level fire opens below.
     currentFireId: "",
     cache,
     signal,
     failedAt: new Map(),
   };
 
-  // Open a synthetic "run" fire so the initial "run started" entry has
-  // somewhere to attach. The fire's source is the trigger seed; port is
-  // null (no port discrimination at bootstrap).
   const rootFire = openFire(runCtx, {
     parentFireId: null,
     sourceNodeId: triggerNodeId,
@@ -186,10 +196,6 @@ export async function run(
     return emptyFailure(errorMessage, runCtx);
   }
 
-  // Flatten away all group nodes so the executor never has to special-case
-  // them. After this point the graph is a flat ProcedureGraph with no
-  // `group` / `groupInput` / `groupOutput` nodes; inner-node ids carry a
-  // `<groupId>__` prefix per nesting level.
   let flatGraph: ProcedureGraph;
   try {
     flatGraph = flattenGroups(graph, options.templateCache);
@@ -249,6 +255,9 @@ function emptyFailure(errorMessage: string, runCtx: RunCtx): ExecutionResult {
  *
  * The caller is responsible for opening/closing the enclosing fire and
  * setting `runCtx.currentFireId` before calling this function.
+ *
+ * Inside the try: a data node that fails while the inputs are read (a
+ * cycle, an unknown type, a bad value) fails this step, not the run alone.
  */
 async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
   const graph = subwalk.graph;
@@ -285,8 +294,6 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
     });
 
     const nodeStart = Date.now();
-    // Inside the try: a data node that fails while the inputs are read (a
-    // cycle, an unknown type, a bad value) fails this step, not the run alone.
     let inputs: Record<string, unknown> = {};
     try {
       inputs = resolveNodeInputs(node);
@@ -294,14 +301,6 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
       if (!entry) {
         throw new Error(`unsupported node kind "${node.kind}"`);
       }
-      // Per-execute continuation state. After execute returns, the outer
-      // walk applies it to branchDecisions:
-      //   - explicit ports  → just those ports propagate (others dead)
-      //   - default         → metadata's continuationPorts minus any
-      //                       port the execute already claimed via
-      //                       fireTrigger. Side ports stay dead even if
-      //                       never fired (e.g. empty foreach must not
-      //                       propagate `body`).
       const contState: ContinuationState = { explicit: [] };
       const ctx = makeNodeCtx(
         node,
@@ -423,6 +422,13 @@ function redacted<T>(values: T, schema: JsonSchema | undefined): T {
   return out as T;
 }
 
+/**
+ * Per-execute continuation state. After execute returns, the outer walk
+ * applies it to branchDecisions: explicit ports propagate alone (the others
+ * are dead); by default the metadata's continuationPorts propagate, minus any
+ * port the execute already claimed via fireTrigger. Side ports stay dead even
+ * if never fired (an empty foreach must not propagate `body`).
+ */
 interface ContinuationState {
   explicit: string[];
 }

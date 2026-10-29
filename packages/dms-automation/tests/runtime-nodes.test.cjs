@@ -67,8 +67,6 @@ async function evaluate(typeId, config) {
     : { error: result.errorMessage, failedNodeId: result.failedNodeId };
 }
 
-// --- Set variable --------------------------------------------------
-
 test("Set variable feeds its value port", async () => {
   const result = await run(
     {
@@ -87,8 +85,6 @@ test("Set variable feeds its value port", async () => {
   assert.deepEqual(outputOf(result, "sv"), { value: 5 });
   assert.equal(outputOf(result, "log").value, 5);
 });
-
-// --- Data node errors -----------------------------------------------
 
 test("a data node that fails fails the step that reads it", async () => {
   const graph = {
@@ -113,8 +109,6 @@ test("a data node that fails fails the step that reads it", async () => {
     ],
   );
 });
-
-// --- Compare and If -----------------------------------------
 
 test("Compare reads numbers written as text as numbers", async () => {
   assert.equal((await evaluate("compare.gt", { a: "10", b: "9" })).value, true);
@@ -182,8 +176,6 @@ test("the text false is false for the boolean nodes and If", async () => {
   assert.notEqual(outputOf(result, "no"), undefined);
 });
 
-// --- Math -----------------------------------------------------------
-
 test("Math fails by name instead of returning NaN", async () => {
   const sqrt = await evaluate("math.sqrt", { a: -4 });
   assert.match(sqrt.error, /math\.sqrt: no valid result for a = -4/);
@@ -197,7 +189,6 @@ test("Math fails by name instead of returning NaN", async () => {
 test("Math reads numbers written as text and keeps null for a division by zero", async () => {
   assert.equal((await evaluate("math.add", { a: "2", b: 3 })).value, 5);
   assert.equal((await evaluate("math.divide", { a: 1, b: 0 })).value, null);
-  // Inputs left unset take the schema's default (0).
   assert.equal((await evaluate("math.add", { b: 3 })).value, 3);
 });
 
@@ -225,8 +216,6 @@ test("an empty input names the step it comes from", async () => {
     "math.add: a is not a number (empty). a comes from math.divide (result), which gave no value.",
   );
 });
-
-// --- Text and constants ---------------------------------------------
 
 test("text nodes count characters as a reader does", async () => {
   assert.equal((await evaluate("string.length", { s: "😀ab" })).value, 3);
@@ -262,8 +251,6 @@ test("a constant saved without a value emits its schema default", async () => {
   assert.equal(outputOf(result, "log").value, 0);
 });
 
-// --- HTTP request and parallel ---
-
 let server;
 let base;
 /** A local port nothing listens on. */
@@ -283,7 +270,6 @@ before(async () => {
     } else if (req.url === "/big") {
       res.end("x".repeat(3 * 1024 * 1024));
     } else if (req.url === "/slow") {
-      // Never answers.
     } else {
       res.statusCode = 500;
       res.end();
@@ -411,8 +397,6 @@ test("header values are masked in the run log, not in the request", async () => 
   );
   assert.equal(result.status, "ok");
   const logged = JSON.stringify(result.logs);
-  // The server received the token: it echoes it in its body, which is the
-  // only place it may appear.
   assert.equal(outputOf(result, "h").json.auth, "Bearer sk_live_SECRET");
   const executed = result.logs.entries.find(
     (e) => e.nodeId === "h" && e.message === "executed",
@@ -438,7 +422,6 @@ test("blockPrivateNetwork refuses loopback addresses", async () => {
       {},
     );
     assert.match(metadata.errorMessage, /private network address/);
-    // NAT64: the IPv4 address in the last 32 bits decides.
     const nat64 = await run(
       httpGraph({ url: "http://[64:ff9b::7f00:1]/" }),
       "t",

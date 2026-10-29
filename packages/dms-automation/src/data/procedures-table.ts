@@ -42,13 +42,6 @@ import { stateRank } from "../stats/health";
 import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
 
-// The Procedures list is a computed aggregate (state, last runs, success rate
-// over 7 days) rather than plain table columns, so the TableView is backed by
-// custom `list`/`count`/`countBatch` routes that compute the summary and apply
-// the table's search, status filter, sort and pagination in memory. `delete`
-// also tears down the procedure's runtime subscriptions. Module pages are the
-// platform owner's alone, so every route is owner-only, like the module's API.
-
 /**
  * A query-string value as text: the API hands a parameter sent without a
  * value (`?search`, an emptied search field) in as `true`.
@@ -152,7 +145,7 @@ function sortText(value: SortValue): string {
 
 function compareValues(a: SortValue, b: SortValue, dir: number): number {
   if (a == null && b == null) return 0;
-  if (a == null) return 1; // nulls last, irrespective of direction
+  if (a == null) return 1;
   if (b == null) return -1;
   if (typeof a === "number" && typeof b === "number") return (a - b) * dir;
   return sortText(a).localeCompare(sortText(b)) * dir;
@@ -181,13 +174,14 @@ export function sortRows(
   const k = queryText(sortKey) as keyof ProcedureSummaryRow;
   if (!SORTABLE_KEYS.has(k)) return [...rows].sort((a, b) => byState(a, b));
   const dir = sortDirection === "desc" ? -1 : 1;
-  // A state sorts by severity, not by its name.
   if (k === "status") return [...rows].sort((a, b) => byState(a, b, dir));
   return [...rows].sort((a, b) => compareValues(a[k], b[k], dir));
 }
 
-// Parse a query-string integer, falling back when it is missing or not a finite
-// number (so a malformed `?limit=abc` doesn't slice to an empty page).
+/**
+ * Parse a query-string integer, falling back when it is missing or not a finite
+ * number (so a malformed `?limit=abc` doesn't slice to an empty page).
+ */
 function toInt(raw: unknown, fallback: number, min: number): number {
   const n = Math.trunc(Number(raw));
   return Number.isFinite(n) && n >= min ? n : fallback;
@@ -227,10 +221,20 @@ export function procedureOptions(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/**
+ * The Procedures list is a computed aggregate (state, last runs, success rate
+ * over 7 days) rather than plain table columns, so the TableView is backed by
+ * custom `list`/`count`/`countBatch` routes that compute the summary and apply
+ * the table's search, status filter, sort and pagination in memory. `delete`
+ * also tears down the procedure's runtime subscriptions. Module pages are the
+ * platform owner's alone, so every route is owner-only, like the module's API.
+ */
 const procedureSummaryRoutes = {
-  // `select` feeds the procedure picker of the runs table (its relation
-  // filter): `{ procedureId, name }` read straight from the Procedure table,
-  // narrowed to `?ids=` or to the picker's search, sorted by name.
+  /**
+   * `select` feeds the procedure picker of the runs table (its relation
+   * filter): `{ procedureId, name }` read straight from the Procedure table,
+   * narrowed to `?ids=` or to the picker's search, sorted by name.
+   */
   select: {
     method: "GET",
     args: [
@@ -240,9 +244,7 @@ const procedureSummaryRoutes = {
       Parameter("limit", "query"),
       MultiParameter("ids", "query"),
     ],
-    // Each parameter is bound to a request input by its decorator, so
-    // the framework hands them in positionally.
-    // oxlint-disable-next-line eslint/max-params
+    // oxlint-disable-next-line eslint/max-params -- each parameter is bound to a request input by its decorator, so the framework hands them in positionally
     func: async (
       _user: User,
       search?: string,
@@ -287,10 +289,7 @@ const procedureSummaryRoutes = {
       Parameter("filter_status", "query"),
       Parameter("filter_triggerTypes", "query"),
     ],
-    // Each parameter is bound to a request input by its decorator, so
-    // the framework hands them in positionally: an options object is not
-    // expressible here.
-    // oxlint-disable-next-line eslint/max-params
+    // oxlint-disable-next-line eslint/max-params -- each parameter is bound to a request input by its decorator, so the framework hands them in positionally
     func: async (
       _user: User,
       offset?: string,
@@ -339,7 +338,7 @@ const procedureSummaryRoutes = {
       return { total: filtered.length };
     },
   },
-  // The tab counters: one count per tab in one request, over one summary.
+  /** The tab counters: one count per tab in one request, over one summary. */
   countBatch: {
     endpoint: "/count/batch",
     callback: {
@@ -418,16 +417,20 @@ export class ProceduresTableAPI extends DataController(
   procedureSummaryRoutes,
   Controller("/api/automation/tables/procedures"),
 ) {
-  // The module's named database: the relation of the runs table joins
-  // through this model, and reads nothing from the default instance.
+  /**
+   * The module's named database: the relation of the runs table joins
+   * through this model, and reads nothing from the default instance.
+   */
   @ModelReference()
   @Model(ProcedureModel, DATABASE_NAME)
   declare model: ProcedureModel;
 
-  // Five columns whose widths add up to the list beside an open sidebar at
-  // 1024 px; wider screens spread them. The state comes second, so a phone
-  // still shows it by the name. The last run's date sits under the run strip;
-  // the average duration is in the column picker.
+  /**
+   * Five columns whose widths add up to the list beside an open sidebar at
+   * 1024 px; wider screens spread them. The state comes second, so a phone
+   * still shows it by the name. The last run's date sits under the run strip;
+   * the average duration is in the column picker.
+   */
   @Searchable()
   @Sortable({ noIndex: true })
   @Listable()

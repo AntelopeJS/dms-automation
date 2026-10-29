@@ -1,6 +1,18 @@
 import type { GraphNode } from "../../../types/graph";
 import { type NodeCtx, nodeKinds } from "../../nodeKinds";
 
+/**
+ * Every branch runs to its end, even when another fails: a branch left
+ * running would outlive its run. The first failure then fails the
+ * parallel as a whole.
+ *
+ * `main` auto-propagates after all configured ports settle.
+ *
+ * Parallel's fired ports are dynamic — they come from `node.config.ports`
+ * (mirrored by `dynamicTriggerOutsFromConfig` for rendering and
+ * divergence). Static `sidePorts` is empty by design; mayDiverge picks
+ * up the dynamic-config signal.
+ */
 async function execute(
   node: GraphNode,
   _inputs: Record<string, unknown>,
@@ -13,9 +25,6 @@ async function execute(
   if (ports.length === 0) {
     ctx.log("warn", "parallel has no configured ports; nothing to run");
   }
-  // Every branch runs to its end, even when another fails: a branch left
-  // running would outlive its run. The first failure then fails the
-  // parallel as a whole.
   const failures: unknown[] = [];
   await Promise.all(
     ports.map((p) =>
@@ -25,13 +34,8 @@ async function execute(
     ),
   );
   if (failures.length > 0) throw failures[0];
-  // `main` auto-propagates after all configured ports settle.
 }
 
-// Parallel's fired ports are dynamic — they come from `node.config.ports`
-// (mirrored by `dynamicTriggerOutsFromConfig` for rendering and
-// divergence). Static `sidePorts` is empty by design; mayDiverge picks
-// up the dynamic-config signal.
 nodeKinds.register("parallel", execute, {
   continuationPorts: ["main"],
   sidePorts: [],

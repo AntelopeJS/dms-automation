@@ -2,8 +2,10 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 const { test } = require("node:test");
 
-// The builder refuses a link while it is drawn, with a reason the canvas
-// translates: these tests load the frontend composable that decides it.
+/**
+ * The builder refuses a link while it is drawn, with a reason the canvas
+ * translates: these tests load the frontend composable that decides it.
+ */
 
 const { FRONTEND } = require("./helpers/frontend.cjs");
 

@@ -48,6 +48,9 @@ export class DataCache {
   /**
    * Returns the cached data-node result if every recorded upstream version
    * still matches; otherwise undefined (caller must recompute).
+   *
+   * Stale: a dependency changed. Drop the cache entry so future
+   * reads from this node go through evaluation again.
    */
   getCachedData(nodeId: string): Record<string, unknown> | undefined {
     if (!this.outputs.has(nodeId)) return undefined;
@@ -55,8 +58,6 @@ export class DataCache {
     if (!deps) return undefined;
     for (const [depId, seen] of deps) {
       if (this.versionOf(depId) !== seen) {
-        // Stale: a dependency changed. Drop the cache entry so future
-        // reads from this node go through evaluation again.
         this.outputs.delete(nodeId);
         this.dataDeps.delete(nodeId);
         return undefined;
@@ -111,6 +112,10 @@ export function schemaDefaults(
  *
  * Edges whose source has no output and no evaluator hit are skipped, and
  * the target field falls back to its static config value (if any).
+ *
+ * Upstream must be an object to expose named ports. Triggers / actions
+ * that emit primitives have no ports to read; skip such edges rather
+ * than crashing on `port in primitive`.
  */
 export function resolveInputs(
   node: GraphNode,
@@ -130,9 +135,6 @@ export function resolveInputs(
       upstream = evaluateDataNode(edge.from.node);
     }
 
-    // Upstream must be an object to expose named ports. Triggers / actions
-    // that emit primitives have no ports to read; skip such edges rather
-    // than crashing on `port in primitive`.
     if (upstream === null || typeof upstream !== "object") continue;
 
     const record = upstream as Record<string, unknown>;

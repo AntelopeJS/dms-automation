@@ -86,10 +86,8 @@ test("the overview and the run history share one period and its comparison menu"
       "last-7-days",
       "last-30-days",
     ]);
-    // A year back is past the default 30-day retention: not offered.
     assert.deepEqual(options.comparisons, ["previous-period", "none"]);
     assert.equal(options.defaultComparison, "previous-period");
-    // "vs previous period ▾" beside the window, not hidden.
     assert.equal(options.comparisonControl, "menu");
     assert.equal(options.rangeLabel, "relative");
     assert.notEqual(options.showRangeLabel, false);
@@ -101,7 +99,6 @@ test("a year back is offered only when the runs kept reach it", () => {
   const { offeredComparisons } = require("../dist/pages/shared.js");
   const withYear = ["previous-period", "previous-year", "none"];
   const withoutYear = ["previous-period", "none"];
-  // A 30D window a year back needs 395 days of runs; 0 keeps every run.
   assert.deepEqual(offeredComparisons(30), withoutYear);
   assert.deepEqual(offeredComparisons(394), withoutYear);
   assert.deepEqual(offeredComparisons(395), withYear);
@@ -114,7 +111,6 @@ test("overview: the runs chart names its compared series in its own legend", () 
     (c) => c._componentName === "dms-chart-card",
   );
   assert.equal(card._options.showSeriesLegend, true);
-  // "Period" in one colour would not match the green and red bars.
   assert.equal(card._options.showLegend, false);
   assert.ok(translated("$dms_automation.overview.comparedRuns"));
 });
@@ -128,7 +124,6 @@ for (const file of ["overview", "runs"]) {
         ["dms-kpi-card", "dms-chart-card"].includes(c._componentName) &&
         c._options.periodScope === scope,
     );
-    // Four KPIs on both pages, and the runs chart on the overview.
     assert.equal(figures.length, file === "overview" ? 5 : 4);
     for (const figure of figures) {
       assert.notEqual(figure._options.showDelta, false, figure._options.title);
@@ -159,8 +154,6 @@ test("overview: the runs chart keeps the line under its total without a comparis
   const card = pageComponents(controller).find(
     (c) => c._componentName === "dms-chart-card",
   );
-  // Its skeleton holds the change's line: a description takes it when the
-  // runs kept do not reach back to the compared period.
   assert.equal(card._options.showDelta, true);
   assert.ok(translated(card._options.description));
 });
@@ -182,7 +175,6 @@ for (const file of ["overview", "runs"]) {
       childOf(controller.live, "topics")._componentName,
       "dms-automation-live-topics",
     );
-    // The period lives in the toolbar now, not in a row of its own.
     assert.equal(controller.period, undefined);
   });
 }
@@ -198,8 +190,6 @@ test("the live tables hold their rows while paused", () => {
 });
 
 test("every data block of the overview and the run history follows the live topics", () => {
-  // The topics block refreshes every block of the page through the live
-  // gate: none needs a topic of its own, which would read it twice.
   for (const file of ["overview", "runs"]) {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
     const topics = childOf(controller.live, "topics")._options.realtimeTopic;

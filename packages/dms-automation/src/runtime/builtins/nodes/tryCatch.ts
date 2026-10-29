@@ -1,6 +1,11 @@
 import type { GraphNode } from "../../../types/graph";
 import { type NodeCtx, nodeKinds } from "../../nodeKinds";
 
+/**
+ * `main` auto-propagates after execute returns whether the try
+ * succeeded or the catch ran — useful for cleanup wired after the
+ * protected block.
+ */
 async function execute(
   _node: GraphNode,
   _inputs: Record<string, unknown>,
@@ -15,9 +20,6 @@ async function execute(
     ctx.log("warn", `caught ${name}: ${message}`);
     await ctx.fireTrigger("catch");
   }
-  // `main` auto-propagates after execute returns whether the try
-  // succeeded or the catch ran — useful for cleanup wired after the
-  // protected block.
 }
 
 nodeKinds.register("tryCatch", execute, {

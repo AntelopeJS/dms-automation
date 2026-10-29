@@ -72,7 +72,11 @@ function rangeOf(part: string, spec: FieldSpec): [number, number] {
   return [start, to === undefined ? start : valueOf(to, spec)];
 }
 
-/** The values one field allows. */
+/**
+ * The values one field allows.
+ *
+ * `5/15` means from 5 to the end of the field, every 15.
+ */
 function parseField(field: string, spec: FieldSpec): Set<number> {
   const values = new Set<number>();
   for (const part of field.split(",")) {
@@ -82,7 +86,6 @@ function parseField(field: string, spec: FieldSpec): Set<number> {
       throw new Error(`invalid cron step "${part}"`);
     }
     const [start, end] = rangeOf(range ?? "", spec);
-    // `5/15` means from 5 to the end of the field, every 15.
     const last =
       stepText !== undefined && !range?.includes("-") ? spec.max : end;
     for (let v = start; v <= last; v += step) values.add(v);
@@ -125,8 +128,10 @@ function parseCron(expression: string): ParsedCron {
   };
 }
 
-// Like cron: when both day fields are restricted, either one matching is
-// enough; when one is `*`, the other decides.
+/**
+ * Like cron: when both day fields are restricted, either one matching is
+ * enough; when one is `*`, the other decides.
+ */
 function dayMatches(cron: ParsedCron, date: Date): boolean {
   const dom = cron.daysOfMonth.has(date.getDate());
   const dow = cron.daysOfWeek.has(date.getDay());

@@ -1,6 +1,4 @@
-// Same contract as the string nodes: see the note in
-// runtime/builtins/data/string.ts.
-/* oxlint-disable typescript/no-base-to-string */
+/* oxlint-disable typescript/no-base-to-string -- String(value) is the contract these nodes were built against; a JSON form changes the output of arrays, dates, errors and cycles. */
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
 
 export const jsonNodes: DataNodeType[] = [

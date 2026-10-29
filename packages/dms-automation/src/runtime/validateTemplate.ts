@@ -52,6 +52,15 @@ interface RefWalk {
   lookup: TemplateCache;
 }
 
+/**
+ * The path back to the candidate through the template references of
+ * `subgraph`, or null when there is none. A reference to the candidate itself
+ * covers both A→A and the general `onPath` revisit when the candidate is the
+ * head of `path`. A template that cannot be found is not a cycle: the route
+ * layer reports it. A local group opens no template frame: its inline subgraph
+ * can hold template instances, so the walk recurses into it without touching
+ * `onPath` or `path`.
+ */
 function dfs(subgraph: ProcedureGraph, walk: RefWalk): string[] | null {
   const { candidateId, onPath, path, visitedClean, lookup } = walk;
   for (const n of subgraph.nodes) {
@@ -61,23 +70,17 @@ function dfs(subgraph: ProcedureGraph, walk: RefWalk): string[] | null {
     if (g.templateId !== undefined) {
       const refId = g.templateId;
 
-      // Direct self-reference to the candidate (covers both A→A and the
-      // general onPath revisit when the candidate is the head of `path`).
       if (refId === candidateId) {
         return [...path, refId];
       }
 
-      // Indirect cycle — referenced template is already on the DFS path.
       if (onPath.has(refId)) {
         const startIdx = path.indexOf(refId);
         return [...path.slice(startIdx), refId];
       }
 
-      // Already proven clean in a prior DFS branch — skip re-traversal.
       if (visitedClean.has(refId)) continue;
 
-      // Resolve the referenced template. If missing (unknown templateId), the
-      // route layer will report it; not a cycle, skip.
       const ref = lookup.get(refId);
       if (!ref) continue;
 
@@ -87,12 +90,8 @@ function dfs(subgraph: ProcedureGraph, walk: RefWalk): string[] | null {
       if (found) return found;
       path.pop();
       onPath.delete(refId);
-      // Fully traversed without finding a cycle — memoize as clean.
       visitedClean.add(refId);
     } else if (g.subgraph) {
-      // Local group: doesn't participate in the template-ref graph itself,
-      // but its inline subgraph can contain template instances. Recurse
-      // without touching `onPath` / `path` (no new template frame).
       const found = dfs(g.subgraph, walk);
       if (found) return found;
     }

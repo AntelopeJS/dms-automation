@@ -16,19 +16,19 @@ interface LogOutput {
 
 const channel = new Logging.Channel("dms-automation");
 
-// Route each log level to its channel method, replacing an if/else-if chain.
+/** Route each log level to its channel method, replacing an if/else-if chain. */
 const channelByLevel: Record<LogLevelName, (...args: unknown[]) => void> = {
   info: (...args) => channel.Info(...args),
   warn: (...args) => channel.Warn(...args),
   error: (...args) => channel.Error(...args),
 };
 
+/** Writes to the run's log and the server log only: a test runs it as is. */
 export const logAction: ActionType<LogInput, LogOutput> = {
   id: "log.message",
   name: "$dms_automation.types.log.name",
   description: "$dms_automation.types.log.description",
   icon: "i-ph-terminal",
-  // Writes to the run's log and the server log only: a test runs it as is.
   sideEffects: false,
   inputSchema: {
     type: "object",
@@ -61,8 +61,6 @@ export const logAction: ActionType<LogInput, LogOutput> = {
       value === undefined
         ? [`${tag} ${message}`]
         : [`${tag} ${message}`, value];
-    // Fall back to Info for any level outside the known set, matching the
-    // previous if/else-if default.
     const writeLog = channelByLevel[level] ?? channelByLevel.info;
     writeLog(...args);
     return { message, value };

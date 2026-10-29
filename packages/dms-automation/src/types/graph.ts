@@ -40,9 +40,11 @@ export function triggerEdgeEnd(
 export interface TriggerEdge {
   id: string;
   from: TriggerEdgeEnd;
-  // `branch` on the target carries the name of the target's trigger-in port
-  // when the target is a group node or a groupOutput sentinel. It is absent
-  // for ordinary target nodes, whose trigger-in is a single fixed handle.
+  /**
+   * `branch` on the target carries the name of the target's trigger-in port
+   * when the target is a group node or a groupOutput sentinel. It is absent
+   * for ordinary target nodes, whose trigger-in is a single fixed handle.
+   */
   to: TriggerEdgeEnd;
 }
 
@@ -62,14 +64,17 @@ export interface GroupPort {
   name: string;
   kind: "data" | "trigger";
   direction: "in" | "out";
-  schema?: JsonSchema; // present iff kind === "data"
+  /** Present iff kind === "data". */
+  schema?: JsonSchema;
 }
 
 export interface GroupNode extends GraphNode {
   kind: "group";
-  templateId?: string; // present iff this is a template instance
+  /** Present iff this is a template instance. */
+  templateId?: string;
   ports: GroupPort[];
-  subgraph?: ProcedureGraph; // present iff local (no templateId)
+  /** Present iff local (no templateId). */
+  subgraph?: ProcedureGraph;
 }
 
 export function isGroupNode(n: GraphNode): n is GroupNode {
