@@ -31,6 +31,8 @@ before(() => {
   );
   write(path.join(backend, "src/backend.ts"), "export const secret = 1;\n");
   write(path.join(backend, "dist/built.js"), "export const built = 2;\n");
+  write(path.join(backend, "dist/src/nested.js"), "export const nested = 4;\n");
+  write(path.join(backend, "srcx/sibling.ts"), "export const sibling = 5;\n");
   write(
     path.join(repository, "packages/other/package.json"),
     JSON.stringify({ name: "other" }),
@@ -53,7 +55,7 @@ after(() => {
 /** Builds a frontend entry made of `source`, with the boundary plugin and `extra` plugins. */
 async function build(
   source,
-  { extra = [], alias = {}, preserveSymlinks = false } = {},
+  { extra = [], alias = {}, preserveSymlinks = false, external = [] } = {},
 ) {
   write(path.join(frontend, "entry.ts"), source);
   const result = await vite.build({
@@ -64,6 +66,7 @@ async function build(
     resolve: { alias, preserveSymlinks },
     build: {
       write: false,
+      rollupOptions: { external },
       lib: { entry: path.join(frontend, "entry.ts"), formats: ["es"] },
     },
   });
@@ -150,4 +153,28 @@ test("the built output, a virtual module and the source of another package pass"
     'import { shared } from "../../other/src/shared.ts";\nexport { shared };\n',
   );
   assert.match(JSON.stringify(other), /shared/);
+});
+
+test("a sibling folder named like src, and a src folder inside dist, pass", async () => {
+  const sibling = await build(
+    'import { sibling } from "../srcx/sibling.ts";\nexport { sibling };\n',
+  );
+  assert.match(JSON.stringify(sibling), /sibling/);
+  const nested = await build(
+    'import { nested } from "../dist/src/nested.js";\nexport { nested };\n',
+  );
+  assert.match(JSON.stringify(nested), /nested/);
+});
+
+test("a backend source import declared external still fails the build", async () => {
+  const target = path.join(
+    repository,
+    "packages/dms-automation/src/backend.ts",
+  );
+  await assert.rejects(
+    build('import { secret } from "../src/backend.ts";\nexport { secret };\n', {
+      external: [target],
+    }),
+    /Backend boundary/,
+  );
 });

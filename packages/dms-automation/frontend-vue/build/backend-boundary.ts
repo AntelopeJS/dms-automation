@@ -75,7 +75,7 @@ export function backendBoundary(): VitePlugin {
         ...options,
         skipSelf: true,
       });
-      if (resolved === null || resolved.external) return resolved;
+      if (resolved === null) return resolved;
       const file = backendSourceFile(resolved.id);
       if (file === undefined) return resolved;
       const from =
