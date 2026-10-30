@@ -1,5 +1,4 @@
-import type { GraphNode } from "../../../types/graph";
-import { type NodeCtx, nodeKinds } from "../../nodeKinds";
+import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
 /**
  * Every branch runs to its end, even when another fails: a branch left
@@ -13,11 +12,7 @@ import { type NodeCtx, nodeKinds } from "../../nodeKinds";
  * divergence). Static `sidePorts` is empty by design; mayDiverge picks
  * up the dynamic-config signal.
  */
-async function execute(
-  node: GraphNode,
-  _inputs: Record<string, unknown>,
-  ctx: NodeCtx,
-): Promise<void> {
+const execute: NodeExecute = async (node, _inputs, ctx) => {
   const raw = node.config.ports;
   const ports = Array.isArray(raw)
     ? raw.map(String).filter((p) => p.length > 0)
@@ -34,7 +29,7 @@ async function execute(
     ),
   );
   if (failures.length > 0) throw failures[0];
-}
+};
 
 nodeKinds.register("parallel", execute, {
   continuationPorts: ["main"],

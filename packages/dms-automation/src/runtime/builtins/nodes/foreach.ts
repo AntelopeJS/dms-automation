@@ -1,5 +1,4 @@
-import type { GraphNode } from "../../../types/graph";
-import { type NodeCtx, nodeKinds } from "../../nodeKinds";
+import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
 /**
  * `main` auto-propagates after execute returns (implicit continuation):
@@ -7,11 +6,7 @@ import { type NodeCtx, nodeKinds } from "../../nodeKinds";
  * foreach.main folds back into the parent flow rather than nesting
  * under a `main` child fire.
  */
-async function execute(
-  _node: GraphNode,
-  inputs: Record<string, unknown>,
-  ctx: NodeCtx,
-): Promise<void> {
+const execute: NodeExecute = async (_node, inputs, ctx) => {
   const raw = inputs.items;
   const items = Array.isArray(raw) ? raw : [];
   if (!Array.isArray(raw)) {
@@ -24,7 +19,7 @@ async function execute(
     ctx.setOutputs({ value: items[i], index: i });
     await ctx.fireTrigger("body", { iteration: i });
   }
-}
+};
 
 nodeKinds.register("foreach", execute, {
   continuationPorts: ["main"],
