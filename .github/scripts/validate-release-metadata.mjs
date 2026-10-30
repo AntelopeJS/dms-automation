@@ -15,16 +15,16 @@ const INTERFACE_PACKAGE = "@antelopejs/interface-dms-automation";
  * The publication target of this repository, in one place. A release from a
  * directory that is not listed here is a mistake, not a new package.
  */
-const PACKAGES = {
-  "packages/dms-automation": {
-    name: "@antelopejs/dms-automation",
-    role: "runtime",
-  },
-  "packages/interface-dms-automation": {
-    name: INTERFACE_PACKAGE,
-    role: "interface",
-  },
-};
+const PACKAGES = new Map([
+  [
+    "packages/dms-automation",
+    { name: "@antelopejs/dms-automation", role: "runtime" },
+  ],
+  [
+    "packages/interface-dms-automation",
+    { name: INTERFACE_PACKAGE, role: "interface" },
+  ],
+]);
 
 const [packageDirectory] = process.argv.slice(2);
 if (packageDirectory === undefined) {
@@ -33,10 +33,10 @@ if (packageDirectory === undefined) {
   );
 }
 
-const expected = PACKAGES[packageDirectory];
+const expected = PACKAGES.get(packageDirectory);
 if (expected === undefined) {
   throw new Error(
-    `${packageDirectory} is not a publishable package of this repository. Expected one of: ${Object.keys(PACKAGES).join(", ")}.`,
+    `${packageDirectory} is not a publishable package of this repository. Expected one of: ${[...PACKAGES.keys()].join(", ")}.`,
   );
 }
 
@@ -46,39 +46,80 @@ if (!fs.existsSync(manifestPath)) {
     `${manifestPath} does not exist: the release would publish nothing.`,
   );
 }
-const pkg = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is string}
+ */
+function isString(value) {
+  return typeof value === "string";
+}
+
+/**
+ * The value `keys` reaches below `root`, or `undefined` where the path leaves
+ * the objects the manifest holds.
+ * @param {unknown} root
+ * @param {string[]} keys
+ * @returns {unknown}
+ */
+function valueAt(root, ...keys) {
+  let current = root;
+  for (const key of keys) {
+    if (!isRecord(current) || !Object.hasOwn(current, key)) return undefined;
+    current = current[key];
+  }
+  return current;
+}
+
+/** @type {unknown} */
+const pkg = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+const pkgName = valueAt(pkg, "name");
+const pkgVersion = valueAt(pkg, "version");
+
+/** @type {string[]} */
 const failures = [];
+/**
+ * @param {boolean} condition
+ * @param {string} message
+ */
 function check(condition, message) {
   if (!condition) failures.push(message);
 }
 
 check(
-  pkg.name === expected.name,
-  `name is ${JSON.stringify(pkg.name)}: ${packageDirectory} publishes ${expected.name}.`,
+  pkgName === expected.name,
+  `name is ${JSON.stringify(pkgName)}: ${packageDirectory} publishes ${expected.name}.`,
 );
 check(
-  pkg.private !== true,
+  valueAt(pkg, "private") !== true,
   "private is true: remove it, a private package cannot be published.",
 );
 check(
-  pkg.license === "Apache-2.0",
-  `license is ${JSON.stringify(pkg.license)}: every package of this repository ships under Apache-2.0.`,
+  valueAt(pkg, "license") === "Apache-2.0",
+  `license is ${JSON.stringify(valueAt(pkg, "license"))}: every package of this repository ships under Apache-2.0.`,
 );
 check(
-  pkg.repository?.url === REPOSITORY_URL,
-  `repository.url is ${JSON.stringify(pkg.repository?.url)}: set it to ${REPOSITORY_URL} so provenance points at this repository.`,
+  valueAt(pkg, "repository", "url") === REPOSITORY_URL,
+  `repository.url is ${JSON.stringify(valueAt(pkg, "repository", "url"))}: set it to ${REPOSITORY_URL} so provenance points at this repository.`,
 );
 check(
-  pkg.publishConfig?.registry === "https://registry.npmjs.org/",
-  `publishConfig.registry is ${JSON.stringify(pkg.publishConfig?.registry)}: this package is public, publish it to https://registry.npmjs.org/.`,
+  valueAt(pkg, "publishConfig", "registry") === "https://registry.npmjs.org/",
+  `publishConfig.registry is ${JSON.stringify(valueAt(pkg, "publishConfig", "registry"))}: this package is public, publish it to https://registry.npmjs.org/.`,
 );
 check(
-  pkg.publishConfig?.access === "public",
-  `publishConfig.access is ${JSON.stringify(pkg.publishConfig?.access)}: a scoped package defaults to restricted, set it to "public".`,
+  valueAt(pkg, "publishConfig", "access") === "public",
+  `publishConfig.access is ${JSON.stringify(valueAt(pkg, "publishConfig", "access"))}: a scoped package defaults to restricted, set it to "public".`,
 );
 check(
-  pkg.publishConfig?.provenance === true,
+  valueAt(pkg, "publishConfig", "provenance") === true,
   "publishConfig.provenance is not true: the shared workflow publishes with npm OIDC and needs provenance enabled.",
 );
 
@@ -95,7 +136,12 @@ const DMS_PACKAGE =
   /^@antelopejs\/(dms|dms-.+|interface-dms|interface-dms-.+)$/;
 const DMS_RANGE = /^>=\d+\.\d+\.\d+ <\d+\.\d+\.\d+$/;
 
+/**
+ * @param {string} a
+ * @param {string} b
+ */
 function compareVersions(a, b) {
+  /** @param {string} version */
   const parts = (version) => version.split("-")[0].split(".").map(Number);
   const [x, y] = [parts(a), parts(b)];
   return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
@@ -106,8 +152,13 @@ function compareVersions(a, b) {
  * (`>=<floor> <0.<minor+1>.0`): a breaking interface minor must never reach a
  * module that does not implement it.
  */
+/**
+ * @param {unknown} version
+ * @param {unknown} range
+ */
 function satisfiesImplementedRange(version, range) {
-  const match = /^>=(0\.(\d+)\.\d+) <(0\.(\d+)\.0)$/.exec(range ?? "");
+  if (!isString(version) || !isString(range)) return false;
+  const match = /^>=(0\.(\d+)\.\d+) <(0\.(\d+)\.0)$/.exec(range);
   if (!match || Number(match[4]) !== Number(match[2]) + 1) return false;
   return (
     compareVersions(version, match[1]) >= 0 &&
@@ -120,10 +171,12 @@ for (const field of [
   "peerDependencies",
   "optionalDependencies",
 ]) {
-  for (const [dependency, range] of Object.entries(pkg[field] ?? {})) {
+  const group = valueAt(pkg, field);
+  if (!isRecord(group)) continue;
+  for (const [dependency, range] of Object.entries(group)) {
     if (!DMS_PACKAGE.test(dependency)) continue;
     check(
-      DMS_RANGE.test(range),
+      isString(range) && DMS_RANGE.test(range),
       `${field}["${dependency}"] is ${JSON.stringify(range)}: DMS packages are referenced by a ">=<floor> <1.0.0" range, a caret range on 0.0.x breaks interface resolution at startup.`,
     );
   }
@@ -136,23 +189,28 @@ if (expected.role === "runtime") {
    * without ever pulling a second copy, so an interface release must not block
    * the module's release.
    */
-  const interfaceVersion = JSON.parse(
-    fs.readFileSync(
-      path.join("packages", "interface-dms-automation", "package.json"),
-      "utf8",
+  const interfaceVersion = valueAt(
+    JSON.parse(
+      fs.readFileSync(
+        path.join("packages", "interface-dms-automation", "package.json"),
+        "utf8",
+      ),
     ),
-  ).version;
-  const interfaceRange = pkg.dependencies?.[INTERFACE_PACKAGE];
+    "version",
+  );
+  const interfaceRange = valueAt(pkg, "dependencies", INTERFACE_PACKAGE);
+  const release = valueAt(pkg, "scripts", "release");
+  const releaseScript = isString(release) ? release : "";
   check(
     satisfiesImplementedRange(interfaceVersion, interfaceRange),
-    `dependencies["${INTERFACE_PACKAGE}"] is ${JSON.stringify(interfaceRange)}: the module implements it, so it must be a ">=<floor> <0.<minor+1>.0" range satisfied by the interface in this tree (${interfaceVersion}).`,
+    `dependencies["${INTERFACE_PACKAGE}"] is ${JSON.stringify(interfaceRange)}: the module implements it, so it must be a ">=<floor> <0.<minor+1>.0" range satisfied by the interface in this tree (${String(interfaceVersion)}).`,
   );
   check(
-    !/\bnpm publish\b|\bpnpm publish\b/.test(pkg.scripts?.release ?? ""),
+    !/\bnpm publish\b|\bpnpm publish\b/.test(releaseScript),
     'the release script publishes directly: releasing the module must not publish the interface package, use the "Release DMS automation interface" workflow.',
   );
   check(
-    (pkg.scripts?.release ?? "").includes("verify:interface"),
+    releaseScript.includes("verify:interface"),
     "the release script no longer runs verify:interface: the module must refuse to release before its interface is resolvable on npmjs.",
   );
 }
@@ -164,4 +222,6 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`${pkg.name}@${pkg.version} (${packageDirectory}) is releasable.`);
+console.log(
+  `${String(pkgName)}@${String(pkgVersion)} (${packageDirectory}) is releasable.`,
+);
