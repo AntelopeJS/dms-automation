@@ -53,7 +53,8 @@ export const objectNodes: DataNodeType[] = [
       properties: { obj: objProp, path: pathProp },
     },
     outputSchema: { type: "object", properties: { result: anyVal } },
-    evaluate: ({ obj, path }) => {
+    evaluate: (i) => {
+      const { obj, path } = i as { obj: unknown; path: string };
       return { result: getPath(obj, String(path ?? "")) };
     },
   },
@@ -68,7 +69,12 @@ export const objectNodes: DataNodeType[] = [
       properties: { obj: objProp, path: pathProp, value: anyVal },
     },
     outputSchema: { type: "object", properties: { result: resultObj } },
-    evaluate: ({ obj, path, value }) => {
+    evaluate: (i) => {
+      const { obj, path, value } = i as {
+        obj: unknown;
+        path: string;
+        value: unknown;
+      };
       return { result: setPath(obj, String(path ?? ""), value) };
     },
   },
