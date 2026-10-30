@@ -3,17 +3,24 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { after, before, test } = require("node:test");
-const { frontendRequire } = require("./helpers/frontend.cjs");
 
 const {
   backendBoundary,
 } = require("../frontend-vue/build/backend-boundary.ts");
-const vite = frontendRequire("vite");
+const vite = require("../frontend-vue/node_modules/vite/dist/node/index.js");
+
+/** @typedef {import("../frontend-vue/node_modules/vite/dist/node/index.js").Plugin} VitePlugin */
 
 /** A scratch repository: the backend package, another package, and the frontend module inside the backend package. */
+/** @type {string} */
 let repository;
+/** @type {string} */
 let frontend;
 
+/**
+ * @param {string} file
+ * @param {string} text
+ */
 function write(file, text) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, text);
@@ -52,7 +59,16 @@ after(() => {
   fs.rmSync(repository, { recursive: true, force: true });
 });
 
-/** Builds a frontend entry made of `source`, with the boundary plugin and `extra` plugins. */
+/**
+ * Builds a frontend entry made of `source`, with the boundary plugin and `extra` plugins.
+ * @param {string} source
+ * @param {{
+ *   extra?: VitePlugin[];
+ *   alias?: Record<string, string>;
+ *   preserveSymlinks?: boolean;
+ *   external?: string[];
+ * }} [options]
+ */
 async function build(
   source,
   { extra = [], alias = {}, preserveSymlinks = false, external = [] } = {},
@@ -73,7 +89,12 @@ async function build(
   return result;
 }
 
-/** A plugin that answers the import `request` with the module id `id`. */
+/**
+ * A plugin that answers the import `request` with the module id `id`.
+ * @param {string} request
+ * @param {string} id
+ * @returns {VitePlugin}
+ */
 function resolver(request, id) {
   return {
     name: "test-resolver",
@@ -83,10 +104,11 @@ function resolver(request, id) {
   };
 }
 
-test("an import of the backend source fails the build, naming both files", async () => {
+void test("an import of the backend source fails the build, naming both files", async () => {
   await assert.rejects(
     build('import { secret } from "../src/backend.ts";\nexport { secret };\n'),
     (error) => {
+      assert.ok(error instanceof Error);
       assert.match(error.message, /Backend boundary/);
       assert.ok(error.message.includes(path.join(frontend, "entry.ts")));
       assert.ok(
@@ -99,7 +121,7 @@ test("an import of the backend source fails the build, naming both files", async
   );
 });
 
-test("an alias that points into the backend source fails the build", async () => {
+void test("an alias that points into the backend source fails the build", async () => {
   await assert.rejects(
     build(
       'import { secret } from "@backend/backend.ts";\nexport { secret };\n',
@@ -113,7 +135,7 @@ test("an alias that points into the backend source fails the build", async () =>
   );
 });
 
-test("a symlink to the backend source, followed by the resolver, fails the build", async () => {
+void test("a symlink to the backend source, followed by the resolver, fails the build", async () => {
   await assert.rejects(
     build('import { secret } from "./linked.ts";\nexport { secret };\n', {
       extra: [resolver("./linked.ts", path.join(frontend, "linked.ts"))],
@@ -123,7 +145,7 @@ test("a symlink to the backend source, followed by the resolver, fails the build
   );
 });
 
-test("an id with a query or a hash still names the backend source", async () => {
+void test("an id with a query or a hash still names the backend source", async () => {
   const target = path.join(
     repository,
     "packages/dms-automation/src/backend.ts",
@@ -139,7 +161,7 @@ test("an id with a query or a hash still names the backend source", async () => 
   }
 });
 
-test("the built output, a virtual module and the source of another package pass", async () => {
+void test("the built output, a virtual module and the source of another package pass", async () => {
   const built = await build(
     'import { built } from "../dist/built.js";\nexport { built };\n',
   );
@@ -155,7 +177,7 @@ test("the built output, a virtual module and the source of another package pass"
   assert.match(JSON.stringify(other), /shared/);
 });
 
-test("a sibling folder named like src, and a src folder inside dist, pass", async () => {
+void test("a sibling folder named like src, and a src folder inside dist, pass", async () => {
   const sibling = await build(
     'import { sibling } from "../srcx/sibling.ts";\nexport { sibling };\n',
   );
@@ -166,7 +188,7 @@ test("a sibling folder named like src, and a src folder inside dist, pass", asyn
   assert.match(JSON.stringify(nested), /nested/);
 });
 
-test("a backend source import declared external still fails the build", async () => {
+void test("a backend source import declared external still fails the build", async () => {
   const target = path.join(
     repository,
     "packages/dms-automation/src/backend.ts",

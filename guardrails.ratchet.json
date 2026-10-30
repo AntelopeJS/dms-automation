@@ -7,10 +7,7 @@
     "anti-slop/no-unknown-parameters": 38,
     "anti-slop/no-unknown-returns": 7,
     "anti-slop/no-unsafe-dictionary-type": 19,
-    "anti-slop/require-safety-comment-for-type-assertion": 19,
-    "typescript/no-unsafe-argument": 76,
-    "typescript/no-unsafe-assignment": 471,
-    "typescript/no-unsafe-return": 126
+    "anti-slop/require-safety-comment-for-type-assertion": 17
   },
   "oversizeFiles": {}
 }

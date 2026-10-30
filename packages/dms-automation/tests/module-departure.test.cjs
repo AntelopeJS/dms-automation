@@ -26,6 +26,18 @@ const { subscriptions } = require("../dist/runtime/subscriptions.js");
 const SELF = "dms-automation";
 const PROJECT = "project";
 
+/** @typedef {import("@antelopejs/interface-dms-automation").TriggerType} TriggerType */
+/** @typedef {import("@antelopejs/interface-dms-automation").ActionType} ActionType */
+/** @typedef {import("../dist/types/graph.js").GraphNode} GraphNode */
+/** @typedef {import("../dist/types/graph.js").TriggerEdge} TriggerEdge */
+/** @typedef {import("../dist/db/tables/procedure_run.table.js").ProcedureRun} ProcedureRun */
+
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {string} [typeId]
+ * @returns {GraphNode}
+ */
 const node = (id, kind, typeId) => ({
   id,
   kind,
@@ -33,6 +45,11 @@ const node = (id, kind, typeId) => ({
   config: {},
   position: { x: 0, y: 0 },
 });
+/**
+ * @param {string} from
+ * @param {string} to
+ * @returns {TriggerEdge}
+ */
 const edge = (from, to) => ({
   id: `${from}-${to}`,
   from: { node: from },
@@ -56,6 +73,7 @@ const procedure = {
   version: 1,
 };
 
+/** @type {Array<Partial<ProcedureRun> & { storedBy: string | undefined }>} */
 const runs = [];
 Object.assign(ProcedureModel.prototype, {
   listEnabled: async () => [{ ...procedure }],
@@ -64,12 +82,17 @@ Object.assign(ProcedureModel.prototype, {
 Object.assign(AutomationTemplateModel.prototype, { listAll: async () => [] });
 Object.assign(TypeSwitchModel.prototype, { getAll: async () => [] });
 Object.assign(ProcedureRunModel.prototype, {
+  /** @param {Partial<ProcedureRun>} row */
   insert: async (row) => {
     runs.push({ ...row, storedBy: GetResponsibleModule() });
     return [`run-${runs.length}`];
   },
 });
 
+/**
+ * @param {() => boolean} condition
+ * @param {string} what
+ */
 async function until(condition, what) {
   for (let i = 0; i < 200; i++) {
     if (condition()) return;
@@ -78,9 +101,17 @@ async function until(condition, what) {
   assert.fail(`timed out waiting for ${what}`);
 }
 
+/**
+ * @typedef {object} ProjectTypes
+ * @property {Set<unknown>} armed
+ * @property {((payload: unknown) => void) | undefined} emit
+ * @property {TriggerType} trigger
+ * @property {ActionType} wait
+ * @property {ActionType} after
+ */
+
 /** The project's own types: a trigger, and two steps the run goes through. */
 function projectTypes() {
-  const project = { armed: new Set(), emit: undefined };
   const gate = Promise.withResolvers();
   const entered = Promise.withResolvers();
   const base = {
@@ -89,44 +120,49 @@ function projectTypes() {
     inputSchema: { type: "object" },
     outputSchema: { type: "object" },
   };
-  project.trigger = {
-    ...base,
-    id: "project.ticket",
-    name: "Ticket opened",
-    configSchema: { type: "object" },
-    cluster: "replicated",
-    async activate(_config, emit) {
-      const handle = Symbol("handle");
-      project.armed.add(handle);
-      project.emit = emit;
-      return handle;
+  /** @type {ProjectTypes} */
+  const project = {
+    armed: new Set(),
+    emit: undefined,
+    trigger: {
+      ...base,
+      id: "project.ticket",
+      name: "Ticket opened",
+      configSchema: { type: "object" },
+      cluster: "replicated",
+      async activate(_config, emit) {
+        const handle = Symbol("handle");
+        project.armed.add(handle);
+        project.emit = emit;
+        return handle;
+      },
+      async deactivate(handle) {
+        project.armed.delete(handle);
+      },
     },
-    async deactivate(handle) {
-      project.armed.delete(handle);
+    wait: {
+      ...base,
+      id: "project.wait",
+      name: "Wait",
+      async execute() {
+        entered.resolve();
+        await gate.promise;
+        return {};
+      },
     },
-  };
-  project.wait = {
-    ...base,
-    id: "project.wait",
-    name: "Wait",
-    async execute() {
-      entered.resolve();
-      await gate.promise;
-      return {};
-    },
-  };
-  project.after = {
-    ...base,
-    id: "project.after",
-    name: "After",
-    async execute() {
-      return {};
+    after: {
+      ...base,
+      id: "project.after",
+      name: "After",
+      async execute() {
+        return {};
+      },
     },
   };
   return { project, gate, entered };
 }
 
-test("a departing project's triggers go quietly and its run fails", async (t) => {
+void test("a departing project's triggers go quietly and its run fails", async (t) => {
   const errors = t.mock.method(Logging, "Error", () => {});
   RunWithResponsibleModule(SELF, () =>
     ImplementInterface(automation, implementation),
@@ -141,7 +177,10 @@ test("a departing project's triggers go quietly and its run fails", async (t) =>
   });
   await until(() => project.armed.size === 1, "the project's trigger to arm");
 
-  RunWithResponsibleModule(PROJECT, () => project.emit({ ticket: 1 }));
+  RunWithResponsibleModule(PROJECT, () => {
+    assert.ok(project.emit);
+    project.emit({ ticket: 1 });
+  });
   await entered.promise;
 
   Events.ModuleDestroyed.emit(PROJECT);
@@ -151,10 +190,12 @@ test("a departing project's triggers go quietly and its run fails", async (t) =>
   await until(() => runs.length === 1, "the run to be stored");
   const [run] = runs;
   assert.equal(run.status, "failed");
+  assert.ok(run.errorMessage);
   assert.match(run.errorMessage, /project\.after/);
   assert.equal(run.failedNodeId, "after");
   assert.equal(run.storedBy, SELF);
 
+  assert.ok(project.emit);
   project.emit({ ticket: 2 });
   await subscriptions.onProcedureChange();
   assert.equal(runs.length, 1);
@@ -174,6 +215,10 @@ const { run } = require("../dist/runtime/executor.js");
 
 for (const type of builtinTriggers) registry.addTrigger(type.id, type);
 
+/**
+ * @param {string} id
+ * @param {ActionType["execute"]} execute
+ */
 function action(id, execute) {
   registry.addAction(id, {
     id,
@@ -186,7 +231,8 @@ function action(id, execute) {
   });
 }
 
-test("a Try/Catch catches a step whose module is gone, like any error", async () => {
+void test("a Try/Catch catches a step whose module is gone, like any error", async () => {
+  /** @type {boolean[]} */
   const caught = [];
   action("tests.gone", async () => {
     throw new ModuleContextInvalidatedError(PROJECT);

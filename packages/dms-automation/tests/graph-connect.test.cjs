@@ -1,5 +1,4 @@
 const assert = require("node:assert/strict");
-const path = require("node:path");
 const { test } = require("node:test");
 
 /**
@@ -7,12 +6,27 @@ const { test } = require("node:test");
  * translates: these tests load the frontend composable that decides it.
  */
 
-const { FRONTEND } = require("./helpers/frontend.cjs");
+require("./helpers/frontend.cjs");
 
-const { canConnect } = require(
-  path.join(FRONTEND, "app/composables/useGraphConnect.ts"),
-);
+const {
+  canConnect,
+} = require("../frontend-vue/app/composables/useGraphConnect.ts");
 
+/** @typedef {Parameters<typeof canConnect>[0]} ProcedureGraph */
+/** @typedef {Parameters<typeof canConnect>[5]} Connection */
+/** @typedef {{ name: string; type?: string }} PortFixture */
+/**
+ * @typedef {{
+ *   label: string;
+ *   hasTriggerIn: boolean;
+ *   hasMainTriggerOut: boolean;
+ *   staticTriggerOuts: string[];
+ *   staticDataIns: PortFixture[];
+ *   staticDataOuts: PortFixture[];
+ * }} NodeKindUI
+ */
+
+/** @param {Partial<NodeKindUI>} over */
 const ui = (over) => ({
   label: "x",
   hasTriggerIn: true,
@@ -49,6 +63,10 @@ const NODE_KINDS = [
   },
 ];
 
+/**
+ * @param {string} id
+ * @param {string} [kind]
+ */
 const node = (id, kind = "step") => ({
   id,
   kind,
@@ -56,16 +74,30 @@ const node = (id, kind = "step") => ({
   position: { x: 0, y: 0 },
 });
 
+/**
+ * @param {ProcedureGraph} graph
+ * @param {Connection} connection
+ */
 function check(graph, connection) {
   return canConnect(graph, NODE_KINDS, [], [], [], connection);
 }
 
+/**
+ * @param {string} source
+ * @param {string} target
+ */
 const trigger = (source, target) => ({
   source,
   target,
   sourceHandle: "trigger-out-main",
   targetHandle: "trigger-in",
 });
+/**
+ * @param {string} source
+ * @param {string} target
+ * @param {string} [port]
+ * @param {string} [field]
+ */
 const data = (source, target, port = "out", field = "in") => ({
   source,
   target,
@@ -73,7 +105,7 @@ const data = (source, target, port = "out", field = "in") => ({
   targetHandle: `data-in-${field}`,
 });
 
-test("a step can't be linked to itself", () => {
+void test("a step can't be linked to itself", () => {
   const graph = { nodes: [node("a")], triggerEdges: [], dataEdges: [] };
   assert.deepEqual(check(graph, trigger("a", "a")), {
     ok: false,
@@ -85,7 +117,7 @@ test("a step can't be linked to itself", () => {
   });
 });
 
-test("a trigger link that would close a loop is refused", () => {
+void test("a trigger link that would close a loop is refused", () => {
   const graph = {
     nodes: [node("a"), node("b"), node("c")],
     triggerEdges: [
@@ -101,7 +133,7 @@ test("a trigger link that would close a loop is refused", () => {
   assert.deepEqual(check(graph, trigger("a", "c")), { ok: true });
 });
 
-test("a loop of data nodes is refused, a step reading a later output is not", () => {
+void test("a loop of data nodes is refused, a step reading a later output is not", () => {
   const graph = {
     nodes: [node("d1", "data"), node("d2", "data"), node("s"), node("t")],
     triggerEdges: [],
@@ -125,7 +157,7 @@ test("a loop of data nodes is refused, a step reading a later output is not", ()
   assert.deepEqual(check(graph, data("t", "s")), { ok: true });
 });
 
-test("refusals name the reason: port kinds and types", () => {
+void test("refusals name the reason: port kinds and types", () => {
   const graph = {
     nodes: [node("a"), node("d", "data")],
     triggerEdges: [],
@@ -151,7 +183,7 @@ test("refusals name the reason: port kinds and types", () => {
   });
 });
 
-test("a link already in the graph stays valid", () => {
+void test("a link already in the graph stays valid", () => {
   const graph = {
     nodes: [node("a")],
     triggerEdges: [

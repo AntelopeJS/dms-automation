@@ -1,11 +1,10 @@
 const Module = require("node:module");
-const path = require("node:path");
-const { isString } = require("../dist/types/guards.js");
 const {
-  FRONTEND,
-  frontendRequire,
-  component,
-} = require("./helpers/frontend.cjs");
+  isNumber,
+  isPropertyBag,
+  isString,
+} = require("../dist/types/guards.js");
+const { component } = require("./helpers/frontend.cjs");
 
 /**
  * Server renders of the pages and components, for the render tests: what a
@@ -14,10 +13,15 @@ const {
  * DMS's real `useApiData`, as installed by frontend-vue.
  */
 
-const vue = frontendRequire("vue");
-const { renderToString } = frontendRequire("vue/server-renderer");
+const vue = require("../frontend-vue/node_modules/vue");
+const {
+  renderToString,
+} = require("../frontend-vue/node_modules/vue/server-renderer");
 
-/** What the renderer imports of Inertia and vue-i18n serves the browser only. */
+/**
+ * What the renderer imports of Inertia and vue-i18n serves the browser only.
+ * @type {Record<string, unknown>}
+ */
 const BROWSER_ONLY = {
   "@inertiajs/vue3": {
     Link: {},
@@ -30,55 +34,111 @@ const BROWSER_ONLY = {
     },
   },
 };
+/** @type {unknown} */
 const load = Module._load;
+if (!(load instanceof Function))
+  throw new Error("Module._load is not available in this Node");
+/**
+ * @param {string} request
+ * @param {...unknown} rest
+ * @returns {unknown}
+ */
 Module._load = function (request, ...rest) {
-  return BROWSER_ONLY[request] ?? load.call(this, request, ...rest);
+  /** @type {unknown} */
+  const loaded = BROWSER_ONLY[request] ?? load.call(this, request, ...rest);
+  return loaded;
 };
 
-const ANTELOPE = path.join(FRONTEND, "node_modules/@antelopejs");
-const engine = require(
-  path.join(ANTELOPE, "dms-frontend/templates/vue/frontend-module.ts"),
-);
-/** The key the payload carries the response of `read` under, as `useDmsFetch` keys it. */
+const engine = require("../frontend-vue/node_modules/@antelopejs/dms-frontend/templates/vue/frontend-module.ts");
+
+/**
+ * A request the page made through `$authFetch`: its URL, method and query as
+ * the render saw them (`query` defaulted to `{}`, `rawQuery` as given).
+ * @typedef {object} Read
+ * @property {string} url
+ * @property {string} method
+ * @property {Record<string, unknown>} query
+ * @property {Record<string, unknown> | undefined} rawQuery
+ */
+
+/**
+ * The key the payload carries the response of `read` under, as `useDmsFetch` keys it.
+ * @param {Read} read
+ */
 const fetchKey = (read) =>
   engine.dmsRequestKey(read.url, { method: read.method, query: read.rawQuery });
-const { useApiData } = require(
-  path.join(
-    ANTELOPE,
-    "dms/frontend-vue/layers/dms-core/app/composables/auth/useApiData.ts",
-  ),
-);
+const {
+  useApiData,
+} = require("../frontend-vue/node_modules/@antelopejs/dms/frontend-vue/layers/dms-core/app/composables/auth/useApiData.ts");
+const {
+  useAutomationNodeKinds,
+} = require("../frontend-vue/app/composables/useAutomationNodeKinds.ts");
+const {
+  useAutomationRuns,
+} = require("../frontend-vue/app/composables/useAutomationRuns.ts");
 
 const API = "/api/automation";
+/** @type {(read: Read) => unknown} */
 let backend = () => ({});
+/** @type {Read[]} */
 const reads = [];
 
-/** A failure as `$authFetch` throws it for an HTTP status. */
+/**
+ * A failure as `$authFetch` throws it for an HTTP status.
+ * @param {number} statusCode
+ */
 const httpError = (statusCode) =>
   Object.assign(new Error(`HTTP ${statusCode}`), {
     statusCode,
     statusMessage: `HTTP ${statusCode}`,
   });
 
-/** A message as its key, followed by its parameters. */
+/**
+ * A message as its key, followed by its parameters.
+ * @param {string} key
+ * @param {Record<string, unknown>} [params]
+ */
 const t = (key, params) =>
   params ? `${key} ${Object.values(params).join(" ")}` : key;
+/**
+ * @template T
+ * @param {T} value
+ * @returns {T}
+ */
 const same = (value) => value;
 const noop = () => {};
 
-for (const [name, value] of Object.entries(vue))
-  if (/^[a-z]/.test(name)) globalThis[name] = value;
-for (const name of [
-  "useDmsFetch",
-  "useDmsAsyncData",
-  "useDmsState",
-  "useDmsRoute",
-  "useDmsRouter",
-])
-  globalThis[name] = engine[name];
+/**
+ * The HTTP status a failure carries.
+ * @param {unknown} error
+ */
+const statusOf = (error) =>
+  isPropertyBag(error) && isNumber(error.statusCode)
+    ? error.statusCode
+    : undefined;
+
+/**
+ * @param {Record<string, unknown>} exports
+ */
+const exposeLowercase = (exports) => {
+  for (const [name, value] of Object.entries(exports))
+    if (/^[a-z]/.test(name)) globalThis[name] = value;
+};
+exposeLowercase(vue);
 Object.assign(globalThis, {
+  useDmsFetch: engine.useDmsFetch,
+  useDmsAsyncData: engine.useDmsAsyncData,
+  useDmsState: engine.useDmsState,
+  useDmsRoute: engine.useDmsRoute,
+  useDmsRouter: engine.useDmsRouter,
+  useAutomationNodeKinds,
+  useAutomationRuns,
   useApiData,
   useAuthFetch: () => ({
+    /**
+     * @param {string} url
+     * @param {{ method?: string, query?: Record<string, unknown> }} [options]
+     */
     async $authFetch(url, options = {}) {
       const read = {
         url,
@@ -92,11 +152,13 @@ Object.assign(globalThis, {
   }),
   useI18n: () => ({ t, te: () => false, locale: vue.ref("en") }),
   useRegionalFormat: () => ({
+    /** @param {Intl.DateTimeFormatOptions} [options] */
     dateTimeFormat: (options) =>
       new Intl.DateTimeFormat("en", { ...options, timeZone: "UTC" }),
   }),
   useTranslation: () => ({ processI18n: same }),
   useComposedText: () => ({
+    /** @param {unknown} text */
     processText: (text) => (isString(text) ? text : ""),
   }),
   useKeyboardPlatform: () => ({ formatShortcut: same }),
@@ -112,19 +174,18 @@ Object.assign(globalThis, {
     errorId: same,
   }),
   useHead: noop,
-  describeApiError: (error) => `error ${error?.statusCode ?? ""}`.trim(),
-  apiErrorStatus: (error) => error?.statusCode,
+  /** @param {unknown} error */
+  describeApiError: (error) => `error ${statusOf(error) ?? ""}`.trim(),
+  apiErrorStatus: statusOf,
 });
-for (const name of ["useAutomationNodeKinds", "useAutomationRuns"])
-  globalThis[name] = require(
-    path.join(FRONTEND, "app/composables", `${name}.ts`),
-  )[name];
 
 /**
  * Every DMS, Nuxt UI and module component the templates use renders its
  * default slot, its props as attributes.
  */
+/** @type {Map<string, import("../frontend-vue/node_modules/vue").Component>} */
 const stubs = new Map();
+/** @param {string} name */
 function stub(name) {
   if (!stubs.has(name))
     stubs.set(
@@ -147,6 +208,14 @@ const STUBBED = /^(Dms|U[A-Z]|I18nT)/;
  * names the reads handed over under a key of their own (a handler, the `key`
  * option), by that key. `settle` is how long after the render the requests
  * it left behind (a timer, a read nobody waited for) are counted, in ms.
+ * @param {unknown} root
+ * @param {Record<string, unknown>} props
+ * @param {{
+ *   url?: string,
+ *   respond?: (read: Read) => unknown,
+ *   keyed?: Record<string, (read: Read) => boolean>,
+ *   settle?: number,
+ * }} [options]
  */
 async function serverRender(root, props, options = {}) {
   backend = options.respond ?? (() => ({}));
@@ -183,7 +252,14 @@ async function serverRender(root, props, options = {}) {
   };
 }
 
+/** @param {unknown[]} [nodes] */
 const graph = (nodes = []) => ({ nodes, triggerEdges: [], dataEdges: [] });
+/**
+ * @param {string} id
+ * @param {string} name
+ * @param {boolean} enabled
+ * @param {unknown[]} [nodes]
+ */
 const procedure = (id, name, enabled, nodes = []) => ({
   _id: id,
   name,
@@ -231,6 +307,7 @@ const run = {
   trace: { steps: [], skipped: [] },
 };
 
+/** @param {{ url: string, method: string }} read */
 function respond({ url, method }) {
   if (method === "POST") return { issues: [] };
   switch (url.split("?")[0].replace(API, "")) {
@@ -318,6 +395,7 @@ function respond({ url, method }) {
   }
 }
 
+/** @param {Read[]} made */
 const paths = (made) =>
   made
     .map((read) => `${read.method} ${read.url.split("?")[0].replace(API, "")}`)

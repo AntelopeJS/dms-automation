@@ -10,6 +10,7 @@ if (!Number.isInteger(listenPort)) {
   throw new Error("PORT must be an integer");
 }
 
+/** @param {string} [requestUrl] */
 function selectTarget(requestUrl = "/") {
   const parsedUrl = new URL(requestUrl, "http://gateway.internal");
   const path = `${parsedUrl.pathname}${parsedUrl.search}`;
@@ -22,6 +23,12 @@ function selectTarget(requestUrl = "/") {
   };
 }
 
+/**
+ * @param {http.IncomingMessage} request
+ * @param {URL} target
+ * @param {boolean} [upgrade]
+ * @returns {http.OutgoingHttpHeaders}
+ */
 function upstreamHeaders(request, target, upgrade = false) {
   const headers = { ...request.headers, host: target.host };
 
@@ -41,6 +48,11 @@ function isString(value) {
   return typeof value === "string";
 }
 
+/**
+ * @param {http.IncomingHttpHeaders} headers
+ * @param {URL} target
+ * @returns {http.OutgoingHttpHeaders}
+ */
 function responseHeaders(headers, target) {
   const forwarded = { ...headers };
   const location = forwarded.location;

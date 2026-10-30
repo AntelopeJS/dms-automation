@@ -14,6 +14,7 @@ const { internal } = require("../dist/implementations/dms-automation/index.js");
 
 const TYPE_ID = "support.ticket-opened";
 
+/** @param {string} typeId */
 const graphOn = (typeId) =>
   JSON.stringify({
     nodes: [
@@ -29,6 +30,15 @@ const graphOn = (typeId) =>
     dataEdges: [],
   });
 
+/**
+ * @typedef {Partial<import("../dist/db/tables/procedure.table.js").Procedure> &
+ *   Pick<
+ *     import("../dist/db/tables/procedure.table.js").Procedure,
+ *     "_id" | "name" | "enabled" | "graph" | "revision" | "version"
+ *   >} StoredProcedure
+ */
+
+/** @type {Map<string, StoredProcedure>} */
 const procedures = new Map([
   [
     "P1",
@@ -57,7 +67,10 @@ const procedures = new Map([
 Object.assign(ProcedureModel.prototype, {
   listEnabled: async () =>
     [...procedures.values()].filter((p) => p.enabled).map((p) => ({ ...p })),
-  update: async (id, patch) => {
+  update: async (
+    /** @type {string} */ id,
+    /** @type {Partial<StoredProcedure>} */ patch,
+  ) => {
     procedures.set(id, { ...procedures.get(id), ...patch });
     return 1;
   },
@@ -96,9 +109,10 @@ async function until(condition, what) {
   assert.fail(`timed out waiting for ${what}`);
 }
 
+/** @param {string} id */
 const armErrorOf = (id) => procedures.get(id).armErrors ?? "";
 
-test("a late trigger type arms its procedures, and a reload re-arms them", async () => {
+void test("a late trigger type arms its procedures, and a reload re-arms them", async () => {
   await subscriptions.hydrate();
   assert.match(subscriptions.activationErrorOf("P1"), /is not available/);
   assert.match(armErrorOf("P2"), /unknownType/);
@@ -125,7 +139,7 @@ test("a late trigger type arms its procedures, and a reload re-arms them", async
   await subscriptions._deactivateAll();
 });
 
-test("a follower leaves a singleton trigger unarmed until it leads, and disarms it when it stops leading", async (t) => {
+void test("a follower leaves a singleton trigger unarmed until it leads, and disarms it when it stops leading", async (t) => {
   t.after(async () => {
     subscriptions.useLeadershipSource(() => true);
     internal.RegisterTriggerType.unregister(TYPE_ID);
@@ -149,7 +163,7 @@ test("a follower leaves a singleton trigger unarmed until it leads, and disarms 
   assert.equal(singleton.armed.size, 0);
 });
 
-test("a reload during activation releases each definition's own handles", async (t) => {
+void test("a reload during activation releases each definition's own handles", async (t) => {
   t.after(async () => {
     await subscriptions._deactivateAll();
     internal.RegisterTriggerType.unregister(TYPE_ID);

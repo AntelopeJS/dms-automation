@@ -12,11 +12,27 @@ const { traceOf } = require("../dist/runtime/trace.js");
 const {
   setHttpRequestOptions,
 } = require("../dist/runtime/builtins/actions/http.js");
+const { isPropertyBag } = require("../dist/types/guards.js");
+
+/** @typedef {import("../dist/types/dataValue.js").DataValue} DataValue */
+/** @typedef {import("../dist/types/dataValue.js").DataRecord} DataRecord */
+/** @typedef {import("../dist/types/graph.js").GraphNode} GraphNode */
+/** @typedef {import("../dist/types/graph.js").DataEdge} DataEdge */
+/** @typedef {import("../dist/types/graph.js").TriggerEdge} TriggerEdge */
+/** @typedef {import("../dist/types/graph.js").ProcedureGraph} ProcedureGraph */
+/** @typedef {import("../dist/runtime/executionResult.js").ExecutionResult} ExecutionResult */
 
 for (const t of builtinTriggers) registry.addTrigger(t.id, t);
 for (const a of builtinActions) registry.addAction(a.id, a);
 for (const d of builtinDataNodes) registry.addDataNode(d.id, d);
 
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {string} [typeId]
+ * @param {DataRecord} [config]
+ * @returns {GraphNode}
+ */
 function node(id, kind, typeId, config = {}) {
   const n = { id, kind, config, position: { x: 0, y: 0 } };
   if (typeId) n.typeId = typeId;
@@ -25,12 +41,26 @@ function node(id, kind, typeId, config = {}) {
 
 const trigger = node("t", "trigger", "manual");
 
+/**
+ * @param {string} from
+ * @param {string} to
+ * @param {string} [branch]
+ * @returns {TriggerEdge}
+ */
 function edge(from, to, branch) {
+  /** @type {TriggerEdge} */
   const e = { id: `${from}-${to}`, from: { node: from }, to: { node: to } };
   if (branch) e.from.branch = branch;
   return e;
 }
 
+/**
+ * @param {string} from
+ * @param {string} port
+ * @param {string} to
+ * @param {string} field
+ * @returns {DataEdge}
+ */
 function wire(from, port, to, field) {
   return {
     id: `${from}.${port}-${to}.${field}`,
@@ -39,15 +69,52 @@ function wire(from, port, to, field) {
   };
 }
 
-/** The output of `nodeId`'s last "executed" log entry. */
+/**
+ * The value reached by following `keys` through nested objects.
+ * @param {unknown} root
+ * @param {...string} keys
+ * @returns {unknown}
+ */
+function at(root, ...keys) {
+  let current = root;
+  for (const key of keys) {
+    assert.ok(isPropertyBag(current));
+    current = current[key];
+  }
+  return current;
+}
+
+/**
+ * The output of `nodeId`'s last "executed" log entry.
+ * @param {ExecutionResult} result
+ * @param {string} nodeId
+ * @returns {unknown}
+ */
 function outputOf(result, nodeId) {
   const entry = result.logs.entries.findLast(
     (e) => e.nodeId === nodeId && e.message === "executed",
   );
-  return entry?.value.output.value;
+  return entry && at(entry.value, "output", "value");
 }
 
-/** Runs `data` (a data node) wired into a Log and returns its result. */
+/**
+ * `outputOf`, for a node whose output is an object.
+ * @param {ExecutionResult} result
+ * @param {string} nodeId
+ * @returns {Record<string, unknown>}
+ */
+function outputRecord(result, nodeId) {
+  const output = outputOf(result, nodeId);
+  assert.ok(isPropertyBag(output));
+  return output;
+}
+
+/**
+ * Runs `data` (a data node) wired into a Log and returns its result.
+ * @param {string} typeId
+ * @param {DataRecord} config
+ * @returns {Promise<{ value?: unknown, error?: string, failedNodeId?: string }>}
+ */
 async function evaluate(typeId, config) {
   const result = await run(
     {
@@ -63,11 +130,11 @@ async function evaluate(typeId, config) {
     {},
   );
   return result.status === "ok"
-    ? { value: outputOf(result, "log").value }
+    ? { value: outputRecord(result, "log").value }
     : { error: result.errorMessage, failedNodeId: result.failedNodeId };
 }
 
-test("Set variable feeds its value port", async () => {
+void test("Set variable feeds its value port", async () => {
   const result = await run(
     {
       nodes: [
@@ -83,10 +150,10 @@ test("Set variable feeds its value port", async () => {
   );
   assert.equal(result.status, "ok");
   assert.deepEqual(outputOf(result, "sv"), { value: 5 });
-  assert.equal(outputOf(result, "log").value, 5);
+  assert.equal(outputRecord(result, "log").value, 5);
 });
 
-test("a data node that fails fails the step that reads it", async () => {
+void test("a data node that fails fails the step that reads it", async () => {
   const graph = {
     nodes: [
       trigger,
@@ -110,7 +177,7 @@ test("a data node that fails fails the step that reads it", async () => {
   );
 });
 
-test("Compare reads numbers written as text as numbers", async () => {
+void test("Compare reads numbers written as text as numbers", async () => {
   assert.equal((await evaluate("compare.gt", { a: "10", b: "9" })).value, true);
   assert.equal((await evaluate("compare.eq", { a: 5, b: "5" })).value, true);
   assert.equal((await evaluate("compare.lt", { a: "2.5", b: 10 })).value, true);
@@ -121,7 +188,11 @@ test("Compare reads numbers written as text as numbers", async () => {
   assert.equal((await evaluate("compare.eq", { a: "01", b: "1" })).value, true);
 });
 
-test("Compare in auto mode keeps null, booleans and hex apart", async () => {
+void test("Compare in auto mode keeps null, booleans and hex apart", async () => {
+  /**
+   * @param {DataValue} a
+   * @param {DataValue} b
+   */
   const eq = async (a, b) => (await evaluate("compare.eq", { a, b })).value;
   assert.equal(await eq(null, ""), false);
   assert.equal(await eq("0x10", 16), false);
@@ -131,19 +202,19 @@ test("Compare in auto mode keeps null, booleans and hex apart", async () => {
   assert.equal(await eq("1e3", 1000), true);
 });
 
-test("Compare in text mode compares in alphabetical order", async () => {
+void test("Compare in text mode compares in alphabetical order", async () => {
   const gt = await evaluate("compare.gt", { a: "10", b: "9", mode: "text" });
   assert.equal(gt.value, false);
   const eq = await evaluate("compare.eq", { a: "01", b: "1", mode: "text" });
   assert.equal(eq.value, false);
 });
 
-test("Compare in number mode fails on a value that is not a number", async () => {
+void test("Compare in number mode fails on a value that is not a number", async () => {
   const r = await evaluate("compare.gt", { a: "abc", b: 1, mode: "number" });
   assert.match(r.error, /a is not a number/);
 });
 
-test("the text false is false for the boolean nodes and If", async () => {
+void test("the text false is false for the boolean nodes and If", async () => {
   assert.equal(
     (await evaluate("bool.and", { a: "false", b: "true" })).value,
     false,
@@ -176,7 +247,7 @@ test("the text false is false for the boolean nodes and If", async () => {
   assert.notEqual(outputOf(result, "no"), undefined);
 });
 
-test("Math fails by name instead of returning NaN", async () => {
+void test("Math fails by name instead of returning NaN", async () => {
   const sqrt = await evaluate("math.sqrt", { a: -4 });
   assert.match(sqrt.error, /math\.sqrt: no valid result for a = -4/);
   assert.equal(sqrt.failedNodeId, "log");
@@ -186,13 +257,13 @@ test("Math fails by name instead of returning NaN", async () => {
   assert.match(power.error, /no valid result/);
 });
 
-test("Math reads numbers written as text and keeps null for a division by zero", async () => {
+void test("Math reads numbers written as text and keeps null for a division by zero", async () => {
   assert.equal((await evaluate("math.add", { a: "2", b: 3 })).value, 5);
   assert.equal((await evaluate("math.divide", { a: 1, b: 0 })).value, null);
   assert.equal((await evaluate("math.add", { b: 3 })).value, 3);
 });
 
-test("an empty input names the step it comes from", async () => {
+void test("an empty input names the step it comes from", async () => {
   const result = await run(
     {
       nodes: [
@@ -217,7 +288,7 @@ test("an empty input names the step it comes from", async () => {
   );
 });
 
-test("text nodes count characters as a reader does", async () => {
+void test("text nodes count characters as a reader does", async () => {
   assert.equal((await evaluate("string.length", { s: "😀ab" })).value, 3);
   assert.equal((await evaluate("string.length", { s: "👍🏽é" })).value, 2);
   const sub = await evaluate("string.substring", {
@@ -234,7 +305,7 @@ test("text nodes count characters as a reader does", async () => {
   assert.equal(swapped.value, "ell");
 });
 
-test("a constant saved without a value emits its schema default", async () => {
+void test("a constant saved without a value emits its schema default", async () => {
   const result = await run(
     {
       nodes: [
@@ -248,13 +319,28 @@ test("a constant saved without a value emits its schema default", async () => {
     "t",
     {},
   );
-  assert.equal(outputOf(result, "log").value, 0);
+  assert.equal(outputRecord(result, "log").value, 0);
 });
 
+/** @type {import("node:http").Server} */
 let server;
+/** @type {string} */
 let base;
-/** A local port nothing listens on. */
+/**
+ * A local port nothing listens on.
+ * @type {number}
+ */
 let closedPort;
+
+/**
+ * @param {import("node:http").Server} listening
+ * @returns {number}
+ */
+function portOf(listening) {
+  const address = listening.address();
+  assert.ok(isPropertyBag(address));
+  return address.port;
+}
 
 before(async () => {
   server = http.createServer((req, res) => {
@@ -276,10 +362,10 @@ before(async () => {
     }
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  base = `http://127.0.0.1:${server.address().port}`;
+  base = `http://127.0.0.1:${portOf(server)}`;
   const probe = http.createServer();
   await new Promise((resolve) => probe.listen(0, "127.0.0.1", resolve));
-  closedPort = probe.address().port;
+  closedPort = portOf(probe);
   await new Promise((resolve) => probe.close(resolve));
 });
 
@@ -288,6 +374,10 @@ after(() => {
   server.close();
 });
 
+/**
+ * @param {DataRecord} config
+ * @returns {ProcedureGraph}
+ */
 function httpGraph(config) {
   return {
     nodes: [trigger, node("h", "action", "http.request", config)],
@@ -296,7 +386,7 @@ function httpGraph(config) {
   };
 }
 
-test("a failed status names the request and quotes the response", async () => {
+void test("a failed status names the request and quotes the response", async () => {
   const result = await run(
     httpGraph({ url: `${base}/missing`, method: "POST" }),
     "t",
@@ -312,20 +402,20 @@ test("a failed status names the request and quotes the response", async () => {
   assert.match(result.errorMessage, /booking not found/);
 });
 
-test("failOnStatus off hands the status, headers, body and JSON to the graph", async () => {
+void test("failOnStatus off hands the status, headers, body and JSON to the graph", async () => {
   const result = await run(
     httpGraph({ url: `${base}/missing`, failOnStatus: false }),
     "t",
     {},
   );
   assert.equal(result.status, "ok");
-  const out = outputOf(result, "h");
+  const out = outputRecord(result, "h");
   assert.equal(out.status, 404);
-  assert.equal(out.headers["content-type"], "application/json");
+  assert.equal(at(out, "headers", "content-type"), "application/json");
   assert.deepEqual(out.json, { error: "booking not found" });
 });
 
-test("network failures are said in words", async () => {
+void test("network failures are said in words", async () => {
   const refused = await run(
     httpGraph({ url: `http://127.0.0.1:${closedPort}/` }),
     "t",
@@ -353,7 +443,7 @@ test("network failures are said in words", async () => {
   assert.match(headers.errorMessage, /Headers must be an object/);
 });
 
-test("a request that gets no answer fails after its timeout", async () => {
+void test("a request that gets no answer fails after its timeout", async () => {
   const started = Date.now();
   const result = await run(
     httpGraph({ url: `${base}/slow`, timeoutMs: 300 }),
@@ -364,7 +454,7 @@ test("a request that gets no answer fails after its timeout", async () => {
   assert.match(result.errorMessage, /no response after 0\.3 s/);
 });
 
-test("a timeout above 5 minutes is capped, and the log says so", async () => {
+void test("a timeout above 5 minutes is capped, and the log says so", async () => {
   const result = await run(
     httpGraph({ url: `${base}/ok`, timeoutMs: 10 * 60 * 60 * 1000 }),
     "t",
@@ -378,12 +468,12 @@ test("a timeout above 5 minutes is capped, and the log says so", async () => {
   );
 });
 
-test("a response over the size limit is refused", async () => {
+void test("a response over the size limit is refused", async () => {
   const result = await run(httpGraph({ url: `${base}/big` }), "t", {});
   assert.match(result.errorMessage, /larger than 2 MB/);
 });
 
-test("header values are masked in the run log, not in the request", async () => {
+void test("header values are masked in the run log, not in the request", async () => {
   const result = await run(
     httpGraph({
       url: `${base}/ok`,
@@ -397,16 +487,26 @@ test("header values are masked in the run log, not in the request", async () => 
   );
   assert.equal(result.status, "ok");
   const logged = JSON.stringify(result.logs);
-  assert.equal(outputOf(result, "h").json.auth, "Bearer sk_live_SECRET");
+  assert.equal(
+    at(outputOf(result, "h"), "json", "auth"),
+    "Bearer sk_live_SECRET",
+  );
   const executed = result.logs.entries.find(
     (e) => e.nodeId === "h" && e.message === "executed",
   );
-  assert.equal(executed.value.inputs.headers.value.Authorization, "[redacted]");
-  assert.equal(executed.value.inputs.headers.value.Accept, "application/json");
+  assert.ok(executed);
+  assert.equal(
+    at(executed.value, "inputs", "headers", "value", "Authorization"),
+    "[redacted]",
+  );
+  assert.equal(
+    at(executed.value, "inputs", "headers", "value", "Accept"),
+    "application/json",
+  );
   assert.ok(logged.includes("[redacted]"));
 });
 
-test("blockPrivateNetwork refuses loopback addresses", async () => {
+void test("blockPrivateNetwork refuses loopback addresses", async () => {
   setHttpRequestOptions({ blockPrivateNetwork: true });
   try {
     const result = await run(httpGraph({ url: `${base}/ok` }), "t", {});
@@ -439,7 +539,7 @@ test("blockPrivateNetwork refuses loopback addresses", async () => {
   }
 });
 
-test("a parallel waits for every branch and reports the first failure", async () => {
+void test("a parallel waits for every branch and reports the first failure", async () => {
   const graph = {
     nodes: [
       trigger,

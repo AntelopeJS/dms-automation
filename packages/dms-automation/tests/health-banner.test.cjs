@@ -1,7 +1,15 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { healthBanner } = require("../dist/stats/health-banner.js");
+const { isObject } = require("../dist/types/guards.js");
 
+/** @typedef {import("../dist/stats/overview.js").HealthHero} HealthHero */
+/** @typedef {import("../dist/stats/health-banner.js").HealthBannerLinks} HealthBannerLinks */
+/** @typedef {import("@antelopejs/interface-dms/base").BannerContent} BannerContent */
+/** @typedef {import("@antelopejs/interface-dms/base/types").BlockText} BlockText */
+/** @typedef {import("@antelopejs/interface-dms/base/types").ComposedText} ComposedText */
+
+/** @type {HealthBannerLinks} */
 const LINKS = {
   runsUrl: "/runs",
   traceUrl: "/trace",
@@ -9,6 +17,10 @@ const LINKS = {
   recipes: [{ label: "$recipe", target: { type: "page", url: "/x" } }],
 };
 
+/**
+ * @param {Partial<HealthHero>} [overrides]
+ * @returns {HealthHero}
+ */
 function hero(overrides) {
   return {
     state: "healthy",
@@ -24,14 +36,45 @@ function hero(overrides) {
   };
 }
 
-test("with no procedure, the banner offers the first-run recipes", () => {
+/**
+ * @param {BlockText | undefined} text
+ * @returns {ComposedText}
+ */
+function composed(text) {
+  assert.ok(isObject(text));
+  return text;
+}
+
+/**
+ * @param {BlockText | undefined} text
+ * @returns {NonNullable<ComposedText["params"]>}
+ */
+function paramsOf(text) {
+  const { params } = composed(text);
+  assert.ok(params);
+  return params;
+}
+
+/**
+ * @param {BannerContent} banner
+ * @returns {string[]}
+ */
+function linkTargets(banner) {
+  assert.ok(banner.actions);
+  return banner.actions.map((action) => {
+    assert.ok("to" in action);
+    return action.to;
+  });
+}
+
+void test("with no procedure, the banner offers the first-run recipes", () => {
   const banner = healthBanner(hero({ state: "empty", procedures: 0 }), LINKS);
   assert.equal(banner.tone, "primary");
   assert.equal(banner.title, "$dms_automation.firstRun.title");
   assert.deepEqual(banner.actions, LINKS.recipes);
 });
 
-test("a healthy window sums up its runs, without actions", () => {
+void test("a healthy window sums up its runs, without actions", () => {
   const banner = healthBanner(hero(), LINKS);
   assert.equal(banner.tone, "success");
   assert.deepEqual(banner.title, { key: "dms_automation.health.healthy" });
@@ -47,7 +90,7 @@ test("a healthy window sums up its runs, without actions", () => {
   assert.deepEqual(banner.actions, []);
 });
 
-test("a failing procedure names itself, its cause, and links its trace", () => {
+void test("a failing procedure names itself, its cause, and links its trace", () => {
   const banner = healthBanner(
     hero({
       state: "failing",
@@ -78,21 +121,22 @@ test("a failing procedure names itself, its cause, and links its trace", () => {
     key: "dms_automation.health.failing",
     params: { count: { type: "count", value: 1 } },
   });
-  assert.equal(banner.description.key, "dms_automation.health.failingDetail");
-  assert.equal(banner.description.params.name, "Stripe to CRM");
-  assert.deepEqual(banner.description.params.cause, {
+  assert.equal(
+    composed(banner.description).key,
+    "dms_automation.health.failingDetail",
+  );
+  assert.equal(paramsOf(banner.description).name, "Stripe to CRM");
+  assert.deepEqual(paramsOf(banner.description).cause, {
     key: "dms_automation.health.lastFailureAt",
     params: {
       error: "fetch failed",
       step: { key: "dms_automation.types.http.name" },
     },
   });
-  assert.deepEqual(
-    banner.actions.map((a) => a.to),
-    ["/trace?run=r1", "/runs?tab=failed"],
-  );
+  assert.deepEqual(linkTargets(banner), ["/trace?run=r1", "/runs?tab=failed"]);
 });
 
+/** @type {NonNullable<HealthHero["lastFailure"]>} */
 const failure = {
   runId: "r9",
   procedureId: "p9",
@@ -102,6 +146,11 @@ const failure = {
   step: null,
 };
 
+/**
+ * @param {string} id
+ * @param {string} name
+ * @returns {HealthHero["failing"][number]}
+ */
 const failingProcedure = (id, name) => ({
   procedureId: id,
   name,
@@ -111,7 +160,7 @@ const failingProcedure = (id, name) => ({
   armError: null,
 });
 
-test("several failing: the first is named with how many more, and the list is offered", () => {
+void test("several failing: the first is named with how many more, and the list is offered", () => {
   const banner = healthBanner(
     hero({
       state: "failing",
@@ -126,21 +175,21 @@ test("several failing: the first is named with how many more, and the list is of
     LINKS,
   );
   assert.equal(
-    banner.description.key,
+    composed(banner.description).key,
     "dms_automation.health.failingDetailMany",
   );
-  assert.equal(banner.description.params.name, "Stripe to CRM");
-  assert.deepEqual(banner.description.params.others, {
+  assert.equal(paramsOf(banner.description).name, "Stripe to CRM");
+  assert.deepEqual(paramsOf(banner.description).others, {
     type: "count",
     value: 2,
   });
-  assert.deepEqual(
-    banner.actions.map((a) => a.to),
-    ["/trace?run=r-p1", "/procedures?tab=failing"],
-  );
+  assert.deepEqual(linkTargets(banner), [
+    "/trace?run=r-p1",
+    "/procedures?tab=failing",
+  ]);
 });
 
-test("a failing trigger that never armed says so", () => {
+void test("a failing trigger that never armed says so", () => {
   const banner = healthBanner(
     hero({
       state: "failing",
@@ -160,7 +209,7 @@ test("a failing trigger that never armed says so", () => {
     }),
     LINKS,
   );
-  assert.deepEqual(banner.description.params.cause, {
+  assert.deepEqual(paramsOf(banner.description).cause, {
     key: "dms_automation.procedures.detail.triggerError",
     params: {
       error: {
@@ -171,7 +220,7 @@ test("a failing trigger that never armed says so", () => {
   });
 });
 
-test("an idle window does not point to an old failure", () => {
+void test("an idle window does not point to an old failure", () => {
   const banner = healthBanner(
     hero({
       state: "idle",
@@ -183,7 +232,7 @@ test("an idle window does not point to an old failure", () => {
   assert.deepEqual(banner.actions, []);
 });
 
-test("the failed runs open on the banner's period", () => {
+void test("the failed runs open on the banner's period", () => {
   const banner = healthBanner(
     hero({
       state: "degraded",
@@ -196,8 +245,8 @@ test("the failed runs open on the banner's period", () => {
       runsPeriod: { scope: "automation-runs", preset: "last-7-days" },
     },
   );
-  assert.deepEqual(
-    banner.actions.map((a) => a.to),
-    ["/trace?run=r9", "/runs?tab=failed&automation-runs.period=last-7-days"],
-  );
+  assert.deepEqual(linkTargets(banner), [
+    "/trace?run=r9",
+    "/runs?tab=failed&automation-runs.period=last-7-days",
+  ]);
 });

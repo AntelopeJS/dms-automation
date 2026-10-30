@@ -20,6 +20,13 @@ registry.addAction("test.fail", {
   },
 });
 
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {string} typeId
+ * @param {string} [label]
+ * @returns {import("../dist/types/graph.js").GraphNode}
+ */
 function node(id, kind, typeId, label) {
   const n = {
     id,
@@ -47,14 +54,14 @@ const graph = {
   dataEdges: [],
 };
 
-test("a failed run names the node it failed at", async () => {
+void test("a failed run names the node it failed at", async () => {
   const result = await run(graph, "t", { a: 1 });
   assert.equal(result.status, "failed");
   assert.equal(result.failedNodeId, "fail");
   assert.equal(result.errorMessage, "HTTP 502 Bad Gateway");
 });
 
-test("the trace lists the trigger, the steps that ran and the skipped ones", async () => {
+void test("the trace lists the trigger, the steps that ran and the skipped ones", async () => {
   const result = await run(graph, "t", { a: 1 });
   const trace = traceOf(graph, result.logs, { nodeId: "t", payload: { a: 1 } });
   assert.deepEqual(
@@ -75,7 +82,7 @@ test("the trace lists the trigger, the steps that ran and the skipped ones", asy
   );
 });
 
-test("a step is named by its label, then by its type", () => {
+void test("a step is named by its label, then by its type", () => {
   assert.equal(stepName(graph, "fail").label, "Push to ERP");
   assert.equal(stepName(graph, "after").typeName, logAction.name);
   assert.deepEqual(stepName(graph, "nope"), { nodeId: "nope" });
@@ -84,10 +91,23 @@ test("a step is named by its label, then by its type", () => {
 const { stepDurations } = require("../dist/runtime/trace.js");
 const { stepNamesOf } = require("../dist/runtime/describe.js");
 
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {import("../dist/types/dataValue.js").DataRecord} [config]
+ * @returns {import("../dist/types/graph.js").GraphNode}
+ */
 function flow(id, kind, config = {}) {
   return { id, kind, config, position: { x: 0, y: 0 } };
 }
 
+/**
+ * @param {string} id
+ * @param {string} from
+ * @param {string} to
+ * @param {string} [branch]
+ * @returns {import("../dist/types/graph.js").TriggerEdge}
+ */
 function edge(id, from, to, branch) {
   const e = { id, from: { node: from }, to: { node: to } };
   if (branch) e.from.branch = branch;
@@ -127,6 +147,7 @@ const flowGraph = {
   dataEdges: [],
 };
 
+/** @param {import("../dist/runtime/trace.js").TraceOptions} [options] */
 async function flowTrace(options) {
   const result = await run(flowGraph, "t", {});
   return {
@@ -140,7 +161,7 @@ async function flowTrace(options) {
   };
 }
 
-test("loop iterations sit under their loop, numbered", async () => {
+void test("loop iterations sit under their loop, numbered", async () => {
   const { trace } = await flowTrace();
   const loop = trace.steps.findIndex((s) => s.nodeId === "each");
   const items = trace.steps.filter((s) => s.nodeId === "item");
@@ -156,7 +177,7 @@ test("loop iterations sit under their loop, numbered", async () => {
   assert.equal(trace.steps.find((s) => s.nodeId === "guard").depth, 0);
 });
 
-test("a failure the Try/Catch caught is handled, the one that stopped the run is not", async () => {
+void test("a failure the Try/Catch caught is handled, the one that stopped the run is not", async () => {
   const { result, trace } = await flowTrace();
   assert.equal(result.failedNodeId, "boom");
   const bad = trace.steps.find((s) => s.nodeId === "bad");
@@ -168,7 +189,7 @@ test("a failure the Try/Catch caught is handled, the one that stopped the run is
   assert.equal(trace.steps.find((s) => s.nodeId === "note").port, "catch");
 });
 
-test("an If names the branch it took, and only the edges followed are taken", async () => {
+void test("an If names the branch it took, and only the edges followed are taken", async () => {
   const { trace } = await flowTrace();
   assert.equal(trace.steps.find((s) => s.nodeId === "choose").branch, "then");
   assert.deepEqual(trace.edgesTaken.sort(), [
@@ -183,7 +204,7 @@ test("an If names the branch it took, and only the edges followed are taken", as
   ]);
 });
 
-test("skipped steps say whether the branch was not taken or the run stopped first", async () => {
+void test("skipped steps say whether the branch was not taken or the run stopped first", async () => {
   const { trace } = await flowTrace();
   assert.deepEqual(
     trace.skipped.map((s) => [s.nodeId, s.reason]),
@@ -194,7 +215,7 @@ test("skipped steps say whether the branch was not taken or the run stopped firs
   );
 });
 
-test("an exhausted Retry leaves by `exhausted`, not by `main`", async () => {
+void test("an exhausted Retry leaves by `exhausted`, not by `main`", async () => {
   const retryGraph = {
     nodes: [
       node("t", "trigger", "manual"),
@@ -225,7 +246,7 @@ test("an exhausted Retry leaves by `exhausted`, not by `main`", async () => {
   assert.deepEqual(trace.edgesTaken.sort(), ["e-body", "e-exhausted", "e-t"]);
 });
 
-test("against a later version, steps keep the names the run stored and nothing is inferred", async () => {
+void test("against a later version, steps keep the names the run stored and nothing is inferred", async () => {
   const result = await run(graph, "t", { a: 1 });
   const names = { log: { nodeId: "log", label: "Old name", kind: "action" } };
   const outdated = traceOf(
@@ -242,7 +263,7 @@ test("against a later version, steps keep the names the run stored and nothing i
   assert.equal(current.steps[0].name.label, "Say hello");
 });
 
-test("without any graph, a step is still named by the names the run stored", async () => {
+void test("without any graph, a step is still named by the names the run stored", async () => {
   const result = await run(graph, "t", { a: 1 });
   const trace = traceOf(
     undefined,
@@ -256,14 +277,14 @@ test("without any graph, a step is still named by the names the run stored", asy
   );
 });
 
-test("a cut log lists no skipped step and says how much was cut", async () => {
+void test("a cut log lists no skipped step and says how much was cut", async () => {
   const result = await run(graph, "t", { a: 1 });
   const trace = traceOf(graph, { ...result.logs, truncated: 12 });
   assert.deepEqual(trace.skipped, []);
   assert.equal(trace.truncated, 12);
 });
 
-test("a step whose end was cut from the log reads as cut, not running", async () => {
+void test("a step whose end was cut from the log reads as cut, not running", async () => {
   const result = await run(graph, "t", { a: 1 });
   const entries = result.logs.entries.filter(
     (e) => !(e.nodeId === "log" && e.message === "executed"),
@@ -274,14 +295,14 @@ test("a step whose end was cut from the log reads as cut, not running", async ()
   assert.equal(whole.steps.find((s) => s.nodeId === "log").status, "running");
 });
 
-test("stepNamesOf names every step of the graph by its id", () => {
+void test("stepNamesOf names every step of the graph by its id", () => {
   const names = stepNamesOf(graph);
   assert.deepEqual(Object.keys(names), ["t", "log", "fail", "after"]);
   assert.equal(names.fail.label, "Push to ERP");
   assert.equal(names.after.typeName, logAction.name);
 });
 
-test("stepDurations adds up every iteration of a step", () => {
+void test("stepDurations adds up every iteration of a step", () => {
   const steps = [
     { nodeId: "a", durationMs: 2 },
     { nodeId: "b", durationMs: null },
