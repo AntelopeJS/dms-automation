@@ -68,11 +68,13 @@ Triggers also take a `cluster` mode: `"singleton"` fires on the elected leader o
 
 Interface 0.3 requires `@antelopejs/dms-automation >=0.5.0` for its complete contract, including `DeclareProcedure` and `RunProcedure`. Module 0.4 implements interface 0.2. The interface declares this peer dependency:
 
-<!-- docs-compat: ./package.json#peerDependencies -->
+<!-- antelopejs-docs-compat:start -->
 
-| Package | Range |
-| --- | --- |
-| `@antelopejs/interface-core` | `>=0.2.4 <1.0.0` |
+| Package                      | Supported        | Tested with |
+| ---------------------------- | ---------------- | ----------- |
+| `@antelopejs/interface-core` | `>=0.2.4 <1.0.0` | —           |
+
+<!-- antelopejs-docs-compat:end -->
 
 `InvokeProcedure`, `RunProcedure` and the `List*Types` functions reject when no implementation is loaded; check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core` to branch on availability instead.
 
