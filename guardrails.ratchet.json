@@ -10,8 +10,7 @@
     "anti-slop/require-safety-comment-for-type-assertion": 25,
     "typescript/no-unsafe-argument": 76,
     "typescript/no-unsafe-assignment": 471,
-    "typescript/no-unsafe-return": 126,
-    "typescript/use-unknown-in-catch-callback-variable": 2
+    "typescript/no-unsafe-return": 126
   },
   "oversizeFiles": {}
 }

@@ -22,7 +22,7 @@ export function withTimeout<T>(
         clearTimeout(timer);
         resolve(value);
       },
-      (err) => {
+      (err: unknown) => {
         clearTimeout(timer);
         reject(err);
       },

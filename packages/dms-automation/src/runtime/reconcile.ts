@@ -293,7 +293,7 @@ async function activateTrigger(
       meta.nodeId,
       payload,
       templates,
-    ).catch((err) => {
+    ).catch((err: unknown) => {
       Logging.Error("[dms-automation] procedure execution failed:", err);
     });
   });
