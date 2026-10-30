@@ -26,8 +26,17 @@ export type DataNodeEvaluator = (
 export class DataCache {
   private outputs = new Map<string, unknown>();
   private versions = new Map<string, number>();
-  /** For data nodes: the upstream versions seen when the cache was filled. */
-  private dataDeps = new Map<string, Map<string, number>>();
+  /**
+   * For data nodes: the result and the upstream versions seen when the cache
+   * was filled.
+   */
+  private dataResults = new Map<
+    string,
+    {
+      result: NonNullable<ReturnType<DataNodeEvaluator>>;
+      deps: Map<string, number>;
+    }
+  >();
 
   /** Read the most recent value written for `nodeId`, if any. */
   getOutput(nodeId: string): unknown {
@@ -56,16 +65,16 @@ export class DataCache {
    */
   getCachedData(nodeId: string): Record<string, unknown> | undefined {
     if (!this.outputs.has(nodeId)) return undefined;
-    const deps = this.dataDeps.get(nodeId);
-    if (!deps) return undefined;
-    for (const [depId, seen] of deps) {
+    const cached = this.dataResults.get(nodeId);
+    if (!cached) return undefined;
+    for (const [depId, seen] of cached.deps) {
       if (this.versionOf(depId) !== seen) {
         this.outputs.delete(nodeId);
-        this.dataDeps.delete(nodeId);
+        this.dataResults.delete(nodeId);
         return undefined;
       }
     }
-    return this.outputs.get(nodeId) as Record<string, unknown>;
+    return cached.result;
   }
 
   /**
@@ -81,7 +90,7 @@ export class DataCache {
     this.setOutput(nodeId, value);
     const depMap = new Map<string, number>();
     for (const depId of deps) depMap.set(depId, this.versionOf(depId));
-    this.dataDeps.set(nodeId, depMap);
+    this.dataResults.set(nodeId, { result: value, deps: depMap });
   }
 
   /** Whether any output has been written for `nodeId`. */

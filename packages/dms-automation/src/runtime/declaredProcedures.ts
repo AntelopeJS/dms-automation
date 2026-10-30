@@ -48,7 +48,7 @@ function refusal(id: string, problems: string[]): Error {
   );
 }
 
-function idOf(input: unknown): string {
+function idOf(input: ProcedureDeclaration): string {
   const id = isObject(input) && "id" in input ? input.id : undefined;
   return isString(id) ? id : "";
 }

@@ -1,5 +1,5 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
-import { isObject, isPropertyBag } from "../types/guards";
+import { isPropertyBag } from "../types/guards";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
 /**
@@ -344,6 +344,7 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
       });
       throw err;
     }
+    const output = runCtx.cache.getOutput(nodeId);
     appendEntry(runCtx, {
       source: "exec",
       level: "info",
@@ -353,7 +354,9 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
         durationMs: Date.now() - nodeStart,
         inputs: describeRecord(redacted(inputs, typeOf(node)?.inputSchema)),
         output: describeValue(
-          redacted(runCtx.cache.getOutput(nodeId), typeOf(node)?.outputSchema),
+          isPropertyBag(output) && !Array.isArray(output)
+            ? redacted(output, typeOf(node)?.outputSchema)
+            : output,
         ),
       },
     });
@@ -418,18 +421,18 @@ function inputDefaults(node: GraphNode) {
  * `"x-redact": "headers"` (HTTP header maps) have their credentials masked.
  * Only the log is masked; the node ran with the real values.
  */
-function redacted<T>(values: T, schema: JsonSchema | undefined): T {
-  if (!isObject(values) || Array.isArray(values)) {
-    return values;
-  }
+function redacted(
+  values: Record<string, unknown>,
+  schema: JsonSchema | undefined,
+) {
   const properties = propertiesOf(schema);
-  const out = { ...values } as Record<string, unknown>;
+  const out = { ...values };
   for (const [name, prop] of Object.entries(properties)) {
-    if (prop["x-redact"] === "headers" && name in out) {
+    if (prop["x-redact"] === "headers" && Object.hasOwn(out, name)) {
       out[name] = redactHeaders(out[name]);
     }
   }
-  return out as T;
+  return out;
 }
 
 /**

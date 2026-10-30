@@ -1,5 +1,10 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
-import { isBoolean, isNumber, isObject, isString } from "../../../types/guards";
+import {
+  isBoolean,
+  isNumber,
+  isPlainScalar,
+  isString,
+} from "../../../types/guards";
 
 const anyVal = { type: ["number", "string", "boolean", "null"] };
 const resultBool = { type: "boolean" };
@@ -22,9 +27,8 @@ function asNumber(value: unknown): number | undefined {
 }
 
 function asText(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (isObject(value)) return JSON.stringify(value);
-  return String(value as string | number | boolean);
+  if (isPlainScalar(value)) return String(value ?? "");
+  return JSON.stringify(value);
 }
 
 function sign(n: number): number {

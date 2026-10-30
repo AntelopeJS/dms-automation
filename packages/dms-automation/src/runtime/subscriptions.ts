@@ -74,9 +74,9 @@ let hydrated = false;
  */
 function requestReconcile(reason: string): void {
   if (!hydrated) return;
-  reconciles.request(reconcile, (err) =>
-    Logging.Error(`[dms-automation] reconcile after ${reason} failed:`, err),
-  );
+  reconciles.request(reconcile).catch((err: unknown) => {
+    Logging.Error(`[dms-automation] reconcile after ${reason} failed:`, err);
+  });
 }
 
 async function hydrateTemplates(): Promise<void> {

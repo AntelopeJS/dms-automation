@@ -30,3 +30,18 @@ export function isPropertyBag(
 ): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
+
+/** A value that is not an object: a primitive, a function, `null` or `undefined`. */
+export function isPlainScalar(
+  value: unknown,
+): value is
+  | string
+  | number
+  | boolean
+  | bigint
+  | symbol
+  | ((...args: never[]) => void)
+  | null
+  | undefined {
+  return !isObject(value);
+}
