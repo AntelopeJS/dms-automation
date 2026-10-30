@@ -1,5 +1,4 @@
-import type { GraphNode } from "../../../types/graph";
-import { type NodeCtx, nodeKinds } from "../../nodeKinds";
+import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
 /**
  * Never invoked at runtime: flattenGroups strips groupOutput sentinels
@@ -7,13 +6,9 @@ import { type NodeCtx, nodeKinds } from "../../nodeKinds";
  * stays registered so graph validation (nodeKindZodSchema) accepts it;
  * identity behavior kept for safety.
  */
-async function execute(
-  _node: GraphNode,
-  inputs: Record<string, unknown>,
-  ctx: NodeCtx,
-): Promise<void> {
+const execute: NodeExecute = async (_node, inputs, ctx) => {
   ctx.setOutputs(inputs);
-}
+};
 
 nodeKinds.register("groupOutput", execute, {
   continuationPorts: [],

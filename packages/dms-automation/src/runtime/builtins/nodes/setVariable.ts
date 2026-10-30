@@ -1,13 +1,8 @@
-import type { GraphNode } from "../../../types/graph";
-import { type NodeCtx, nodeKinds } from "../../nodeKinds";
+import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
-async function execute(
-  node: GraphNode,
-  _inputs: Record<string, unknown>,
-  ctx: NodeCtx,
-): Promise<void> {
+const execute: NodeExecute = async (node, _inputs, ctx) => {
   ctx.setOutputs({ value: node.config.value });
-}
+};
 
 nodeKinds.register("setVariable", execute, {
   continuationPorts: ["main"],

@@ -1,16 +1,11 @@
-import type { GraphNode } from "../../../types/graph";
-import { type NodeCtx, nodeKinds } from "../../nodeKinds";
+import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
 /**
  * `main` auto-propagates after execute returns whether the try
  * succeeded or the catch ran — useful for cleanup wired after the
  * protected block.
  */
-async function execute(
-  _node: GraphNode,
-  _inputs: Record<string, unknown>,
-  ctx: NodeCtx,
-): Promise<void> {
+const execute: NodeExecute = async (_node, _inputs, ctx) => {
   try {
     await ctx.fireTrigger("try");
   } catch (err) {
@@ -20,7 +15,7 @@ async function execute(
     ctx.log("warn", `caught ${name}: ${message}`);
     await ctx.fireTrigger("catch");
   }
-}
+};
 
 nodeKinds.register("tryCatch", execute, {
   continuationPorts: ["main"],

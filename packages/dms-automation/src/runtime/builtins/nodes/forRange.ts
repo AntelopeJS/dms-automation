@@ -1,6 +1,5 @@
 import { setImmediate as nextTick } from "node:timers/promises";
-import type { GraphNode } from "../../../types/graph";
-import { type NodeCtx, nodeKinds } from "../../nodeKinds";
+import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
 /**
  * The most iterations a loop runs. Every iteration is logged and the run is
@@ -21,11 +20,7 @@ const ITERATIONS_PER_YIELD = 50;
  * defaults to 0, 0 and 1 itself, so the kind needs no configSchema and no
  * defaultConfig.
  */
-async function execute(
-  _node: GraphNode,
-  inputs: Record<string, unknown>,
-  ctx: NodeCtx,
-): Promise<void> {
+const execute: NodeExecute = async (_node, inputs, ctx) => {
   const start = Number(inputs.start ?? 0);
   const end = Number(inputs.end ?? 0);
   const step = Number(inputs.step ?? 1);
@@ -62,7 +57,7 @@ async function execute(
     i += 1;
     if (i % ITERATIONS_PER_YIELD === 0) await nextTick();
   }
-}
+};
 
 nodeKinds.register("forRange", execute, {
   continuationPorts: ["main"],

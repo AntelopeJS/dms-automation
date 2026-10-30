@@ -1,17 +1,12 @@
-import type { GraphNode } from "../../../types/graph";
-import { type NodeCtx, nodeKinds } from "../../nodeKinds";
+import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
-async function execute(
-  node: GraphNode,
-  inputs: Record<string, unknown>,
-  ctx: NodeCtx,
-): Promise<void> {
+const execute: NodeExecute = async (node, inputs, ctx) => {
   const cases = (node.config.cases as string[] | undefined) ?? [];
   const key = String(inputs.value);
   const branch = cases.includes(key) ? key : "default";
   ctx.log("info", `branch: ${branch}`);
   ctx.continueWith(branch);
-}
+};
 
 nodeKinds.register("switch", execute, {
   continuationPorts: [],

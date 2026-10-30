@@ -1,11 +1,6 @@
-import type { GraphNode } from "../../../types/graph";
-import { type NodeCtx, nodeKinds } from "../../nodeKinds";
+import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
-async function execute(
-  node: GraphNode,
-  inputs: Record<string, unknown>,
-  ctx: NodeCtx,
-): Promise<void> {
+const execute: NodeExecute = async (node, inputs, ctx) => {
   const ms = Number(node.config.ms ?? 0);
   if (ms > 0) {
     await new Promise<void>((resolve, reject) => {
@@ -22,7 +17,7 @@ async function execute(
     });
   }
   ctx.setOutputs(inputs);
-}
+};
 
 nodeKinds.register("delay", execute, {
   continuationPorts: ["main"],

@@ -16,7 +16,7 @@ import {
   namedRouteConflict,
   webhookTrigger,
 } from "./builtins/triggers/webhook";
-import { type ArmError, armErrorFrom, storeArmErrors } from "./armErrors";
+import { type ArmError, TriggerArmError, storeArmErrors } from "./armErrors";
 import { diff } from "./reconcileDiff";
 import { registry } from "./registry";
 import { executeProcedure } from "./runProcedure";
@@ -208,9 +208,16 @@ async function activateNewHandles(
         `[dms-automation] failed to activate ${meta.typeId} for ${k}:`,
         err,
       );
+      let armError: ArmError;
+      if (err instanceof TriggerArmError) {
+        armError = err.problem;
+      } else {
+        const error = err instanceof Error ? err.message : String(err);
+        armError = { code: "armFailed", params: { error }, message: error };
+      }
       activationErrors.set(
         k,
-        namedRouteConflict(armErrorFrom(err), meta.config, armedWebhooks()),
+        namedRouteConflict(armError, meta.config, armedWebhooks()),
       );
     }
   }
@@ -293,7 +300,7 @@ async function activateTrigger(
       meta.nodeId,
       payload,
       templates,
-    ).catch((err) => {
+    ).catch((err: unknown) => {
       Logging.Error("[dms-automation] procedure execution failed:", err);
     });
   });
