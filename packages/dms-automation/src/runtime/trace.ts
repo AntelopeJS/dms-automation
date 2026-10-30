@@ -379,9 +379,7 @@ function edgesTaken(
  * How long each step took in a run, all its iterations added up: what a
  * trace compares with the last success.
  */
-export function stepDurations(
-  steps: readonly TraceStep[],
-): Record<string, number | null> {
+export function stepDurations(steps: readonly TraceStep[]) {
   const durations: Record<string, number | null> = {};
   for (const step of steps) {
     const before = durations[step.nodeId];

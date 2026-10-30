@@ -23,7 +23,7 @@ import {
   graphProblems,
   type ProblemParams,
 } from "./validate";
-import type { SchemaProperty } from "./schemaProperties";
+import { propertiesOf, type SchemaProperty } from "./schemaProperties";
 import type { DataRecord, DataValue } from "../types/dataValue";
 import { isNumber, isString } from "../types/guards";
 
@@ -57,28 +57,25 @@ export interface GraphIssueOptions {
 /** Sentinels and data nodes are not steps: nothing has to trigger them. */
 const NOT_TRIGGERED_KINDS = new Set(["trigger", "data", "groupInput", "group"]);
 
-const TYPE_LOOKUP: Record<string, (id: string) => object | undefined> = {
-  trigger: (id) => registry.getTrigger(id),
-  action: (id) => registry.getAction(id),
-  data: (id) => registry.getDataNode(id),
-};
+const TYPE_LOOKUP = new Map<string, (id: string) => object | undefined>([
+  ["trigger", (id) => registry.getTrigger(id)],
+  ["action", (id) => registry.getAction(id)],
+  ["data", (id) => registry.getDataNode(id)],
+]);
 
-const DISABLED_LOOKUP: Record<string, (id: string) => boolean> = {
-  trigger: isTriggerTypeDisabled,
-  action: isActionTypeDisabled,
-};
+const DISABLED_LOOKUP = new Map<string, (id: string) => boolean>([
+  ["trigger", isTriggerTypeDisabled],
+  ["action", isActionTypeDisabled],
+]);
 
 /** Settings a trigger type checks beyond its schema. */
-const CONFIG_CHECKS: Record<
-  string,
-  (config: DataRecord) => ConfigProblem | undefined
-> = {
-  [cronTrigger.id]: (config) => cronProblem(config.cron),
+const CONFIG_CHECKS = {
+  [cronTrigger.id]: (config: DataRecord) => cronProblem(config.cron),
   /**
    * This module's armed webhooks are left out: a procedure's own webhook
    * is no conflict, and another procedure's is checked on the procedures.
    */
-  [webhookTrigger.id]: (config) => {
+  [webhookTrigger.id]: (config: DataRecord) => {
     const { method, path } = webhookRouteOf(config);
     return (
       webhookPathProblem(config.path) ??
@@ -87,11 +84,11 @@ const CONFIG_CHECKS: Record<
   },
 };
 
-const FOR_RANGE_DEFAULTS: Record<string, number> = {
-  start: 0,
-  end: 0,
-  step: 1,
-};
+const FOR_RANGE_DEFAULTS = new Map([
+  ["start", 0],
+  ["end", 0],
+  ["step", 1],
+]);
 const CONSTANT_NUMBER = "const.number";
 
 function issueOf(problem: GraphProblem): GraphIssue {
@@ -180,10 +177,7 @@ function missingSettings(
   wired: ReadonlySet<string>,
 ): SettingProblem[] {
   const required = Array.isArray(schema.required) ? schema.required : [];
-  const properties = (schema.properties ?? {}) as Record<
-    string,
-    SchemaProperty
-  >;
+  const properties = propertiesOf(schema);
   return required
     .filter((field): field is string => typeof field === "string")
     .filter((field) => !wired.has(field) && isEmpty(config[field]))
@@ -242,10 +236,7 @@ function settingsProblems(
   if (!schema) return [];
   const config = node.config ?? {};
   const problems = missingSettings(schema, config, wired);
-  const properties = (schema.properties ?? {}) as Record<
-    string,
-    SchemaProperty
-  >;
+  const properties = propertiesOf(schema);
   for (const [field, property] of Object.entries(properties)) {
     const value = config[field];
     if (wired.has(field) || isEmpty(value)) continue;
@@ -261,7 +252,7 @@ function typeIssues(
   reportOn: string,
   options: GraphIssueOptions,
 ): GraphIssue[] {
-  const lookup = TYPE_LOOKUP[node.kind];
+  const lookup = TYPE_LOOKUP.get(node.kind);
   if (lookup && !(node.typeId && lookup(node.typeId))) {
     const type = node.typeId ?? "";
     return [
@@ -274,7 +265,7 @@ function typeIssues(
       },
     ];
   }
-  if (node.typeId && DISABLED_LOOKUP[node.kind]?.(node.typeId)) {
+  if (node.typeId && DISABLED_LOOKUP.get(node.kind)?.(node.typeId)) {
     return [
       {
         severity: "warning",
@@ -350,7 +341,8 @@ function literalInput(
   const edge = level.dataEdges.find(
     (e) => e.to.node === node.id && e.to.field === field,
   );
-  if (!edge) return Number(node.config?.[field] ?? FOR_RANGE_DEFAULTS[field]);
+  if (!edge)
+    return Number(node.config?.[field] ?? FOR_RANGE_DEFAULTS.get(field));
   const source = level.nodes.find((n) => n.id === edge.from.node);
   if (source?.kind !== "data" || source.typeId !== CONSTANT_NUMBER) {
     return undefined;
