@@ -1,8 +1,12 @@
+import { isString } from "../../../types/guards";
 import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
 const execute: NodeExecute = async (node, inputs, ctx) => {
-  const cases = (node.config.cases as string[] | undefined) ?? [];
+  const cases = node.config.cases ?? [];
   const key = String(inputs.value);
+  if (!isString(cases) && !Array.isArray(cases)) {
+    throw new TypeError("switch cases must be a list");
+  }
   const branch = cases.includes(key) ? key : "default";
   ctx.log("info", `branch: ${branch}`);
   ctx.continueWith(branch);

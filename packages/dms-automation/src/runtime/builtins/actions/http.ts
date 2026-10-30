@@ -2,7 +2,7 @@ import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 import type { ActionType } from "@antelopejs/interface-dms-automation";
 import { type DataValue, parseJsonText } from "../../../types/dataValue";
-import { isObject, isString } from "../../../types/guards";
+import { isObject, isPropertyBag, isString } from "../../../types/guards";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
@@ -128,15 +128,19 @@ function checkUrl(raw: unknown): URL {
 }
 
 function toHeaders(raw: unknown): Headers {
-  if (raw !== undefined && raw !== null) {
-    if (!isObject(raw) || Array.isArray(raw)) {
-      throw new Error(
-        'Headers must be an object of names and values, like {"Accept": "application/json"}.',
-      );
-    }
+  if (raw === undefined || raw === null) return new Headers();
+  if (!isPropertyBag(raw) || Array.isArray(raw)) {
+    throw new Error(
+      'Headers must be an object of names and values, like {"Accept": "application/json"}.',
+    );
   }
   try {
-    return new Headers((raw ?? {}) as Record<string, string>);
+    return new Headers(
+      Object.entries(raw).map(([name, value]): [string, string] => [
+        name,
+        String(value),
+      ]),
+    );
   } catch (err) {
     throw new Error(
       `Invalid header: ${err instanceof Error ? err.message : String(err)}`,
