@@ -12,14 +12,18 @@ import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
 import type { BlockText } from "@antelopejs/interface-dms/base/types";
 import { AutomationTemplateModel } from "../db/models/automation_template.model";
-import { healthByProcedure, loadStatsContext } from "../db/models/stats.model";
+import {
+  healthByProcedure,
+  loadStatsContext,
+  type StatsContext,
+} from "../db/models/stats.model";
 import { labelOf, summarizeTrigger } from "../runtime/describe";
 import { nodeKinds } from "../runtime/nodeKinds";
 import { registry } from "../runtime/registry";
 import { walkPlacedNodes } from "../runtime/resolveSubgraph";
 import { cronText } from "../runtime/wording";
 import { DATABASE_NAME } from "../types/constants";
-import type { GraphNode } from "../types/graph";
+import type { GraphNode, ProcedureGraph } from "../types/graph";
 
 /** The palette categories of the plain node kinds the Flow catalog lists. */
 const FLOW_CATEGORIES = new Set(["flow", "helper"]);
@@ -83,6 +87,59 @@ export function triggerUsageOf(
   };
 }
 
+/** A template as the usage walk reads it. */
+interface UsageTemplate {
+  _id: string;
+  name: string;
+  subgraph: ProcedureGraph;
+}
+
+/**
+ * Where each entry of a catalog is used, keyed by the entry `entryOf` names
+ * for each placed node: every node placing it, in every procedure with a
+ * graph, inside nested groups and the templates they place.
+ */
+export function usageByEntry(
+  procedures: StatsContext["procedures"],
+  templateById: ReadonlyMap<string, UsageTemplate>,
+  health: ReadonlyMap<string, { state: string }>,
+  entryOf: (node: GraphNode) => string | undefined,
+) {
+  const out: Record<string, TypeUsage[]> = {};
+  for (const { procedure, graph } of procedures) {
+    if (!graph) continue;
+    for (const { node, groups, viaTemplate } of walkPlacedNodes(
+      graph,
+      templateById,
+    )) {
+      const entry = entryOf(node);
+      if (!entry) continue;
+      const group = groups.at(-1);
+      const template = viaTemplate?.templateId
+        ? templateById.get(viaTemplate.templateId)
+        : undefined;
+      const usage: TypeUsage = {
+        procedureId: procedure._id,
+        procedureName: procedure.name,
+        enabled: procedure.enabled,
+        state: health.get(procedure._id)?.state ?? "draft",
+        nodeId: viaTemplate?.id ?? node.id,
+        nodeLabel: labelOf(node) ?? null,
+        groupPath: groups.map((g) => g.id),
+        groupLabel: group ? (labelOf(group) ?? null) : null,
+        viaTemplate: template
+          ? { id: template._id, name: template.name }
+          : null,
+      };
+      if (node.kind === "trigger") {
+        Object.assign(usage, triggerUsageOf(node));
+      }
+      (out[entry] ??= []).push(usage);
+    }
+  }
+  return out;
+}
+
 @AuthOwnerOnly()
 export class LibraryController extends Controller("/api/automation/library") {
   /** The counts on the library's tabs. */
@@ -133,41 +190,12 @@ export class LibraryController extends Controller("/api/automation/library") {
       loadStatsContext(),
       GetModel(AutomationTemplateModel, DATABASE_NAME).listAll(),
     ]);
-    const templateById = new Map(templates.map((t) => [t._id, t]));
-    const health = healthByProcedure(ctx);
-    const out: Record<string, TypeUsage[]> = {};
-    for (const { procedure, graph } of ctx.procedures) {
-      if (!graph) continue;
-      for (const { node, groups, viaTemplate } of walkPlacedNodes(
-        graph,
-        templateById,
-      )) {
-        const entry = entryOf(node);
-        if (!entry) continue;
-        const group = groups.at(-1);
-        const template = viaTemplate?.templateId
-          ? templateById.get(viaTemplate.templateId)
-          : undefined;
-        const usage: TypeUsage = {
-          procedureId: procedure._id,
-          procedureName: procedure.name,
-          enabled: procedure.enabled,
-          state: health.get(procedure._id)?.state ?? "draft",
-          nodeId: viaTemplate?.id ?? node.id,
-          nodeLabel: labelOf(node) ?? null,
-          groupPath: groups.map((g) => g.id),
-          groupLabel: group ? (labelOf(group) ?? null) : null,
-          viaTemplate: template
-            ? { id: template._id, name: template.name }
-            : null,
-        };
-        if (node.kind === "trigger") {
-          Object.assign(usage, triggerUsageOf(node));
-        }
-        (out[entry] ??= []).push(usage);
-      }
-    }
-    return out;
+    return usageByEntry(
+      ctx.procedures,
+      new Map(templates.map((t) => [t._id, t])),
+      healthByProcedure(ctx),
+      entryOf,
+    );
   }
 }
 
