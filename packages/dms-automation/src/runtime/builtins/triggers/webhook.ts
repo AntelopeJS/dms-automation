@@ -173,7 +173,7 @@ export function armedWebhookRouteIds(): ReadonlySet<string> {
 }
 
 /** The query string, a key given several times read as a list. */
-function queryOf(url: URL) {
+export function queryOf(url: URL) {
   const query: Record<string, string | string[]> = {};
   for (const key of new Set(url.searchParams.keys())) {
     const values = url.searchParams.getAll(key);

@@ -299,7 +299,7 @@ function excerpt(text: string, max: number): string {
   return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 }
 
-function headersOf(res: Response) {
+export function headersOf(res: Response) {
   const out: Record<string, string> = {};
   res.headers.forEach((value, name) => {
     out[name] = value;
