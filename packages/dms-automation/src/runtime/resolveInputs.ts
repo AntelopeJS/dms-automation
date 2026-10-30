@@ -1,6 +1,7 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
 import type { DataEdge, GraphNode } from "../types/graph";
 import { isPropertyBag } from "../types/guards";
+import { propertiesOf } from "./schemaProperties";
 
 export type DataNodeEvaluator = (
   sourceNodeId: string,
@@ -94,10 +95,8 @@ export class DataCache {
  * saved without a value (imported, created through the API, or a field the
  * editor never seeded) then gets the value its schema documents.
  */
-export function schemaDefaults(
-  schema: JsonSchema | undefined,
-): Record<string, unknown> {
-  const properties = (schema?.properties ?? {}) as Record<string, JsonSchema>;
+export function schemaDefaults(schema: JsonSchema | undefined) {
+  const properties = propertiesOf(schema);
   const out: Record<string, unknown> = {};
   for (const [name, prop] of Object.entries(properties)) {
     if (prop.default !== undefined) out[name] = prop.default;
@@ -123,9 +122,9 @@ export function resolveInputs(
   dataEdges: DataEdge[],
   cache: DataCache,
   evaluateDataNode?: DataNodeEvaluator,
-  defaults: Record<string, unknown> = {},
-): Record<string, unknown> {
-  const result: Record<string, unknown> = { ...defaults, ...node.config };
+  defaults: ReturnType<typeof schemaDefaults> = {},
+) {
+  const result = { ...defaults, ...node.config };
 
   for (const edge of dataEdges) {
     if (edge.to.node !== node.id) continue;

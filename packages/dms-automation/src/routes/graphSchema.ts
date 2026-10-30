@@ -6,6 +6,7 @@ import {
   type ValidateResult,
   validateGraph,
 } from "../runtime/validate";
+import type { DataValue } from "../types/dataValue";
 import type { GraphNode, GroupPort, ProcedureGraph } from "../types/graph";
 import { isObject } from "../types/guards";
 
@@ -114,7 +115,7 @@ const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
  */
 export function parseAndValidate<T>(
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
-  body: unknown,
+  body: DataValue,
   graphSelector: (data: T) => ProcedureGraph,
 ): T {
   const parsed = schema.safeParse(body);

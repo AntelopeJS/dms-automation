@@ -1,6 +1,7 @@
 import { HTTPResult } from "@antelopejs/interface-api";
 import type { z } from "zod";
 import type { GraphIssue } from "../runtime/graphIssues";
+import type { DataValue } from "../types/dataValue";
 
 /** Prefix of the i18n keys the routes answer refusals with. */
 export const API_MESSAGES = "$dms_automation.api";
@@ -34,7 +35,7 @@ export function invalid(
 
 export function parseBody<T>(
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
-  body: unknown,
+  body: DataValue,
 ): T {
   const parsed = schema.safeParse(body);
   if (!parsed.success) throw invalid("invalid body", parsed.error.issues);

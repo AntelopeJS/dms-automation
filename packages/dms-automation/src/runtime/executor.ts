@@ -1,5 +1,5 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
-import { isObject } from "../types/guards";
+import { isObject, isPropertyBag } from "../types/guards";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
 /**
@@ -15,8 +15,14 @@ import type { ExecutionResult } from "./executionResult";
 import { flattenGroups } from "./flatten";
 import { type NodeCtx, nodeKinds } from "./nodeKinds";
 import { registry } from "./registry";
-import { DataCache, resolveInputs, schemaDefaults } from "./resolveInputs";
+import {
+  DataCache,
+  type DataNodeEvaluator,
+  resolveInputs,
+  schemaDefaults,
+} from "./resolveInputs";
 import type { TemplateCache } from "./resolveSubgraph";
+import { propertiesOf } from "./schemaProperties";
 import { SubWalk } from "./subwalk";
 import { validateGraph } from "./validate";
 
@@ -268,7 +274,7 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
   const order = subwalk.topoOrder();
   const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
   const evalDataNode = makeDataNodeEvaluator(graph, nodeById, runCtx);
-  const resolveNodeInputs = (n: GraphNode): Record<string, unknown> =>
+  const resolveNodeInputs = (n: GraphNode) =>
     resolveInputs(
       n,
       graph.dataEdges,
@@ -298,7 +304,7 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
     });
 
     const nodeStart = Date.now();
-    let inputs: Record<string, unknown> = {};
+    let inputs: ReturnType<typeof resolveNodeInputs> = {};
     try {
       inputs = resolveNodeInputs(node);
       const entry = nodeKinds.get(node.kind);
@@ -363,7 +369,7 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
 function withEmptySources<E>(
   err: E,
   node: GraphNode,
-  inputs: Record<string, unknown>,
+  inputs: ReturnType<typeof resolveInputs>,
   graph: ProcedureGraph,
   nodeById: Map<string, GraphNode>,
 ): E | Error {
@@ -399,7 +405,7 @@ function typeOf(node: GraphNode):
 }
 
 /** The defaults the node's type declares, applied under its config. */
-function inputDefaults(node: GraphNode): Record<string, unknown> {
+function inputDefaults(node: GraphNode) {
   const type = typeOf(node);
   return {
     ...schemaDefaults(type?.inputSchema),
@@ -416,7 +422,7 @@ function redacted<T>(values: T, schema: JsonSchema | undefined): T {
   if (!isObject(values) || Array.isArray(values)) {
     return values;
   }
-  const properties = (schema?.properties ?? {}) as Record<string, JsonSchema>;
+  const properties = propertiesOf(schema);
   const out = { ...values } as Record<string, unknown>;
   for (const [name, prop] of Object.entries(properties)) {
     if (prop["x-redact"] === "headers" && name in out) {
@@ -441,7 +447,7 @@ function makeNodeCtx(
   node: GraphNode,
   subwalk: SubWalk,
   runCtx: RunCtx,
-  resolveNodeInputs: (n: GraphNode) => Record<string, unknown>,
+  resolveNodeInputs: (n: GraphNode) => ReturnType<NodeCtx["resolveInputs"]>,
   contState: ContinuationState,
 ): NodeCtx {
   return {
@@ -513,19 +519,18 @@ function makeDataNodeEvaluator(
   graph: ProcedureGraph,
   nodeById: Map<string, GraphNode>,
   runCtx: RunCtx,
-): (id: string) => Record<string, unknown> | undefined {
+): DataNodeEvaluator {
   const evalStack = new Set<string>();
 
-  const evaluator = (nodeId: string): Record<string, unknown> | undefined => {
+  const evaluator: DataNodeEvaluator = (nodeId) => {
     const cached = runCtx.cache.getCachedData(nodeId);
     if (cached !== undefined) return cached;
 
     const dn = nodeById.get(nodeId);
     if (!dn) return undefined;
     if (dn.kind !== "data") {
-      return runCtx.cache.getOutput(nodeId) as
-        | Record<string, unknown>
-        | undefined;
+      const output = runCtx.cache.getOutput(nodeId);
+      return isPropertyBag(output) ? output : undefined;
     }
 
     if (evalStack.has(nodeId)) {
