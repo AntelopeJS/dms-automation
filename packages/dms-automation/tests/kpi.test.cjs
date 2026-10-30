@@ -15,6 +15,18 @@ const compareTo = new Date(from.getTime() - 1);
 const compareFrom = new Date(compareTo.getTime() - 24 * HOUR);
 const window = { from, to, compareFrom, compareTo };
 
+/**
+ * @param {string} status
+ * @param {number} hoursBeforeTo
+ * @param {number} [durationMs]
+ * @returns {{
+ *   _id: string;
+ *   procedureId: string;
+ *   status: string;
+ *   startedAt: Date;
+ *   endedAt: Date;
+ * }}
+ */
 const run = (status, hoursBeforeTo, durationMs = 1000) => {
   const startedAt = new Date(to.getTime() - hoursBeforeTo * HOUR);
   return {
@@ -26,7 +38,11 @@ const run = (status, hoursBeforeTo, durationMs = 1000) => {
   };
 };
 
-/** `count` runs of `status` in the compared window (24 to 48 h ago). */
+/**
+ * `count` runs of `status` in the compared window (24 to 48 h ago).
+ * @param {string} status
+ * @param {number} count
+ */
 const earlier = (status, count) =>
   Array.from({ length: count }, (_, i) => run(status, 25 + i * 0.5));
 
@@ -109,6 +125,10 @@ void test("without a comparison window there is no delta", () => {
 
 void test("compared with the same window a year earlier", () => {
   const YEAR = 365 * 24 * HOUR;
+  /**
+   * @param {string} status
+   * @param {number} hoursBeforeTo
+   */
   const yearBack = (status, hoursBeforeTo) => {
     const r = run(status, hoursBeforeTo);
     r.startedAt = new Date(r.startedAt.getTime() - YEAR);

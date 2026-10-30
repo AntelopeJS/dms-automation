@@ -1,5 +1,4 @@
 const assert = require("node:assert/strict");
-const path = require("node:path");
 const { test } = require("node:test");
 
 /**
@@ -7,12 +6,27 @@ const { test } = require("node:test");
  * translates: these tests load the frontend composable that decides it.
  */
 
-const { FRONTEND } = require("./helpers/frontend.cjs");
+require("./helpers/frontend.cjs");
 
-const { canConnect } = require(
-  path.join(FRONTEND, "app/composables/useGraphConnect.ts"),
-);
+const {
+  canConnect,
+} = require("../frontend-vue/app/composables/useGraphConnect.ts");
 
+/** @typedef {Parameters<typeof canConnect>[0]} ProcedureGraph */
+/** @typedef {Parameters<typeof canConnect>[5]} Connection */
+/** @typedef {{ name: string; type?: string }} PortFixture */
+/**
+ * @typedef {{
+ *   label: string;
+ *   hasTriggerIn: boolean;
+ *   hasMainTriggerOut: boolean;
+ *   staticTriggerOuts: string[];
+ *   staticDataIns: PortFixture[];
+ *   staticDataOuts: PortFixture[];
+ * }} NodeKindUI
+ */
+
+/** @param {Partial<NodeKindUI>} over */
 const ui = (over) => ({
   label: "x",
   hasTriggerIn: true,
@@ -49,6 +63,10 @@ const NODE_KINDS = [
   },
 ];
 
+/**
+ * @param {string} id
+ * @param {string} [kind]
+ */
 const node = (id, kind = "step") => ({
   id,
   kind,
@@ -56,16 +74,30 @@ const node = (id, kind = "step") => ({
   position: { x: 0, y: 0 },
 });
 
+/**
+ * @param {ProcedureGraph} graph
+ * @param {Connection} connection
+ */
 function check(graph, connection) {
   return canConnect(graph, NODE_KINDS, [], [], [], connection);
 }
 
+/**
+ * @param {string} source
+ * @param {string} target
+ */
 const trigger = (source, target) => ({
   source,
   target,
   sourceHandle: "trigger-out-main",
   targetHandle: "trigger-in",
 });
+/**
+ * @param {string} source
+ * @param {string} target
+ * @param {string} [port]
+ * @param {string} [field]
+ */
 const data = (source, target, port = "out", field = "in") => ({
   source,
   target,

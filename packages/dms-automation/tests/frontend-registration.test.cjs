@@ -5,11 +5,13 @@ const path = require("node:path");
 const { mock, test } = require("node:test");
 
 void test("registers Vue with the automation configuration and original priority", async () => {
-  const filename = path.resolve(__dirname, "../dist/index.js");
+  /** @type {unknown[]} */
   const registrations = [];
+  /** @type {Record<string, unknown>} */
   const mocks = {
     "@antelopejs/interface-dms/page": {
-      AddFrontendModule: (registration) => registrations.push(registration),
+      AddFrontendModule: (/** @type {unknown} */ registration) =>
+        registrations.push(registration),
     },
     "@antelopejs/interface-core": { ...interfaceCore, ImplementInterface() {} },
     "./runtime/retention": { configureRetention() {} },
@@ -17,18 +19,30 @@ void test("registers Vue with the automation configuration and original priority
     "./runtime/builtins/actions/http": { setHttpRequestOptions() {} },
     "./routes/library": { setPublicUrl() {} },
   };
+  /** @type {unknown} */
   const load = Module._load;
-  mock.method(Module, "_load", (name, parent, isMain) => {
-    if (Object.hasOwn(mocks, name)) return mocks[name];
-    if (
-      name.startsWith("./") &&
-      name !== "./types/constants" &&
-      name !== "./frontend-module"
-    )
-      return {};
-    return load(name, parent, isMain);
-  });
-  const exports = require(filename);
+  assert.ok(load instanceof Function, "Module._load is not available");
+  mock.method(
+    Module,
+    "_load",
+    (
+      /** @type {string} */ name,
+      /** @type {unknown} */ parent,
+      /** @type {boolean} */ isMain,
+    ) => {
+      if (Object.hasOwn(mocks, name)) return mocks[name];
+      if (
+        name.startsWith("./") &&
+        name !== "./types/constants" &&
+        name !== "./frontend-module"
+      )
+        return {};
+      /** @type {unknown} */
+      const loaded = load.call(Module, name, parent, isMain);
+      return loaded;
+    },
+  );
+  const exports = require("../dist/index.js");
   await exports.construct({ cluster: { driver: "memory" } });
   assert.deepEqual(registrations, [
     {

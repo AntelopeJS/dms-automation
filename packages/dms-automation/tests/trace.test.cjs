@@ -20,6 +20,13 @@ registry.addAction("test.fail", {
   },
 });
 
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {string} typeId
+ * @param {string} [label]
+ * @returns {import("../dist/types/graph.js").GraphNode}
+ */
 function node(id, kind, typeId, label) {
   const n = {
     id,
@@ -84,10 +91,23 @@ void test("a step is named by its label, then by its type", () => {
 const { stepDurations } = require("../dist/runtime/trace.js");
 const { stepNamesOf } = require("../dist/runtime/describe.js");
 
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {import("../dist/types/dataValue.js").DataRecord} [config]
+ * @returns {import("../dist/types/graph.js").GraphNode}
+ */
 function flow(id, kind, config = {}) {
   return { id, kind, config, position: { x: 0, y: 0 } };
 }
 
+/**
+ * @param {string} id
+ * @param {string} from
+ * @param {string} to
+ * @param {string} [branch]
+ * @returns {import("../dist/types/graph.js").TriggerEdge}
+ */
 function edge(id, from, to, branch) {
   const e = { id, from: { node: from }, to: { node: to } };
   if (branch) e.from.branch = branch;
@@ -127,6 +147,7 @@ const flowGraph = {
   dataEdges: [],
 };
 
+/** @param {import("../dist/runtime/trace.js").TraceOptions} [options] */
 async function flowTrace(options) {
   const result = await run(flowGraph, "t", {});
   return {

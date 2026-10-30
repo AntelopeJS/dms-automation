@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
-const { frontendRequire, component } = require("./helpers/frontend.cjs");
+const { component } = require("./helpers/frontend.cjs");
 
 /**
  * "Needs attention" keeps its height from the skeleton to the list: rows the
@@ -8,13 +8,23 @@ const { frontendRequire, component } = require("./helpers/frontend.cjs");
  * state with no padding of its own around it.
  */
 
-const vue = frontendRequire("vue");
-const { renderToString } = frontendRequire("vue/server-renderer");
+const vue = require("../frontend-vue/node_modules/vue");
+const {
+  renderToString,
+} = require("../frontend-vue/node_modules/vue/server-renderer");
 
-globalThis.useTranslation = () => ({ processI18n: (value) => value });
-globalThis.useI18n = () => ({ t: (key) => key, te: () => false });
+globalThis.useTranslation = () => ({
+  /** @param {unknown} value */
+  processI18n: (value) => value,
+});
+globalThis.useI18n = () => ({
+  /** @param {unknown} key */
+  t: (key) => key,
+  te: () => false,
+});
 globalThis.useToast = () => ({ add() {} });
 globalThis.useRegionalFormat = () => ({
+  /** @param {Intl.DateTimeFormatOptions} [options] */
   dateTimeFormat: (options) => new Intl.DateTimeFormat("en", options),
 });
 globalThis.useAuthFetch = () => ({ $authFetch: async () => ({}) });
@@ -52,6 +62,7 @@ async function render(state) {
         apiUrl: "/api",
       }),
   });
+  /** @param {unknown} key */
   app.config.globalProperties.$t = (key) => key;
   app.config.warnHandler = () => {};
   for (const name of ["DmsCard", "UButton", "UTooltip", "DmsStatusPill"])
@@ -63,6 +74,7 @@ async function render(state) {
 
 const ROW_PADDING = /<li class="[^"]*\bpx-4 py-3\b/g;
 
+/** @param {string} procedureId */
 const row = (procedureId) => ({
   procedureId,
   name: procedureId,

@@ -10,9 +10,24 @@ const {
 } = require("../dist/db/models/procedure_run.model.js");
 const { RunsController } = require("../dist/routes/runs.js");
 
+/**
+ * @typedef {Pick<
+ *   import("../dist/db/tables/procedure_run.table.js").ProcedureRun,
+ *   | "procedureId"
+ *   | "procedureName"
+ *   | "startedAt"
+ *   | "status"
+ *   | "kind"
+ *   | "triggerNodeId"
+ *   | "triggerPayload"
+ *   | "triggerSummary"
+ * > & { _id: string }} StoredRun
+ */
+
+/** @type {Map<string, StoredRun>} */
 const runs = new Map();
 Object.assign(ProcedureRunModel.prototype, {
-  get: async (id) => runs.get(id),
+  get: async (/** @type {string} */ id) => runs.get(id),
   newest: async () => undefined,
   oldest: async () => undefined,
   countHistory: async () => 0,
@@ -20,6 +35,10 @@ Object.assign(ProcedureRunModel.prototype, {
 });
 Object.assign(ProcedureModel.prototype, { get: async () => undefined });
 
+/**
+ * @param {string} id
+ * @param {import("../dist/runtime/describe.js").TriggerSummary | undefined} triggerSummary
+ */
 function storedRun(id, triggerSummary) {
   runs.set(id, {
     _id: id,
@@ -34,6 +53,7 @@ function storedRun(id, triggerSummary) {
   });
 }
 
+/** @param {string} id */
 const getOne = (id) => new RunsController().getOne({}, id);
 
 void test("a run's detail words its trigger: a schedule in the zone it fired in", async () => {

@@ -1,12 +1,7 @@
 const assert = require("node:assert/strict");
 const Module = require("node:module");
-const path = require("node:path");
 const { test } = require("node:test");
-const {
-  FRONTEND,
-  frontendRequire,
-  component,
-} = require("./helpers/frontend.cjs");
+const { component } = require("./helpers/frontend.cjs");
 
 /**
  * A node's data ports read as their field's title on the canvas (a `$` key
@@ -15,14 +10,21 @@ const {
  * label's hover text when the title hides it.
  */
 
-const vue = frontendRequire("vue");
-const { renderToString } = frontendRequire("vue/server-renderer");
-const { portLabel } = require(path.join(FRONTEND, "app/utils/describe.ts"));
+const vue = require("../frontend-vue/node_modules/vue");
+const {
+  renderToString,
+} = require("../frontend-vue/node_modules/vue/server-renderer");
+const { portLabel } = require("../frontend-vue/app/utils/describe.ts");
 
+/** @type {Record<string, string>} */
 const MESSAGES = {
   "acme.fields.userId": "Utilisateur",
   "acme.fields.tenantId": "Organisation",
 };
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function processI18n(value) {
   if (!value.startsWith("$")) return value;
   const key = value.slice(1);
@@ -37,16 +39,31 @@ const Handle = vue.defineComponent({
   props: { id: String },
   setup: (props) => () => vue.h("i", { "data-handleid": props.id }),
 });
+/** @type {unknown} */
 const load = Module._load;
+if (!(load instanceof Function))
+  throw new Error("Module._load is not available in this Node");
+/**
+ * @param {string} request
+ * @param {...unknown} rest
+ * @returns {unknown}
+ */
 Module._load = function (request, ...rest) {
   if (request === "@vue-flow/core")
     return { Handle, Position: { Left: "left", Right: "right" } };
-  return load.call(this, request, ...rest);
+  /** @type {unknown} */
+  const loaded = load.call(this, request, ...rest);
+  return loaded;
 };
 
 globalThis.useTranslation = () => ({ processI18n });
-globalThis.useI18n = () => ({ t: (key) => key, te: () => false });
+globalThis.useI18n = () => ({
+  /** @param {unknown} key */
+  t: (key) => key,
+  te: () => false,
+});
 
+/** @param {unknown} data */
 async function renderNode(data) {
   const app = vue.createSSRApp({
     render: () =>

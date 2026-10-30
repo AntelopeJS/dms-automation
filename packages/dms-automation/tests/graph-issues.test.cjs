@@ -22,6 +22,20 @@ for (const t of builtinTriggers) registry.addTrigger(t.id, t);
 for (const a of builtinActions) registry.addAction(a.id, a);
 for (const d of builtinDataNodes) registry.addDataNode(d.id, d);
 
+/** @typedef {import("../dist/types/dataValue.js").DataRecord} DataRecord */
+/** @typedef {import("../dist/types/graph.js").GraphNode} GraphNode */
+/** @typedef {import("../dist/types/graph.js").TriggerEdge} TriggerEdge */
+/** @typedef {import("../dist/types/graph.js").DataEdge} DataEdge */
+/** @typedef {import("../dist/types/graph.js").ProcedureGraph} ProcedureGraph */
+/** @typedef {import("../dist/runtime/graphIssues.js").GraphIssue} GraphIssue */
+
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {string} [typeId]
+ * @param {DataRecord} [config]
+ * @returns {GraphNode}
+ */
 const node = (id, kind, typeId, config = {}) => ({
   id,
   kind,
@@ -30,14 +44,30 @@ const node = (id, kind, typeId, config = {}) => ({
   position: { x: 0, y: 0 },
 });
 
+/**
+ * @param {GraphNode[]} nodes
+ * @param {TriggerEdge[]} [triggerEdges]
+ * @param {DataEdge[]} [dataEdges]
+ * @returns {ProcedureGraph}
+ */
 const graphOf = (nodes, triggerEdges = [], dataEdges = []) => ({
   nodes,
   triggerEdges,
   dataEdges,
 });
 
+/**
+ * @param {string} id
+ * @param {string} from
+ * @param {string} to
+ * @returns {TriggerEdge}
+ */
 const edge = (id, from, to) => ({ id, from: { node: from }, to: { node: to } });
 
+/**
+ * @param {readonly GraphIssue[]} issues
+ * @returns {string[]}
+ */
 const codes = (issues) => issues.map((i) => i.code);
 
 void test("a step nothing triggers is a warning on its node", () => {
@@ -104,6 +134,12 @@ void test("a trigger cycle names the nodes on it", () => {
 });
 
 void test("a loop among data nodes is an error", () => {
+  /**
+   * @param {string} id
+   * @param {string} from
+   * @param {string} to
+   * @returns {DataEdge}
+   */
   const data = (id, from, to) => ({
     id,
     from: { node: from, port: "result" },
@@ -244,6 +280,7 @@ void test("webhook paths stay out of the API and accept route parameters", () =>
 });
 
 void test("a loop set past the iteration limit is a warning", () => {
+  /** @param {DataRecord} config */
   const loop = (config) =>
     graphOf(
       [

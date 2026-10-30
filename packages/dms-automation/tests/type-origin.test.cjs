@@ -26,6 +26,10 @@ const triggerType = {
   deactivate: () => Promise.resolve(),
 };
 
+/**
+ * @param {string} module
+ * @param {string} id
+ */
 function registerTrigger(module, id) {
   RunWithResponsibleModule(module, () =>
     internal.RegisterTriggerType.register(id, { ...triggerType, id }),

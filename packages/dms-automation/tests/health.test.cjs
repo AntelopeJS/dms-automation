@@ -12,6 +12,13 @@ const NOW = new Date("2026-10-07T12:00:00Z");
 const WEEK_AGO = new Date(NOW.getTime() - 7 * 24 * 3600 * 1000);
 const HOUR = 3600 * 1000;
 
+/**
+ * @param {string} id
+ * @param {string} status
+ * @param {number} hoursAgo
+ * @param {number} [durationMs]
+ * @returns {import("../dist/stats/health.js").HealthRun}
+ */
 function run(id, status, hoursAgo, durationMs = 100) {
   const startedAt = new Date(NOW.getTime() - hoursAgo * HOUR);
   return {

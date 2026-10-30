@@ -12,6 +12,7 @@ const {
 
 const HOUR = 3600 * 1000;
 const NOW = new Date("2026-10-07T12:00:00Z");
+/** @param {number} hours */
 const ago = (hours) => new Date(NOW.getTime() - hours * HOUR);
 
 const GRAPH = {
@@ -19,6 +20,34 @@ const GRAPH = {
   edges: [],
 };
 
+/**
+ * @typedef {{
+ *   procedure: Pick<
+ *     import("../dist/db/tables/procedure.table.js").Procedure,
+ *     "_id" | "name" | "enabled" | "graph"
+ *   >;
+ *   graph: typeof GRAPH;
+ *   triggers: import("../dist/runtime/describe.js").TriggerSummary[];
+ * }} FixtureProcedure
+ */
+
+/**
+ * @typedef {{
+ *   _id: string;
+ *   procedureId: string;
+ *   status: string;
+ *   startedAt: Date;
+ *   endedAt: Date;
+ *   procedureName?: string;
+ * }} FixtureRun
+ */
+
+/**
+ * @param {string} id
+ * @param {string} name
+ * @param {boolean} [enabled]
+ * @returns {FixtureProcedure}
+ */
 function procedure(id, name, enabled = true) {
   return {
     procedure: { _id: id, name, enabled, graph: JSON.stringify(GRAPH) },
@@ -28,6 +57,13 @@ function procedure(id, name, enabled = true) {
 }
 
 let runId = 0;
+/**
+ * @param {string} procedureId
+ * @param {string} status
+ * @param {number} hoursAgo
+ * @param {Partial<FixtureRun>} [extra]
+ * @returns {FixtureRun}
+ */
 const run = (procedureId, status, hoursAgo, extra = {}) => ({
   _id: `r${++runId}`,
   procedureId,
@@ -37,6 +73,10 @@ const run = (procedureId, status, hoursAgo, extra = {}) => ({
   ...extra,
 });
 
+/**
+ * @param {FixtureProcedure[]} procedures
+ * @param {FixtureRun[]} runs
+ */
 function context(procedures, runs) {
   return {
     now: NOW,
@@ -176,7 +216,9 @@ void test("the runs chart draws the period before, bucket by bucket", () => {
   assert.equal(chart.value, 9);
   assert.equal(chart.previousValue, 14);
   assert.equal(chart.delta, -35.7);
-  const [compared] = chart.comparisonSeries;
+  const { comparisonSeries } = chart;
+  assert.ok(comparisonSeries);
+  const [compared] = comparisonSeries;
   assert.equal(compared.type, "line");
   assert.equal(compared.name, "$dms_automation.overview.comparedRuns");
   assert.deepEqual(
@@ -193,6 +235,10 @@ void test("the runs chart draws the period before, bucket by bucket", () => {
 
 void test("the runs chart compares with the same window a year earlier", () => {
   const YEAR = 365 * 24 * HOUR;
+  /**
+   * @param {string} status
+   * @param {number} hoursAgo
+   */
   const yearAgo = (status, hoursAgo) => {
     const r = run("p", status, hoursAgo);
     r.startedAt = new Date(r.startedAt.getTime() - YEAR);
@@ -214,7 +260,9 @@ void test("the runs chart compares with the same window a year earlier", () => {
   });
   assert.equal(chart.previousValue, 20);
   assert.equal(chart.delta, -50);
-  const [compared] = chart.comparisonSeries;
+  const { comparisonSeries } = chart;
+  assert.ok(comparisonSeries);
+  const [compared] = comparisonSeries;
   assert.equal(compared.data[21].y, 20);
   assert.equal(
     compared.data.reduce((sum, p) => sum + p.y, 0),
@@ -304,6 +352,7 @@ void test("no comparison: no compared window, whatever dates come with it", () =
 
 void test("a period that cannot be read is refused", () => {
   const { periodWindow } = require("../dist/routes/stats.js");
+  /** @param {import("../dist/routes/stats.js").PresetQuery} query */
   const refused = (query) =>
     assert.throws(
       () => periodWindow(query),

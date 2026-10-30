@@ -14,6 +14,7 @@ const { internal } = require("../dist/implementations/dms-automation/index.js");
 
 const TYPE_ID = "support.ticket-opened";
 
+/** @param {string} typeId */
 const graphOn = (typeId) =>
   JSON.stringify({
     nodes: [
@@ -29,6 +30,15 @@ const graphOn = (typeId) =>
     dataEdges: [],
   });
 
+/**
+ * @typedef {Partial<import("../dist/db/tables/procedure.table.js").Procedure> &
+ *   Pick<
+ *     import("../dist/db/tables/procedure.table.js").Procedure,
+ *     "_id" | "name" | "enabled" | "graph" | "revision" | "version"
+ *   >} StoredProcedure
+ */
+
+/** @type {Map<string, StoredProcedure>} */
 const procedures = new Map([
   [
     "P1",
@@ -57,7 +67,10 @@ const procedures = new Map([
 Object.assign(ProcedureModel.prototype, {
   listEnabled: async () =>
     [...procedures.values()].filter((p) => p.enabled).map((p) => ({ ...p })),
-  update: async (id, patch) => {
+  update: async (
+    /** @type {string} */ id,
+    /** @type {Partial<StoredProcedure>} */ patch,
+  ) => {
     procedures.set(id, { ...procedures.get(id), ...patch });
     return 1;
   },
@@ -96,6 +109,7 @@ async function until(condition, what) {
   assert.fail(`timed out waiting for ${what}`);
 }
 
+/** @param {string} id */
 const armErrorOf = (id) => procedures.get(id).armErrors ?? "";
 
 void test("a late trigger type arms its procedures, and a reload re-arms them", async () => {

@@ -11,6 +11,28 @@ const {
  * the templates a procedure places.
  */
 
+/**
+ * @typedef {import("../dist/types/graph.js").GraphNode & {
+ *   templateId?: string;
+ *   ports?: import("../dist/types/graph.js").GroupPort[];
+ *   subgraph?: FixtureGraph;
+ * }} FixtureNode
+ */
+
+/**
+ * @typedef {{
+ *   nodes: FixtureNode[];
+ *   triggerEdges: import("../dist/types/graph.js").TriggerEdge[];
+ *   dataEdges: import("../dist/types/graph.js").DataEdge[];
+ * }} FixtureGraph
+ */
+
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {Partial<FixtureNode>} [extra]
+ * @returns {FixtureNode}
+ */
 const node = (id, kind, extra = {}) => ({
   id,
   kind,
@@ -18,9 +40,22 @@ const node = (id, kind, extra = {}) => ({
   position: { x: 0, y: 0 },
   ...extra,
 });
+/**
+ * @param {FixtureNode[]} nodes
+ * @returns {FixtureGraph}
+ */
 const graph = (...nodes) => ({ nodes, triggerEdges: [], dataEdges: [] });
+/**
+ * @param {string} id
+ * @param {string} templateId
+ */
 const instance = (id, templateId) =>
   node(id, "group", { templateId, ports: [] });
+/**
+ * @param {string} id
+ * @param {FixtureGraph} subgraph
+ * @param {string} [label]
+ */
 const localGroup = (id, subgraph, label) =>
   node(id, "group", { ports: [], subgraph, label });
 
@@ -30,6 +65,7 @@ const templates = new Map([
   ["loop", { subgraph: graph(instance("again", "loop")) }],
 ]);
 
+/** @param {FixtureGraph} g */
 const placed = (g) =>
   [...walkPlacedNodes(g, templates)].map(
     ({ node: n, groups, viaTemplate }) => ({

@@ -9,7 +9,30 @@ const {
 const PROCEDURE = "p1";
 const MINUTE = 60_000;
 
+/**
+ * @typedef {Pick<
+ *   import("../dist/db/tables/procedure_run.table.js").ProcedureRun,
+ *   | "_id"
+ *   | "procedureId"
+ *   | "startedAt"
+ *   | "endedAt"
+ *   | "durationMs"
+ *   | "status"
+ *   | "kind"
+ *   | "triggerNodeId"
+ *   | "triggerPayload"
+ *   | "graphSnapshot"
+ * >} FixtureRun
+ */
+
+/** @typedef {import("../dist/db/models/procedure_run.model.js").HistoryQuery} HistoryQuery */
+
 let seq = 0;
+/**
+ * @param {number} minute
+ * @param {Partial<FixtureRun>} [fields]
+ * @returns {FixtureRun}
+ */
 function run(minute, fields = {}) {
   seq += 1;
   return {
@@ -29,22 +52,38 @@ function run(minute, fields = {}) {
 /**
  * The model's history reads, over runs held in memory: the queries the
  * database answers, so the route's logic is what is tested.
+ * @param {FixtureRun[]} runs
  */
 function fakeModel(runs) {
+  /**
+   * @param {FixtureRun} r
+   * @param {string} procedureId
+   * @param {HistoryQuery} query
+   */
   const matches = (r, procedureId, { tests, after, before, status }) =>
     r.procedureId === procedureId &&
     (tests ? r.kind === "test" : r.kind !== "test") &&
     (!after || r.startedAt > after) &&
     (!before || r.startedAt < before) &&
     (!status || r.status === status);
+  /** @param {number} dir */
   const byStart = (dir) =>
     [...runs].sort((a, b) => (a.startedAt - b.startedAt) * dir);
   return {
-    get: async (id) => runs.find((r) => r._id === id),
-    newest: async (id, q) => byStart(-1).find((r) => matches(r, id, q)),
-    oldest: async (id, q) => byStart(1).find((r) => matches(r, id, q)),
-    countHistory: async (id, q) => runs.filter((r) => matches(r, id, q)).length,
-    successTimings: async (id, q, limit) =>
+    get: async (/** @type {string} */ id) => runs.find((r) => r._id === id),
+    newest: async (/** @type {string} */ id, /** @type {HistoryQuery} */ q) =>
+      byStart(-1).find((r) => matches(r, id, q)),
+    oldest: async (/** @type {string} */ id, /** @type {HistoryQuery} */ q) =>
+      byStart(1).find((r) => matches(r, id, q)),
+    countHistory: async (
+      /** @type {string} */ id,
+      /** @type {HistoryQuery} */ q,
+    ) => runs.filter((r) => matches(r, id, q)).length,
+    successTimings: async (
+      /** @type {string} */ id,
+      /** @type {HistoryQuery} */ q,
+      /** @type {number} */ limit,
+    ) =>
       byStart(-1)
         .filter((r) => matches(r, id, { ...q, status: "ok" }))
         .slice(0, limit),

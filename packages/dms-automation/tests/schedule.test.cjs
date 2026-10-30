@@ -3,6 +3,7 @@ const { test } = require("node:test");
 const { nextOccurrence } = require("../dist/runtime/schedule.js");
 const { retentionCutoff } = require("../dist/runtime/retention.js");
 
+/** @param {string} s */
 const at = (s) => new Date(s);
 
 void test("the next occurrence of common schedules", () => {

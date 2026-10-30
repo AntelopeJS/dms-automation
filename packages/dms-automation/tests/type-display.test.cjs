@@ -1,11 +1,7 @@
 const assert = require("node:assert/strict");
-const path = require("node:path");
 const { test } = require("node:test");
-const {
-  FRONTEND,
-  frontendRequire,
-  component,
-} = require("./helpers/frontend.cjs");
+const { component } = require("./helpers/frontend.cjs");
+const { isPropertyBag, isString } = require("../dist/types/guards.js");
 
 /**
  * Registered trigger / action / data-node types may declare `name` and
@@ -14,13 +10,16 @@ const {
  * translated, plain strings come out as written.
  */
 
-const vue = frontendRequire("vue");
-const { renderToString } = frontendRequire("vue/server-renderer");
+const vue = require("../frontend-vue/node_modules/vue");
+const {
+  renderToString,
+} = require("../frontend-vue/node_modules/vue/server-renderer");
 
 /**
  * Stand-in for the host's `processI18n`: `$` marks a key, anything else is
  * returned verbatim (dms-core `resolveI18nKey`).
  */
+/** @type {Record<string, string>} */
 const MESSAGES = {
   "acme.trigger.name": "Déclencheur traduit",
   "acme.trigger.description": "Description traduite",
@@ -29,6 +28,10 @@ const MESSAGES = {
   "acme.data.description": "Donnée décrite",
   "dms_automation.nodes.kinds.if": "Si",
 };
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 function processI18n(value) {
   if (!value.startsWith("$")) return value;
   const key = value.slice(1);
@@ -37,12 +40,14 @@ function processI18n(value) {
 
 globalThis.useTranslation = () => ({ processI18n });
 globalThis.useI18n = () => ({
+  /** @param {unknown} key */
   t: (key) => key,
   te: () => false,
   locale: { value: "en" },
 });
 globalThis.useToast = () => ({ add() {} });
 globalThis.useRegionalFormat = () => ({
+  /** @param {Intl.DateTimeFormatOptions} [options] */
   dateTimeFormat: (options) => new Intl.DateTimeFormat("en", options),
 });
 
@@ -72,8 +77,14 @@ const HOST_COMPONENTS = [
   "UInput",
 ];
 
+/**
+ * @param {unknown} root
+ * @param {Record<string, unknown>} props
+ * @param {Record<string, import("../frontend-vue/node_modules/vue").Component>} [components]
+ */
 async function render(root, props, components = {}) {
   const app = vue.createSSRApp({ render: () => vue.h(root, props) });
+  /** @param {unknown} key */
   app.config.globalProperties.$t = (key) => key;
   app.config.warnHandler = () => {};
   for (const name of HOST_COMPONENTS) app.component(name, SlotStub);
@@ -94,6 +105,11 @@ const plainTrigger = {
 };
 
 void test("builder palette labels translate keyed trigger, action and data-node types", async () => {
+  /**
+   * @param {string} name
+   * @param {string} category
+   * @param {string} typeRegistry
+   */
   const kind = (name, category, typeRegistry) => ({
     kind: name,
     meta: {
@@ -151,19 +167,27 @@ void test("builder palette labels translate keyed flow blocks", async () => {
 void test("every built-in node kind is named by a key both locales translate", () => {
   const { nodeKinds } = require("../dist/runtime/nodeKinds.js");
   require("../dist/runtime/builtins");
-  const locales = ["en-GB", "fr-FR"].map((lang) =>
-    require(
-      path.join(FRONTEND, "i18n", "locales", `dms-automation-${lang}.json`),
-    ),
-  );
+  const locales = [
+    require("../frontend-vue/i18n/locales/dms-automation-en-GB.json"),
+    require("../frontend-vue/i18n/locales/dms-automation-fr-FR.json"),
+  ];
+  /**
+   * @param {unknown} messages
+   * @param {string} key
+   * @returns {unknown}
+   */
   const lookup = (messages, key) =>
-    key.split(".").reduce((o, part) => o?.[part], messages);
+    key
+      .split(".")
+      .reduce((o, part) => (isPropertyBag(o) ? o[part] : undefined), messages);
   for (const { kind, meta } of nodeKinds.listAll()) {
     const label = meta.ui?.label;
     if (label === undefined) continue;
     assert.match(label, /^\$dms_automation\./, `kind "${kind}"`);
     for (const messages of locales) {
-      assert.match(lookup(messages, label.slice(1)), /\S/, label);
+      const message = lookup(messages, label.slice(1));
+      assert.ok(isString(message), label);
+      assert.match(message, /\S/, label);
     }
   }
 });
@@ -178,6 +202,7 @@ void test("node inspector shows the translated type of the selected node", async
     dataNodeTypes: [],
     nodeKinds: [],
   };
+  /** @param {string} typeId */
   const node = (typeId) => ({ id: "n1", kind: "trigger", typeId, config: {} });
 
   const keyed = await render(NodeInspector, {
@@ -197,9 +222,15 @@ void test("node inspector shows the translated type of the selected node", async
 });
 
 void test("describe helpers translate keyed step names and show the server's schedule text", () => {
-  const { stepTitle, summarizeNode } = require(
-    path.join(FRONTEND, "app/utils/describe.ts"),
-  );
+  const {
+    stepTitle,
+    summarizeNode,
+  } = require("../frontend-vue/app/utils/describe.ts");
+  /**
+   * @param {string} key
+   * @param {Record<string, unknown>} [params]
+   * @returns {string}
+   */
   const t = (key, params = {}) =>
     key.startsWith("$")
       ? `${key.slice(1)}${Object.keys(params).length ? JSON.stringify(params) : ""}`
@@ -303,9 +334,11 @@ void test("a webhook endpoint offers no URL to copy until the server's address i
 });
 
 void test("dates are written through the page's regional format", () => {
-  const { describeDateTime, describeTime } = require(
-    path.join(FRONTEND, "app/utils/describe.ts"),
-  );
+  const {
+    describeDateTime,
+    describeTime,
+  } = require("../frontend-vue/app/utils/describe.ts");
+  /** @param {Intl.DateTimeFormatOptions} options */
   const regional = (options) =>
     new Intl.DateTimeFormat("en-GB", {
       ...options,

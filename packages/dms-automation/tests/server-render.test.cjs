@@ -22,10 +22,17 @@ const {
  * read in pages, and the templates its palette places.
  */
 const keyed = {
-  "dms-automation-builder-procedures": (read) =>
-    read.url.startsWith(`${API}/procedures?`),
-  "dms-automation-palette-templates": (read) => read.url === `${API}/templates`,
+  "dms-automation-builder-procedures":
+    /** @param {import("./server-render.cjs").Read} read */
+    (read) => read.url.startsWith(`${API}/procedures?`),
+  "dms-automation-palette-templates":
+    /** @param {import("./server-render.cjs").Read} read */
+    (read) => read.url === `${API}/templates`,
 };
+/**
+ * @param {string} url
+ * @param {number} [settle]
+ */
 const builder = (url, settle) =>
   serverRender(
     component("Editor.vue"),
@@ -141,6 +148,7 @@ void describe("library", () => {
 });
 
 void describe("run trace", () => {
+  /** @param {string} id */
   const trace = (id) =>
     serverRender(
       component("RunTrace.vue"),

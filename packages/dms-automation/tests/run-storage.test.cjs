@@ -21,6 +21,7 @@ const {
   serializeTriggerPayload,
 } = require("../dist/runtime/boundRunLog.js");
 const { ProcedureRun } = require("../dist/db/tables/procedure_run.table.js");
+const { isPropertyBag, isString } = require("../dist/types/guards.js");
 
 const ROOT = {
   id: "f0",
@@ -31,6 +32,12 @@ const ROOT = {
   seq: 0,
 };
 
+/**
+ * @param {number} seq
+ * @param {string} [message]
+ * @param {unknown} [value]
+ * @returns {import("../dist/types/runLog.js").LogEntry}
+ */
 function entry(seq, message = `m${seq}`, value) {
   const e = {
     fireId: "f0",
@@ -44,6 +51,10 @@ function entry(seq, message = `m${seq}`, value) {
   return e;
 }
 
+/**
+ * @param {number} n
+ * @param {unknown} [value]
+ */
 function entries(n, value) {
   return Array.from({ length: n }, (_, i) => entry(i + 1, undefined, value));
 }
@@ -209,8 +220,10 @@ void test("a trigger payload within budget is stored as plain JSON", () => {
 void test("an oversized trigger payload is replaced by a JSON marker", () => {
   const payload = { body: "y".repeat(MAX_TRIGGER_PAYLOAD_BYTES) };
   const stored = serializeTriggerPayload(payload);
+  /** @type {unknown} */
   const marker = JSON.parse(stored);
 
+  assert.ok(isPropertyBag(marker) && isString(marker.preview));
   assert.equal(marker.truncated, true);
   assert.equal(
     marker.originalBytes,
@@ -308,7 +321,9 @@ void test("a payload stored before its name was sensitive is redacted when it is
 void test("a range loop refuses more than 10 000 iterations before the first one", async () => {
   require("../dist/runtime/builtins/nodes/forRange.js");
   const { nodeKinds } = require("../dist/runtime/nodeKinds.js");
-  const { execute } = nodeKinds.get("forRange");
+  const forRange = nodeKinds.get("forRange");
+  assert.ok(forRange);
+  const { execute } = forRange;
   let fired = 0;
   const ctx = {
     log() {},

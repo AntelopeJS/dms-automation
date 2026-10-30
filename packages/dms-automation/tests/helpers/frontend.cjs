@@ -1,5 +1,4 @@
 const fs = require("node:fs");
-const Module = require("node:module");
 const path = require("node:path");
 
 /**
@@ -11,12 +10,17 @@ const path = require("node:path");
  */
 
 const FRONTEND = path.resolve(__dirname, "../../frontend-vue");
-const frontendRequire = Module.createRequire(
-  path.join(FRONTEND, "package.json"),
-);
-const { compileScript, parse } = frontendRequire("vue/compiler-sfc");
-const ts = frontendRequire("typescript");
+const {
+  compileScript,
+  parse,
+} = require("../../frontend-vue/node_modules/vue/compiler-sfc");
+const ts = require("../../frontend-vue/node_modules/typescript");
 
+/**
+ * @param {NodeJS.Module} module
+ * @param {string} filename
+ * @param {string} source
+ */
 function compileTypeScript(module, filename, source) {
   const server = source.replaceAll("import.meta.env", "({ SSR: true })");
   const { outputText } = ts.transpileModule(server, {
@@ -39,8 +43,12 @@ require.extensions[".vue"] = (module, filename) => {
   compileTypeScript(module, filename, content);
 };
 
-/** A component of `app/components`. */
+/**
+ * A component of `app/components`.
+ * @param {string} file
+ * @returns {unknown}
+ */
 const component = (file) =>
   require(path.join(FRONTEND, "app/components", file)).default;
 
-module.exports = { FRONTEND, frontendRequire, component };
+module.exports = { FRONTEND, component };

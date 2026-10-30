@@ -4,6 +4,7 @@ const { builtinActions, builtinTriggers } = require("../dist/runtime/builtins");
 const { registry } = require("../dist/runtime/registry.js");
 const { run } = require("../dist/runtime/executor.js");
 const { realEffectStepsOf } = require("../dist/runtime/sideEffects.js");
+const { isPropertyBag } = require("../dist/types/guards.js");
 
 /**
  * A test run of a draft must not act behind the user's back: an action that
@@ -63,12 +64,30 @@ registry.addAction("acme.read", {
   },
 });
 
+/**
+ * @typedef {import("../dist/types/graph.js").GraphNode & {
+ *   ports?: import("../dist/types/graph.js").GroupPort[];
+ *   subgraph?: import("../dist/types/graph.js").ProcedureGraph;
+ * }} FixtureNode
+ */
+
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {string} [typeId]
+ * @param {Partial<FixtureNode>} [extra]
+ * @returns {FixtureNode}
+ */
 function node(id, kind, typeId, extra = {}) {
   const n = { id, kind, config: {}, position: { x: 0, y: 0 }, ...extra };
   if (typeId) n.typeId = typeId;
   return n;
 }
 
+/**
+ * @param {string} from
+ * @param {string} to
+ */
 function edge(from, to) {
   return { id: `${from}-${to}`, from: { node: from }, to: { node: to } };
 }
@@ -92,11 +111,18 @@ function graph() {
   };
 }
 
+/**
+ * @param {import("../dist/runtime/executionResult.js").ExecutionResult} result
+ * @param {string} nodeId
+ * @returns {unknown}
+ */
 function outputOf(result, nodeId) {
   const entry = result.logs.entries.findLast(
     (e) => e.nodeId === nodeId && e.message === "executed",
   );
-  return entry?.value.output.value;
+  if (entry === undefined) return undefined;
+  assert.ok(isPropertyBag(entry.value) && isPropertyBag(entry.value.output));
+  return entry.value.output.value;
 }
 
 void test("a dry run simulates the actions that can and runs the others", async () => {

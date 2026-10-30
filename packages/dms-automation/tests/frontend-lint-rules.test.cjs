@@ -1,17 +1,19 @@
 const assert = require("node:assert/strict");
-const path = require("node:path");
-const { pathToFileURL } = require("node:url");
 const { test } = require("node:test");
-const { FRONTEND, frontendRequire } = require("./helpers/frontend.cjs");
 
-const { Linter } = frontendRequire("eslint");
-const vueParser = frontendRequire("vue-eslint-parser");
-const tsParser = frontendRequire("typescript-eslint").parser;
+const { Linter } = require("../frontend-vue/node_modules/eslint");
+const vueParser = require("../frontend-vue/node_modules/vue-eslint-parser");
+const tsParser =
+  require("../frontend-vue/node_modules/typescript-eslint/dist/index.js").parser;
 
+/**
+ * @param {string} filename
+ * @param {string} code
+ * @param {string} rule
+ */
 async function lint(filename, code, rule) {
-  const { default: automation } = await import(
-    pathToFileURL(path.join(FRONTEND, "eslint-rules/index.mjs")).href
-  );
+  const { default: automation } =
+    await import("../frontend-vue/eslint-rules/index.mjs");
   const messages = new Linter({ configType: "flat" }).verify(
     code,
     [
