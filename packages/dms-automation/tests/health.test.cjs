@@ -25,7 +25,7 @@ function run(id, status, hoursAgo, durationMs = 100) {
 
 const enabled = { _id: "p", enabled: true, hasTrigger: true };
 
-test("a procedure whose last run failed is failing, with its streak", () => {
+void test("a procedure whose last run failed is failing, with its streak", () => {
   const health = procedureHealth(
     enabled,
     [run("a", "ok", 5), run("b", "failed", 2), run("c", "failed", 1)],
@@ -41,7 +41,7 @@ test("a procedure whose last run failed is failing, with its streak", () => {
   );
 });
 
-test("an enabled procedure whose trigger cannot arm is failing", () => {
+void test("an enabled procedure whose trigger cannot arm is failing", () => {
   const armError = {
     code: "cronInvalid",
     params: { cron: "every monday" },
@@ -54,14 +54,14 @@ test("an enabled procedure whose trigger cannot arm is failing", () => {
   assert.equal(health.triggerError, "invalid cron expression");
 });
 
-test("an enabled procedure that never ran stays healthy, without a last run", () => {
+void test("an enabled procedure that never ran stays healthy, without a last run", () => {
   const health = procedureHealth(enabled, [], WEEK_AGO);
   assert.equal(health.state, "healthy");
   assert.equal(health.lastRun, undefined);
   assert.equal(health.successRate, null);
 });
 
-test("a failure followed by a success is degraded, not failing", () => {
+void test("a failure followed by a success is degraded, not failing", () => {
   const health = procedureHealth(
     enabled,
     [run("a", "failed", 3), run("b", "ok", 1)],
@@ -72,7 +72,7 @@ test("a failure followed by a success is degraded, not failing", () => {
   assert.equal(health.failingSince, undefined);
 });
 
-test("failures older than the window leave a procedure healthy", () => {
+void test("failures older than the window leave a procedure healthy", () => {
   const health = procedureHealth(
     enabled,
     [run("a", "failed", 24 * 9), run("b", "ok", 1)],
@@ -83,7 +83,7 @@ test("failures older than the window leave a procedure healthy", () => {
   assert.equal(health.successRate, 1);
 });
 
-test("no trigger is a draft; disabled is paused once it was enabled or ran", () => {
+void test("no trigger is a draft; disabled is paused once it was enabled or ran", () => {
   const noTrigger = { _id: "p", enabled: true, hasTrigger: false };
   assert.equal(procedureHealth(noTrigger, [], WEEK_AGO).state, "draft");
 
@@ -97,7 +97,7 @@ test("no trigger is a draft; disabled is paused once it was enabled or ran", () 
   assert.equal(procedureHealth(paused, [], WEEK_AGO).state, "paused");
 });
 
-test("figures count, rate and the p95 duration", () => {
+void test("figures count, rate and the p95 duration", () => {
   const figures = runFigures([
     run("a", "ok", 1, 100),
     run("b", "ok", 1, 200),
@@ -112,13 +112,13 @@ test("figures count, rate and the p95 duration", () => {
   assert.equal(percentile([], 0.95), null);
 });
 
-test("test runs never count", () => {
+void test("test runs never count", () => {
   assert.equal(isProductionRun("run"), true);
   assert.equal(isProductionRun("rerun"), true);
   assert.equal(isProductionRun("test"), false);
 });
 
-test("states sort failing first, drafts last", () => {
+void test("states sort failing first, drafts last", () => {
   const states = ["healthy", "draft", "failing", "paused", "degraded"];
   assert.deepEqual(
     states.sort((a, b) => stateRank(a) - stateRank(b)),

@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "types": ["node"],
+    "noEmit": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "rootDir": "..",
+    "rootDirs": ["../dist", "../src"],
+    "incremental": false,
+    "declaration": false
+  },
+  "include": ["./**/*.cjs"]
+}

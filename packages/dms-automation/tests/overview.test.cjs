@@ -49,7 +49,7 @@ function context(procedures, runs) {
 const day = { from: ago(24), to: NOW };
 const week = { from: ago(7 * 24), to: NOW };
 
-test("the health line's degraded state follows the window", () => {
+void test("the health line's degraded state follows the window", () => {
   const ctx = context(
     [procedure("p", "Export")],
     [run("p", "failed", 72), run("p", "ok", 2)],
@@ -58,7 +58,7 @@ test("the health line's degraded state follows the window", () => {
   assert.equal(healthHero(ctx, day).state, "healthy");
 });
 
-test("the health line names failing procedures in the attention order", () => {
+void test("the health line names failing procedures in the attention order", () => {
   const ctx = context(
     [procedure("a", "Once"), procedure("b", "Thrice")],
     [
@@ -80,7 +80,7 @@ test("the health line names failing procedures in the attention order", () => {
   assert.equal(hero.lastFailure.procedureId, "b");
 });
 
-test("needs attention shows five rows and counts them all", () => {
+void test("needs attention shows five rows and counts them all", () => {
   const procedures = Array.from({ length: 7 }, (_, i) =>
     procedure(`p${i}`, `Job ${i}`),
   );
@@ -93,7 +93,7 @@ test("needs attention shows five rows and counts them all", () => {
   assert.equal(list.total, 7);
 });
 
-test("the procedure counts add up to the total, one line per state", () => {
+void test("the procedure counts add up to the total, one line per state", () => {
   const ctx = context(
     [
       procedure("f", "Failing"),
@@ -121,7 +121,7 @@ test("the procedure counts add up to the total, one line per state", () => {
   assert.equal(counts[2].to, "/procedures?tab=degraded");
 });
 
-test("the overview's lists send as many lines as their skeletons draw", () => {
+void test("the overview's lists send as many lines as their skeletons draw", () => {
   assert.equal(
     procedureCounts(context([], []), "/procedures").length,
     PROCEDURE_COUNT_LINES,
@@ -133,7 +133,7 @@ test("the overview's lists send as many lines as their skeletons draw", () => {
   assert.equal(recentRunItems(ctx, "/trace").length, RECENT_RUNS);
 });
 
-test("a run of a deleted procedure keeps its name", () => {
+void test("a run of a deleted procedure keeps its name", () => {
   const ctx = context(
     [],
     [run("gone", "ok", 1, { procedureName: "Old sync" })],
@@ -143,7 +143,7 @@ test("a run of a deleted procedure keeps its name", () => {
   assert.equal(item.params.name, "Old sync");
 });
 
-test("the runs chart buckets on the hour, without a comparison", () => {
+void test("the runs chart buckets on the hour, without a comparison", () => {
   const ctx = context(
     [procedure("p", "Sync")],
     [run("p", "ok", 1), run("p", "failed", 1), run("p", "ok", 30)],
@@ -159,7 +159,7 @@ test("the runs chart buckets on the hour, without a comparison", () => {
   assert.equal("previousValue" in chart, false);
 });
 
-test("the runs chart draws the period before, bucket by bucket", () => {
+void test("the runs chart draws the period before, bucket by bucket", () => {
   const before = [
     ...Array.from({ length: 12 }, () => run("p", "ok", 30)),
     run("p", "failed", 26),
@@ -191,7 +191,7 @@ test("the runs chart draws the period before, bucket by bucket", () => {
   );
 });
 
-test("the runs chart compares with the same window a year earlier", () => {
+void test("the runs chart compares with the same window a year earlier", () => {
   const YEAR = 365 * 24 * HOUR;
   const yearAgo = (status, hoursAgo) => {
     const r = run("p", status, hoursAgo);
@@ -222,7 +222,7 @@ test("the runs chart compares with the same window a year earlier", () => {
   );
 });
 
-test("too few compared runs: the line, but no change to read", () => {
+void test("too few compared runs: the line, but no change to read", () => {
   const ctx = context(
     [procedure("p", "Sync")],
     [run("p", "ok", 30), run("p", "ok", 1), run("p", "ok", 2)],
@@ -238,7 +238,7 @@ test("too few compared runs: the line, but no change to read", () => {
   assert.equal(chart.comparisonSeries.length, 1);
 });
 
-test("needs attention reads degraded over the period it is given", () => {
+void test("needs attention reads degraded over the period it is given", () => {
   const ctx = context(
     [procedure("p", "Export")],
     [run("p", "failed", 72), run("p", "ok", 2)],
@@ -247,7 +247,7 @@ test("needs attention reads degraded over the period it is given", () => {
   assert.equal(attentionRows(ctx, ago(24)).total, 0);
 });
 
-test("a sliding period ends at the request, its comparison with it", () => {
+void test("a sliding period ends at the request, its comparison with it", () => {
   const { periodWindow } = require("../dist/routes/stats.js");
   const query = {
     from: ago(24).toISOString(),
@@ -264,7 +264,7 @@ test("a sliding period ends at the request, its comparison with it", () => {
   assert.equal(week.to.getTime(), NOW.getTime());
 });
 
-test("the compared window is the one the scope resolved, a year back too", () => {
+void test("the compared window is the one the scope resolved, a year back too", () => {
   const { periodWindow } = require("../dist/routes/stats.js");
   const YEAR = 365 * 24 * 3600 * 1000;
   const query = {
@@ -282,7 +282,7 @@ test("the compared window is the one the scope resolved, a year back too", () =>
   assert.equal(sliding.compareTo.getTime(), later.getTime() - YEAR);
 });
 
-test("no comparison: no compared window, whatever dates come with it", () => {
+void test("no comparison: no compared window, whatever dates come with it", () => {
   const { periodWindow } = require("../dist/routes/stats.js");
   const window = periodWindow({
     from: ago(24).toISOString(),
@@ -302,7 +302,7 @@ test("no comparison: no compared window, whatever dates come with it", () => {
   );
 });
 
-test("a period that cannot be read is refused", () => {
+void test("a period that cannot be read is refused", () => {
   const { periodWindow } = require("../dist/routes/stats.js");
   const refused = (query) =>
     assert.throws(

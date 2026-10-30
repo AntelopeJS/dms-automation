@@ -83,7 +83,7 @@ function resolver(request, id) {
   };
 }
 
-test("an import of the backend source fails the build, naming both files", async () => {
+void test("an import of the backend source fails the build, naming both files", async () => {
   await assert.rejects(
     build('import { secret } from "../src/backend.ts";\nexport { secret };\n'),
     (error) => {
@@ -99,7 +99,7 @@ test("an import of the backend source fails the build, naming both files", async
   );
 });
 
-test("an alias that points into the backend source fails the build", async () => {
+void test("an alias that points into the backend source fails the build", async () => {
   await assert.rejects(
     build(
       'import { secret } from "@backend/backend.ts";\nexport { secret };\n',
@@ -113,7 +113,7 @@ test("an alias that points into the backend source fails the build", async () =>
   );
 });
 
-test("a symlink to the backend source, followed by the resolver, fails the build", async () => {
+void test("a symlink to the backend source, followed by the resolver, fails the build", async () => {
   await assert.rejects(
     build('import { secret } from "./linked.ts";\nexport { secret };\n', {
       extra: [resolver("./linked.ts", path.join(frontend, "linked.ts"))],
@@ -123,7 +123,7 @@ test("a symlink to the backend source, followed by the resolver, fails the build
   );
 });
 
-test("an id with a query or a hash still names the backend source", async () => {
+void test("an id with a query or a hash still names the backend source", async () => {
   const target = path.join(
     repository,
     "packages/dms-automation/src/backend.ts",
@@ -139,7 +139,7 @@ test("an id with a query or a hash still names the backend source", async () => 
   }
 });
 
-test("the built output, a virtual module and the source of another package pass", async () => {
+void test("the built output, a virtual module and the source of another package pass", async () => {
   const built = await build(
     'import { built } from "../dist/built.js";\nexport { built };\n',
   );
@@ -155,7 +155,7 @@ test("the built output, a virtual module and the source of another package pass"
   assert.match(JSON.stringify(other), /shared/);
 });
 
-test("a sibling folder named like src, and a src folder inside dist, pass", async () => {
+void test("a sibling folder named like src, and a src folder inside dist, pass", async () => {
   const sibling = await build(
     'import { sibling } from "../srcx/sibling.ts";\nexport { sibling };\n',
   );
@@ -166,7 +166,7 @@ test("a sibling folder named like src, and a src folder inside dist, pass", asyn
   assert.match(JSON.stringify(nested), /nested/);
 });
 
-test("a backend source import declared external still fails the build", async () => {
+void test("a backend source import declared external still fails the build", async () => {
   const target = path.join(
     repository,
     "packages/dms-automation/src/backend.ts",

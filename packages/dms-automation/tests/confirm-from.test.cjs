@@ -15,7 +15,7 @@ const ROW_TOKEN = /\{\{\s*row\.([^{}\s]+)\s*\}\}/g;
 const fill = (url, row) =>
   url.replace(ROW_TOKEN, (_, key) => encodeURIComponent(String(row[key])));
 
-test("re-run asks the dialog of the run it re-runs", async () => {
+void test("re-run asks the dialog of the run it re-runs", async () => {
   const asked = [];
   globalThis.useI18n = () => ({ t: (key) => key });
   globalThis.useTranslation = () => ({ processI18n: (value) => value });

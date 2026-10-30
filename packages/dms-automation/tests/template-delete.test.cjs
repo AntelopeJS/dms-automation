@@ -104,7 +104,7 @@ function instancesOf(g, id) {
 
 const remove = (id, force) => new TemplatesController().remove({}, id, force);
 
-test("deleting forks every usage, nested and in other templates, then removes it", async () => {
+void test("deleting forks every usage, nested and in other templates, then removes it", async () => {
   const result = await remove("A", "1");
   assert.deepEqual(result, { _id: "A", forked: 3 });
   assert.equal(templates.has("A"), false);
@@ -120,7 +120,7 @@ test("deleting forks every usage, nested and in other templates, then removes it
   assert.equal(b.nodes[0].label, "Notify");
 });
 
-test("without force a used template is refused and listed", async () => {
+void test("without force a used template is refused and listed", async () => {
   await assert.rejects(remove("A"), (e) => {
     assert.equal(e.status, 409);
     const body = JSON.parse(e.body);
@@ -133,7 +133,7 @@ test("without force a used template is refused and listed", async () => {
   assert.equal(templates.has("A"), true);
 });
 
-test("a usage the fork misses keeps the template: 409 fork-incomplete", async () => {
+void test("a usage the fork misses keeps the template: 409 fork-incomplete", async () => {
   brokenFork = true;
   await assert.rejects(remove("A", "1"), (e) => {
     assert.equal(e.status, 409);

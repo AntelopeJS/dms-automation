@@ -80,7 +80,7 @@ beforeEach(() => {
   changed.length = 0;
 });
 
-test("a first declaration stores the procedure under its id, enabled and armed", async () => {
+void test("a first declaration stores the procedure under its id, enabled and armed", async () => {
   const result = await declareProcedure(declaration());
   assert.equal(result.id, "shop.welcome");
   assert.equal(result.status, "created");
@@ -98,7 +98,7 @@ test("a first declaration stores the procedure under its id, enabled and armed",
   assert.deepEqual(changed, ["shop.welcome"]);
 });
 
-test("a later declaration leaves the stored procedure as it is", async () => {
+void test("a later declaration leaves the stored procedure as it is", async () => {
   await declareProcedure(declaration());
   const row = procedures.get("shop.welcome");
   procedures.set("shop.welcome", {
@@ -122,7 +122,7 @@ test("a later declaration leaves the stored procedure as it is", async () => {
   assert.deepEqual(changed, []);
 });
 
-test("two declarations at the same moment: one creates, the other keeps", async () => {
+void test("two declarations at the same moment: one creates, the other keeps", async () => {
   let release;
   const bothRead = new Promise((resolve) => (release = resolve));
   let reads = 0;
@@ -145,7 +145,7 @@ test("two declarations at the same moment: one creates, the other keeps", async 
   }
 });
 
-test("an insert failing for another reason still rejects", async () => {
+void test("an insert failing for another reason still rejects", async () => {
   ProcedureModel.prototype.insert = async () => {
     throw new Error("connection lost");
   };
@@ -156,7 +156,7 @@ test("an insert failing for another reason still rejects", async () => {
   }
 });
 
-test("a deleted procedure is created again by the next declaration", async () => {
+void test("a deleted procedure is created again by the next declaration", async () => {
   await declareProcedure(declaration());
   procedures.delete("shop.welcome");
 
@@ -165,7 +165,7 @@ test("a deleted procedure is created again by the next declaration", async () =>
   assert.equal(procedures.size, 1);
 });
 
-test("a disabled declaration is stored as a draft, its problems listed", async () => {
+void test("a disabled declaration is stored as a draft, its problems listed", async () => {
   const graph = graphOf();
   graph.nodes = [node("say", "action", "log.message")];
   graph.triggerEdges = [];
@@ -175,7 +175,7 @@ test("a disabled declaration is stored as a draft, its problems listed", async (
   assert.ok(result.issues.some((i) => i.code === "untriggered"));
 });
 
-test("an enabled declaration with a blocking problem is refused, nothing stored", async () => {
+void test("an enabled declaration with a blocking problem is refused, nothing stored", async () => {
   const graph = graphOf();
   graph.nodes = [node("say", "action", "log.message")];
   graph.triggerEdges = [];
@@ -186,7 +186,7 @@ test("an enabled declaration with a blocking problem is refused, nothing stored"
   assert.equal(procedures.size, 0);
 });
 
-test("an enabled declaration on a webhook route another procedure answers is refused", async () => {
+void test("an enabled declaration on a webhook route another procedure answers is refused", async () => {
   const webhookGraph = (path) => ({
     nodes: [node("hook", "trigger", "webhook", { path, method: "POST" })],
     triggerEdges: [],
@@ -207,7 +207,7 @@ test("an enabled declaration on a webhook route another procedure answers is ref
   assert.equal(procedures.has("shop.welcome"), false);
 });
 
-test("a trigger type not registered yet does not block: it arms when it registers", async () => {
+void test("a trigger type not registered yet does not block: it arms when it registers", async () => {
   const graph = graphOf();
   graph.nodes[0] = node("start", "trigger", "support.ticket-opened");
   const result = await declareProcedure(declaration({ graph }));
@@ -217,7 +217,7 @@ test("a trigger type not registered yet does not block: it arms when it register
   assert.equal(late?.severity, "warning");
 });
 
-test("a malformed declaration is refused with what is wrong", async () => {
+void test("a malformed declaration is refused with what is wrong", async () => {
   await assert.rejects(
     declareProcedure({ ...declaration(), id: "has spaces" }),
     /refused: id: letters, digits/,
@@ -233,7 +233,7 @@ test("a malformed declaration is refused with what is wrong", async () => {
   assert.equal(procedures.size, 0);
 });
 
-test("the interface call waits until the module has started", async () => {
+void test("the interface call waits until the module has started", async () => {
   markModuleStopped();
   markModuleStarted();
   markModuleStopped();

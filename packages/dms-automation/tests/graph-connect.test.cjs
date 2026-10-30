@@ -73,7 +73,7 @@ const data = (source, target, port = "out", field = "in") => ({
   targetHandle: `data-in-${field}`,
 });
 
-test("a step can't be linked to itself", () => {
+void test("a step can't be linked to itself", () => {
   const graph = { nodes: [node("a")], triggerEdges: [], dataEdges: [] };
   assert.deepEqual(check(graph, trigger("a", "a")), {
     ok: false,
@@ -85,7 +85,7 @@ test("a step can't be linked to itself", () => {
   });
 });
 
-test("a trigger link that would close a loop is refused", () => {
+void test("a trigger link that would close a loop is refused", () => {
   const graph = {
     nodes: [node("a"), node("b"), node("c")],
     triggerEdges: [
@@ -101,7 +101,7 @@ test("a trigger link that would close a loop is refused", () => {
   assert.deepEqual(check(graph, trigger("a", "c")), { ok: true });
 });
 
-test("a loop of data nodes is refused, a step reading a later output is not", () => {
+void test("a loop of data nodes is refused, a step reading a later output is not", () => {
   const graph = {
     nodes: [node("d1", "data"), node("d2", "data"), node("s"), node("t")],
     triggerEdges: [],
@@ -125,7 +125,7 @@ test("a loop of data nodes is refused, a step reading a later output is not", ()
   assert.deepEqual(check(graph, data("t", "s")), { ok: true });
 });
 
-test("refusals name the reason: port kinds and types", () => {
+void test("refusals name the reason: port kinds and types", () => {
   const graph = {
     nodes: [node("a"), node("d", "data")],
     triggerEdges: [],
@@ -151,7 +151,7 @@ test("refusals name the reason: port kinds and types", () => {
   });
 });
 
-test("a link already in the graph stays valid", () => {
+void test("a link already in the graph stays valid", () => {
   const graph = {
     nodes: [node("a")],
     triggerEdges: [

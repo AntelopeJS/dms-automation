@@ -36,7 +36,7 @@ function storedRun(id, triggerSummary) {
 
 const getOne = (id) => new RunsController().getOne({}, id);
 
-test("a run's detail words its trigger: a schedule in the zone it fired in", async () => {
+void test("a run's detail words its trigger: a schedule in the zone it fired in", async () => {
   storedRun("r1", {
     nodeId: "t1",
     typeId: "cron",
@@ -52,7 +52,7 @@ test("a run's detail words its trigger: a schedule in the zone it fired in", asy
   });
 });
 
-test("a run's detail words a webhook, a named trigger, and no trigger", async () => {
+void test("a run's detail words a webhook, a named trigger, and no trigger", async () => {
   storedRun("r2", {
     nodeId: "t1",
     typeId: "webhook",

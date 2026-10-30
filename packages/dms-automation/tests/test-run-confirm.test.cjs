@@ -66,7 +66,7 @@ Object.assign(ProcedureRunModel.prototype, {
 
 const controller = Object.create(ProceduresController.prototype);
 
-test("the steps a test acts for real through are listed", async () => {
+void test("the steps a test acts for real through are listed", async () => {
   const { realEffects } = await controller.testEffects(undefined, "p1", {
     graph: draft,
   });
@@ -75,7 +75,7 @@ test("the steps a test acts for real through are listed", async () => {
   ]);
 });
 
-test("a test with real effects is refused until they are confirmed", async () => {
+void test("a test with real effects is refused until they are confirmed", async () => {
   await assert.rejects(
     controller.test(undefined, "p1", { graph: draft, payload: {} }),
     (err) => {
@@ -98,7 +98,7 @@ test("a test with real effects is refused until they are confirmed", async () =>
   assert.equal(runs[0].kind, "test");
 });
 
-test("a test without real effects needs no confirmation", async () => {
+void test("a test without real effects needs no confirmation", async () => {
   const pure = {
     ...draft,
     nodes: [

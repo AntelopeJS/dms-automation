@@ -39,7 +39,7 @@ const placed = (g) =>
     }),
   );
 
-test("a node inside nested local groups is reached with its group path", () => {
+void test("a node inside nested local groups is reached with its group path", () => {
   const g = graph(
     localGroup("g1", graph(localGroup("g2", graph(node("log", "action"))))),
   );
@@ -50,19 +50,19 @@ test("a node inside nested local groups is reached with its group path", () => {
   });
 });
 
-test("a node inside a template is reached through the outermost instance", () => {
+void test("a node inside a template is reached through the outermost instance", () => {
   const g = graph(localGroup("g1", graph(instance("i1", "outer"))));
   assert.deepEqual(placed(g).at(-1), { id: "echo", groups: ["g1"], via: "i1" });
 });
 
-test("a missing or cyclic template is not entered", () => {
+void test("a missing or cyclic template is not entered", () => {
   assert.deepEqual(placed(graph(instance("x", "missing"))), [
     { id: "x", groups: [], via: undefined },
   ]);
   assert.equal(placed(graph(instance("l", "loop"))).length, 2);
 });
 
-test("forking turns every instance, nested ones included, into a local group", () => {
+void test("forking turns every instance, nested ones included, into a local group", () => {
   const sub = graph(node("echo", "action"));
   const template = { _id: "T", name: "Notify", subgraph: sub };
   const labelled = { ...instance("b", "T"), label: "Mine" };

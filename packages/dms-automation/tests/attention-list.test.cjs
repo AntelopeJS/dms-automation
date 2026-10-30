@@ -80,7 +80,7 @@ const row = (procedureId) => ({
   triggerType: null,
 });
 
-test("needs attention: the skeleton draws two rows padded as loaded rows are", async () => {
+void test("needs attention: the skeleton draws two rows padded as loaded rows are", async () => {
   const loading = await render({ isLoading: true, data: null });
   assert.equal(loading.match(ROW_PADDING)?.length, 2);
   assert.equal(loading.match(/data-skeleton/g)?.length, 6);
@@ -92,7 +92,7 @@ test("needs attention: the skeleton draws two rows padded as loaded rows are", a
   assert.doesNotMatch(loaded, /data-skeleton/);
 });
 
-test("needs attention: the empty state adds no padding of its own", async () => {
+void test("needs attention: the empty state adds no padding of its own", async () => {
   const html = await render({
     isLoading: false,
     data: { items: [], total: 0 },

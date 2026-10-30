@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 
-test("the run history uses the DMS grouped display, by day, counted", () => {
+void test("the run history uses the DMS grouped display, by day, counted", () => {
   const { RunsPageController } = require("../dist/pages/runs.js");
   const options = RunsPageController.table._options;
   assert.deepEqual(
@@ -16,7 +16,7 @@ test("the run history uses the DMS grouped display, by day, counted", () => {
   assert.equal(options.defaultDisplay, "grouped");
 });
 
-test("a run opens in a right drawer on one click, deep linked, and re-runs with its payload", () => {
+void test("a run opens in a right drawer on one click, deep linked, and re-runs with its payload", () => {
   const { RunsPageController } = require("../dist/pages/runs.js");
   const [peek, rerun, trace] =
     RunsPageController.table._options.rowActions.custom;
@@ -46,7 +46,7 @@ test("a run opens in a right drawer on one click, deep linked, and re-runs with 
   assert.equal(trace.target.url, "/modules/automation/trace?run={{row._id}}");
 });
 
-test("the trigger and failed-step cells are the DMS two_line display", () => {
+void test("the trigger and failed-step cells are the DMS two_line display", () => {
   const { RunsTableAPI } = require("../dist/data/runs-table.js");
   const run = Object.create(RunsTableAPI.prototype, {
     triggerSummary: {
@@ -67,7 +67,7 @@ test("the trigger and failed-step cells are the DMS two_line display", () => {
   assert.equal(run.failedStepText, "$dms_automation.types.http.name");
 });
 
-test("View runs links open the history on one procedure, said by a banner", () => {
+void test("View runs links open the history on one procedure, said by a banner", () => {
   const { RunsPageController } = require("../dist/pages/runs.js");
   const options = RunsPageController.table._options;
   assert.deepEqual(options.queryParamFilters, {
@@ -79,7 +79,7 @@ test("View runs links open the history on one procedure, said by a banner", () =
   );
 });
 
-test("the page reads its KPIs and list again when a run is stored", () => {
+void test("the page reads its KPIs and list again when a run is stored", () => {
   const { RunsPageController } = require("../dist/pages/runs.js");
   const { RUNS_TOPIC } = require("../dist/realtime.js");
   assert.equal(RUNS_TOPIC, "automation.runs");
@@ -90,7 +90,7 @@ test("the page reads its KPIs and list again when a run is stored", () => {
   assert.deepEqual(relay._options.realtimeTopic, [RUNS_TOPIC]);
 });
 
-test("the outcome follows the start, so a narrow list still shows it", () => {
+void test("the outcome follows the start, so a narrow list still shows it", () => {
   const { RunsPageController } = require("../dist/pages/runs.js");
   const columns = RunsPageController.table._options.columns;
   const visible = columns
@@ -101,7 +101,7 @@ test("the outcome follows the start, so a narrow list still shows it", () => {
   assert.equal(version.isVisible, false);
 });
 
-test("a run stored without its trigger reads as an unknown trigger", () => {
+void test("a run stored without its trigger reads as an unknown trigger", () => {
   const { RunsTableAPI } = require("../dist/data/runs-table.js");
   const run = Object.create(RunsTableAPI.prototype, {
     triggerSummary: { value: undefined },
@@ -109,7 +109,7 @@ test("a run stored without its trigger reads as an unknown trigger", () => {
   assert.equal(run.triggerText, "$dms_automation.runs.unknownTrigger");
 });
 
-test("the trigger type filter offers the trigger types by name", () => {
+void test("the trigger type filter offers the trigger types by name", () => {
   const { RunsPageController } = require("../dist/pages/runs.js");
   const column = RunsPageController.table._options.columns.find(
     (c) => c.accessorKey === "triggerType",

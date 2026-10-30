@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 
-test("a procedure row opens the builder, and the list offers no form", () => {
+void test("a procedure row opens the builder, and the list offers no form", () => {
   const { ProceduresPageController } = require("../dist/pages/procedures.js");
   const options = ProceduresPageController.table._options;
 
@@ -30,7 +30,7 @@ test("a procedure row opens the builder, and the list offers no form", () => {
   });
 });
 
-test("the list has a tab per state, the failing one feeding the menu badge", () => {
+void test("the list has a tab per state, the failing one feeding the menu badge", () => {
   const { ProceduresPageController } = require("../dist/pages/procedures.js");
   const { tabs } = ProceduresPageController.table._options;
   assert.deepEqual(
@@ -45,7 +45,7 @@ test("the list has a tab per state, the failing one feeding the menu badge", () 
   );
 });
 
-test("run now, pause and resume act on the right rows", () => {
+void test("run now, pause and resume act on the right rows", () => {
   const { ProceduresPageController } = require("../dist/pages/procedures.js");
   const custom = ProceduresPageController.table._options.rowActions.custom;
   const byLabel = Object.fromEntries(
@@ -73,7 +73,7 @@ test("run now, pause and resume act on the right rows", () => {
   );
 });
 
-test("the list reloads on the procedures' and the runs' realtime topics", () => {
+void test("the list reloads on the procedures' and the runs' realtime topics", () => {
   const { ProceduresPageController } = require("../dist/pages/procedures.js");
   assert.deepEqual(ProceduresPageController.table._options.realtimeTopic, [
     "automation.procedures",
@@ -110,7 +110,7 @@ const ROWS = [
 
 const names = (rows) => rows.map((r) => r.name);
 
-test("an empty search or filter, sent as a bare parameter, keeps every row", () => {
+void test("an empty search or filter, sent as a bare parameter, keeps every row", () => {
   const { applyQuery } = require("../dist/data/procedures-query.js");
   assert.equal(
     applyQuery(ROWS, { search: true, filter_status: true }).length,
@@ -119,7 +119,7 @@ test("an empty search or filter, sent as a bare parameter, keeps every row", () 
   assert.equal(applyQuery(ROWS, { search: "  ", filter_status: "" }).length, 4);
 });
 
-test("the search reads webhook paths, schedules and errors, without accents", () => {
+void test("the search reads webhook paths, schedules and errors, without accents", () => {
   const { applyQuery } = require("../dist/data/procedures-query.js");
   assert.deepEqual(names(applyQuery(ROWS, { search: "cafe" })), ["Café sync"]);
   assert.deepEqual(names(applyQuery(ROWS, { search: "demo-payment" })), [
@@ -131,7 +131,7 @@ test("the search reads webhook paths, schedules and errors, without accents", ()
   assert.deepEqual(names(applyQuery(ROWS, { search: "0 2 *" })), ["Nightly"]);
 });
 
-test("the status and trigger filters keep or drop rows by any of their values", () => {
+void test("the status and trigger filters keep or drop rows by any of their values", () => {
   const { applyQuery } = require("../dist/data/procedures-query.js");
   assert.deepEqual(
     names(applyQuery(ROWS, { filter_status: "is:failing,degraded" })),
@@ -149,7 +149,7 @@ test("the status and trigger filters keep or drop rows by any of their values", 
   );
 });
 
-test("sorting on the status orders the states by severity, either way", () => {
+void test("sorting on the status orders the states by severity, either way", () => {
   const { sortRows } = require("../dist/data/procedures-query.js");
   assert.deepEqual(names(sortRows(ROWS, "status", "asc")), [
     "Payments",
@@ -169,7 +169,7 @@ test("sorting on the status orders the states by severity, either way", () => {
   );
 });
 
-test("the picker's options narrow to the ids asked for, whatever the page size", () => {
+void test("the picker's options narrow to the ids asked for, whatever the page size", () => {
   const { procedureOptions } = require("../dist/data/procedures-query.js");
   const procedures = [
     { _id: "p-a", name: "Alpha" },

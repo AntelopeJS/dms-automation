@@ -67,7 +67,7 @@ async function evaluate(typeId, config) {
     : { error: result.errorMessage, failedNodeId: result.failedNodeId };
 }
 
-test("Set variable feeds its value port", async () => {
+void test("Set variable feeds its value port", async () => {
   const result = await run(
     {
       nodes: [
@@ -86,7 +86,7 @@ test("Set variable feeds its value port", async () => {
   assert.equal(outputOf(result, "log").value, 5);
 });
 
-test("a data node that fails fails the step that reads it", async () => {
+void test("a data node that fails fails the step that reads it", async () => {
   const graph = {
     nodes: [
       trigger,
@@ -110,7 +110,7 @@ test("a data node that fails fails the step that reads it", async () => {
   );
 });
 
-test("Compare reads numbers written as text as numbers", async () => {
+void test("Compare reads numbers written as text as numbers", async () => {
   assert.equal((await evaluate("compare.gt", { a: "10", b: "9" })).value, true);
   assert.equal((await evaluate("compare.eq", { a: 5, b: "5" })).value, true);
   assert.equal((await evaluate("compare.lt", { a: "2.5", b: 10 })).value, true);
@@ -121,7 +121,7 @@ test("Compare reads numbers written as text as numbers", async () => {
   assert.equal((await evaluate("compare.eq", { a: "01", b: "1" })).value, true);
 });
 
-test("Compare in auto mode keeps null, booleans and hex apart", async () => {
+void test("Compare in auto mode keeps null, booleans and hex apart", async () => {
   const eq = async (a, b) => (await evaluate("compare.eq", { a, b })).value;
   assert.equal(await eq(null, ""), false);
   assert.equal(await eq("0x10", 16), false);
@@ -131,19 +131,19 @@ test("Compare in auto mode keeps null, booleans and hex apart", async () => {
   assert.equal(await eq("1e3", 1000), true);
 });
 
-test("Compare in text mode compares in alphabetical order", async () => {
+void test("Compare in text mode compares in alphabetical order", async () => {
   const gt = await evaluate("compare.gt", { a: "10", b: "9", mode: "text" });
   assert.equal(gt.value, false);
   const eq = await evaluate("compare.eq", { a: "01", b: "1", mode: "text" });
   assert.equal(eq.value, false);
 });
 
-test("Compare in number mode fails on a value that is not a number", async () => {
+void test("Compare in number mode fails on a value that is not a number", async () => {
   const r = await evaluate("compare.gt", { a: "abc", b: 1, mode: "number" });
   assert.match(r.error, /a is not a number/);
 });
 
-test("the text false is false for the boolean nodes and If", async () => {
+void test("the text false is false for the boolean nodes and If", async () => {
   assert.equal(
     (await evaluate("bool.and", { a: "false", b: "true" })).value,
     false,
@@ -176,7 +176,7 @@ test("the text false is false for the boolean nodes and If", async () => {
   assert.notEqual(outputOf(result, "no"), undefined);
 });
 
-test("Math fails by name instead of returning NaN", async () => {
+void test("Math fails by name instead of returning NaN", async () => {
   const sqrt = await evaluate("math.sqrt", { a: -4 });
   assert.match(sqrt.error, /math\.sqrt: no valid result for a = -4/);
   assert.equal(sqrt.failedNodeId, "log");
@@ -186,13 +186,13 @@ test("Math fails by name instead of returning NaN", async () => {
   assert.match(power.error, /no valid result/);
 });
 
-test("Math reads numbers written as text and keeps null for a division by zero", async () => {
+void test("Math reads numbers written as text and keeps null for a division by zero", async () => {
   assert.equal((await evaluate("math.add", { a: "2", b: 3 })).value, 5);
   assert.equal((await evaluate("math.divide", { a: 1, b: 0 })).value, null);
   assert.equal((await evaluate("math.add", { b: 3 })).value, 3);
 });
 
-test("an empty input names the step it comes from", async () => {
+void test("an empty input names the step it comes from", async () => {
   const result = await run(
     {
       nodes: [
@@ -217,7 +217,7 @@ test("an empty input names the step it comes from", async () => {
   );
 });
 
-test("text nodes count characters as a reader does", async () => {
+void test("text nodes count characters as a reader does", async () => {
   assert.equal((await evaluate("string.length", { s: "😀ab" })).value, 3);
   assert.equal((await evaluate("string.length", { s: "👍🏽é" })).value, 2);
   const sub = await evaluate("string.substring", {
@@ -234,7 +234,7 @@ test("text nodes count characters as a reader does", async () => {
   assert.equal(swapped.value, "ell");
 });
 
-test("a constant saved without a value emits its schema default", async () => {
+void test("a constant saved without a value emits its schema default", async () => {
   const result = await run(
     {
       nodes: [
@@ -296,7 +296,7 @@ function httpGraph(config) {
   };
 }
 
-test("a failed status names the request and quotes the response", async () => {
+void test("a failed status names the request and quotes the response", async () => {
   const result = await run(
     httpGraph({ url: `${base}/missing`, method: "POST" }),
     "t",
@@ -312,7 +312,7 @@ test("a failed status names the request and quotes the response", async () => {
   assert.match(result.errorMessage, /booking not found/);
 });
 
-test("failOnStatus off hands the status, headers, body and JSON to the graph", async () => {
+void test("failOnStatus off hands the status, headers, body and JSON to the graph", async () => {
   const result = await run(
     httpGraph({ url: `${base}/missing`, failOnStatus: false }),
     "t",
@@ -325,7 +325,7 @@ test("failOnStatus off hands the status, headers, body and JSON to the graph", a
   assert.deepEqual(out.json, { error: "booking not found" });
 });
 
-test("network failures are said in words", async () => {
+void test("network failures are said in words", async () => {
   const refused = await run(
     httpGraph({ url: `http://127.0.0.1:${closedPort}/` }),
     "t",
@@ -353,7 +353,7 @@ test("network failures are said in words", async () => {
   assert.match(headers.errorMessage, /Headers must be an object/);
 });
 
-test("a request that gets no answer fails after its timeout", async () => {
+void test("a request that gets no answer fails after its timeout", async () => {
   const started = Date.now();
   const result = await run(
     httpGraph({ url: `${base}/slow`, timeoutMs: 300 }),
@@ -364,7 +364,7 @@ test("a request that gets no answer fails after its timeout", async () => {
   assert.match(result.errorMessage, /no response after 0\.3 s/);
 });
 
-test("a timeout above 5 minutes is capped, and the log says so", async () => {
+void test("a timeout above 5 minutes is capped, and the log says so", async () => {
   const result = await run(
     httpGraph({ url: `${base}/ok`, timeoutMs: 10 * 60 * 60 * 1000 }),
     "t",
@@ -378,12 +378,12 @@ test("a timeout above 5 minutes is capped, and the log says so", async () => {
   );
 });
 
-test("a response over the size limit is refused", async () => {
+void test("a response over the size limit is refused", async () => {
   const result = await run(httpGraph({ url: `${base}/big` }), "t", {});
   assert.match(result.errorMessage, /larger than 2 MB/);
 });
 
-test("header values are masked in the run log, not in the request", async () => {
+void test("header values are masked in the run log, not in the request", async () => {
   const result = await run(
     httpGraph({
       url: `${base}/ok`,
@@ -406,7 +406,7 @@ test("header values are masked in the run log, not in the request", async () => 
   assert.ok(logged.includes("[redacted]"));
 });
 
-test("blockPrivateNetwork refuses loopback addresses", async () => {
+void test("blockPrivateNetwork refuses loopback addresses", async () => {
   setHttpRequestOptions({ blockPrivateNetwork: true });
   try {
     const result = await run(httpGraph({ url: `${base}/ok` }), "t", {});
@@ -439,7 +439,7 @@ test("blockPrivateNetwork refuses loopback addresses", async () => {
   }
 });
 
-test("a parallel waits for every branch and reports the first failure", async () => {
+void test("a parallel waits for every branch and reports the first failure", async () => {
   const graph = {
     nodes: [
       trigger,

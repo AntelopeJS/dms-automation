@@ -48,7 +48,7 @@ function pageComponents(controller) {
 }
 
 for (const [file, name] of Object.entries(PAGES)) {
-  test(`${file}: every custom component reads well in the roles screen`, () => {
+  void test(`${file}: every custom component reads well in the roles screen`, () => {
     const controller = require(`../dist/pages/${file}.js`)[name];
     const custom = pageComponents(controller).filter((c) =>
       c._componentName.startsWith("dms-automation-"),
@@ -76,7 +76,7 @@ function childOf(component, id) {
   return component._children.find((child) => child.id === id)?.component;
 }
 
-test("the overview and the run history share one period and its comparison menu", () => {
+void test("the overview and the run history share one period and its comparison menu", () => {
   const selectors = ["overview", "runs"].map((file) => {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
     return childOf(controller.live, "period")._options;
@@ -97,7 +97,7 @@ test("the overview and the run history share one period and its comparison menu"
   assert.notEqual(selectors[0].id, selectors[1].id);
 });
 
-test("a year back is offered only when the runs kept reach it", () => {
+void test("a year back is offered only when the runs kept reach it", () => {
   const { offeredComparisons } = require("../dist/pages/shared.js");
   const withYear = ["previous-period", "previous-year", "none"];
   const withoutYear = ["previous-period", "none"];
@@ -107,7 +107,7 @@ test("a year back is offered only when the runs kept reach it", () => {
   assert.deepEqual(offeredComparisons(0), withYear);
 });
 
-test("overview: the runs chart names its compared series in its own legend", () => {
+void test("overview: the runs chart names its compared series in its own legend", () => {
   const controller = require("../dist/pages/overview.js")[PAGES.overview];
   const card = pageComponents(controller).find(
     (c) => c._componentName === "dms-chart-card",
@@ -118,7 +118,7 @@ test("overview: the runs chart names its compared series in its own legend", () 
 });
 
 for (const file of ["overview", "runs"]) {
-  test(`${file}: every figure of the period shows the comparison its menu picks`, () => {
+  void test(`${file}: every figure of the period shows the comparison its menu picks`, () => {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
     const scope = childOf(controller.live, "period")._options.id;
     const figures = pageComponents(controller).filter(
@@ -133,7 +133,7 @@ for (const file of ["overview", "runs"]) {
   });
 }
 
-test("overview: each list's skeleton draws the rows its route sends", () => {
+void test("overview: each list's skeleton draws the rows its route sends", () => {
   const controller = require("../dist/pages/overview.js")[PAGES.overview];
   const {
     PROCEDURE_COUNT_LINES,
@@ -151,7 +151,7 @@ test("overview: each list's skeleton draws the rows its route sends", () => {
   assert.equal(counts._options.skeletonCount, PROCEDURE_COUNT_LINES);
 });
 
-test("overview: the runs chart keeps the line under its total without a comparison", () => {
+void test("overview: the runs chart keeps the line under its total without a comparison", () => {
   const controller = require("../dist/pages/overview.js")[PAGES.overview];
   const card = pageComponents(controller).find(
     (c) => c._componentName === "dms-chart-card",
@@ -161,7 +161,7 @@ test("overview: the runs chart keeps the line under its total without a comparis
 });
 
 for (const file of ["overview", "runs"]) {
-  test(`${file}: one page toolbar first in the body, keeping the ids roles grant`, () => {
+  void test(`${file}: one page toolbar first in the body, keeping the ids roles grant`, () => {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
     const blocks = pageBlocks(controller);
     assert.equal(blocks[0], controller.live);
@@ -181,7 +181,7 @@ for (const file of ["overview", "runs"]) {
   });
 }
 
-test("the live tables hold their rows while paused", () => {
+void test("the live tables hold their rows while paused", () => {
   const runs = require("../dist/pages/runs.js")[PAGES.runs];
   assert.deepEqual(runs.table._options.liveHold, {
     whileRowOpen: true,
@@ -191,7 +191,7 @@ test("the live tables hold their rows while paused", () => {
   assert.equal(procedures.table._options.liveHold, true);
 });
 
-test("every data block of the overview and the run history follows the live topics", () => {
+void test("every data block of the overview and the run history follows the live topics", () => {
   for (const file of ["overview", "runs"]) {
     const controller = require(`../dist/pages/${file}.js`)[PAGES[file]];
     const topics = childOf(controller.live, "topics")._options.realtimeTopic;
@@ -209,7 +209,7 @@ test("every data block of the overview and the run history follows the live topi
   }
 });
 
-test("procedures: a live-only page toolbar first in the body", () => {
+void test("procedures: a live-only page toolbar first in the body", () => {
   const controller = require("../dist/pages/procedures.js")[PAGES.procedures];
   const blocks = pageBlocks(controller);
   assert.equal(blocks[0], controller.toolbar);
@@ -229,7 +229,7 @@ function messagesOf(node, prefix = "") {
   );
 }
 
-test("both locales say the same things with the same parameters", () => {
+void test("both locales say the same things with the same parameters", () => {
   const [en, fr] = LOCALES.map((messages) => new Map(messagesOf(messages)));
   assert.deepEqual(new Set(en.keys()), new Set(fr.keys()));
   const params = (text) => new Set(text.match(/\{\w+\}/g));
@@ -238,7 +238,7 @@ test("both locales say the same things with the same parameters", () => {
   }
 });
 
-test("no message holds a bare @, which breaks the page", () => {
+void test("no message holds a bare @, which breaks the page", () => {
   for (const messages of LOCALES) {
     for (const [key, text] of messagesOf(messages)) {
       assert.doesNotMatch(text.replaceAll("{'@'}", ""), /@/, key);

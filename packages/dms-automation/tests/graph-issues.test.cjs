@@ -40,7 +40,7 @@ const edge = (id, from, to) => ({ id, from: { node: from }, to: { node: to } });
 
 const codes = (issues) => issues.map((i) => i.code);
 
-test("a step nothing triggers is a warning on its node", () => {
+void test("a step nothing triggers is a warning on its node", () => {
   const graph = graphOf(
     [
       node("t", "trigger", "manual"),
@@ -61,7 +61,7 @@ test("a step nothing triggers is a warning on its node", () => {
   assert.equal(hasBlockingIssue(issues), false);
 });
 
-test("validator errors are blocking and point at the node they name", () => {
+void test("validator errors are blocking and point at the node they name", () => {
   const graph = graphOf(
     [node("t", "trigger", "manual"), node("a", "action", "log.message")],
     [edge("e1", "t", "a"), edge("e2", "a", "t")],
@@ -87,7 +87,7 @@ test("validator errors are blocking and point at the node they name", () => {
   assert.equal(targeted.nodeId, "t");
 });
 
-test("a trigger cycle names the nodes on it", () => {
+void test("a trigger cycle names the nodes on it", () => {
   const graph = graphOf(
     [
       node("t", "trigger", "manual"),
@@ -103,7 +103,7 @@ test("a trigger cycle names the nodes on it", () => {
   assert.equal(cycle.nodeId, "a");
 });
 
-test("a loop among data nodes is an error", () => {
+void test("a loop among data nodes is an error", () => {
   const data = (id, from, to) => ({
     id,
     from: { node: from, port: "result" },
@@ -119,7 +119,7 @@ test("a loop among data nodes is an error", () => {
   assert.equal(validateGraph(graph).ok, false);
 });
 
-test("unknown types, duplicate ids and missing templates are errors", () => {
+void test("unknown types, duplicate ids and missing templates are errors", () => {
   const graph = graphOf(
     [
       node("t", "trigger", "nope.trigger"),
@@ -143,7 +143,7 @@ test("unknown types, duplicate ids and missing templates are errors", () => {
   assert.ok(issues.every((i) => i.severity === "error"));
 });
 
-test("a trigger inside a group is reported on the group", () => {
+void test("a trigger inside a group is reported on the group", () => {
   const subgraph = graphOf(
     [
       node("in", "groupInput"),
@@ -168,7 +168,7 @@ test("a trigger inside a group is reported on the group", () => {
   assert.match(nested.message, /^group:g > /);
 });
 
-test("trigger settings that can never fire are errors", () => {
+void test("trigger settings that can never fire are errors", () => {
   const graph = graphOf([
     node("cron", "trigger", "schedule.cron", { cron: "every banana" }),
     node("hook", "trigger", "webhook", { path: "hello world" }),
@@ -186,7 +186,7 @@ test("trigger settings that can never fire are errors", () => {
   );
 });
 
-test("an empty required setting warns on a draft and blocks enabling", () => {
+void test("an empty required setting warns on a draft and blocks enabling", () => {
   const graph = graphOf(
     [node("t", "trigger", "manual"), node("h", "action", "http.request")],
     [edge("e", "t", "h")],
@@ -216,7 +216,7 @@ test("an empty required setting warns on a draft and blocks enabling", () => {
   assert.deepEqual(graphIssues(wired, { enabling: true }), []);
 });
 
-test("two webhooks of one graph cannot share a route", () => {
+void test("two webhooks of one graph cannot share a route", () => {
   const graph = graphOf([
     node("a", "trigger", "webhook", { path: "/webhooks/x", method: "POST" }),
     node("b", "trigger", "webhook", { path: "/webhooks/x/" }),
@@ -226,13 +226,13 @@ test("two webhooks of one graph cannot share a route", () => {
   assert.equal(issues[0].nodeId, "b");
 });
 
-test("enabling needs a trigger", () => {
+void test("enabling needs a trigger", () => {
   const issues = graphIssues(graphOf([]), { enabling: true });
   assert.deepEqual(codes(issues), ["noTrigger"]);
   assert.deepEqual(graphIssues(graphOf([])), []);
 });
 
-test("webhook paths stay out of the API and accept route parameters", () => {
+void test("webhook paths stay out of the API and accept route parameters", () => {
   assert.equal(webhookPathProblem("/webhooks/orders/:id"), undefined);
   assert.equal(webhookPathProblem("/api").code, "webhookPathReserved");
   assert.equal(webhookPathProblem("/DMS/x").code, "webhookPathReserved");
@@ -243,7 +243,7 @@ test("webhook paths stay out of the API and accept route parameters", () => {
   assert.equal(webhookPathProblem(undefined).code, "webhookPathInvalid");
 });
 
-test("a loop set past the iteration limit is a warning", () => {
+void test("a loop set past the iteration limit is a warning", () => {
   const loop = (config) =>
     graphOf(
       [
@@ -267,12 +267,12 @@ test("a loop set past the iteration limit is a warning", () => {
   assert.deepEqual(graphIssues(loop({ start: 0, end: 20000, step: 2 })), []);
 });
 
-test("a graph has a trigger when any node is one", () => {
+void test("a graph has a trigger when any node is one", () => {
   assert.equal(hasTrigger(graphOf([node("t", "trigger", "manual")])), true);
   assert.equal(hasTrigger(graphOf([])), false);
 });
 
-test("moving or restyling nodes does not change what a run executes", () => {
+void test("moving or restyling nodes does not change what a run executes", () => {
   const group = {
     ...node("g", "group"),
     ports: [{ name: "in", kind: "trigger", direction: "in" }],

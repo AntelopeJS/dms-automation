@@ -88,7 +88,7 @@ Object.assign(ProcedureRunModel.prototype, {
       .sort((a, b) => b.startedAt - a.startedAt)[0],
 });
 
-test("a procedure without a manual trigger runs from code", async () => {
+void test("a procedure without a manual trigger runs from code", async () => {
   await assert.rejects(InvokeProcedure(scheduled._id), (err) => {
     assert.match(err.body, /no manual trigger/);
     return true;
@@ -106,7 +106,7 @@ test("a procedure without a manual trigger runs from code", async () => {
   });
 });
 
-test("it starts from the trigger named, with its last payload by default", async () => {
+void test("it starts from the trigger named, with its last payload by default", async () => {
   runs.push({
     _id: "earlier",
     procedureId: scheduled._id,
@@ -123,7 +123,7 @@ test("it starts from the trigger named, with its last payload by default", async
   assert.deepEqual(JSON.parse(run.triggerPayload), { body: { week: 41 } });
 });
 
-test("it is refused as Run now is", async () => {
+void test("it is refused as Run now is", async () => {
   await assert.rejects(RunProcedure("reports.missing"), (err) => {
     assert.equal(err.status, 404);
     return true;

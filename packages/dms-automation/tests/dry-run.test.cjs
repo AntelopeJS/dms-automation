@@ -99,7 +99,7 @@ function outputOf(result, nodeId) {
   return entry?.value.output.value;
 }
 
-test("a dry run simulates the actions that can and runs the others", async () => {
+void test("a dry run simulates the actions that can and runs the others", async () => {
   sent.length = 0;
   const result = await run(graph(), "t", {}, { dryRun: true });
   assert.equal(result.status, "ok");
@@ -113,7 +113,7 @@ test("a dry run simulates the actions that can and runs the others", async () =>
   );
 });
 
-test("a real run executes every action", async () => {
+void test("a real run executes every action", async () => {
   sent.length = 0;
   const result = await run(graph(), "t", {});
   assert.equal(result.status, "ok");
@@ -124,7 +124,7 @@ test("a real run executes every action", async () => {
   ]);
 });
 
-test("the real effects of a draft are the actions that cannot simulate", () => {
+void test("the real effects of a draft are the actions that cannot simulate", () => {
   assert.deepEqual(realEffectStepsOf(graph()), [
     {
       nodeId: "notify",
@@ -135,7 +135,7 @@ test("the real effects of a draft are the actions that cannot simulate", () => {
   ]);
 });
 
-test("real effects inside a group are listed under their flattened id", () => {
+void test("real effects inside a group are listed under their flattened id", () => {
   const g = {
     nodes: [
       node("t", "trigger", "manual"),
@@ -161,7 +161,7 @@ test("real effects inside a group are listed under their flattened id", () => {
   assert.match(steps[0].nodeId, /^g__inner$/);
 });
 
-test("a draft of pure and simulated actions has no real effect", () => {
+void test("a draft of pure and simulated actions has no real effect", () => {
   const g = graph();
   g.nodes = g.nodes.filter((n) => n.id !== "notify");
   assert.deepEqual(realEffectStepsOf(g), []);

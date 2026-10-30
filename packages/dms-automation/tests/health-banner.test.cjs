@@ -24,14 +24,14 @@ function hero(overrides) {
   };
 }
 
-test("with no procedure, the banner offers the first-run recipes", () => {
+void test("with no procedure, the banner offers the first-run recipes", () => {
   const banner = healthBanner(hero({ state: "empty", procedures: 0 }), LINKS);
   assert.equal(banner.tone, "primary");
   assert.equal(banner.title, "$dms_automation.firstRun.title");
   assert.deepEqual(banner.actions, LINKS.recipes);
 });
 
-test("a healthy window sums up its runs, without actions", () => {
+void test("a healthy window sums up its runs, without actions", () => {
   const banner = healthBanner(hero(), LINKS);
   assert.equal(banner.tone, "success");
   assert.deepEqual(banner.title, { key: "dms_automation.health.healthy" });
@@ -47,7 +47,7 @@ test("a healthy window sums up its runs, without actions", () => {
   assert.deepEqual(banner.actions, []);
 });
 
-test("a failing procedure names itself, its cause, and links its trace", () => {
+void test("a failing procedure names itself, its cause, and links its trace", () => {
   const banner = healthBanner(
     hero({
       state: "failing",
@@ -111,7 +111,7 @@ const failingProcedure = (id, name) => ({
   armError: null,
 });
 
-test("several failing: the first is named with how many more, and the list is offered", () => {
+void test("several failing: the first is named with how many more, and the list is offered", () => {
   const banner = healthBanner(
     hero({
       state: "failing",
@@ -140,7 +140,7 @@ test("several failing: the first is named with how many more, and the list is of
   );
 });
 
-test("a failing trigger that never armed says so", () => {
+void test("a failing trigger that never armed says so", () => {
   const banner = healthBanner(
     hero({
       state: "failing",
@@ -171,7 +171,7 @@ test("a failing trigger that never armed says so", () => {
   });
 });
 
-test("an idle window does not point to an old failure", () => {
+void test("an idle window does not point to an old failure", () => {
   const banner = healthBanner(
     hero({
       state: "idle",
@@ -183,7 +183,7 @@ test("an idle window does not point to an old failure", () => {
   assert.deepEqual(banner.actions, []);
 });
 
-test("the failed runs open on the banner's period", () => {
+void test("the failed runs open on the banner's period", () => {
   const banner = healthBanner(
     hero({
       state: "degraded",

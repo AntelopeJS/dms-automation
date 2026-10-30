@@ -93,7 +93,7 @@ const plainTrigger = {
   description: "Plain description",
 };
 
-test("builder palette labels translate keyed trigger, action and data-node types", async () => {
+void test("builder palette labels translate keyed trigger, action and data-node types", async () => {
   const kind = (name, category, typeRegistry) => ({
     kind: name,
     meta: {
@@ -127,7 +127,7 @@ test("builder palette labels translate keyed trigger, action and data-node types
   assert.doesNotMatch(html, /acme\.(trigger|action|data)\.name/);
 });
 
-test("builder palette labels translate keyed flow blocks", async () => {
+void test("builder palette labels translate keyed flow blocks", async () => {
   const html = await render(component("Editor/BuilderPalette.vue"), {
     nodeKinds: [
       {
@@ -148,7 +148,7 @@ test("builder palette labels translate keyed flow blocks", async () => {
   assert.doesNotMatch(html, /nodes\.kinds\.if/);
 });
 
-test("every built-in node kind is named by a key both locales translate", () => {
+void test("every built-in node kind is named by a key both locales translate", () => {
   const { nodeKinds } = require("../dist/runtime/nodeKinds.js");
   require("../dist/runtime/builtins");
   const locales = ["en-GB", "fr-FR"].map((lang) =>
@@ -168,7 +168,7 @@ test("every built-in node kind is named by a key both locales translate", () => 
   }
 });
 
-test("node inspector shows the translated type of the selected node", async () => {
+void test("node inspector shows the translated type of the selected node", async () => {
   const NodeInspector = component("Editor/NodeInspector.vue");
   const props = {
     dataEdges: [],
@@ -196,7 +196,7 @@ test("node inspector shows the translated type of the selected node", async () =
   assert.match(plain, /Plain trigger/);
 });
 
-test("describe helpers translate keyed step names and show the server's schedule text", () => {
+void test("describe helpers translate keyed step names and show the server's schedule text", () => {
   const { stepTitle, summarizeNode } = require(
     path.join(FRONTEND, "app/utils/describe.ts"),
   );
@@ -242,7 +242,7 @@ test("describe helpers translate keyed step names and show the server's schedule
   );
 });
 
-test("schema tables show item types, nested fields, one-of rules and inline code", async () => {
+void test("schema tables show item types, nested fields, one-of rules and inline code", async () => {
   const html = await render(component("Catalog/SchemaTable.vue"), {
     schema: {
       type: "object",
@@ -264,14 +264,14 @@ test("schema tables show item types, nested fields, one-of rules and inline code
   assert.match(html, /dms_automation\.library\.schemaOneOf/);
 });
 
-test("schema tables drop the description column when no field has one", async () => {
+void test("schema tables drop the description column when no field has one", async () => {
   const html = await render(component("Catalog/SchemaTable.vue"), {
     schema: { properties: { ok: { type: "boolean" } } },
   });
   assert.doesNotMatch(html, /library\.schema\.description/);
 });
 
-test("a webhook endpoint offers no URL to copy until the server's address is known", async () => {
+void test("a webhook endpoint offers no URL to copy until the server's address is known", async () => {
   globalThis.useApiData = () => ({
     data: vue.ref(null),
     error: vue.ref(null),
@@ -302,7 +302,7 @@ test("a webhook endpoint offers no URL to copy until the server's address is kno
   assert.doesNotMatch(full, /data-copy|curl/);
 });
 
-test("dates are written through the page's regional format", () => {
+void test("dates are written through the page's regional format", () => {
   const { describeDateTime, describeTime } = require(
     path.join(FRONTEND, "app/utils/describe.ts"),
   );

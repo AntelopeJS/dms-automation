@@ -98,7 +98,7 @@ async function until(condition, what) {
 
 const armErrorOf = (id) => procedures.get(id).armErrors ?? "";
 
-test("a late trigger type arms its procedures, and a reload re-arms them", async () => {
+void test("a late trigger type arms its procedures, and a reload re-arms them", async () => {
   await subscriptions.hydrate();
   assert.match(subscriptions.activationErrorOf("P1"), /is not available/);
   assert.match(armErrorOf("P2"), /unknownType/);
@@ -125,7 +125,7 @@ test("a late trigger type arms its procedures, and a reload re-arms them", async
   await subscriptions._deactivateAll();
 });
 
-test("a follower leaves a singleton trigger unarmed until it leads, and disarms it when it stops leading", async (t) => {
+void test("a follower leaves a singleton trigger unarmed until it leads, and disarms it when it stops leading", async (t) => {
   t.after(async () => {
     subscriptions.useLeadershipSource(() => true);
     internal.RegisterTriggerType.unregister(TYPE_ID);
@@ -149,7 +149,7 @@ test("a follower leaves a singleton trigger unarmed until it leads, and disarms 
   assert.equal(singleton.armed.size, 0);
 });
 
-test("a reload during activation releases each definition's own handles", async (t) => {
+void test("a reload during activation releases each definition's own handles", async (t) => {
   t.after(async () => {
     await subscriptions._deactivateAll();
     internal.RegisterTriggerType.unregister(TYPE_ID);

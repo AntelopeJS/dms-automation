@@ -4,7 +4,7 @@ const Module = require("node:module");
 const path = require("node:path");
 const { mock, test } = require("node:test");
 
-test("registers Vue with the automation configuration and original priority", async () => {
+void test("registers Vue with the automation configuration and original priority", async () => {
   const filename = path.resolve(__dirname, "../dist/index.js");
   const registrations = [];
   const mocks = {

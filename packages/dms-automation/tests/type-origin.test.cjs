@@ -32,20 +32,20 @@ function registerTrigger(module, id) {
   );
 }
 
-test("attribution resolves our own types back to this module", () => {
+void test("attribution resolves our own types back to this module", () => {
   registerTrigger(SELF, "tests.own");
   assert.equal(typeOrigin.isOriginAttributionWorking("tests.own"), true);
   assert.deepEqual(typeOrigin.triggerTypeOrigin("tests.own"), {});
 });
 
-test("attribution labels types registered by another module", () => {
+void test("attribution labels types registered by another module", () => {
   registerTrigger("some-other-module", "tests.foreign");
   assert.deepEqual(typeOrigin.triggerTypeOrigin("tests.foreign"), {
     module: "some-other-module",
   });
 });
 
-test("attribution degrades to unlabeled for unknown ids", () => {
+void test("attribution degrades to unlabeled for unknown ids", () => {
   assert.deepEqual(typeOrigin.triggerTypeOrigin("tests.missing"), {});
   assert.equal(typeOrigin.isOriginAttributionWorking("tests.missing"), false);
 });

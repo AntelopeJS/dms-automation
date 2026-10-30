@@ -57,7 +57,7 @@ async function renderNode(data) {
   return renderToString(app);
 }
 
-test("portLabel prefers the field's title and falls back to its key", () => {
+void test("portLabel prefers the field's title and falls back to its key", () => {
   assert.equal(
     portLabel({ name: "userId", title: "$acme.fields.userId" }, processI18n),
     "Utilisateur",
@@ -73,7 +73,7 @@ test("portLabel prefers the field's title and falls back to its key", () => {
   );
 });
 
-test("node ports read as translated titles and keep wiring by key", async () => {
+void test("node ports read as translated titles and keep wiring by key", async () => {
   const html = await renderNode({
     label: "Member joined",
     dataIns: [{ name: "userId", title: "$acme.fields.userId" }],

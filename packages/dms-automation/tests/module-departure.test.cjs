@@ -126,7 +126,7 @@ function projectTypes() {
   return { project, gate, entered };
 }
 
-test("a departing project's triggers go quietly and its run fails", async (t) => {
+void test("a departing project's triggers go quietly and its run fails", async (t) => {
   const errors = t.mock.method(Logging, "Error", () => {});
   RunWithResponsibleModule(SELF, () =>
     ImplementInterface(automation, implementation),
@@ -186,7 +186,7 @@ function action(id, execute) {
   });
 }
 
-test("a Try/Catch catches a step whose module is gone, like any error", async () => {
+void test("a Try/Catch catches a step whose module is gone, like any error", async () => {
   const caught = [];
   action("tests.gone", async () => {
     throw new ModuleContextInvalidatedError(PROJECT);

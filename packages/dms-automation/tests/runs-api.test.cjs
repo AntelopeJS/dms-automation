@@ -51,7 +51,7 @@ function fakeModel(runs) {
   };
 }
 
-test("a trace compares with the last success however far back, and its neighbours", async () => {
+void test("a trace compares with the last success however far back, and its neighbours", async () => {
   const lastSuccess = run(0);
   const failures = Array.from({ length: 120 }, (_, i) =>
     run(1 + i, { status: "failed" }),
@@ -70,7 +70,7 @@ test("a trace compares with the last success however far back, and its neighbour
   assert.equal(history.usualDurationMs, 100);
 });
 
-test("a test is compared with the tests of its procedure only", async () => {
+void test("a test is compared with the tests of its procedure only", async () => {
   const production = run(0, { status: "failed" });
   const firstTest = run(1, { kind: "test", status: "failed" });
   const current = run(2, { kind: "test", status: "failed" });
@@ -91,7 +91,7 @@ const GRAPH = JSON.stringify({
 });
 const procedure = { _id: PROCEDURE, name: "Sync", graph: GRAPH, enabled: true };
 
-test("a run cannot be re-run when its procedure, payload, draft or trigger is gone", () => {
+void test("a run cannot be re-run when its procedure, payload, draft or trigger is gone", () => {
   assert.deepEqual(rerunPlanFor(run(0), undefined), {
     blocked: "$dms_automation.runs.rerunBlocked.deleted",
     status: 404,
@@ -111,7 +111,7 @@ test("a run cannot be re-run when its procedure, payload, draft or trigger is go
   );
 });
 
-test("a test re-runs the draft it tested; a run, the saved procedure", () => {
+void test("a test re-runs the draft it tested; a run, the saved procedure", () => {
   const draft = { nodes: [], triggerEdges: [], dataEdges: [] };
   const retest = rerunPlanFor(
     run(0, { kind: "test", graphSnapshot: JSON.stringify(draft) }),
@@ -126,7 +126,7 @@ test("a test re-runs the draft it tested; a run, the saved procedure", () => {
   assert.equal(rerun.payload.headers.authorization, "[redacted]");
 });
 
-test("a second re-run of the same run right after the first is refused", () => {
+void test("a second re-run of the same run right after the first is refused", () => {
   const release = claimRerun("double-click");
   assert.throws(
     () => claimRerun("double-click"),

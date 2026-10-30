@@ -39,7 +39,7 @@ const runs = [
   run("ok", 31),
 ];
 
-test("a KPI answers its value, its comparison and a sparkline", () => {
+void test("a KPI answers its value, its comparison and a sparkline", () => {
   const runsKpi = kpiPayload("runs", runs, window);
   assert.equal(runsKpi.value, 4);
   assert.equal(runsKpi.previousValue, 2);
@@ -54,11 +54,11 @@ test("a KPI answers its value, its comparison and a sparkline", () => {
   assert.equal(kpiPayload("duration-p95", runs, window).value, 1000);
 });
 
-test("too few runs to compare with: no change shown", () => {
+void test("too few runs to compare with: no change shown", () => {
   assert.equal(kpiPayload("runs", runs, window).delta, null);
 });
 
-test("every KPI compares in percent of the previous value", () => {
+void test("every KPI compares in percent of the previous value", () => {
   const many = [...runs, ...earlier("ok", 6), ...earlier("failed", 4)];
   const runsKpi = kpiPayload("runs", many, window);
   assert.equal(runsKpi.previousValue, 12);
@@ -68,7 +68,7 @@ test("every KPI compares in percent of the previous value", () => {
   assert.equal(rate.delta, 12.4);
 });
 
-test("a change from 0 is not a percentage", () => {
+void test("a change from 0 is not a percentage", () => {
   const before = earlier("ok", MIN_COMPARED_RUNS);
   const failed = kpiPayload("failed", [...runs, ...before], window);
   assert.equal(failed.previousValue, 0);
@@ -77,7 +77,7 @@ test("a change from 0 is not a percentage", () => {
   assert.equal(calm.delta, 0);
 });
 
-test("a window without runs has no rate and no duration, not 0", () => {
+void test("a window without runs has no rate and no duration, not 0", () => {
   const empty = kpiPayload("success-rate", [], window);
   assert.equal("value" in empty, false);
   assert.equal("previousValue" in empty, false);
@@ -87,7 +87,7 @@ test("a window without runs has no rate and no duration, not 0", () => {
   assert.equal(kpiPayload("runs", [], window).value, 0);
 });
 
-test("a rate's sparkline carries its value over the hours without runs", () => {
+void test("a rate's sparkline carries its value over the hours without runs", () => {
   const quiet = [run("ok", 1), run("ok", 6)];
   const sparkline = kpiPayload("success-rate", quiet, window).sparkline;
   assert.equal(sparkline.length, 24);
@@ -101,13 +101,13 @@ test("a rate's sparkline carries its value over the hours without runs", () => {
   );
 });
 
-test("without a comparison window there is no delta", () => {
+void test("without a comparison window there is no delta", () => {
   const payload = kpiPayload("runs", runs, { from, to });
   assert.equal(payload.delta, undefined);
   assert.equal(payload.previousValue, undefined);
 });
 
-test("compared with the same window a year earlier", () => {
+void test("compared with the same window a year earlier", () => {
   const YEAR = 365 * 24 * HOUR;
   const yearBack = (status, hoursBeforeTo) => {
     const r = run(status, hoursBeforeTo);
@@ -141,7 +141,7 @@ test("compared with the same window a year earlier", () => {
   );
 });
 
-test("hours start on the hour; windows longer than two days bucket by day", () => {
+void test("hours start on the hour; windows longer than two days bucket by day", () => {
   const sliding = {
     from: new Date("2026-10-06T12:07:33Z"),
     to: new Date("2026-10-07T12:07:33Z"),
@@ -153,7 +153,7 @@ test("hours start on the hour; windows longer than two days bucket by day", () =
   assert.equal(bucketStarts(week).length, 7);
 });
 
-test("runs fall in their bucket, and runs outside the window in none", () => {
+void test("runs fall in their bucket, and runs outside the window in none", () => {
   const buckets = runsPerBucket([...runs, run("ok", 40), run("ok", -1)], {
     from,
     to,
@@ -169,7 +169,7 @@ test("runs fall in their bucket, and runs outside the window in none", () => {
   );
 });
 
-test("only the known metrics are served", () => {
+void test("only the known metrics are served", () => {
   assert.equal(isKpiMetric("runs"), true);
   assert.equal(isKpiMetric("anything"), false);
 });
