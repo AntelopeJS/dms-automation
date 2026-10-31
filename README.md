@@ -7,7 +7,7 @@
 <a href="https://discord.gg/sjK28QHrA7"><img alt="Discord" src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000"></a>
 <a href="https://dms.antelopejs.com/docs/modules/automation"><img alt="Documentation" src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000"></a>
 
-The visual automation builder of the AntelopeJS DMS.
+The visual automation builder of the [AntelopeJS DMS](https://github.com/AntelopeJS/dms).
 
 </div>
 
@@ -60,7 +60,7 @@ Module 0.5 uses interface 0.3, including `DeclareProcedure` and `RunProcedure`. 
 | --- | --- |
 | `@antelopejs/dms` | `>=0.11.0 <1.0.0` |
 | `@antelopejs/interface-dms` | `>=0.9.0 <1.0.0` |
-| `@antelopejs/dms-frontend` (renderer) | `>=0.6.0 <0.7.0` |
+| `@antelopejs/dms-frontend` (renderer) | `>=0.9.1 <0.10.0` |
 | `@antelopejs/interface-dms-automation` | `>=0.5.0 <0.6.0` |
 | API provider | `@antelopejs/api`, for webhooks |
 | Database | an `@antelopejs/interface-database` implementation |
