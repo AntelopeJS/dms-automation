@@ -25,7 +25,6 @@ jobs:
     with:
       docs-files: |
         README.md
-        docs
         packages/dms-automation/README.md
         packages/dms-automation/docs
         packages/interface-dms-automation/README.md
