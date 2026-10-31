@@ -11,6 +11,7 @@ const { stepNamesOf } = require("../dist/runtime/describe.js");
 const { stepDurations } = require("../dist/runtime/trace.js");
 const { usageByEntry } = require("../dist/routes/library.js");
 const { queryOf } = require("../dist/runtime/builtins/triggers/webhook.js");
+const { isPropertyBag } = require("../dist/types/guards.js");
 const { headersOf } = require("../dist/runtime/builtins/actions/http.js");
 
 for (const t of builtinTriggers) registry.addTrigger(t.id, t);
@@ -42,6 +43,20 @@ const node = (id, kind, typeId, config = {}) => ({
   config,
   position: { x: 0, y: 0 },
 });
+
+/**
+ * The `result` port of a data node evaluated on `inputs`.
+ * @param {string} id
+ * @param {Record<string, unknown>} inputs
+ * @returns {Promise<unknown>}
+ */
+async function evaluateResult(id, inputs) {
+  const dataNode = registry.getDataNode(id);
+  assert.ok(dataNode);
+  const output = await dataNode.evaluate(inputs);
+  assert.ok(isPropertyBag(output));
+  return output.result;
+}
 
 /** @param {import("../dist/types/graph.js").GraphNode[]} nodes */
 const graphOf = (nodes) => ({ nodes, triggerEdges: [], dataEdges: [] });
@@ -77,10 +92,30 @@ for (const name of INHERITED_NAMES) {
   });
 
   void test(`object.get reads no inherited ${name}`, async () => {
-    const objectGet = registry.getDataNode("object.get");
-    assert.ok(objectGet);
-    const { result } = await objectGet.evaluate({ obj: { a: 1 }, path: name });
-    assert.equal(result, null);
+    assert.equal(
+      await evaluateResult("object.get", { obj: { a: 1 }, path: name }),
+      null,
+    );
+  });
+
+  void test(`object.set writes ${name} as its own key, top level and nested`, async () => {
+    const top = await evaluateResult("object.set", {
+      obj: {},
+      path: name,
+      value: 1,
+    });
+    assert.ok(isPropertyBag(top));
+    assert.deepEqual(Object.keys(top), [name]);
+    assert.equal(Object.getOwnPropertyDescriptor(top, name)?.value, 1);
+    const nested = await evaluateResult("object.set", {
+      obj: { a: {} },
+      path: `a.${name}`,
+      value: 2,
+    });
+    assert.ok(isPropertyBag(nested));
+    assert.ok(isPropertyBag(nested.a));
+    assert.deepEqual(Object.keys(nested.a), [name]);
+    assert.equal(Object.getOwnPropertyDescriptor(nested.a, name)?.value, 2);
   });
 
   void test(`a webhook query parameter named ${name} is kept as its own`, () => {
