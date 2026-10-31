@@ -138,7 +138,8 @@ const declared = await DeclareProcedure({
   `[]` even when the automation module is loaded.)
 - `TriggerType.cluster` is required, no default: `"singleton"` (fires once
   cluster-wide, leader-only, e.g. cron) or `"replicated"` (every instance activates,
-  e.g. webhook). `activate` returns an opaque handle passed back to `deactivate`.
+  e.g. webhook). `activate` returns a handle passed back to `deactivate`; type it with the third
+  parameter, `TriggerType<TConfig, TOutput, THandle>` (default `unknown`).
 - `ExecutionCtx` has no tenant: procedures are platform-wide and a schedule or
   webhook has no tenant. A tenant-scoped action takes `tenantId` as an input
   (wired from the `tenantId` output of a DMS event trigger), defaulting to
