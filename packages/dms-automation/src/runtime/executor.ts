@@ -560,7 +560,13 @@ function makeDataNodeEvaluator(
       );
       let out: Record<string, unknown>;
       try {
-        out = type.evaluate(inputs) as Record<string, unknown>;
+        const evaluated: unknown = type.evaluate(inputs);
+        if (!isPropertyBag(evaluated) || Array.isArray(evaluated)) {
+          throw new Error(
+            `data node type "${dn.typeId}" must evaluate to an object`,
+          );
+        }
+        out = evaluated;
       } catch (err) {
         throw withEmptySources(err, dn, inputs, graph, nodeById);
       }

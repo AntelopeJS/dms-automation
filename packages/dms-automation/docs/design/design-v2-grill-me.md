@@ -27,13 +27,13 @@ Each entry gives the question, the answer taken, and why.
 ## 1. Dependencies and compatibility
 
 **Q1. Which ranges move?**
-`@antelopejs/interface-dms` to `>=0.4.0 <1.0.0` (the repository's
+`interface-dms` to the 0.4 line, open up to the next major (the repository's
 `antelopejs-check-interface-ranges` gate refuses a cap below the next major for
-a module that does not implement the interface), `@antelopejs/interface-data-api`
-to `>=0.2.0 <1.0.0`, the frontend layer's `engines` to
-`@antelopejs/dms-frontend >=0.5.0 <0.6.0`, `@antelopejs/core` to 1.13.5 (dev and
-the agent setup script), and the playground to `@antelopejs/dms >=0.6.0`,
-`@antelopejs/dms-frontend` 0.5.0 and `@antelopejs/mongodb ^1.4.2`.
+a module that does not implement the interface), `interface-data-api` to the
+0.2 line, open up to the next major, the frontend layer's `engines` to the
+`dms-frontend` 0.5 line, `core` to 1.13.5 (dev and the agent setup script), and
+the playground to `dms` from 0.6.0, `dms-frontend` 0.5.0 and the `mongodb` 1.4
+line from 1.4.2.
 *Why:* the DMS caps the interface below its next minor, so a module and the DMS
 move to 0.4 together; dms 0.6 requires data-api 0.2 and dms-frontend 0.5, and
 the migration guide asks MongoDB projects for mongodb 1.4.2. The other

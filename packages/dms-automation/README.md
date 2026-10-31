@@ -56,32 +56,27 @@ RegisterActionType({
 
 <!-- antelopejs-docs-compat:start -->
 
-| Package                                     | Supported         | Tested with |
-| ------------------------------------------- | ----------------- | ----------- |
-| `@antelopejs/interface-api`                 | `>=0.0.15 <1.0.0` | —           |
-| `@antelopejs/interface-api-util`            | `>=0.1.3 <1.0.0`  | —           |
-| `@antelopejs/interface-core`                | `>=0.2.4 <1.0.0`  | —           |
-| `@antelopejs/interface-data-api`            | `>=0.4.0 <1.0.0`  | —           |
-| `@antelopejs/interface-database`            | `>=0.1.11 <1.0.0` | —           |
-| `@antelopejs/interface-database-decorators` | `>=0.1.10 <1.0.0` | —           |
-| `@antelopejs/interface-dms`                 | `>=0.9.0 <1.0.0`  | —           |
-| `@antelopejs/interface-dms-automation`      | `>=0.5.0 <0.6.0`  | —           |
-| `@antelopejs/interface-redis`               | `>=0.0.9 <1.0.0`  | —           |
+| Package                                     | Supported                                                            | Tested with |
+| ------------------------------------------- | -------------------------------------------------------------------- | ----------- |
+| `@antelopejs/interface-api`                 | `>=0.0.15 <1.0.0`                                                    | —           |
+| `@antelopejs/interface-api-util`            | `>=0.1.3 <1.0.0`                                                     | —           |
+| `@antelopejs/interface-core`                | `>=0.2.4 <1.0.0`                                                     | —           |
+| `@antelopejs/interface-data-api`            | `>=0.4.0 <1.0.0`                                                     | —           |
+| `@antelopejs/interface-database`            | `file:../../.campaign/tgz/antelopejs-interface-database-6bef278.tgz` | —           |
+| `@antelopejs/interface-database-decorators` | `>=0.1.10 <1.0.0`                                                    | —           |
+| `@antelopejs/interface-dms`                 | `>=0.9.0 <1.0.0`                                                     | —           |
+| `@antelopejs/interface-dms-automation`      | `>=0.5.0 <0.6.0`                                                     | —           |
+| `@antelopejs/interface-redis`               | `>=0.0.9 <1.0.0`                                                     | —           |
 
 <!-- antelopejs-docs-compat:end -->
 
 Module 0.5 uses interface 0.3, including `DeclareProcedure` and `RunProcedure`. Module 0.4 uses interface 0.2.
 
-| Package | Version |
-| --- | --- |
-| `@antelopejs/dms` | `>=0.11.0 <1.0.0` |
-| `@antelopejs/interface-dms` | `>=0.9.0 <1.0.0` |
-| `@antelopejs/dms-frontend` (renderer) | `>=0.6.0 <0.7.0` |
-| `@antelopejs/interface-dms-automation` | `>=0.5.0 <0.6.0` |
-| API provider | `@antelopejs/api`, for webhooks |
-| Database | an `@antelopejs/interface-database` implementation |
+The module also needs a DMS backend in a release that implements the `@antelopejs/interface-dms` range in the table above, and the `@antelopejs/dms-frontend` renderer in the range its frontend module declares in `engines["@antelopejs/dms-frontend"]` of `frontend-vue/package.json`; the `ajs dms` CLI refuses to build it with a renderer outside that range.
 
-On DMS 0.8, use `@antelopejs/dms-automation` 0.3. Running several instances needs `@antelopejs/interface-redis`: see [Clustering](https://dms.antelopejs.com/docs/modules/automation/configuration#clustering).
+- API provider: `@antelopejs/api`, for webhooks.
+- Database: an `@antelopejs/interface-database` implementation.
+- Running several instances needs `@antelopejs/interface-redis`: see [Clustering](https://dms.antelopejs.com/docs/modules/automation/configuration#clustering).
 
 ## Documentation
 

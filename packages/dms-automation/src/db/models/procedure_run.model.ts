@@ -1,4 +1,5 @@
 import { BasicDataModel } from "@antelopejs/interface-database-decorators";
+import type { ProcedureRunStatus } from "@antelopejs/interface-dms-automation";
 import {
   ProcedureRun,
   procedureRunsTableName,
@@ -75,7 +76,7 @@ export interface HistoryQuery {
   after?: Date;
   /** Started strictly before. */
   before?: Date;
-  status?: string;
+  status?: ProcedureRunStatus;
 }
 
 /** When a run started and ended, and how long it took. */
@@ -106,7 +107,7 @@ export class ProcedureRunModel extends BasicDataModel(
       .filter((row) => row.key("startedAt").ge(since))
       .orderBy("startedAt", "desc")
       .pluck(...STATS_FIELDS)
-      .run() as Promise<StatsRun[]>;
+      .run();
   }
 
   /** Write a procedure's current name on its runs. */
@@ -151,11 +152,11 @@ export class ProcedureRunModel extends BasicDataModel(
     procedureId: string,
     query: HistoryQuery,
   ): Promise<RunSummary | undefined> {
-    const [run] = (await this.history(procedureId, query)
+    const [run] = await this.history(procedureId, query)
       .orderBy("startedAt", "desc")
       .slice(0, 1)
       .pluck(...RUN_SUMMARY_FIELDS)
-      .run()) as RunSummary[];
+      .run();
     return run;
   }
 
@@ -164,11 +165,11 @@ export class ProcedureRunModel extends BasicDataModel(
     procedureId: string,
     query: HistoryQuery,
   ): Promise<RunSummary | undefined> {
-    const [run] = (await this.history(procedureId, query)
+    const [run] = await this.history(procedureId, query)
       .orderBy("startedAt", "asc")
       .slice(0, 1)
       .pluck(...RUN_SUMMARY_FIELDS)
-      .run()) as RunSummary[];
+      .run();
     return run;
   }
 
@@ -189,11 +190,11 @@ export class ProcedureRunModel extends BasicDataModel(
     query: HistoryQuery,
     limit: number,
   ): Promise<RunTiming[]> {
-    return (await this.history(procedureId, { ...query, status: "ok" })
+    return await this.history(procedureId, { ...query, status: "ok" })
       .orderBy("startedAt", "desc")
       .slice(0, limit)
       .pluck(...RUN_TIMING_FIELDS)
-      .run()) as RunTiming[];
+      .run();
   }
 
   private history(
@@ -241,11 +242,11 @@ export class ProcedureRunModel extends BasicDataModel(
     limit: number,
     peek = false,
   ): Promise<RunSummary[]> {
-    return (await this.table
+    return await this.table
       .filter((doc) => doc.key("procedureId").eq(procedureId))
       .orderBy("startedAt", "desc")
       .slice(page * limit, peek ? limit + 1 : limit)
       .pluck(...RUN_SUMMARY_FIELDS)
-      .run()) as RunSummary[];
+      .run();
   }
 }
