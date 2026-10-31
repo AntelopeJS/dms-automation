@@ -90,19 +90,19 @@ const NOT_A_STEP = new Set(["data", "groupInput", "groupOutput"]);
  * still names its steps once the procedure has changed or is deleted.
  */
 export function stepNamesOf(graph: ProcedureGraph) {
-  const names: Record<string, StepName> = {};
+  const names = new Map<string, StepName>();
   const walk = (current: ProcedureGraph, prefix: string) => {
     for (const node of current.nodes) {
       if (NOT_A_STEP.has(node.kind)) continue;
       const flatId = `${prefix}${node.id}`;
-      names[flatId] = stepName(graph, flatId);
+      names.set(flatId, stepName(graph, flatId));
       if (isGroupNode(node) && node.subgraph) {
         walk(node.subgraph, `${flatId}${FLAT_ID_SEPARATOR}`);
       }
     }
   };
   walk(graph, "");
-  return names;
+  return Object.fromEntries(names);
 }
 
 /** The text a step reads as: its label, else its type name, else its id. */

@@ -8,6 +8,9 @@ const resultObj = { type: "object" };
 const resultArrStr = { type: "array", items: { type: "string" } };
 const resultArrAny = { type: "array" };
 
+/** What defining a plain property takes, where an assignment of `__proto__` would set the prototype. */
+const OWN_DATA = { writable: true, enumerable: true, configurable: true };
+
 function getPath(obj: unknown, path: string): unknown {
   if (!path) return obj;
   const parts = path.split(".");
@@ -16,7 +19,7 @@ function getPath(obj: unknown, path: string): unknown {
     if (!isPropertyBag(cur)) {
       return null;
     }
-    cur = cur[p];
+    cur = Object.hasOwn(cur, p) ? cur[p] : undefined;
   }
   return cur ?? null;
 }
@@ -32,12 +35,15 @@ function setPath(
   let cur: Record<string, unknown> = base;
   for (let i = 0; i < parts.length - 1; i++) {
     const k = parts[i]!;
-    const next = cur[k];
+    const next = Object.hasOwn(cur, k) ? cur[k] : undefined;
     const nextObj = isPropertyBag(next) ? { ...next } : {};
-    cur[k] = nextObj;
+    Object.defineProperty(cur, k, { ...OWN_DATA, value: nextObj });
     cur = nextObj;
   }
-  cur[parts[parts.length - 1]!] = value;
+  Object.defineProperty(cur, parts[parts.length - 1]!, {
+    ...OWN_DATA,
+    value,
+  });
   return base;
 }
 

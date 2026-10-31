@@ -72,16 +72,11 @@ RegisterActionType({
 
 Module 0.5 uses interface 0.3, including `DeclareProcedure` and `RunProcedure`. Module 0.4 uses interface 0.2.
 
-| Package | Version |
-| --- | --- |
-| `@antelopejs/dms` | `>=0.11.0 <1.0.0` |
-| `@antelopejs/interface-dms` | `>=0.9.0 <1.0.0` |
-| `@antelopejs/dms-frontend` (renderer) | `>=0.6.0 <0.7.0` |
-| `@antelopejs/interface-dms-automation` | `>=0.5.0 <0.6.0` |
-| API provider | `@antelopejs/api`, for webhooks |
-| Database | an `@antelopejs/interface-database` implementation |
+The module also needs a DMS backend in a release that implements the `@antelopejs/interface-dms` range in the table above, and the `@antelopejs/dms-frontend` renderer in the range its frontend module declares in `engines["@antelopejs/dms-frontend"]` of `frontend-vue/package.json`; the `ajs dms` CLI refuses to build it with a renderer outside that range.
 
-On DMS 0.8, use `@antelopejs/dms-automation` 0.3. Running several instances needs `@antelopejs/interface-redis`: see [Clustering](https://dms.antelopejs.com/docs/modules/automation/configuration#clustering).
+- API provider: `@antelopejs/api`, for webhooks.
+- Database: an `@antelopejs/interface-database` implementation.
+- Running several instances needs `@antelopejs/interface-redis`: see [Clustering](https://dms.antelopejs.com/docs/modules/automation/configuration#clustering).
 
 ## Documentation
 
