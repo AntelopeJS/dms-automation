@@ -35,5 +35,10 @@
   "engines": {
     "@antelopejs/dms-frontend": ">=0.9.1 <0.10.0"
   },
-  "packageManager": "pnpm@10.6.5"
+  "packageManager": "pnpm@10.6.5",
+  "pnpm": {
+    "overrides": {
+      "@antelopejs/interface-database": "file:../../../.campaign/tgz/antelopejs-interface-database-6bef278.tgz"
+    }
+  }
 }
