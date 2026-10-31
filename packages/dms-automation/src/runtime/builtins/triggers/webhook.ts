@@ -174,12 +174,12 @@ export function armedWebhookRouteIds(): ReadonlySet<string> {
 
 /** The query string, a key given several times read as a list. */
 export function queryOf(url: URL) {
-  const query: Record<string, string | string[]> = {};
-  for (const key of new Set(url.searchParams.keys())) {
-    const values = url.searchParams.getAll(key);
-    query[key] = values.length > 1 ? values : (values[0] ?? "");
-  }
-  return query;
+  return Object.fromEntries(
+    [...new Set(url.searchParams.keys())].map((key) => {
+      const values = url.searchParams.getAll(key);
+      return [key, values.length > 1 ? values : (values[0] ?? "")];
+    }),
+  );
 }
 
 /** The body as JSON, a decoded form, or the raw text. */

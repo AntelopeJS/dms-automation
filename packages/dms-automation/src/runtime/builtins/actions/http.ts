@@ -300,11 +300,7 @@ function excerpt(text: string, max: number): string {
 }
 
 export function headersOf(res: Response) {
-  const out: Record<string, string> = {};
-  res.headers.forEach((value, name) => {
-    out[name] = value;
-  });
-  return out;
+  return Object.fromEntries(res.headers);
 }
 
 function parseJson(res: Response, body: string): DataValue {

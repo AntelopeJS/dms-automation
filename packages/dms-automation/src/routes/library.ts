@@ -105,7 +105,7 @@ export function usageByEntry(
   health: ReadonlyMap<string, { state: string }>,
   entryOf: (node: GraphNode) => string | undefined,
 ) {
-  const out: Record<string, TypeUsage[]> = {};
+  const out = new Map<string, TypeUsage[]>();
   for (const { procedure, graph } of procedures) {
     if (!graph) continue;
     for (const { node, groups, viaTemplate } of walkPlacedNodes(
@@ -134,10 +134,12 @@ export function usageByEntry(
       if (node.kind === "trigger") {
         Object.assign(usage, triggerUsageOf(node));
       }
-      (out[entry] ??= []).push(usage);
+      const usages = out.get(entry) ?? [];
+      usages.push(usage);
+      out.set(entry, usages);
     }
   }
-  return out;
+  return Object.fromEntries(out);
 }
 
 @AuthOwnerOnly()
