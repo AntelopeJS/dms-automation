@@ -1,4 +1,5 @@
 import type { ActionType } from "@antelopejs/interface-dms-automation";
+import { isPropertyBag } from "../../../types/guards";
 import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 import { registry } from "../../registry";
 import { isActionTypeDisabled } from "../../typeSwitches";
@@ -19,10 +20,19 @@ const execute: NodeExecute = async (node, inputs, ctx) => {
   }
   const simulate = ctx.dryRun && simulates(actionType);
   if (simulate) ctx.log("info", "Simulated (test run): no effect");
-  const output = (await (simulate && actionType.dryRun
+  const output: unknown = await (simulate && actionType.dryRun
     ? actionType.dryRun(inputs, ctx)
-    : actionType.execute(inputs, ctx))) as Record<string, unknown> | undefined;
-  ctx.setOutputs(output ?? {});
+    : actionType.execute(inputs, ctx));
+  if (output === undefined) {
+    ctx.setOutputs({});
+    return;
+  }
+  if (!isPropertyBag(output) || Array.isArray(output)) {
+    throw new Error(
+      `action type "${typeId}" must resolve with an object or nothing`,
+    );
+  }
+  ctx.setOutputs(output);
 };
 
 /** An action that declares a `dryRun` function: a plugin may leave it out or set something else. */
