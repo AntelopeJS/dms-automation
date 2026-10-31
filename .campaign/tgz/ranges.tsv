@@ -1,4 +1,12 @@
+@antelopejs/tooling-configs	package.json	devDependencies	^0.2.17
+@antelopejs/tooling-configs	packages/dms-automation/frontend-vue/package.json	devDependencies	>=0.0.9 <1.0.0
+@antelopejs/tooling-configs	packages/dms-automation/package.json	devDependencies	>=0.0.9 <1.0.0
+@antelopejs/tooling-configs	packages/interface-dms-automation/package.json	devDependencies	>=0.0.9 <1.0.0
 @antelopejs/interface-database	packages/dms-automation/package.json	dependencies	>=0.1.11 <1.0.0
 @antelopejs/interface-database	packages/dms-automation/playground/package.json	dependencies	>=0.1.11 <1.0.0
 @antelopejs/interface-database	packages/dms-automation/frontend-vue/package.json	pnpm.overrides	
 @antelopejs/interface-database	packages/dms-automation/package.json	pnpm.overrides	
+@antelopejs/tooling-configs	packages/dms-automation/frontend-vue/package.json	pnpm.overrides	
+@antelopejs/tooling-configs	packages/dms-automation/package.json	pnpm.overrides	
+@antelopejs/tooling-configs	packages/interface-dms-automation/package.json	pnpm.overrides	
+@antelopejs/tooling-configs	package.json	pnpm.overrides	
