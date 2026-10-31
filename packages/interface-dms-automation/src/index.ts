@@ -27,7 +27,16 @@ export interface ExecutionCtx {
   log(level: LogLevel, message: string, value?: unknown): void;
 }
 
-export interface TriggerType<TConfig = unknown, TOutput = unknown> {
+/**
+ * A trigger: `activate` arms it and resolves with a handle, `deactivate`
+ * receives that handle back. `THandle` types it for the implementer; the
+ * automation module treats it as opaque.
+ */
+export interface TriggerType<
+  TConfig = unknown,
+  TOutput = unknown,
+  THandle = unknown,
+> {
   id: string;
   name: string;
   description: string;
@@ -44,8 +53,8 @@ export interface TriggerType<TConfig = unknown, TOutput = unknown> {
    * In memory / single-instance mode the distinction is inert.
    */
   cluster: "singleton" | "replicated";
-  activate(config: TConfig, emit: (payload: TOutput) => void): Promise<unknown>;
-  deactivate(handle: unknown): Promise<void>;
+  activate(config: TConfig, emit: (payload: TOutput) => void): Promise<THandle>;
+  deactivate(handle: THandle): Promise<void>;
 }
 
 export interface ActionType<TInput = unknown, TOutput = unknown> {
