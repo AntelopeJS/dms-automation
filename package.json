@@ -30,5 +30,10 @@
     "oxlint": "1.81.0",
     "oxlint-tsgolint": "^7.0.2001"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "overrides": {
+      "@antelopejs/tooling-configs": "file:.campaign/tgz/antelopejs-tooling-configs-c5ffa8e.tgz"
+    }
+  }
 }

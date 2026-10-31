@@ -6,3 +6,7 @@
 @antelopejs/interface-database	packages/dms-automation/playground/package.json	dependencies	>=0.1.11 <1.0.0
 @antelopejs/interface-database	packages/dms-automation/frontend-vue/package.json	pnpm.overrides	
 @antelopejs/interface-database	packages/dms-automation/package.json	pnpm.overrides	
+@antelopejs/tooling-configs	packages/dms-automation/frontend-vue/package.json	pnpm.overrides	
+@antelopejs/tooling-configs	packages/dms-automation/package.json	pnpm.overrides	
+@antelopejs/tooling-configs	packages/interface-dms-automation/package.json	pnpm.overrides	
+@antelopejs/tooling-configs	package.json	pnpm.overrides	

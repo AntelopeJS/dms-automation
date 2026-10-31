@@ -38,7 +38,8 @@
   "packageManager": "pnpm@10.6.5",
   "pnpm": {
     "overrides": {
-      "@antelopejs/interface-database": "file:../../../.campaign/tgz/antelopejs-interface-database-6bef278.tgz"
+      "@antelopejs/interface-database": "file:../../../.campaign/tgz/antelopejs-interface-database-6bef278.tgz",
+      "@antelopejs/tooling-configs": "file:../../../.campaign/tgz/antelopejs-tooling-configs-c5ffa8e.tgz"
     }
   }
 }

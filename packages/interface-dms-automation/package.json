@@ -74,6 +74,11 @@
     "@antelopejs/interface-core": ">=0.2.4 <1.0.0"
   },
   "packageManager": "pnpm@10.2.0",
+  "pnpm": {
+    "overrides": {
+      "@antelopejs/tooling-configs": "file:../../.campaign/tgz/antelopejs-tooling-configs-c5ffa8e.tgz"
+    }
+  },
   "antelopeJs": {
     "skills": [
       "./skills"

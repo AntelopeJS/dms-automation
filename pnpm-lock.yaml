@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@antelopejs/tooling-configs': file:.campaign/tgz/antelopejs-tooling-configs-c5ffa8e.tgz
+
 importers:
 
   .:
