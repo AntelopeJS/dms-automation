@@ -380,13 +380,15 @@ function edgesTaken(
  * trace compares with the last success.
  */
 export function stepDurations(steps: readonly TraceStep[]) {
-  const durations: Record<string, number | null> = {};
+  const durations = new Map<string, number | null>();
   for (const step of steps) {
-    const before = durations[step.nodeId];
-    durations[step.nodeId] =
+    const before = durations.get(step.nodeId);
+    durations.set(
+      step.nodeId,
       step.durationMs === null
         ? (before ?? null)
-        : (before ?? 0) + step.durationMs;
+        : (before ?? 0) + step.durationMs,
+    );
   }
-  return durations;
+  return Object.fromEntries(durations);
 }
