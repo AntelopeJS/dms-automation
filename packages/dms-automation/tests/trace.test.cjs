@@ -246,6 +246,36 @@ void test("an exhausted Retry leaves by `exhausted`, not by `main`", async () =>
   assert.deepEqual(trace.edgesTaken.sort(), ["e-body", "e-exhausted", "e-t"]);
 });
 
+void test("a Retry whose attempts are not a number runs the default three", async () => {
+  for (const maxAttempts of ["abc", {}, Number.NaN]) {
+    const retryGraph = {
+      nodes: [
+        node("t", "trigger", "manual"),
+        flow("r", "retry", { maxAttempts }),
+        node("f", "action", "test.fail"),
+        node("x", "action", "log.message"),
+      ],
+      triggerEdges: [
+        edge("e-t", "t", "r"),
+        edge("e-body", "r", "f", "body"),
+        edge("e-exhausted", "r", "x", "exhausted"),
+      ],
+      dataEdges: [],
+    };
+    const result = await run(retryGraph, "t", {});
+    assert.equal(result.status, "ok");
+    const trace = traceOf(retryGraph, result.logs, {
+      nodeId: "t",
+      payload: {},
+    });
+    assert.deepEqual(
+      trace.steps.filter((s) => s.nodeId === "f").map((s) => s.iteration),
+      [0, 1, 2],
+      `maxAttempts ${JSON.stringify(maxAttempts)}`,
+    );
+  }
+});
+
 void test("against a later version, steps keep the names the run stored and nothing is inferred", async () => {
   const result = await run(graph, "t", { a: 1 });
   const names = { log: { nodeId: "log", label: "Old name", kind: "action" } };
