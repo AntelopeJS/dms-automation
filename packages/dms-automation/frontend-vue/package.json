@@ -16,7 +16,7 @@
     "vue": "^3.5.18"
   },
   "devDependencies": {
-    "@antelopejs/dms": "file:../../../.campaign/tgz/antelopejs-dms-e0787e6.tgz",
+    "@antelopejs/dms": "file:../../../.campaign/tgz/antelopejs-dms-883e20d.tgz",
     "@antelopejs/dms-frontend": ">=0.9.1 <0.10.0",
     "@antelopejs/tooling-configs": "file:../../../.campaign/tgz/antelopejs-tooling-configs-c5ffa8e.tgz",
     "@eslint/js": "^9.0.0",
@@ -45,7 +45,7 @@
       "@antelopejs/interface-database-decorators": "file:../../../.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz",
       "@antelopejs/interface-data-api": "file:../../../.campaign/tgz/antelopejs-interface-data-api-26c36e9.tgz",
       "@antelopejs/interface-dms": "file:../../../.campaign/tgz/antelopejs-interface-dms-e0787e6.tgz",
-      "@antelopejs/dms": "file:../../../.campaign/tgz/antelopejs-dms-e0787e6.tgz"
+      "@antelopejs/dms": "file:../../../.campaign/tgz/antelopejs-dms-883e20d.tgz"
     }
   }
 }
