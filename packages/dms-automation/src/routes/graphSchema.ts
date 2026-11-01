@@ -9,7 +9,7 @@ import {
 import type { DataValue } from "../types/dataValue";
 import type { GraphNode, GroupPort, ProcedureGraph } from "../types/graph";
 import { isObject } from "../types/guards";
-import { zodIssuesJson } from "./zodJson";
+import { zodIssuesJson } from "@antelopejs/interface-api-util";
 
 /**
  * Shared Zod schemas for ProcedureGraph and its constituents. Imported by

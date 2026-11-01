@@ -2,7 +2,7 @@ import { type HTTPBody, HTTPResult } from "@antelopejs/interface-api";
 import type { z } from "zod";
 import type { GraphIssue } from "../runtime/graphIssues";
 import type { DataValue } from "../types/dataValue";
-import { zodIssuesJson } from "./zodJson";
+import { zodIssuesJson } from "@antelopejs/interface-api-util";
 
 /** Prefix of the i18n keys the routes answer refusals with. */
 export const API_MESSAGES = "$dms_automation.api";
