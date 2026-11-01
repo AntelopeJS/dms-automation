@@ -42,4 +42,16 @@
 @antelopejs/dms-frontend	packages/dms-automation/playground/package.json	devDependencies	0.9.1
 @antelopejs/dms-frontend	packages/dms-automation/frontend-vue/package.json	pnpm.overrides	
 @antelopejs/dms-frontend	packages/dms-automation/playground/package.json	pnpm.overrides	
-@antelopejs/dms>@antelopejs/interface-core	packages/dms-automation/playground/package.json	pnpm.overrides	
+@antelopejs/interface-core	packages/dms-automation/package.json	dependencies	>=0.2.4 <1.0.0
+@antelopejs/interface-core	packages/dms-automation/playground/package.json	dependencies	>=0.2.4 <1.0.0
+@antelopejs/interface-core	packages/interface-dms-automation/package.json	devDependencies	>=0.2.4 <1.0.0
+@antelopejs/interface-core	packages/dms-automation/frontend-vue/package.json	pnpm.overrides	
+@antelopejs/interface-core	packages/dms-automation/playground/package.json	pnpm.overrides	
+@antelopejs/interface-core	packages/dms-automation/package.json	pnpm.overrides	
+@antelopejs/interface-core	packages/interface-dms-automation/package.json	pnpm.overrides	
+@antelopejs/core	packages/dms-automation/package.json	devDependencies	1.17.1
+@antelopejs/core	packages/dms-automation/playground/package.json	devDependencies	1.17.1
+@antelopejs/core	packages/dms-automation/frontend-vue/package.json	pnpm.overrides	
+@antelopejs/core	packages/dms-automation/playground/package.json	pnpm.overrides	
+@antelopejs/core	packages/dms-automation/package.json	pnpm.overrides	
+@antelopejs/core	packages/dms-automation/frontend-vue/package.json	devDependencies	(added)
