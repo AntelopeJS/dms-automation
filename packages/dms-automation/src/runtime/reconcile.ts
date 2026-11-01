@@ -191,10 +191,9 @@ async function activateNewHandles(
     }
     const live: Armed = { armed: true };
     try {
-      const handle = await activateTrigger(triggerType, meta.config, k, live);
+      const disarm = await activateTrigger(triggerType, meta.config, k, live);
       handles.set(k, {
-        handle,
-        type: triggerType,
+        disarm,
         typeId: meta.typeId,
         configHash: configHashOf(meta.config),
         procedureId: meta.procedure._id,
@@ -278,13 +277,16 @@ export async function reconcile(): Promise<void> {
  * whole serialized reconcile chain, a pending leadership-loss teardown
  * included. A timed-out activate counts as failed and is retried next pass
  * (trigger authors keep activate fast; see README).
+ *
+ * Resolves with the trigger's teardown: its own type's `deactivate`, given
+ * the handle its `activate` resolved with.
  */
 async function activateTrigger(
   triggerType: TriggerType,
   config: DataRecord,
   liveKey: string,
   live: Armed,
-): Promise<unknown> {
+): Promise<() => Promise<void>> {
   const emit = AsyncResource.bind((payload: unknown) => {
     if (!live.armed) return;
     const meta = liveMeta.get(liveKey);
@@ -304,9 +306,10 @@ async function activateTrigger(
       Logging.Error("[dms-automation] procedure execution failed:", err);
     });
   });
-  return withTimeout(
+  const handle = await withTimeout(
     triggerType.activate(config, emit),
     TRIGGER_OP_TIMEOUT_MS,
     `activate ${triggerType.id} for ${liveKey}`,
   );
+  return () => triggerType.deactivate(handle);
 }
