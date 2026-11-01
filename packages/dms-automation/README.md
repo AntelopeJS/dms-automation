@@ -64,7 +64,7 @@ RegisterActionType({
 | `@antelopejs/interface-data-api`            | `file:../../.campaign/tgz/antelopejs-interface-data-api-817f819.tgz`            | —           |
 | `@antelopejs/interface-database`            | `file:../../.campaign/tgz/antelopejs-interface-database-8261536.tgz`            | —           |
 | `@antelopejs/interface-database-decorators` | `file:../../.campaign/tgz/antelopejs-interface-database-decorators-fcb0a29.tgz` | —           |
-| `@antelopejs/interface-dms`                 | `file:../../.campaign/tgz/antelopejs-interface-dms-5720722.tgz`                 | —           |
+| `@antelopejs/interface-dms`                 | `file:../../.campaign/tgz/antelopejs-interface-dms-36985f5.tgz`                 | —           |
 | `@antelopejs/interface-dms-automation`      | `>=0.5.0 <0.6.0`                                                                | —           |
 | `@antelopejs/interface-redis`               | `>=0.0.9 <1.0.0`                                                                | —           |
 
