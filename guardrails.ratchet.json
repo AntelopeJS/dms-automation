@@ -1,12 +1,11 @@
 {
-  "pack": "0.2.17",
+  "pack": "0.2.18",
   "rules": {
-    "anti-slop/no-known-value-widening": 2,
     "anti-slop/no-runtime-typeof": 3,
-    "anti-slop/no-unknown-parameters": 37,
-    "anti-slop/no-unknown-returns": 6,
-    "anti-slop/no-unsafe-dictionary-type": 17,
-    "anti-slop/require-safety-comment-for-type-assertion": 10
+    "anti-slop/no-unknown-parameters": 16,
+    "anti-slop/no-unknown-returns": 1,
+    "anti-slop/no-unsafe-dictionary-type": 3,
+    "anti-slop/require-safety-comment-for-type-assertion": 9
   },
   "oversizeFiles": {}
 }
