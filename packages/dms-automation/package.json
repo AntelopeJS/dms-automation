@@ -44,7 +44,7 @@
   },
   "scripts": {
     "build": "pnpm --filter @antelopejs/interface-dms-automation build && rimraf dist && tsc",
-    "test": "pnpm run build && node --test tests/*.test.cjs",
+    "test": "pnpm run build && node --test tests/*.test.cjs && pnpm --dir frontend-vue test",
     "test:frontend-registration": "pnpm run build && node --test tests/frontend-registration.test.cjs",
     "test:run-storage": "pnpm run build && node --test tests/run-storage.test.cjs",
     "test:runs-display": "pnpm run build && node --test tests/runs-display.test.cjs",

@@ -54,18 +54,16 @@ RegisterActionType({
 
 ## Compatibility
 
-Module 0.5 uses interface 0.3, including `DeclareProcedure` and `RunProcedure`. Module 0.4 uses interface 0.2.
-
 | Package | Version |
 | --- | --- |
-| `@antelopejs/dms` | `>=0.11.0 <1.0.0` |
+| `@antelopejs/dms` | `>=0.13.1 <1.0.0` |
 | `@antelopejs/interface-dms` | `>=0.9.0 <1.0.0` |
-| `@antelopejs/dms-frontend` (renderer) | `>=0.9.1 <0.10.0` |
+| `@antelopejs/dms-frontend` (renderer) | `>=0.9.2 <0.10.0` |
 | `@antelopejs/interface-dms-automation` | `>=0.5.0 <0.6.0` |
 | API provider | `@antelopejs/api`, for webhooks |
 | Database | an `@antelopejs/interface-database` implementation |
 
-On DMS 0.8, use `@antelopejs/dms-automation` 0.3. Running several instances needs `@antelopejs/interface-redis`: see [Clustering](https://dms.antelopejs.com/docs/modules/automation/configuration#clustering).
+Running several instances needs `@antelopejs/interface-redis`: see [Clustering](https://dms.antelopejs.com/docs/modules/automation/configuration#clustering).
 
 ## Packages
 

@@ -14,6 +14,7 @@ const { renderToString } = frontendRequire("vue/server-renderer");
 globalThis.useTranslation = () => ({ processI18n: (value) => value });
 globalThis.useI18n = () => ({ t: (key) => key, te: () => false });
 globalThis.useToast = () => ({ add() {} });
+globalThis.useApiErrorPresenter = () => ({ presentError() {} });
 globalThis.useRegionalFormat = () => ({
   dateTimeFormat: (options) => new Intl.DateTimeFormat("en", options),
 });

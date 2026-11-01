@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { ApiErrorNotice } from '#dms-core/app/composables/useApiErrorPresenter'
+
 defineProps<{
 	submitting: boolean
-	error: string | null
+	error: ApiErrorNotice | null
 }>()
 
 const emit = defineEmits<{ submit: [] }>()
@@ -22,9 +24,8 @@ const open = defineModel<boolean>('open', { required: true })
 			<DmsBanner
 				v-if="error"
 				size="sm"
-				tone="error"
-				:title="$t('dms_automation.editor.forkModal.error')"
-				:description="error"
+				:tone="error.severity"
+				:title="error.message"
 			/>
 		</div>
 	</template>

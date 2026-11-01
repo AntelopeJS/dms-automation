@@ -36,6 +36,7 @@ const { $authFetch } = useAuthFetch()
 const route = useDmsRoute()
 const router = useDmsRouter()
 const toast = useToast()
+const { presentError } = useApiErrorPresenter()
 const { t } = useI18n()
 const { confirm } = useConfirm()
 
@@ -154,20 +155,11 @@ watch(formName, () => fieldErrors.clear('name'))
 
 interface RefusalBody {
 	code?: string
-	error?: string
-	issues?: { path?: (string | number)[]; message?: string }[]
 }
 
 /** The `code` a refused request answered with, if any. */
 function errorCode(e: unknown): string | undefined {
 	return (e as { data?: RefusalBody }).data?.code
-}
-
-/** What the server said was wrong, rather than the request's raw status line. */
-function errorMessage(e: unknown): string {
-	const body = (e as { data?: RefusalBody }).data
-	const issues = body?.issues?.map((i) => (i.path?.length ? `${i.path.join('.')}: ${i.message}` : i.message)).filter(Boolean)
-	return issues?.length ? issues.join(' · ') : (body?.error ?? describeApiError(e))
 }
 
 async function onSave() {
@@ -196,7 +188,7 @@ async function onSave() {
 			await fieldErrors.setError('name', t('dms_automation.templates.nameTaken'))
 			return
 		}
-		toast.add({ title: t('dms_automation.templates.saveError'), description: errorMessage(e), color: 'error', icon: 'i-ph-warning' })
+		presentError(e, { fallbackKey: 'dms_automation.templates.saveError' })
 	} finally {
 		saving.value = false
 	}
@@ -218,7 +210,7 @@ async function onDelete() {
 	await usagesRead.refresh()
 	const fresh = usagesRead.data.value
 	if (usagesRead.error.value || !fresh) {
-		toast.add({ title: t('dms_automation.templates.deleteError'), description: errorMessage(usagesRead.error.value), color: 'error', icon: 'i-ph-warning' })
+		presentError(usagesRead.error.value, { fallbackKey: 'dms_automation.templates.deleteError' })
 		return
 	}
 	const count = fresh.procedures.length + fresh.templates.length
@@ -234,11 +226,8 @@ async function onDelete() {
 		await $authFetch(`${props.apiUrl}/templates/${s._id}?force=1`, { method: 'DELETE' })
 	} catch (e) {
 		const kept = errorCode(e) === 'fork-incomplete'
-		toast.add({
-			title: kept ? t('dms_automation.templates.forkIncomplete') : t('dms_automation.templates.deleteError'),
-			description: kept ? t('dms_automation.templates.forkIncompleteHint') : errorMessage(e),
-			color: 'error',
-			icon: 'i-ph-warning',
+		presentError(e, {
+			fallbackKey: kept ? 'dms_automation.templates.forkIncompleteHint' : 'dms_automation.templates.deleteError',
 		})
 		await usagesRead.refresh()
 		return

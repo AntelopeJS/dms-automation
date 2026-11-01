@@ -9,6 +9,10 @@ export default ts.config(
   eslint.configs.recommended,
   ...vue.configs["flat/essential"],
   {
+    files: ["tests/**/*.cjs"],
+    languageOptions: { globals: globals.node },
+  },
+  {
     files: ["**/*.{ts,vue}"],
     languageOptions: {
       parserOptions: { parser: ts.parser },
