@@ -16,8 +16,8 @@
     "vue": "^3.5.18"
   },
   "devDependencies": {
-    "@antelopejs/dms": "file:../../../.campaign/tgz/antelopejs-dms-0cfaaa3.tgz",
-    "@antelopejs/dms-frontend": ">=0.9.1 <0.10.0",
+    "@antelopejs/dms": "file:../../../.campaign/tgz/antelopejs-dms-80e4dc1.tgz",
+    "@antelopejs/dms-frontend": ">=0.10.0 <0.11.0",
     "@antelopejs/tooling-configs": "file:../../../.campaign/tgz/antelopejs-tooling-configs-c5ffa8e.tgz",
     "@eslint/js": "^9.0.0",
     "@nuxt/ui": "4.10.0",
@@ -33,7 +33,7 @@
     "vue-tsc": "^3.1.1"
   },
   "engines": {
-    "@antelopejs/dms-frontend": ">=0.9.1 <0.10.0"
+    "@antelopejs/dms-frontend": ">=0.10.0 <0.11.0"
   },
   "packageManager": "pnpm@10.6.5",
   "pnpm": {
@@ -45,7 +45,8 @@
       "@antelopejs/interface-database-decorators": "file:../../../.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz",
       "@antelopejs/interface-data-api": "file:../../../.campaign/tgz/antelopejs-interface-data-api-d8a868f.tgz",
       "@antelopejs/interface-dms": "file:../../../.campaign/tgz/antelopejs-interface-dms-0cfaaa3.tgz",
-      "@antelopejs/dms": "file:../../../.campaign/tgz/antelopejs-dms-0cfaaa3.tgz"
+      "@antelopejs/dms": "file:../../../.campaign/tgz/antelopejs-dms-80e4dc1.tgz",
+      "@antelopejs/dms-frontend": "file:../../../.campaign/tgz/antelopejs-dms-frontend-ee4e931.tgz"
     }
   }
 }
