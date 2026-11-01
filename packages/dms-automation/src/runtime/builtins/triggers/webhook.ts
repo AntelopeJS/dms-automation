@@ -1,4 +1,5 @@
 import {
+  Controller,
   getRegisteredRouteHandlers,
   HTTPResult,
   ReadBody,
@@ -194,6 +195,9 @@ function parseBody(text: string, contentType: string | undefined): DataValue {
   }
 }
 
+/** The controller every webhook route registers under: a route armed at run time has no class of its own. */
+const WebhookController = Controller("");
+
 export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
   id: "webhook",
   name: "$dms_automation.types.webhook.name",
@@ -246,7 +250,7 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
       location: path,
       parameters: [{ provider: (ctx) => ctx, modifiers: [] }],
       properties: {},
-      proto: {},
+      controller: WebhookController,
       callback: async (ctx: RequestContext) => {
         const buf = await ReadBody(ctx);
         const body =
