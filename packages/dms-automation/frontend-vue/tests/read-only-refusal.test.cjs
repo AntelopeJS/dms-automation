@@ -1,8 +1,9 @@
 const assert = require("node:assert/strict");
 const { beforeEach, test } = require("node:test");
-require("../../tests/helpers/frontend.cjs");
+const { frontendRequire } = require("../../tests/helpers/frontend.cjs");
 const { componentSetup } = require("./helpers/setup.cjs");
-const { ref, computed, effectScope } = require("vue");
+const { ref, computed, effectScope } = frontendRequire("vue");
+const { createFetch } = frontendRequire("ofetch");
 const {
   useBuilderSave,
 } = require("../app/build/composables/editor/useBuilderSave.ts");
@@ -15,6 +16,9 @@ const {
 const {
   useForkToLocal,
 } = require("../app/build/composables/editor/useForkToLocal.ts");
+const {
+  useDraftProblems,
+} = require("../app/build/composables/editor/useDraftProblems.ts");
 const {
   useReadOnlyRefusal,
 } = require("../node_modules/@antelopejs/dms/frontend-vue/layers/dms-core/app/composables/useReadOnlyRefusal.ts");
@@ -41,6 +45,7 @@ beforeEach(() => {
   presented = ref(new WeakSet());
   Object.assign(globalThis, {
     useReadOnlyRefusal,
+    HTTP_FORBIDDEN: 403,
     useToast: () => ({ add: (notice) => notices.push(notice) }),
     useDmsState: () => presented,
     getAppTranslation: () => ({ processApiMessage: () => readonlyTitle }),
@@ -199,4 +204,35 @@ for (const [name, setup] of scenarios) {
       }
     });
   }
+}
+
+for (const status of [403, 401]) {
+  void test(`background validation ${status === 403 ? "stays silent on a read-only refusal" : "preserves session recovery"}`, async () => {
+    const ctx = {
+      ...context(),
+      draftTriggers: ref([]),
+      selectedId: ref("p1"),
+      $authFetch: createFetch({
+        fetch: async () =>
+          new Response("{}", {
+            status,
+            headers: status === 403 ? { "x-dms-readonly": "1" } : {},
+          }),
+        defaults: {
+          retry: 0,
+          onResponseError({ response }) {
+            if (status === 401) notices.push({ title: "Recover session" });
+            else useReadOnlyRefusal()({ response });
+          },
+        },
+      }),
+    };
+    const problems = scope.run(() => useDraftProblems(ctx, {}, {}));
+    await problems.validateDraft();
+    assert.deepEqual(
+      notices.map((notice) => notice.title),
+      status === 403 ? [] : ["Recover session"],
+    );
+    assert.deepEqual(ctx.issues.value, []);
+  });
 }
