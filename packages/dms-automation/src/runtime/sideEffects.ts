@@ -10,7 +10,7 @@ import type { TemplateCache } from "./resolveSubgraph";
  * outside the run (see `ActionType.sideEffects`) and cannot simulate it
  * (`ActionType.dryRun`).
  */
-export interface RealEffectStep {
+export type RealEffectStep = {
   /** The node, as the executor logs it (`<groupId>__<innerId>` in a group). */
   nodeId: string;
   typeId: string;
@@ -21,7 +21,7 @@ export interface RealEffectStep {
    * label, or the group it belongs to inside a template instance.
    */
   label?: string;
-}
+};
 
 /**
  * The steps of a graph a test run would execute for real, groups and

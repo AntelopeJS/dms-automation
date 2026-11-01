@@ -36,13 +36,13 @@ type GraphIssueSeverity = "error" | "warning";
  * it in the user's language (`dms_automation.editor.problems.codes.<code>`);
  * `message` is the English fallback.
  */
-export interface GraphIssue {
+export type GraphIssue = {
   severity: GraphIssueSeverity;
   code: string;
   params?: ProblemParams;
   message: string;
   nodeId?: string;
-}
+};
 
 export interface GraphIssueOptions {
   /**
