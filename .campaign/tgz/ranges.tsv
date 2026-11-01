@@ -39,3 +39,7 @@
 @antelopejs/interface-data-api	packages/dms-automation/playground/package.json	pnpm.overrides	
 @antelopejs/interface-dms	packages/dms-automation/playground/package.json	pnpm.overrides	
 @antelopejs/dms	packages/dms-automation/playground/package.json	pnpm.overrides	
+@antelopejs/dms-frontend	packages/dms-automation/playground/package.json	devDependencies	0.9.1
+@antelopejs/dms-frontend	packages/dms-automation/frontend-vue/package.json	pnpm.overrides	
+@antelopejs/dms-frontend	packages/dms-automation/playground/package.json	pnpm.overrides	
+@antelopejs/dms>@antelopejs/interface-core	packages/dms-automation/playground/package.json	pnpm.overrides	
