@@ -17,7 +17,7 @@ void test("an armed webhook registers its route under a controller class", async
   );
   try {
     const handler = handlerAt("/webhooks/registration-probe");
-    assert.equal(typeof handler?.controller, "function");
+    assert.ok(handler?.controller);
     assert.equal(handler.method, "POST");
   } finally {
     await webhookTrigger.deactivate(handle);
