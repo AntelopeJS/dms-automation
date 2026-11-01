@@ -1,10 +1,11 @@
-import type {
-  DataEdge,
-  GroupNode,
-  ProcedureGraph,
-  TriggerEdge,
+import {
+  type DataEdge,
+  type GroupNode,
+  isGroupNode,
+  type ProcedureGraph,
+  type TriggerEdge,
+  triggerEdgeEnd,
 } from "../types/graph";
-import { triggerEdgeEnd } from "../types/graph";
 import { resolveSubgraph, type TemplateCache } from "./resolveSubgraph";
 
 /**
@@ -46,6 +47,17 @@ interface Expansion {
   prefix: string;
 }
 
+/**
+ * Pass 1: walk nodes. Non-group nodes pass through; group nodes get their
+ * subgraph recursively flattened and their inner non-sentinel nodes
+ * added with prefixed ids. Sentinel nodes are dropped — outer edges
+ * touching the group boundary are rewritten in Pass 2.
+ *
+ * Pass 2: rewrite outer edges. For each outer edge, compute the
+ * effective source(s) and target(s) by expanding group endpoints, then
+ * emit the cartesian product. Outer edges with neither endpoint a group
+ * pass through unchanged.
+ */
 function flattenInner(
   graph: ProcedureGraph,
   templateCache: TemplateCache | undefined,
@@ -65,28 +77,14 @@ function flattenInner(
 
   const expansions = new Map<string, Expansion>();
 
-  // Pass 1: walk nodes. Non-group nodes pass through; group nodes get their
-  // subgraph recursively flattened and their inner non-sentinel nodes
-  // added with prefixed ids. Sentinel nodes are dropped — outer edges
-  // touching the group boundary are rewritten in Pass 2.
   for (const node of graph.nodes) {
-    if (node.kind !== "group") {
+    if (!isGroupNode(node)) {
       result.nodes.push(node);
       continue;
     }
-    expandGroupNode(
-      node as GroupNode,
-      templateCache,
-      depth,
-      result,
-      expansions,
-    );
+    expandGroupNode(node, templateCache, depth, result, expansions);
   }
 
-  // Pass 2: rewrite outer edges. For each outer edge, compute the
-  // effective source(s) and target(s) by expanding group endpoints, then
-  // emit the cartesian product. Outer edges with neither endpoint a group
-  // pass through unchanged.
   for (const e of graph.triggerEdges) {
     rewriteTriggerEdge(e, expansions, result.triggerEdges);
   }
@@ -167,6 +165,10 @@ function expandGroupNode(
   });
 }
 
+/**
+ * The outer trigger-out port name lives on the inner edge's
+ * `to.branch` — edges into a groupOutput sentinel always carry it.
+ */
 function rewriteTriggerEdge(
   e: TriggerEdge,
   expansions: Map<string, Expansion>,
@@ -175,17 +177,17 @@ function rewriteTriggerEdge(
   const sourceExp = expansions.get(e.from.node);
   const targetExp = expansions.get(e.to.node);
 
-  // Effective sources: (node, branch?, edgeIdSuffix). For a group source,
-  // each inner edge into groupOutput at the matching port contributes a
-  // direct source — its writer node + writer port — to the rewritten edge.
+  /**
+   * Effective sources: (node, branch?, edgeIdSuffix). For a group source,
+   * each inner edge into groupOutput at the matching port contributes a
+   * direct source — its writer node + writer port — to the rewritten edge.
+   */
   type SourceEnd = { node: string; branch?: string; idSuffix: string };
   const sources: SourceEnd[] = [];
   if (sourceExp) {
     const outerPort = e.from.branch;
     for (const innerE of sourceExp.flatInner.triggerEdges) {
       if (innerE.to.node !== sourceExp.groupOutputId) continue;
-      // The outer trigger-out port name lives on the inner edge's
-      // `to.branch` — edges into a groupOutput sentinel always carry it.
       const innerOuterPort = innerE.to.branch;
       if (innerOuterPort !== outerPort) continue;
       sources.push({
@@ -196,7 +198,7 @@ function rewriteTriggerEdge(
         idSuffix: `src:${innerE.id}`,
       });
     }
-    if (sources.length === 0) return; // Group source port has no inner writer.
+    if (sources.length === 0) return;
   } else {
     sources.push({
       ...triggerEdgeEnd(e.from.node, e.from.branch),
@@ -216,7 +218,7 @@ function rewriteTriggerEdge(
         idSuffix: `tgt:${innerE.id}`,
       });
     }
-    if (targets.length === 0) return; // Group target port has no inner consumer.
+    if (targets.length === 0) return;
   } else {
     targets.push({ ...triggerEdgeEnd(e.to.node, e.to.branch), idSuffix: "" });
   }
@@ -235,6 +237,16 @@ function rewriteTriggerEdge(
   }
 }
 
+/**
+ * The outer edge originates from `group.<port>`. Find the inner data
+ * edge that writes into groupOutput at that field; its source is the
+ * effective source. Validator restricts data-out ports to one writer,
+ * so this typically yields one entry.
+ *
+ * The outer edge targets `group.<field>` (data-in). Find every inner
+ * data edge reading from groupInput at that port; each is an inner
+ * consumer. Possibly multiple — fan out to all of them.
+ */
 function rewriteDataEdge(
   e: DataEdge,
   expansions: Map<string, Expansion>,
@@ -246,10 +258,6 @@ function rewriteDataEdge(
   type SourceEnd = { node: string; port: string; idSuffix: string };
   const sources: SourceEnd[] = [];
   if (sourceExp) {
-    // The outer edge originates from `group.<port>`. Find the inner data
-    // edge that writes into groupOutput at that field; its source is the
-    // effective source. Validator restricts data-out ports to one writer,
-    // so this typically yields one entry.
     const outerPort = e.from.port;
     for (const innerE of sourceExp.flatInner.dataEdges) {
       if (innerE.to.node !== sourceExp.groupOutputId) continue;
@@ -260,7 +268,7 @@ function rewriteDataEdge(
         idSuffix: `src:${innerE.id}`,
       });
     }
-    if (sources.length === 0) return; // Unwired group data-out port; skip.
+    if (sources.length === 0) return;
   } else {
     sources.push({ node: e.from.node, port: e.from.port, idSuffix: "" });
   }
@@ -268,9 +276,6 @@ function rewriteDataEdge(
   type TargetEnd = { node: string; field: string; idSuffix: string };
   const targets: TargetEnd[] = [];
   if (targetExp) {
-    // The outer edge targets `group.<field>` (data-in). Find every inner
-    // data edge reading from groupInput at that port; each is an inner
-    // consumer. Possibly multiple — fan out to all of them.
     const outerPort = e.to.field;
     for (const innerE of targetExp.flatInner.dataEdges) {
       if (innerE.from.node !== targetExp.groupInputId) continue;
@@ -281,7 +286,7 @@ function rewriteDataEdge(
         idSuffix: `tgt:${innerE.id}`,
       });
     }
-    if (targets.length === 0) return; // Unwired group data-in port.
+    if (targets.length === 0) return;
   } else {
     targets.push({ node: e.to.node, field: e.to.field, idSuffix: "" });
   }

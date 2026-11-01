@@ -1,4 +1,5 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
+import type { DataRecord } from "./dataValue";
 
 /**
  * Node kind is a free-form string keyed off the runtime kind registry.
@@ -17,8 +18,10 @@ export interface GraphNode {
   id: string;
   kind: string;
   typeId?: string;
-  config: Record<string, unknown>;
+  config: DataRecord;
   position: { x: number; y: number };
+  /** The name the builder gave the node, when it gave one. */
+  label?: string;
 }
 
 /** One end of a trigger edge. `branch` is absent when the end has none. */
@@ -40,9 +43,11 @@ export function triggerEdgeEnd(
 export interface TriggerEdge {
   id: string;
   from: TriggerEdgeEnd;
-  // `branch` on the target carries the name of the target's trigger-in port
-  // when the target is a group node or a groupOutput sentinel. It is absent
-  // for ordinary target nodes, whose trigger-in is a single fixed handle.
+  /**
+   * `branch` on the target carries the name of the target's trigger-in port
+   * when the target is a group node or a groupOutput sentinel. It is absent
+   * for ordinary target nodes, whose trigger-in is a single fixed handle.
+   */
   to: TriggerEdgeEnd;
 }
 
@@ -62,18 +67,28 @@ export interface GroupPort {
   name: string;
   kind: "data" | "trigger";
   direction: "in" | "out";
-  schema?: JsonSchema; // present iff kind === "data"
+  /** Present iff kind === "data". */
+  schema?: JsonSchema;
 }
 
 export interface GroupNode extends GraphNode {
   kind: "group";
-  templateId?: string; // present iff this is a template instance
+  /** Present iff this is a template instance. */
+  templateId?: string;
   ports: GroupPort[];
-  subgraph?: ProcedureGraph; // present iff local (no templateId)
+  /** Present iff local (no templateId). */
+  subgraph?: ProcedureGraph;
 }
 
 export function isGroupNode(n: GraphNode): n is GroupNode {
   return n.kind === "group";
+}
+
+/** A group node that places a template: it names the template it is. */
+export type TemplateInstanceNode = GroupNode & { templateId: string };
+
+export function isTemplateInstance(n: GraphNode): n is TemplateInstanceNode {
+  return isGroupNode(n) && !!n.templateId;
 }
 
 /**
@@ -91,4 +106,9 @@ export function* walkNodesRecursive(
       yield* walkNodesRecursive(node.subgraph);
     }
   }
+}
+
+/** A graph as `JSON.stringify` stored it in a procedure or template row. */
+export function parseGraph(raw: string): ProcedureGraph {
+  return JSON.parse(raw) as ProcedureGraph;
 }

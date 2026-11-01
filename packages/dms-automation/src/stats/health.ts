@@ -111,6 +111,7 @@ function streakOf(runs: readonly HealthRun[]): HealthRun[] {
   return streak;
 }
 
+/** Never enabled (just created or imported, nothing ran): still a draft. */
 function stateOf(
   procedure: HealthProcedure,
   lastRun: HealthRun | undefined,
@@ -118,7 +119,6 @@ function stateOf(
 ): ProcedureState {
   if (!procedure.hasTrigger) return "draft";
   if (!procedure.enabled) {
-    // Never enabled (just created or imported, nothing ran): still a draft.
     return procedure.pausedAt || lastRun ? "paused" : "draft";
   }
   if (procedure.armError || lastRun?.status === "failed") return "failing";

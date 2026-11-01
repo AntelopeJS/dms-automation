@@ -15,16 +15,16 @@ import { API_MESSAGES as API, invalid } from "./requests";
 
 /** What the procedures routes check before they save or run a graph. */
 
-// The toast of a refused graph, after its first blocking issue.
-const REFUSAL_OF_ISSUE: Record<string, string> = {
-  noTrigger: `${API}.noTrigger`,
-  webhookPathTaken: `${API}.webhookPathTaken`,
-};
+/** The toast of a refused graph, after its first blocking issue. */
+const REFUSAL_OF_ISSUE = new Map([
+  ["noTrigger", `${API}.noTrigger`],
+  ["webhookPathTaken", `${API}.webhookPathTaken`],
+]);
 
 export function graphRefusal(issues: GraphIssue[]): HTTPResult {
   const first = issues.find((i) => i.severity === "error");
   const message =
-    REFUSAL_OF_ISSUE[first?.code ?? ""] ?? `${API}.graphHasErrors`;
+    REFUSAL_OF_ISSUE.get(first?.code ?? "") ?? `${API}.graphHasErrors`;
   return invalid("invalid graph", issues, message);
 }
 

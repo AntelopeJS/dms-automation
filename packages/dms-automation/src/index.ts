@@ -82,8 +82,16 @@ export function getConfig(): Config {
   return globalConfig;
 }
 
-// Register the built-in trigger/action/data-node types before bootstrap, so any
-// active procedures using them reconcile against a populated registry.
+/**
+ * Register the built-in trigger/action/data-node types before bootstrap, so any
+ * active procedures using them reconcile against a populated registry.
+ *
+ * We just registered these ourselves, so attribution MUST resolve them back
+ * to us. If it doesn't, the interface's registration bookkeeping changed
+ * shape and the palette silently stops grouping by module (everything lands
+ * in the unlabeled built-in section) — which is indistinguishable from
+ * "no other module registered anything". Say so out loud instead.
+ */
 function registerBuiltins(): void {
   for (const t of builtinTriggers) RegisterTriggerType(t);
   for (const a of builtinActions) RegisterActionType(a);
@@ -95,11 +103,6 @@ function registerBuiltins(): void {
     registry.listDataNodes().map((d) => d.id),
   );
 
-  // We just registered these ourselves, so attribution MUST resolve them back
-  // to us. If it doesn't, the interface's registration bookkeeping changed
-  // shape and the palette silently stops grouping by module (everything lands
-  // in the unlabeled built-in section) — which is indistinguishable from
-  // "no other module registered anything". Say so out loud instead.
   const probe = builtinTriggers[0];
   if (probe && !isOriginAttributionWorking(probe.id)) {
     Logging.Warn(
@@ -108,15 +111,19 @@ function registerBuiltins(): void {
   }
 }
 
-// Redis-mode setup that must run BEFORE hydrate: subscribe to the reconcile
-// channel before hydrate so a peer edit committed during our boot isn't missed
-// (pub/sub is at-most-once, no replay).
+/**
+ * Redis-mode setup that must run BEFORE hydrate: subscribe to the reconcile
+ * channel before hydrate so a peer edit committed during our boot isn't missed
+ * (pub/sub is at-most-once, no replay).
+ */
 async function startClusterSubscriber(): Promise<void> {
   await bus.start((msg) => void subscriptions.onBusMessage(msg));
 }
 
-// Redis-mode setup that runs AFTER hydrate: contend for leadership; winning
-// promotes us and reconciles the singleton triggers hydrate skipped.
+/**
+ * Redis-mode setup that runs AFTER hydrate: contend for leadership; winning
+ * promotes us and reconciles the singleton triggers hydrate skipped.
+ */
 async function startLeaderElection(): Promise<void> {
   await leader.start({
     onBecameLeader: () => subscriptions.onBecameLeader(),
@@ -125,21 +132,24 @@ async function startLeaderElection(): Promise<void> {
   Logging.Info(`[dms-automation] cluster mode: redis (instance ${instanceId})`);
 }
 
+/**
+ * Set the leadership gate explicitly on EVERY boot so a restart can't inherit
+ * a stale source (e.g. a redis run left it pointing at leader.isLeader, which
+ * stays false after stop() — a later memory-mode boot would then run as a
+ * permanent follower). Redis reads the live lock; standalone is always leader.
+ *
+ * In redis mode this brings up replicated triggers only (follower).
+ */
 export async function start(): Promise<void> {
   await RegisterSchema(SCHEMA_NAME);
   registerBuiltins();
 
   const mode = resolveClusterMode(globalConfig.cluster?.driver);
-  // Set the leadership gate explicitly on EVERY boot so a restart can't inherit
-  // a stale source (e.g. a redis run left it pointing at leader.isLeader, which
-  // stays false after stop() — a later memory-mode boot would then run as a
-  // permanent follower). Redis reads the live lock; standalone is always leader.
   subscriptions.useLeadershipSource(
     mode === "redis" ? leader.isLeader : () => true,
   );
   if (mode === "redis") await startClusterSubscriber();
 
-  // In redis mode this brings up replicated triggers only (follower).
   await subscriptions.hydrate();
 
   if (mode === "redis") await startLeaderElection();
@@ -149,10 +159,10 @@ export async function start(): Promise<void> {
   markModuleStarted();
 }
 
+/** Release leadership first (fast handoff), then the bus, then local handles. */
 export async function destroy(): Promise<void> {
   markModuleStopped();
   stopRetention();
-  // Release leadership first (fast handoff), then the bus, then local handles.
   await leader.stop();
   await bus.close();
   await subscriptions._deactivateAll();

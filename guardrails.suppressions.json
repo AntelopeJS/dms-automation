@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "anti-slop/no-chained-type-assertions": 0,
+    "eslint/max-params": 6,
+    "typescript/no-base-to-string": 2,
+    "typescript/unbound-method": 3
+  },
+  "tsExpectError": 0,
+  "tsIgnore": 0,
+  "safety": 0,
+  "config": {
+    "no-redeclare for packages/dms-automation/frontend-vue/**/*.{ts,vue}": 1,
+    "no-undef for packages/dms-automation/frontend-vue/**/*.{ts,vue}": 1,
+    "no-unused-vars for packages/dms-automation/frontend-vue/**/*.{ts,vue}": 1,
+    "vue/multi-word-component-names for packages/dms-automation/frontend-vue/**/*.{ts,vue}": 1
+  }
+}

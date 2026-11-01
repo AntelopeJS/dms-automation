@@ -1,16 +1,20 @@
-// Release gate shared by both callers: a package is only allowed to reach npm
-// if its manifest still says what this repository promised to publish. One
-// assertion per rule, all of them reported at once, each naming the fix.
-//
-//   node .github/scripts/validate-release-metadata.mjs packages/dms-automation
+/**
+ * Release gate shared by both callers: a package is only allowed to reach npm
+ * if its manifest still says what this repository promised to publish. One
+ * assertion per rule, all of them reported at once, each naming the fix.
+ *
+ *   node .github/scripts/validate-release-metadata.mjs packages/dms-automation
+ */
 import fs from "node:fs";
 import path from "node:path";
 
 const REPOSITORY_URL = "git+https://github.com/AntelopeJS/dms-automation.git";
 const INTERFACE_PACKAGE = "@antelopejs/interface-dms-automation";
 
-// The publication target of this repository, in one place. A release from a
-// directory that is not listed here is a mistake, not a new package.
+/**
+ * The publication target of this repository, in one place. A release from a
+ * directory that is not listed here is a mistake, not a new package.
+ */
 const PACKAGES = {
   "packages/dms-automation": {
     name: "@antelopejs/dms-automation",
@@ -78,13 +82,15 @@ check(
   "publishConfig.provenance is not true: the shared workflow publishes with npm OIDC and needs provenance enabled.",
 );
 
-// `@antelopejs/core` resolves interface packages by range: a caret range on a
-// 0.0.x version (`^0.0.1` means `>=0.0.1 <0.0.2`) stops satisfying the
-// canonical installed version on the first patch release and the host refuses
-// to boot with "Incompatible interface package resolution". Every DMS package
-// is therefore referenced by an explicit `>=<floor> <1.0.0` range (capped below
-// the next minor for the interface the module implements, see below); pnpm
-// links the sibling inside the workspace through `link-workspace-packages`.
+/**
+ * `@antelopejs/core` resolves interface packages by range: a caret range on a
+ * 0.0.x version (`^0.0.1` means `>=0.0.1 <0.0.2`) stops satisfying the
+ * canonical installed version on the first patch release and the host refuses
+ * to boot with "Incompatible interface package resolution". Every DMS package
+ * is therefore referenced by an explicit `>=<floor> <1.0.0` range (capped below
+ * the next minor for the interface the module implements, see below); pnpm
+ * links the sibling inside the workspace through `link-workspace-packages`.
+ */
 const DMS_PACKAGE =
   /^@antelopejs\/(dms|dms-.+|interface-dms|interface-dms-.+)$/;
 const DMS_RANGE = /^>=\d+\.\d+\.\d+ <\d+\.\d+\.\d+$/;
@@ -95,9 +101,11 @@ function compareVersions(a, b) {
   return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
 }
 
-// The module implements the interface, so it caps it below the next minor
-// (`>=<floor> <0.<minor+1>.0`): a breaking interface minor must never reach a
-// module that does not implement it.
+/**
+ * The module implements the interface, so it caps it below the next minor
+ * (`>=<floor> <0.<minor+1>.0`): a breaking interface minor must never reach a
+ * module that does not implement it.
+ */
 function satisfiesImplementedRange(version, range) {
   const match = /^>=(0\.(\d+)\.\d+) <(0\.(\d+)\.0)$/.exec(range ?? "");
   if (!match || Number(match[4]) !== Number(match[2]) + 1) return false;
@@ -122,10 +130,12 @@ for (const field of [
 }
 
 if (expected.role === "runtime") {
-  // The interface sitting next to the module only has to SATISFY the range the
-  // module publishes. A floor that lags it widens what consumers may install
-  // without ever pulling a second copy, so an interface release must not block
-  // the module's release.
+  /**
+   * The interface sitting next to the module only has to SATISFY the range the
+   * module publishes. A floor that lags it widens what consumers may install
+   * without ever pulling a second copy, so an interface release must not block
+   * the module's release.
+   */
   const interfaceVersion = JSON.parse(
     fs.readFileSync(
       path.join("packages", "interface-dms-automation", "package.json"),
@@ -137,8 +147,6 @@ if (expected.role === "runtime") {
     satisfiesImplementedRange(interfaceVersion, interfaceRange),
     `dependencies["${INTERFACE_PACKAGE}"] is ${JSON.stringify(interfaceRange)}: the module implements it, so it must be a ">=<floor> <0.<minor+1>.0" range satisfied by the interface in this tree (${interfaceVersion}).`,
   );
-  // Releasing the module must never push the interface: they carry separate
-  // versions, separate tags and separate workflows.
   check(
     !/\bnpm publish\b|\bpnpm publish\b/.test(pkg.scripts?.release ?? ""),
     'the release script publishes directly: releasing the module must not publish the interface package, use the "Release DMS automation interface" workflow.',

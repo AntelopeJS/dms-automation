@@ -1,4 +1,5 @@
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
+import { isBigInt, isNumber, isObject, isString } from "../types/guards";
 
 /**
  * Budgets for what a single run persists. A run is stored as one document, so
@@ -18,10 +19,10 @@ const TRIGGER_PAYLOAD_PREVIEW_CHARS = 4096;
  * Serialized size of a value in bytes, as an estimate of its stored size.
  * Values JSON can't encode (circular structures) count as over budget.
  */
-function byteSize(value: unknown): number {
+function byteSize(value: LogEntry | FireNode | FireNode[]): number {
   try {
     const json = JSON.stringify(value, (_key, v: unknown) =>
-      typeof v === "bigint" ? v.toString() : v,
+      isBigInt(v) ? v.toString() : v,
     );
     return json === undefined ? 0 : Buffer.byteLength(json);
   } catch {
@@ -54,6 +55,9 @@ function keepOrder(entries: readonly LogEntry[]): number[] {
  * the fires the kept entries hang from (with their ancestors) are kept, and
  * they count against the byte budget: a loop of many iterations otherwise
  * stores a fire per iteration. A log within budget is returned unchanged.
+ *
+ * reduce, not Math.max(...spread): an oversized log is exactly the case
+ * where spreading every seq could exceed the engine's argument limit.
  */
 export function boundRunLog(log: RunLog): RunLog {
   const entrySizes = log.entries.map(byteSize);
@@ -68,7 +72,6 @@ export function boundRunLog(log: RunLog): RunLog {
 
   const fireById = new Map(log.fires.map((f) => [f.id, f]));
   const keptFires = new Set<string>();
-  // The fires an entry needs that are not kept yet: its own and its ancestors.
   const missingFires = (fireId: string): FireNode[] => {
     const chain: FireNode[] = [];
     let fire = fireById.get(fireId);
@@ -80,7 +83,6 @@ export function boundRunLog(log: RunLog): RunLog {
   };
 
   const rootFire = log.fires.find((f) => f.parentFireId === null);
-  // Leave room for the truncation notice itself.
   const maxKept = MAX_LOG_ENTRIES - 1;
   let budget = MAX_LOG_BYTES - 1024;
   if (rootFire) {
@@ -95,7 +97,6 @@ export function boundRunLog(log: RunLog): RunLog {
     const fires = missingFires(entry.fireId);
     const size =
       (entrySizes[i] ?? 0) + fires.reduce((a, f) => a + byteSize(f), 0);
-    // An entry too large for what is left is dropped; smaller ones still fit.
     if (size > budget) continue;
     keptIndexes.add(i);
     for (const f of fires) keptFires.add(f.id);
@@ -105,8 +106,6 @@ export function boundRunLog(log: RunLog): RunLog {
   const kept = log.entries.filter((_, i) => keptIndexes.has(i));
   const dropped = log.entries.length - kept.length;
   const last = kept.at(-1);
-  // reduce, not Math.max(...spread): an oversized log is exactly the case
-  // where spreading every seq could exceed the engine's argument limit.
   const maxSeq = [...log.entries, ...log.fires].reduce(
     (max, e) => Math.max(max, e.seq),
     -1,
@@ -129,8 +128,10 @@ export function boundRunLog(log: RunLog): RunLog {
 /** The value a credential is stored and shown with. */
 export const REDACTED = "[redacted]";
 
-// Header and query parameter names whose value is a credential: these names,
-// and any name matching the pattern (a token, a signature, an HMAC, a key…).
+/**
+ * Header and query parameter names whose value is a credential: these names,
+ * and any name matching the pattern (a token, a signature, an HMAC, a key…).
+ */
 const SENSITIVE_NAMES = new Set([
   "authorization",
   "proxy-authorization",
@@ -169,8 +170,8 @@ export function isSensitiveHeader(name: string): boolean {
   );
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return isObject(value) && !Array.isArray(value);
 }
 
 /**
@@ -224,8 +225,10 @@ export function clearCredentialPattern(): string {
 /** Shorter values are too common to be told from other text. */
 const MIN_SECRET_LENGTH = 6;
 
-// The forms a credential is copied in: whole, its token after the scheme
-// ("Bearer <token>"), and each value of a cookie ("a=<value>; b=<value>").
+/**
+ * The forms a credential is copied in: whole, its token after the scheme
+ * ("Bearer <token>"), and each value of a cookie ("a=<value>; b=<value>").
+ */
 function secretForms(value: string): string[] {
   const forms = [value, value.split(" ").at(-1) ?? ""];
   for (const pair of value.split(";")) forms.push(pair.split("=")[1] ?? "");
@@ -238,7 +241,7 @@ function credentialValues(group: unknown): string[] {
   return Object.entries(group)
     .filter(([name]) => isSensitiveHeader(name))
     .flatMap(([, value]) => [value].flat())
-    .filter((value): value is string => typeof value === "string");
+    .filter(isString);
 }
 
 /**
@@ -251,7 +254,6 @@ export function secretsOf(payload: unknown): string[] {
     .flatMap(credentialValues)
     .flatMap(secretForms)
     .filter((form) => form.length >= MIN_SECRET_LENGTH && form !== REDACTED);
-  // Longest first, so a whole value goes before the token inside it.
   return [...new Set(forms)].sort((a, b) => b.length - a.length);
 }
 
@@ -263,7 +265,7 @@ export function secretsOf(payload: unknown): string[] {
 export function scrubSecrets<T>(value: T, secrets: readonly string[]): T {
   if (secrets.length === 0) return value;
   const scrub = (v: unknown): unknown => {
-    if (typeof v === "string") {
+    if (isString(v)) {
       return secrets.reduce((text, s) => text.replaceAll(s, REDACTED), v);
     }
     if (Array.isArray(v)) return v.map(scrub);
@@ -317,20 +319,18 @@ export type StoredPayload =
  * redacted on read, for the trace, a re-run and Run now alike.
  */
 export function readTriggerPayload(stored: string | undefined): StoredPayload {
-  let parsed: unknown = null;
+  let parsed: unknown;
   try {
     parsed = stored ? JSON.parse(stored) : null;
   } catch {
     return { kept: true, payload: stored };
   }
-  const marker = parsed as { truncated?: unknown; originalBytes?: unknown };
   if (
-    marker &&
-    typeof marker === "object" &&
-    marker.truncated === true &&
-    typeof marker.originalBytes === "number"
+    isRecord(parsed) &&
+    parsed.truncated === true &&
+    isNumber(parsed.originalBytes)
   ) {
-    return { kept: false, originalBytes: marker.originalBytes };
+    return { kept: false, originalBytes: parsed.originalBytes };
   }
   return { kept: true, payload: redactPayload(parsed) };
 }

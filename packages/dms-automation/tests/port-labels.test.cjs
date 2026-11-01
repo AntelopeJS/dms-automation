@@ -2,12 +2,18 @@ const assert = require("node:assert/strict");
 const Module = require("node:module");
 const path = require("node:path");
 const { test } = require("node:test");
-const { FRONTEND, frontendRequire, component } = require("./frontend.cjs");
+const {
+  FRONTEND,
+  frontendRequire,
+  component,
+} = require("./helpers/frontend.cjs");
 
-// A node's data ports read as their field's title on the canvas (a `$` key
-// translated, plain text as written), and as the key when no title is
-// declared. The key stays the handle id, since edges wire by it, and the
-// label's hover text when the title hides it.
+/**
+ * A node's data ports read as their field's title on the canvas (a `$` key
+ * translated, plain text as written), and as the key when no title is
+ * declared. The key stays the handle id, since edges wire by it, and the
+ * label's hover text when the title hides it.
+ */
 
 const vue = frontendRequire("vue");
 const { renderToString } = frontendRequire("vue/server-renderer");
@@ -23,8 +29,10 @@ function processI18n(value) {
   return MESSAGES[key] ?? key;
 }
 
-// Vue Flow's handles need a flow around them; a bare element carrying the
-// handle id stands in for them.
+/**
+ * Vue Flow's handles need a flow around them; a bare element carrying the
+ * handle id stands in for them.
+ */
 const Handle = vue.defineComponent({
   props: { id: String },
   setup: (props) => () => vue.h("i", { "data-handleid": props.id }),
@@ -77,10 +85,8 @@ test("node ports read as translated titles and keep wiring by key", async () => 
 
   assert.match(html, /<span title="userId">Utilisateur<\/span>/);
   assert.match(html, /<span title="tenantId">Organisation<\/span>/);
-  // No title: the key is the label, with no redundant hover text.
   assert.match(html, /<span>count<\/span>/);
   assert.doesNotMatch(html, /acme\.fields/);
-  // Handles keep the keys edges are stored with.
   assert.match(html, /data-handleid="data-in-userId"/);
   assert.match(html, /data-handleid="data-out-tenantId"/);
   assert.match(html, /data-handleid="data-out-count"/);

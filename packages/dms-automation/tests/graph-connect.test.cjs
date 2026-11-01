@@ -1,26 +1,13 @@
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const Module = require("node:module");
 const path = require("node:path");
 const { test } = require("node:test");
 
-// The builder refuses a link while it is drawn, with a reason the canvas
-// translates: these tests load the frontend composable that decides it.
+/**
+ * The builder refuses a link while it is drawn, with a reason the canvas
+ * translates: these tests load the frontend composable that decides it.
+ */
 
-const FRONTEND = path.resolve(__dirname, "../frontend-vue");
-const ts = Module.createRequire(path.join(FRONTEND, "package.json"))(
-  "typescript",
-);
-require.extensions[".ts"] = (module, filename) => {
-  const { outputText } = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-      verbatimModuleSyntax: false,
-    },
-  });
-  module._compile(outputText, filename);
-};
+const { FRONTEND } = require("./helpers/frontend.cjs");
 
 const { canConnect } = require(
   path.join(FRONTEND, "app/composables/useGraphConnect.ts"),

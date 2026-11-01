@@ -75,13 +75,17 @@ function failureCause(hero: HealthHero): BlockText {
     : failure.error;
 }
 
+/**
+ * Worded as the procedure list words it, from the code of the refusal.
+ *
+ * Several failing: the first of "Needs attention", and how many more.
+ */
 function detail(hero: HealthHero): BlockText {
   const [first, ...others] = hero.failing;
   if (hero.state === "failing" && first) {
     const since: ComposedTextParam = first.since
       ? { type: "datetime", value: first.since, format: "day" }
       : "—";
-    // Worded as the procedure list words it, from the code of the refusal.
     const cause: ComposedTextParam = first.armError
       ? {
           key: "dms_automation.procedures.detail.triggerError",
@@ -93,7 +97,6 @@ function detail(hero: HealthHero): BlockText {
           },
         }
       : failureCause(hero);
-    // Several failing: the first of "Needs attention", and how many more.
     return others.length > 0
       ? {
           key: `${HEALTH}.failingDetailMany`,
@@ -130,11 +133,16 @@ function failedRunsUrl(links: HealthBannerLinks): string {
   return `${links.runsUrl}?${query}`;
 }
 
+/**
+ * Only while something is wrong: a calm or idle window would point to a
+ * failure that may be weeks old.
+ *
+ * Several failing: which ones comes before their runs, and a third button
+ * would squeeze the sentence on a laptop screen.
+ */
 function actions(hero: HealthHero, links: HealthBannerLinks): BannerAction[] {
   const list: BannerAction[] = [];
   const failing = hero.state === "failing";
-  // Only while something is wrong: a calm or idle window would point to a
-  // failure that may be weeks old.
   if (hero.lastFailure && (failing || hero.state === "degraded")) {
     list.push({
       label: `$${HEALTH}.inspectLastFailure`,
@@ -144,8 +152,6 @@ function actions(hero: HealthHero, links: HealthBannerLinks): BannerAction[] {
       color: failing ? "error" : "neutral",
     });
   }
-  // Several failing: which ones comes before their runs, and a third button
-  // would squeeze the sentence on a laptop screen.
   if (hero.failing.length > 1) {
     list.push({
       label: `$${HEALTH}.showFailingProcedures`,

@@ -10,6 +10,12 @@ import {
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
 import { TriggerArmError } from "../../armErrors";
 import type { ConfigProblem } from "../../validate";
+import {
+  type DataRecord,
+  type DataValue,
+  parseJsonText,
+} from "../../../types/dataValue";
+import { isString } from "../../../types/guards";
 
 interface WebhookConfig {
   path: string;
@@ -20,7 +26,7 @@ interface WebhookOutput {
   method: string;
   headers: Record<string, string | string[] | undefined>;
   query: Record<string, string | string[]>;
-  body: unknown;
+  body: DataValue;
   params: Record<string, string>;
 }
 
@@ -30,12 +36,14 @@ interface WebhookHandle {
 
 const DEFAULT_METHOD = "POST";
 
-// A webhook answers anyone, without authentication: it must never shadow a
-// route of the server's API or of the DMS. These prefixes are refused even
-// before their routes are registered; any other registered route is found in
-// the router (see webhookRouteConflict).
+/**
+ * A webhook answers anyone, without authentication: it must never shadow a
+ * route of the server's API or of the DMS. These prefixes are refused even
+ * before their routes are registered; any other registered route is found in
+ * the router (see webhookRouteConflict).
+ */
 const RESERVED_PREFIXES = ["/api", "/auth", "/dms", "/modules", "/settings"];
-// Letters, digits, `-._~`, `/` between segments and `:` for route parameters.
+/** Letters, digits, `-._~`, `/` between segments and `:` for route parameters. */
 const PATH_PATTERN = /^\/[A-Za-z0-9._~:/-]*$/;
 const UNSAFE_SEGMENTS = /\/\/|(^|\/)\.\.?(\/|$)/;
 
@@ -47,8 +55,8 @@ function isReserved(path: string): boolean {
 }
 
 /** Why a webhook path cannot be served, or undefined when it can. */
-export function webhookPathProblem(path: unknown): ConfigProblem | undefined {
-  const value = typeof path === "string" ? path.trim() : "";
+export function webhookPathProblem(path: DataValue): ConfigProblem | undefined {
+  const value = isString(path) ? path.trim() : "";
   if (!PATH_PATTERN.test(value) || UNSAFE_SEGMENTS.test(value)) {
     return {
       code: "webhookPathInvalid",
@@ -70,20 +78,20 @@ export function webhookPathProblem(path: unknown): ConfigProblem | undefined {
  * The route a webhook config answers on, as two webhooks compare: the method,
  * and the path without its trailing slash.
  */
-export function webhookRouteOf(config: Record<string, unknown> | undefined): {
-  method: string;
-  path: string;
-} {
-  const method =
-    typeof config?.method === "string" ? config.method : DEFAULT_METHOD;
-  const path = typeof config?.path === "string" ? config.path.trim() : "";
+export function webhookRouteOf(config: DataRecord | undefined) {
+  const configuredMethod = config?.method;
+  const configuredPath = config?.path;
+  const method = isString(configuredMethod) ? configuredMethod : DEFAULT_METHOD;
+  const path = isString(configuredPath) ? configuredPath.trim() : "";
   return { method, path: path.length > 1 ? path.replace(/\/+$/, "") : path };
 }
 
-// The ids of the routes this module's webhooks registered: the save check
-// leaves them out (a procedure's armed webhook is not a conflict with
-// itself), while arming counts them (two webhooks on one route are refused
-// when the second arms).
+/**
+ * The ids of the routes this module's webhooks registered: the save check
+ * leaves them out (a procedure's armed webhook is not a conflict with
+ * itself), while arming counts them (two webhooks on one route are refused
+ * when the second arms).
+ */
 const armedRoutes = new Set<string>();
 
 const segmentsOf = (path: string) => path.split("/").filter(Boolean);
@@ -131,7 +139,7 @@ export function webhookRouteConflict(
 
 /** An armed webhook of a procedure: its settings, and whose it is. */
 export interface ArmedWebhook {
-  config: Record<string, unknown>;
+  config: DataRecord;
   procedure: string;
 }
 
@@ -142,7 +150,7 @@ export interface ArmedWebhook {
  */
 export function namedRouteConflict(
   problem: ConfigProblem,
-  config: Record<string, unknown>,
+  config: DataRecord,
   armed: Iterable<ArmedWebhook>,
 ): ConfigProblem {
   if (problem.code !== "webhookRouteTaken") return problem;
@@ -165,7 +173,7 @@ export function armedWebhookRouteIds(): ReadonlySet<string> {
 }
 
 /** The query string, a key given several times read as a list. */
-function queryOf(url: URL): Record<string, string | string[]> {
+function queryOf(url: URL) {
   const query: Record<string, string | string[]> = {};
   for (const key of new Set(url.searchParams.keys())) {
     const values = url.searchParams.getAll(key);
@@ -175,12 +183,12 @@ function queryOf(url: URL): Record<string, string | string[]> {
 }
 
 /** The body as JSON, a decoded form, or the raw text. */
-function parseBody(text: string, contentType: string | undefined): unknown {
+function parseBody(text: string, contentType: string | undefined): DataValue {
   if (contentType?.includes("application/x-www-form-urlencoded")) {
     return Object.fromEntries(new URLSearchParams(text));
   }
   try {
-    return JSON.parse(text);
+    return parseJsonText(text);
   } catch {
     return text;
   }
@@ -218,14 +226,20 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
       params: { type: "object" },
     },
   },
+  /**
+   * An already armed webhook on this route is a conflict like any route:
+   * the router would hand every call to the first one.
+   */
   async activate(config, emit) {
     const { method, path } = webhookRouteOf({ ...config });
-    // An already armed webhook on this route is a conflict like any route:
-    // the router would hand every call to the first one.
     const problem =
       webhookPathProblem(config.path) ?? webhookRouteConflict(method, path);
     if (problem) throw new TriggerArmError(problem);
 
+    /**
+     * A body over the size limit rejects with a 413: the caller is told,
+     * and the procedure does not run on a payload it never received.
+     */
     const handler: RouteHandler = {
       mode: "handler",
       method,
@@ -234,8 +248,6 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
       properties: {},
       proto: {},
       callback: async (ctx: RequestContext) => {
-        // A body over the size limit rejects with a 413: the caller is told,
-        // and the procedure does not run on a payload it never received.
         const buf = await ReadBody(ctx);
         const body =
           buf.length > 0
@@ -261,8 +273,7 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
     armedRoutes.add(routeId);
     return { routeId } satisfies WebhookHandle;
   },
-  async deactivate(handle) {
-    const h = handle as WebhookHandle | undefined;
+  async deactivate(h: WebhookHandle | undefined) {
     if (!h?.routeId) return;
     routesProxy.unregister(h.routeId);
     armedRoutes.delete(h.routeId);

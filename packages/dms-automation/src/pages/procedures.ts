@@ -45,28 +45,31 @@ export class ProceduresPageController extends PageController(
     headerActions: [importProcedureButton(), newProcedureButton()],
   }),
 ) {
-  // "Updated 12 s ago" with its Live / Pause: the list follows its realtime
-  // topics, and a pause holds it still while reading.
+  /**
+   * "Updated 12 s ago" with its Live / Pause: the list follows its realtime
+   * topics, and a pause holds it still while reading.
+   */
   static toolbar = pageToolbar({ period: false }).meta({
     name: "$dms_automation.permissions.live.name",
     description: "$dms_automation.permissions.live.description",
     icon: "i-ph-broadcast",
   });
 
+  /**
+   * Paused, the rows stay as they stood through a search, a sort or a tab,
+   * with "N new · Show" counting the changes since.
+   *
+   * Procedures are built in the builder, not in a form: a row opens it.
+   */
   static table = TableView(ProceduresTableAPI, {
-    // The tab says which procedures are listed, the counter how many.
     caption: "$dms_automation.procedures.title",
     labelKey: "name",
     rowIdKey: "procedureId",
     searchPlaceholder: "$dms_automation.procedures.search",
     quickFilters: [{ field: "triggerTypes", icon: "i-ph-lightning" }],
-    // The states move with every run and every change of a procedure.
     realtimeTopic: ["automation.procedures", "automation.runs"],
-    // Paused, the rows stay as they stood through a search, a sort or a tab,
-    // with "N new · Show" counting the changes since.
     liveHold: true,
     tabs: [
-      // The failing tab publishes its count as the menu badge of the page.
       stateTab("failing", "i-ph-x-circle", true),
       stateTab("degraded", "i-ph-warning"),
       stateTab("healthy", "i-ph-check-circle"),
@@ -89,7 +92,6 @@ export class ProceduresPageController extends PageController(
         icon: "i-ph-magnifying-glass",
       },
     },
-    // Procedures are built in the builder, not in a form: a row opens it.
     formContainer: {
       type: "page",
       pages: {

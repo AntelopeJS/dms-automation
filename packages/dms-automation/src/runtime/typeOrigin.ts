@@ -1,5 +1,6 @@
 import { GetResponsibleModule } from "@antelopejs/interface-core";
 import { internal } from "@antelopejs/interface-dms-automation";
+import { isObject, isString } from "../types/guards";
 
 /**
  * Resolves which AntelopeJS module registered each trigger/action/data-node
@@ -13,7 +14,7 @@ import { internal } from "@antelopejs/interface-dms-automation";
  * callback can't recover the true caller. That leaves the proxy's private
  * `registered` map as the only complete source (interface-core 0.2.4 keeps
  * the bookkeeping directly on the proxy instance, which is the shape our
- * dependency floor targets). The cast below is deliberately narrow and the access is fully
+ * dependency floor targets). The read below is deliberately narrow and fully
  * defensive: if a future @antelopejs/interface-core moves the field again,
  * every lookup degrades to "no module" (a flat, ungrouped palette) instead of
  * throwing. `isOriginAttributionWorking` turns that silent degradation into a
@@ -22,14 +23,20 @@ import { internal } from "@antelopejs/interface-dms-automation";
 interface ProxyRegistryEntry {
   module?: string;
 }
-interface ProxyRegistry {
-  registered?: Map<string, ProxyRegistryEntry>;
-}
 
 type TypeProxy =
   | typeof internal.RegisterTriggerType
   | typeof internal.RegisterActionType
   | typeof internal.RegisterDataNodeType;
+
+function isRegistryEntry(value: unknown): value is ProxyRegistryEntry {
+  return (
+    isObject(value) &&
+    (!("module" in value) ||
+      value.module === undefined ||
+      isString(value.module))
+  );
+}
 
 /**
  * Reads the proxy's registration bookkeeping for `id`, or undefined when the
@@ -39,11 +46,13 @@ function registryEntry(
   proxy: TypeProxy,
   id: string,
 ): ProxyRegistryEntry | undefined {
-  // Reaching into an AntelopeJS internal: the runtime's registry is
-  // not on the public type, and the source and target do not overlap,
-  // so a single assertion is not expressible.
-  // oxlint-disable-next-line anti-slop/no-chained-type-assertions
-  return (proxy as unknown as ProxyRegistry).registered?.get(id);
+  const registered: unknown = Object.getOwnPropertyDescriptor(
+    proxy,
+    "registered",
+  )?.value;
+  if (!(registered instanceof Map)) return undefined;
+  const entry: unknown = registered.get(id);
+  return isRegistryEntry(entry) ? entry : undefined;
 }
 
 /**

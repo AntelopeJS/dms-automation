@@ -11,6 +11,7 @@ import { DATABASE_NAME } from "../types/constants";
 import {
   type GraphNode,
   isGroupNode,
+  parseGraph,
   type ProcedureGraph,
   walkNodesRecursive,
 } from "../types/graph";
@@ -38,6 +39,8 @@ async function usingProcedureIds(templateId: string): Promise<Set<string>> {
  * A template edit changes what the procedures placing it run: their version
  * moves on, so a run tells which graph it executed. Called once, by the
  * instance that took the edit, never by the peers replaying it.
+ *
+ * The runs of the previous graph now read as an older version.
  */
 export async function bumpVersionOfUsages(templateId: string): Promise<void> {
   const procedureModel = GetModel(ProcedureModel, DATABASE_NAME);
@@ -46,7 +49,6 @@ export async function bumpVersionOfUsages(templateId: string): Promise<void> {
     if (!p) continue;
     const version = nextVersion(p);
     await procedureModel.update(id, { version });
-    // The runs of the previous graph now read as an older version.
     await GetModel(ProcedureRunModel, DATABASE_NAME).markOlderVersions(
       id,
       version,
@@ -71,7 +73,7 @@ export async function disableInvalidUsages(
     if (!p) continue;
     let graph: ProcedureGraph;
     try {
-      graph = JSON.parse(p.graph) as ProcedureGraph;
+      graph = parseGraph(p.graph);
     } catch (err) {
       Logging.Error(
         `[dms-automation] template cascade: skipping procedure "${id}" — graph JSON parse failed:`,
@@ -116,6 +118,10 @@ function findNode(
  * Turn the template instance `nodeId` of a procedure into a local group
  * holding a deep clone of `template`'s graph. A no-op when the node is gone
  * or already local.
+ *
+ * The local group keeps the template's name, unless it was given its own.
+ *
+ * The graph changed under any builder open on it: new version, new revision.
  */
 export async function forkUsage(
   procedureId: string,
@@ -128,7 +134,7 @@ export async function forkUsage(
   if (!p) return;
   let graph: ProcedureGraph;
   try {
-    graph = JSON.parse(p.graph) as ProcedureGraph;
+    graph = parseGraph(p.graph);
   } catch {
     return;
   }
@@ -138,10 +144,7 @@ export async function forkUsage(
   if (!tpl) return;
   delete node.templateId;
   node.subgraph = structuredClone(tpl.subgraph);
-  // The local group keeps the template's name, unless it was given its own.
-  const group = node as GraphNode & { label?: string };
-  if (!labelOf(group)) group.label = tpl.name;
-  // The graph changed under any builder open on it: new version, new revision.
+  if (!labelOf(node)) node.label = tpl.name;
   const version = nextVersion(p);
   await procedureModel.update(procedureId, {
     graph: JSON.stringify(graph),

@@ -3,6 +3,7 @@ import { GetModel } from "@antelopejs/interface-database-decorators";
 import type {
   DeclaredProcedure,
   DeclaredProcedureStatus,
+  ProcedureDeclaration,
 } from "@antelopejs/interface-dms-automation";
 import { z } from "zod";
 import { ProcedureModel } from "../db/models/procedure.model";
@@ -12,6 +13,7 @@ import { exportedSchema } from "../routes/procedureSchemas";
 import { DATABASE_NAME } from "../types/constants";
 import { type GraphIssue, hasBlockingIssue } from "./graphIssues";
 import { subscriptions } from "./subscriptions";
+import { isObject, isString } from "../types/guards";
 
 /**
  * Procedures a module ships as code (DeclareProcedure). The declared id is
@@ -46,15 +48,17 @@ function refusal(id: string, problems: string[]): Error {
   );
 }
 
-function idOf(input: unknown): string {
-  const id = (input as { id?: unknown } | null)?.id;
-  return typeof id === "string" ? id : "";
+function idOf(input: ProcedureDeclaration): string {
+  const id = isObject(input) && "id" in input ? input.id : undefined;
+  return isString(id) ? id : "";
 }
 
-// A type a module registers after the declaration (modules start in
-// parallel) is no reason to refuse it: the trigger arms when its type
-// registers (onTriggerTypeRegistered). Every other error blocks an enabled
-// declaration, as it blocks enabling in the builder.
+/**
+ * A type a module registers after the declaration (modules start in
+ * parallel) is no reason to refuse it: the trigger arms when its type
+ * registers (onTriggerTypeRegistered). Every other error blocks an enabled
+ * declaration, as it blocks enabling in the builder.
+ */
 function tolerateLateTypes(issue: GraphIssue): GraphIssue {
   return issue.code === "unknownType"
     ? { ...issue, severity: "warning" }
@@ -66,7 +70,14 @@ interface Stored {
   enabled: boolean;
 }
 
-/** Store the procedure, unless one already has its id: that one is left as is. */
+/**
+ * Store the procedure, unless one already has its id: that one is left as is.
+ *
+ * Declared at the same moment elsewhere (another instance): that
+ * declaration stored it, this one keeps it.
+ *
+ * Arms its triggers here and on every other instance.
+ */
 async function storeDeclared(
   id: string,
   content: DeclaredContent,
@@ -85,13 +96,10 @@ async function storeDeclared(
       updated_at: now,
     });
   } catch (error) {
-    // Declared at the same moment elsewhere (another instance): that
-    // declaration stored it, this one keeps it.
     if (!IsDuplicateKeyError(error)) throw error;
     const stored = await model.get(id);
     return { status: "kept", enabled: stored?.enabled ?? content.enabled };
   }
-  // Arms its triggers here and on every other instance.
   await subscriptions.onProcedureChange(id);
   notifyTopic(PROCEDURES_TOPIC, "created", { procedureId: id });
   return { status: "created", enabled: content.enabled };
@@ -104,7 +112,7 @@ async function storeDeclared(
  * (non-blocking) issues.
  */
 export async function declareProcedure(
-  input: unknown,
+  input: ProcedureDeclaration,
 ): Promise<DeclaredProcedure> {
   const parsed = declarationSchema.safeParse(input);
   if (!parsed.success) {

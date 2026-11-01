@@ -33,6 +33,7 @@ import type { ProcedureGraph } from "../types/graph";
 import type { RunLog } from "../types/runLog";
 import { refused } from "./requests";
 import { kpiAnswer } from "./stats";
+import { isObject } from "../types/guards";
 
 /** Time on each side of a run its usual duration is read over. */
 const USUAL_DURATION_WINDOW_MS = 7 * MS_PER_DAY;
@@ -48,6 +49,12 @@ interface RunRef {
   stepDurations: Record<string, number | null>;
 }
 
+/** The graph a run is read against, and whether it is not the one that ran. */
+interface RunGraph {
+  graph?: ProcedureGraph;
+  outdated: boolean;
+}
+
 /**
  * The graph a run executed, as far as it is known: the draft a test run
  * kept, else the procedure's graph, `outdated` when that one may not be the
@@ -57,7 +64,7 @@ interface RunRef {
 function graphOf(
   run: ProcedureRun,
   procedure: Procedure | undefined,
-): { graph?: ProcedureGraph; outdated: boolean } {
+): RunGraph {
   const snapshot = run.graphSnapshot
     ? parseGraphSafe(run.graphSnapshot)
     : undefined;
@@ -117,6 +124,8 @@ function neighbourOf(run: RunSummary | undefined) {
  * a row it ends, and how long a success takes around its date. A test is
  * compared with the tests, which run drafts, and a production run with the
  * production runs: a broken draft says nothing of the saved procedure.
+ *
+ * This failure and the ones since the last success.
  */
 export async function historyOf(
   run: ProcedureRun,
@@ -144,7 +153,6 @@ export async function historyOf(
   const lastSuccess = lastSuccessSummary
     ? await model.get(lastSuccessSummary._id)
     : undefined;
-  // This failure and the ones since the last success.
   const failuresInRow =
     run.status === "failed"
       ? 1 +
@@ -186,10 +194,11 @@ function shown(run: ProcedureRun): ProcedureRun {
  * value (see REDACTED).
  */
 function redactedNamesOf(payload: unknown): string[] {
-  if (!payload || typeof payload !== "object") return [];
-  const { headers, query } = payload as { headers?: unknown; query?: unknown };
+  if (!isObject(payload)) return [];
+  const headers = "headers" in payload ? payload.headers : undefined;
+  const query = "query" in payload ? payload.query : undefined;
   return [headers, query].flatMap((group) =>
-    group && typeof group === "object"
+    isObject(group)
       ? Object.entries(group)
           .filter(([, value]) => value === REDACTED)
           .map(([name]) => name)
@@ -319,19 +328,23 @@ export class RunsController extends Controller("/api/automation/runs") {
    * The banner of Run history opened on one procedure (`?procedure=<id>`,
    * the "View runs" links): whose runs the list shows, and the way back to
    * every run. No banner without a procedure.
+   *
+   * An empty `?procedure=` filters nothing, so the banner says nothing.
+   *
+   * A deleted procedure is still named by its runs.
+   *
+   * The KPIs read every run: their cards cannot take the page's filter.
    */
   @Get("/scope/banner")
   async scopeBanner(
     @AuthRawUser() _user: User,
     @Parameter("procedure", "query") procedureParam?: string,
   ): Promise<BannerContent> {
-    // An empty `?procedure=` filters nothing, so the banner says nothing.
     const procedureId = procedureParam?.trim();
     if (!procedureId) return {};
     const procedure = await GetModel(ProcedureModel, DATABASE_NAME).get(
       procedureId,
     );
-    // A deleted procedure is still named by its runs.
     const [run] = procedure
       ? []
       : await GetModel(ProcedureRunModel, DATABASE_NAME).listByProcedure(
@@ -344,7 +357,6 @@ export class RunsController extends Controller("/api/automation/runs") {
       title: name
         ? { key: "dms_automation.runs.scopedTo", params: { name } }
         : "$dms_automation.runs.scopedToMissing",
-      // The KPIs read every run: their cards cannot take the page's filter.
       description: "$dms_automation.runs.scopedKpis",
       tone: "info",
       size: "sm",
@@ -366,6 +378,11 @@ export class RunsController extends Controller("/api/automation/runs") {
    * `graphOutdated` when it is not that one), and the runs it is compared
    * with (the last success, the previous run). Its log is read from
    * `/:id/logs`.
+   *
+   * The stored run, as a plain object, without what is served elsewhere
+   * (the log) or only read here (the draft, the step names).
+   *
+   * A test ran a draft, not a saved version.
    */
   @Get("/:id")
   async getOne(
@@ -383,8 +400,6 @@ export class RunsController extends Controller("/api/automation/runs") {
       payload.kept ? payload.payload : null,
     );
     const history = await historyOf(run);
-    // The stored run, as a plain object, without what is served elsewhere
-    // (the log) or only read here (the draft, the step names).
     const {
       logs,
       graphSnapshot: _snapshot,
@@ -392,7 +407,6 @@ export class RunsController extends Controller("/api/automation/runs") {
       ...stored
     } = run;
     return Object.assign(stored, {
-      // A test ran a draft, not a saved version.
       procedureVersion: run.kind === "test" ? null : run.procedureVersion,
       logCount: logs?.entries.length ?? 0,
       logTruncated: logs?.truncated,
@@ -436,6 +450,8 @@ export class RunsController extends Controller("/api/automation/runs") {
    * saved procedure, or the draft a test ran), what differs from the first
    * time (a paused procedure, headers whose value was not kept), or why it
    * cannot be re-run.
+   *
+   * A test acts for real through these steps: named before it runs again.
    */
   @Get("/:id/rerun-confirm")
   async rerunConfirm(
@@ -467,7 +483,6 @@ export class RunsController extends Controller("/api/automation/runs") {
         label: "$dms_automation.runs.rerunRedacted",
       });
     }
-    // A test acts for real through these steps: named before it runs again.
     for (const step of plan.draft
       ? subscriptions.realEffectsOf(plan.draft)
       : []) {

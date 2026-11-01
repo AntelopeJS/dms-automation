@@ -43,7 +43,7 @@ const PERIOD_PRESETS: PeriodPreset[] = [
 export function isPeriodPreset(
   value: string | undefined,
 ): value is PeriodPreset {
-  return (PERIOD_PRESETS as readonly (string | undefined)[]).includes(value);
+  return PERIOD_PRESETS.some((preset) => preset === value);
 }
 
 /**
@@ -95,6 +95,11 @@ export function liveTopics(topics: string[]) {
  * the run history: the 24 h / 7 d / 30 d window of `scope`, with a menu of
  * what it is compared with ("vs …") beside the presets. The two pages remember one choice:
  * the period follows the user from one to the other.
+ *
+ * What the default retention reaches; the transform below offers what
+ * the configured one does, read when the page registers: the page
+ * classes are built when the module loads, before `construct()` reads
+ * `runs.retentionDays`.
  */
 export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
   return {
@@ -102,10 +107,6 @@ export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
     rememberKey: "automation",
     presets: PERIOD_PRESETS,
     defaultComparison: "previous-period",
-    // What the default retention reaches; the transform below offers what
-    // the configured one does, read when the page registers: the page
-    // classes are built when the module loads, before `construct()` reads
-    // `runs.retentionDays`.
     comparisons: offeredComparisons(DEFAULT_RETENTION_DAYS),
     transformOptions: (options) =>
       options && { ...options, comparisons: offeredComparisons() },
@@ -152,6 +153,9 @@ const KPIS = [
  * The four run KPIs of a page over the period of `scope`, read from
  * `<fetchUrl>/<metric>`: the same row, in the same order, on the overview and
  * the run history. Duration p95 is in milliseconds, like the run lists.
+ *
+ * 260px keeps four cards on one line on a wide screen and two by two at
+ * 1024px, where a 3 + 1 split left a card alone and cut the titles.
  */
 export function kpiRow(
   scope: string,
@@ -174,14 +178,11 @@ export function kpiRow(
         showSparkline: sparkline,
         sparklineAccent: "auto",
         invert,
-        // Worded for any comparison the period offers: the toolbar names it.
         compareLabel: "$dms_automation.kpi.vsCompared",
         valueFormat: metric === "success-rate" ? "percent" : "number",
       }),
     );
   }
-  // 260px keeps four cards on one line on a wide screen and two by two at
-  // 1024px, where a 3 + 1 split left a card alone and cut the titles.
   return Grid({ gap: "1rem", minColumnWidth: "260px" }).child("row", row);
 }
 
@@ -223,7 +224,6 @@ function newProcedureForm(trigger: Starter = "webhook") {
         label: "$dms_automation.newProcedure.name",
         type: new DefaultDataTypes.StringType({
           placeholder: "$dms_automation.newProcedure.namePlaceholder",
-          // The limit the procedure routes enforce.
           maxLength: 200,
         }),
         required: true,
@@ -307,8 +307,6 @@ function importProcedureForm() {
         id: "json",
         label: "$dms_automation.importProcedure.json",
         description: "$dms_automation.importProcedure.jsonHint",
-        // A code editor: monospace, and JSON that does not parse is refused
-        // before it is sent.
         type: new CodeType({ language: "json", minLines: 12, maxLines: 20 }),
         required: true,
       },

@@ -6,7 +6,9 @@ import {
   type ValidateResult,
   validateGraph,
 } from "../runtime/validate";
+import type { DataValue } from "../types/dataValue";
 import type { GraphNode, GroupPort, ProcedureGraph } from "../types/graph";
+import { isObject } from "../types/guards";
 
 /**
  * Shared Zod schemas for ProcedureGraph and its constituents. Imported by
@@ -25,11 +27,13 @@ export const groupPortSchema: z.ZodType<GroupPort> = z.object({
   schema: z.record(z.unknown()).optional(),
 });
 
+/**
+ * `to.branch` carries the target's trigger-in port name when the
+ * target is a group node or groupOutput sentinel. Optional otherwise.
+ */
 const triggerEdgeSchema = z.object({
   id: z.string(),
   from: z.object({ node: z.string(), branch: z.string().optional() }),
-  // `to.branch` carries the target's trigger-in port name when the
-  // target is a group node or groupOutput sentinel. Optional otherwise.
   to: z.object({ node: z.string(), branch: z.string().optional() }),
 });
 
@@ -49,21 +53,22 @@ function groupDepthOf(value: unknown, max: number): number {
   const pending: { graph: unknown; depth: number }[] = [
     { graph: value, depth: 0 },
   ];
-  while (pending.length > 0) {
-    const { graph, depth } = pending.pop() as (typeof pending)[number];
+  for (let item = pending.pop(); item; item = pending.pop()) {
+    const { graph, depth } = item;
     deepest = Math.max(deepest, depth);
     if (deepest > max) return deepest;
-    const nodes = (graph as { nodes?: unknown } | null)?.nodes;
+    const nodes = isObject(graph) && "nodes" in graph ? graph.nodes : undefined;
     if (!Array.isArray(nodes)) continue;
     for (const node of nodes) {
-      const subgraph = (node as { subgraph?: unknown } | null)?.subgraph;
+      const subgraph =
+        isObject(node) && "subgraph" in node ? node.subgraph : undefined;
       if (subgraph) pending.push({ graph: subgraph, depth: depth + 1 });
     }
   }
   return deepest;
 }
 
-const graphShapeSchema: z.ZodType<ProcedureGraph> = z.lazy(() =>
+const graphBodySchema: z.ZodType<ProcedureGraph> = z.lazy(() =>
   z.object({
     nodes: z.array(graphNodeSchema),
     triggerEdges: z.array(triggerEdgeSchema),
@@ -80,8 +85,13 @@ export const procedureGraphSchema: z.ZodType<
   .refine((graph) => groupDepthOf(graph, MAX_GROUP_DEPTH) <= MAX_GROUP_DEPTH, {
     message: `groups are nested more than ${MAX_GROUP_DEPTH} levels deep`,
   })
-  .pipe(graphShapeSchema);
+  .pipe(graphBodySchema);
 
+/**
+ * group-specific fields — accepted but only meaningful when kind === "group"
+ *
+ * Allow other transient fields (e.g. UI metadata) without rejecting.
+ */
 const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
   z
     .object({
@@ -90,12 +100,10 @@ const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
       typeId: z.string().optional(),
       config: z.record(z.unknown()),
       position: z.object({ x: z.number(), y: z.number() }),
-      // group-specific fields — accepted but only meaningful when kind === "group"
       templateId: z.string().optional(),
       ports: z.array(z.lazy(() => groupPortSchema)).optional(),
-      subgraph: graphShapeSchema.optional(),
+      subgraph: graphBodySchema.optional(),
     })
-    // Allow other transient fields (e.g. UI metadata) without rejecting.
     .passthrough(),
 ) as z.ZodType<GraphNode>;
 
@@ -107,7 +115,7 @@ const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
  */
 export function parseAndValidate<T>(
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
-  body: unknown,
+  body: DataValue,
   graphSelector: (data: T) => ProcedureGraph,
 ): T {
   const parsed = schema.safeParse(body);

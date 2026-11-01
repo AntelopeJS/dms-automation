@@ -1,10 +1,13 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
+import { isPropertyBag } from "../types/guards";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
-// Side-effect import: every `nodes/<kind>.ts` registers itself on load,
-// so anything consuming the registry (the `/api/automation/node-kinds`
-// route, the validator, executors) sees the built-ins immediately —
-// not only after the first run.
+/**
+ * Side-effect import: every `nodes/<kind>.ts` registers itself on load,
+ * so anything consuming the registry (the `/api/automation/node-kinds`
+ * route, the validator, executors) sees the built-ins immediately —
+ * not only after the first run.
+ */
 import "./builtins";
 import { redactHeaders } from "./boundRunLog";
 import { labelOf } from "./describe";
@@ -12,8 +15,14 @@ import type { ExecutionResult } from "./executionResult";
 import { flattenGroups } from "./flatten";
 import { type NodeCtx, nodeKinds } from "./nodeKinds";
 import { registry } from "./registry";
-import { DataCache, resolveInputs, schemaDefaults } from "./resolveInputs";
+import {
+  DataCache,
+  type DataNodeEvaluator,
+  resolveInputs,
+  schemaDefaults,
+} from "./resolveInputs";
 import type { TemplateCache } from "./resolveSubgraph";
+import { propertiesOf } from "./schemaProperties";
 import { SubWalk } from "./subwalk";
 import { validateGraph } from "./validate";
 
@@ -89,12 +98,14 @@ type AppendedEntry = Pick<
   "source" | "level" | "message" | "value"
 > & { node?: { id: string; kind: string } };
 
+/**
+ * `value` is set rather than spread: an entry without one has no `value`
+ * key at all, which is what the wire format and its readers expect.
+ */
 function appendEntry(
   runCtx: RunCtx,
   { source, level, message, node, value }: AppendedEntry,
 ): void {
-  // `value` is set rather than spread: an entry without one has no `value`
-  // key at all, which is what the wire format and its readers expect.
   const entry: LogEntry = {
     fireId: runCtx.currentFireId,
     ts: nowOffset(runCtx.runStart),
@@ -109,16 +120,19 @@ function appendEntry(
   runCtx.entries.push(entry);
 }
 
-function describeValue(v: unknown): { type: string; value: unknown } {
+interface DescribedValue {
+  type: string;
+  value: unknown;
+}
+
+function describeValue(v: unknown): DescribedValue {
   if (v === null) return { type: "null", value: null };
   if (Array.isArray(v)) return { type: "array", value: v };
   return { type: typeof v, value: v };
 }
 
-function describeRecord(
-  obj: Record<string, unknown>,
-): Record<string, { type: string; value: unknown }> {
-  const out: Record<string, { type: string; value: unknown }> = {};
+function describeRecord(obj: Record<string, unknown>) {
+  const out: Record<string, DescribedValue> = {};
   for (const [k, v] of Object.entries(obj)) out[k] = describeValue(v);
   return out;
 }
@@ -127,6 +141,19 @@ function describeRecord(
  * Execute a ProcedureGraph starting from `triggerNodeId`. The executor
  * looks actions up from the kind registry; no per-run hook or registry
  * handle is needed from the caller.
+ *
+ * No caller supplies an external abort signal today; keep a never-aborting
+ * signal so the node-execution contract (NodeCtx.signal) and the executor's
+ * cancellation guards stay in place for future cancellable runs.
+ *
+ * Open a synthetic "run" fire so the initial "run started" entry has
+ * somewhere to attach. The fire's source is the trigger seed; port is
+ * null (no port discrimination at bootstrap).
+ *
+ * Flatten away all group nodes so the executor never has to special-case
+ * them. After this point the graph is a flat ProcedureGraph with no
+ * `group` / `groupInput` / `groupOutput` nodes; inner-node ids carry a
+ * `<groupId>__` prefix per nesting level.
  */
 export async function run(
   graph: ProcedureGraph,
@@ -137,9 +164,6 @@ export async function run(
   const procedureId = options.procedureId ?? "unknown";
   const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const runStart = Date.now();
-  // No caller supplies an external abort signal today; keep a never-aborting
-  // signal so the node-execution contract (NodeCtx.signal) and the executor's
-  // cancellation guards stay in place for future cancellable runs.
   const signal = new AbortController().signal;
 
   const cache = new DataCache();
@@ -152,16 +176,12 @@ export async function run(
     entries: [],
     fireSeq: { n: 0 },
     eventSeq: { n: 0 },
-    // Placeholder; replaced as soon as the top-level fire opens below.
     currentFireId: "",
     cache,
     signal,
     failedAt: new Map(),
   };
 
-  // Open a synthetic "run" fire so the initial "run started" entry has
-  // somewhere to attach. The fire's source is the trigger seed; port is
-  // null (no port discrimination at bootstrap).
   const rootFire = openFire(runCtx, {
     parentFireId: null,
     sourceNodeId: triggerNodeId,
@@ -186,10 +206,6 @@ export async function run(
     return emptyFailure(errorMessage, runCtx);
   }
 
-  // Flatten away all group nodes so the executor never has to special-case
-  // them. After this point the graph is a flat ProcedureGraph with no
-  // `group` / `groupInput` / `groupOutput` nodes; inner-node ids carry a
-  // `<groupId>__` prefix per nesting level.
   let flatGraph: ProcedureGraph;
   try {
     flatGraph = flattenGroups(graph, options.templateCache);
@@ -249,13 +265,16 @@ function emptyFailure(errorMessage: string, runCtx: RunCtx): ExecutionResult {
  *
  * The caller is responsible for opening/closing the enclosing fire and
  * setting `runCtx.currentFireId` before calling this function.
+ *
+ * Inside the try: a data node that fails while the inputs are read (a
+ * cycle, an unknown type, a bad value) fails this step, not the run alone.
  */
 async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
   const graph = subwalk.graph;
   const order = subwalk.topoOrder();
   const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
   const evalDataNode = makeDataNodeEvaluator(graph, nodeById, runCtx);
-  const resolveNodeInputs = (n: GraphNode): Record<string, unknown> =>
+  const resolveNodeInputs = (n: GraphNode) =>
     resolveInputs(
       n,
       graph.dataEdges,
@@ -285,23 +304,13 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
     });
 
     const nodeStart = Date.now();
-    // Inside the try: a data node that fails while the inputs are read (a
-    // cycle, an unknown type, a bad value) fails this step, not the run alone.
-    let inputs: Record<string, unknown> = {};
+    let inputs: ReturnType<typeof resolveNodeInputs> = {};
     try {
       inputs = resolveNodeInputs(node);
       const entry = nodeKinds.get(node.kind);
       if (!entry) {
         throw new Error(`unsupported node kind "${node.kind}"`);
       }
-      // Per-execute continuation state. After execute returns, the outer
-      // walk applies it to branchDecisions:
-      //   - explicit ports  → just those ports propagate (others dead)
-      //   - default         → metadata's continuationPorts minus any
-      //                       port the execute already claimed via
-      //                       fireTrigger. Side ports stay dead even if
-      //                       never fired (e.g. empty foreach must not
-      //                       propagate `body`).
       const contState: ContinuationState = { explicit: [] };
       const ctx = makeNodeCtx(
         node,
@@ -335,6 +344,7 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
       });
       throw err;
     }
+    const output = runCtx.cache.getOutput(nodeId);
     appendEntry(runCtx, {
       source: "exec",
       level: "info",
@@ -344,7 +354,9 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
         durationMs: Date.now() - nodeStart,
         inputs: describeRecord(redacted(inputs, typeOf(node)?.inputSchema)),
         output: describeValue(
-          redacted(runCtx.cache.getOutput(nodeId), typeOf(node)?.outputSchema),
+          isPropertyBag(output) && !Array.isArray(output)
+            ? redacted(output, typeOf(node)?.outputSchema)
+            : output,
         ),
       },
     });
@@ -357,13 +369,13 @@ async function runSubWalk(subwalk: SubWalk, runCtx: RunCtx): Promise<void> {
  * cause is usually upstream (a division by zero, a field not found), not in
  * the node that fails on the empty value.
  */
-function withEmptySources(
-  err: unknown,
+function withEmptySources<E>(
+  err: E,
   node: GraphNode,
-  inputs: Record<string, unknown>,
+  inputs: ReturnType<typeof resolveInputs>,
   graph: ProcedureGraph,
   nodeById: Map<string, GraphNode>,
-): unknown {
+): E | Error {
   if (!(err instanceof Error)) return err;
   const sources = graph.dataEdges
     .filter((e) => e.to.node === node.id)
@@ -396,7 +408,7 @@ function typeOf(node: GraphNode):
 }
 
 /** The defaults the node's type declares, applied under its config. */
-function inputDefaults(node: GraphNode): Record<string, unknown> {
+function inputDefaults(node: GraphNode) {
   const type = typeOf(node);
   return {
     ...schemaDefaults(type?.inputSchema),
@@ -409,20 +421,27 @@ function inputDefaults(node: GraphNode): Record<string, unknown> {
  * `"x-redact": "headers"` (HTTP header maps) have their credentials masked.
  * Only the log is masked; the node ran with the real values.
  */
-function redacted<T>(values: T, schema: JsonSchema | undefined): T {
-  if (!values || typeof values !== "object" || Array.isArray(values)) {
-    return values;
-  }
-  const properties = (schema?.properties ?? {}) as Record<string, JsonSchema>;
-  const out = { ...values } as Record<string, unknown>;
+function redacted(
+  values: Record<string, unknown>,
+  schema: JsonSchema | undefined,
+) {
+  const properties = propertiesOf(schema);
+  const out = { ...values };
   for (const [name, prop] of Object.entries(properties)) {
-    if (prop["x-redact"] === "headers" && name in out) {
+    if (prop["x-redact"] === "headers" && Object.hasOwn(out, name)) {
       out[name] = redactHeaders(out[name]);
     }
   }
-  return out as T;
+  return out;
 }
 
+/**
+ * Per-execute continuation state. After execute returns, the outer walk
+ * applies it to branchDecisions: explicit ports propagate alone (the others
+ * are dead); by default the metadata's continuationPorts propagate, minus any
+ * port the execute already claimed via fireTrigger. Side ports stay dead even
+ * if never fired (an empty foreach must not propagate `body`).
+ */
 interface ContinuationState {
   explicit: string[];
 }
@@ -431,7 +450,7 @@ function makeNodeCtx(
   node: GraphNode,
   subwalk: SubWalk,
   runCtx: RunCtx,
-  resolveNodeInputs: (n: GraphNode) => Record<string, unknown>,
+  resolveNodeInputs: (n: GraphNode) => ReturnType<NodeCtx["resolveInputs"]>,
   contState: ContinuationState,
 ): NodeCtx {
   return {
@@ -503,19 +522,18 @@ function makeDataNodeEvaluator(
   graph: ProcedureGraph,
   nodeById: Map<string, GraphNode>,
   runCtx: RunCtx,
-): (id: string) => Record<string, unknown> | undefined {
+): DataNodeEvaluator {
   const evalStack = new Set<string>();
 
-  const evaluator = (nodeId: string): Record<string, unknown> | undefined => {
+  const evaluator: DataNodeEvaluator = (nodeId) => {
     const cached = runCtx.cache.getCachedData(nodeId);
     if (cached !== undefined) return cached;
 
     const dn = nodeById.get(nodeId);
     if (!dn) return undefined;
     if (dn.kind !== "data") {
-      return runCtx.cache.getOutput(nodeId) as
-        | Record<string, unknown>
-        | undefined;
+      const output = runCtx.cache.getOutput(nodeId);
+      return isPropertyBag(output) ? output : undefined;
     }
 
     if (evalStack.has(nodeId)) {

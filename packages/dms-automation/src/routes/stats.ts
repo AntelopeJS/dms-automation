@@ -146,17 +146,18 @@ export async function kpiAnswer(metric: string, query: PresetQuery) {
   return kpiPayload(metric, ctx.runs, window);
 }
 
-// Every figure counts production runs only: test runs from the builder never
-// move a KPI or a procedure's state.
+/**
+ * Every figure counts production runs only: test runs from the builder never
+ * move a KPI or a procedure's state.
+ */
 @AuthOwnerOnly()
 export class StatsController extends Controller("/api/automation/stats") {
+  /** The period scope sends its preset too: the run history opens on it. */
   @Get("/health")
-  // oxlint-disable-next-line eslint/max-params -- one decorator per query input
   async health(
     @AuthRawUser() _user: User,
     @Parameter("from", "query") from?: string,
     @Parameter("to", "query") to?: string,
-    // The period scope sends its preset too: the run history opens on it.
     @Parameter("preset", "query") preset?: string,
   ) {
     const window = periodWindow({ from, to, preset });
@@ -194,6 +195,7 @@ export class StatsController extends Controller("/api/automation/stats") {
     });
   }
 
+  /** Compared as the KPIs are: the window the scope resolved, kept runs only. */
   @Get("/runs-per-day")
   // oxlint-disable-next-line eslint/max-params -- one decorator per query input
   async runsPerDay(
@@ -205,7 +207,6 @@ export class StatsController extends Controller("/api/automation/stats") {
     @Parameter("preset", "query") preset?: string,
     @Parameter("comparison", "query") comparison?: string,
   ) {
-    // Compared as the KPIs are: the window the scope resolved, kept runs only.
     const window = await withKeptComparison(
       periodWindow({ from, to, compareFrom, compareTo, preset, comparison }),
     );
@@ -214,7 +215,6 @@ export class StatsController extends Controller("/api/automation/stats") {
 
   /** Failing and paused whatever the period; degraded over the period. */
   @Get("/attention")
-  // oxlint-disable-next-line eslint/max-params -- one decorator per query input
   async attention(
     @AuthRawUser() _user: User,
     @Parameter("from", "query") from?: string,

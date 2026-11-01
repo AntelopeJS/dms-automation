@@ -9,14 +9,18 @@ const {
   vue,
 } = require("./server-render.cjs");
 
-// What a server render of each page reads from the backend, and that it
-// hands the browser every response it read: a read the page does not hand
-// over is made again by the browser, after a server request for nothing.
-// The pages render on the renderer's real data layer and the DMS's real
-// `useApiData`, as installed by frontend-vue.
+/**
+ * What a server render of each page reads from the backend, and that it
+ * hands the browser every response it read: a read the page does not hand
+ * over is made again by the browser, after a server request for nothing.
+ * The pages render on the renderer's real data layer and the DMS's real
+ * `useApiData`, as installed by frontend-vue.
+ */
 
-// What the builder hands over under keys of its own: the procedure list,
-// read in pages, and the templates its palette places.
+/**
+ * What the builder hands over under keys of its own: the procedure list,
+ * read in pages, and the templates its palette places.
+ */
 const keyed = {
   "dms-automation-builder-procedures": (read) =>
     read.url.startsWith(`${API}/procedures?`),
@@ -44,17 +48,14 @@ describe("builder", () => {
       "GET /trigger-types",
     ]);
     assert.deepEqual(render.untransferred, []);
-    // The palette keeps the fields placing a template needs, not its graph.
     assert.doesNotMatch(
       JSON.stringify(render.payload.data["dms-automation-palette-templates"]),
       /subgraph/,
     );
-    // The paused banner names the saved schedule.
     assert.match(render.html, /every day at 03:00/);
   });
 
   test("leaves the draft check and the test payload to the browser", async () => {
-    // Past the draft check's delay (500 ms): no timer of the render sends it.
     const render = await builder(
       "/modules/automation/builder?selected=p-cron",
       700,

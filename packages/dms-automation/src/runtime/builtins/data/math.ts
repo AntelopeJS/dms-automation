@@ -1,4 +1,5 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
+import { isBoolean, isNumber, isString } from "../../../types/guards";
 
 const numA = { type: "number", default: 0 };
 const numB = { type: "number", default: 0 };
@@ -11,9 +12,9 @@ const resultNum = { type: "number" };
  */
 function operand(id: string, port: string, value: unknown): number {
   const n =
-    typeof value === "string" && value.trim() !== ""
+    isString(value) && value.trim() !== ""
       ? Number(value)
-      : typeof value === "number" || typeof value === "boolean"
+      : isNumber(value) || isBoolean(value)
         ? Number(value)
         : Number.NaN;
   if (Number.isNaN(n)) {
@@ -51,8 +52,7 @@ function binary(
     icon,
     inputSchema: { type: "object", properties: { a: numA, b: numB } },
     outputSchema: { type: "object", properties: { result: resultNum } },
-    evaluate: (input) => {
-      const i = input as { a: unknown; b: unknown };
+    evaluate: (i: { a: unknown; b: unknown }) => {
       const a = operand(id, "a", i.a);
       const b = operand(id, "b", i.b);
       return { result: finite(id, fn(a, b), `a = ${a}, b = ${b}`) };
@@ -73,19 +73,21 @@ function unary(
     icon,
     inputSchema: { type: "object", properties: { a: numA } },
     outputSchema: { type: "object", properties: { result: resultNum } },
-    evaluate: (input) => {
-      const a = operand(id, "a", (input as { a: unknown }).a);
+    evaluate: (input: { a: unknown }) => {
+      const a = operand(id, "a", input.a);
       return { result: finite(id, fn(a), `a = ${a}`) };
     },
   };
 }
 
+/**
+ * Division by zero is an expected case (an empty list's average), not an
+ * error: it gives null, which the next step can test.
+ */
 export const mathNodes: DataNodeType[] = [
   binary("math.add", "i-ph-plus", (a, b) => a + b),
   binary("math.subtract", "i-ph-minus", (a, b) => a - b),
   binary("math.multiply", "i-ph-x", (a, b) => a * b),
-  // Division by zero is an expected case (an empty list's average), not an
-  // error: it gives null, which the next step can test.
   binary("math.divide", "i-ph-divide", (a, b) => (b === 0 ? null : a / b)),
   binary("math.modulo", "i-ph-percent", (a, b) => (b === 0 ? null : a % b)),
   binary("math.power", "i-ph-arrow-up-right", Math.pow),

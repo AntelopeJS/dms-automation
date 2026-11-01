@@ -1,6 +1,6 @@
 ---
 name: dms-automation
-description: Uses the @antelopejs/dms-automation module of the AntelopeJS DMS (procedures as node graphs started by schedules, webhooks, manual runs or DMS events, with run history and traces under /modules/automation). Use when installing or configuring dms-automation (runs.retentionDays, runs.sensitiveNames, httpRequest.blockPrivateNetwork, cluster.driver), creating, importing or shipping a procedure as code, debugging a failing run, or choosing a trigger (table watch needs a MongoDB replica set). To declare new nodes from a module, use dms-automation-interface instead.
+description: Operates the installed @antelopejs/dms-automation module of the AntelopeJS DMS (procedures as node graphs started by schedules, webhooks, manual runs or DMS events, with run history and traces under /modules/automation). Use when installing or configuring dms-automation (runs.retentionDays, runs.sensitiveNames, httpRequest.blockPrivateNetwork, cluster.driver), creating, importing or shipping a procedure as code, debugging a failing run, or choosing a trigger (table watch needs a MongoDB replica set). To declare new nodes from a module, use dms-automation-interface instead.
 icon: i-lucide-workflow
 category: automation
 tags: [automation, procedures, workflows, triggers, webhooks, cron]

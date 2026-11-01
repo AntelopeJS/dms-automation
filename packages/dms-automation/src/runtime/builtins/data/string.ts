@@ -1,13 +1,4 @@
-// `String(value)` is the contract these nodes were built against, not an
-// oversight: a stored procedure that wires string.split into string.concat has
-// always seen "a,b,c", and a graph that routes on switch.value has always seen
-// "[object Object]" for a structured input. Replacing it with a JSON form was
-// tried and reverted -- it changed the output of arrays (never "[object
-// Object]" to begin with), rendered a Date quoted, collapsed Error, Map and
-// RegExp to "{}", and could throw on a cycle inside a workflow run, where
-// String() could not. Changing it needs a migration and tests, and this
-// repository has neither.
-/* oxlint-disable typescript/no-base-to-string */
+/* oxlint-disable typescript/no-base-to-string -- String(value) is the contract these nodes were built against; a JSON form changes the output of arrays, dates, errors and cycles. */
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
 
 const strProp = { type: "string", default: "" };
@@ -47,8 +38,7 @@ export const stringNodes: DataNodeType[] = [
     icon: "i-ph-text-aa",
     inputSchema: { type: "object", properties: { a: strProp, b: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
-    evaluate: (i) => {
-      const { a, b } = i as { a: unknown; b: unknown };
+    evaluate: ({ a, b }: { a: unknown; b: unknown }) => {
       return { result: String(a ?? "") + String(b ?? "") };
     },
   },
@@ -60,8 +50,8 @@ export const stringNodes: DataNodeType[] = [
     icon: "i-ph-ruler",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultNum } },
-    evaluate: (i) => ({
-      result: characters(String((i as { s: unknown }).s ?? "")).length,
+    evaluate: ({ s }: { s: unknown }) => ({
+      result: characters(String(s ?? "")).length,
     }),
   },
   {
@@ -75,12 +65,15 @@ export const stringNodes: DataNodeType[] = [
       properties: { s: strProp, start: numProp, end: { type: "number" } },
     },
     outputSchema: { type: "object", properties: { result: resultStr } },
-    evaluate: (i) => {
-      const { s, start, end } = i as {
-        s: unknown;
-        start: number;
-        end?: number | null;
-      };
+    evaluate: ({
+      s,
+      start,
+      end,
+    }: {
+      s: unknown;
+      start: unknown;
+      end?: unknown;
+    }) => {
       return {
         result: slice(
           String(s ?? ""),
@@ -98,8 +91,8 @@ export const stringNodes: DataNodeType[] = [
     icon: "i-ph-text-aa",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
-    evaluate: (i) => ({
-      result: String((i as { s: unknown }).s ?? "").toLowerCase(),
+    evaluate: ({ s }: { s: unknown }) => ({
+      result: String(s ?? "").toLowerCase(),
     }),
   },
   {
@@ -110,8 +103,8 @@ export const stringNodes: DataNodeType[] = [
     icon: "i-ph-text-aa",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
-    evaluate: (i) => ({
-      result: String((i as { s: unknown }).s ?? "").toUpperCase(),
+    evaluate: ({ s }: { s: unknown }) => ({
+      result: String(s ?? "").toUpperCase(),
     }),
   },
   {
@@ -122,8 +115,8 @@ export const stringNodes: DataNodeType[] = [
     icon: "i-ph-broom",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
-    evaluate: (i) => ({
-      result: String((i as { s: unknown }).s ?? "").trim(),
+    evaluate: ({ s }: { s: unknown }) => ({
+      result: String(s ?? "").trim(),
     }),
   },
   {
@@ -137,8 +130,7 @@ export const stringNodes: DataNodeType[] = [
       properties: { s: strProp, separator: { type: "string", default: "," } },
     },
     outputSchema: { type: "object", properties: { result: resultArr } },
-    evaluate: (i) => {
-      const { s, separator } = i as { s: unknown; separator: string };
+    evaluate: ({ s, separator }: { s: unknown; separator: unknown }) => {
       return { result: String(s ?? "").split(String(separator ?? ",")) };
     },
   },
@@ -153,12 +145,15 @@ export const stringNodes: DataNodeType[] = [
       properties: { s: strProp, search: strProp, replacement: strProp },
     },
     outputSchema: { type: "object", properties: { result: resultStr } },
-    evaluate: (i) => {
-      const { s, search, replacement } = i as {
-        s: unknown;
-        search: string;
-        replacement: string;
-      };
+    evaluate: ({
+      s,
+      search,
+      replacement,
+    }: {
+      s: unknown;
+      search: unknown;
+      replacement: unknown;
+    }) => {
       return {
         result: String(s ?? "")
           .split(String(search ?? ""))
@@ -177,8 +172,7 @@ export const stringNodes: DataNodeType[] = [
       properties: { s: strProp, search: strProp },
     },
     outputSchema: { type: "object", properties: { result: resultBool } },
-    evaluate: (i) => {
-      const { s, search } = i as { s: unknown; search: string };
+    evaluate: ({ s, search }: { s: unknown; search: unknown }) => {
       return { result: String(s ?? "").includes(String(search ?? "")) };
     },
   },

@@ -1,14 +1,9 @@
 import type { ActionType } from "@antelopejs/interface-dms-automation";
-import type { GraphNode } from "../../../types/graph";
-import { type NodeCtx, nodeKinds } from "../../nodeKinds";
+import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 import { registry } from "../../registry";
 import { isActionTypeDisabled } from "../../typeSwitches";
 
-async function execute(
-  node: GraphNode,
-  inputs: Record<string, unknown>,
-  ctx: NodeCtx,
-): Promise<void> {
+const execute: NodeExecute = async (node, inputs, ctx) => {
   const typeId = node.typeId;
   if (!typeId) {
     throw new Error(`action node "${node.id}" is missing typeId`);
@@ -28,6 +23,13 @@ async function execute(
     ? actionType.dryRun(inputs, ctx)
     : actionType.execute(inputs, ctx))) as Record<string, unknown> | undefined;
   ctx.setOutputs(output ?? {});
+};
+
+/** An action that declares a `dryRun` function: a plugin may leave it out or set something else. */
+function canSimulate(
+  type: ActionType,
+): type is ActionType & { dryRun: NonNullable<ActionType["dryRun"]> } {
+  return typeof type.dryRun === "function";
 }
 
 /**
@@ -35,7 +37,7 @@ async function execute(
  * outside the run and says how to pretend (see `ActionType.dryRun`).
  */
 function simulates(type: ActionType): boolean {
-  return type.sideEffects !== false && typeof type.dryRun === "function";
+  return type.sideEffects !== false && canSimulate(type);
 }
 
 /** Whether a test run would really act through it: neither pure nor simulated. */

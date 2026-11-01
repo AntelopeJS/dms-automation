@@ -2,11 +2,6 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
-// Test run from the builder: a draft with steps that act for real is refused
-// until the user confirmed them, so the warning comes before the run.
-
-// GetModel builds its models on a registered schema: hand it a bare one, the
-// data access is replaced below.
 Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
 
 const { ProcedureModel } = require("../dist/db/models/procedure.model.js");
@@ -16,6 +11,7 @@ const {
 const { builtinActions, builtinTriggers } = require("../dist/runtime/builtins");
 const { registry } = require("../dist/runtime/registry.js");
 const { ProceduresController } = require("../dist/routes/procedures.js");
+const { isString } = require("../dist/types/guards.js");
 
 for (const t of builtinTriggers) registry.addTrigger(t.id, t);
 for (const a of builtinActions) registry.addAction(a.id, a);
@@ -84,8 +80,7 @@ test("a test with real effects is refused until they are confirmed", async () =>
     controller.test(undefined, "p1", { graph: draft, payload: {} }),
     (err) => {
       assert.equal(err.status, 409);
-      const body =
-        typeof err.body === "string" ? JSON.parse(err.body) : err.body;
+      const body = isString(err.body) ? JSON.parse(err.body) : err.body;
       assert.equal(body.realEffects[0].nodeId, "send");
       return true;
     },

@@ -1,6 +1,5 @@
 import { setImmediate as nextTick } from "node:timers/promises";
-import type { GraphNode } from "../../../types/graph";
-import { type NodeCtx, nodeKinds } from "../../nodeKinds";
+import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
 /**
  * The most iterations a loop runs. Every iteration is logged and the run is
@@ -12,11 +11,16 @@ export const MAX_FOR_RANGE_ITERATIONS = 10_000;
 /** Iterations run between two yields to the event loop. */
 const ITERATIONS_PER_YIELD = 50;
 
-async function execute(
-  _node: GraphNode,
-  inputs: Record<string, unknown>,
-  ctx: NodeCtx,
-): Promise<void> {
+/**
+ * Runs the loop body once per value. A range over the iteration limit is
+ * refused before the first iteration, rather than after the limit's worth of
+ * them. A long loop of fast steps would otherwise hold the server, so the
+ * loop lets the other requests through now and then. `main` auto-propagates
+ * after execute returns. `start`, `end` and `step` are data-ins that execute
+ * defaults to 0, 0 and 1 itself, so the kind needs no configSchema and no
+ * defaultConfig.
+ */
+const execute: NodeExecute = async (_node, inputs, ctx) => {
   const start = Number(inputs.start ?? 0);
   const end = Number(inputs.end ?? 0);
   const step = Number(inputs.step ?? 1);
@@ -36,7 +40,6 @@ async function execute(
     throw new Error("forRange: step must be non-zero");
   }
 
-  // Refused before the first iteration, rather than after the limit's worth.
   const iterations = Math.max(0, Math.ceil((end - start) / step));
   if (iterations > MAX_FOR_RANGE_ITERATIONS) {
     throw new Error(
@@ -52,12 +55,9 @@ async function execute(
     await ctx.fireTrigger("body", { iteration: i });
     value += step;
     i += 1;
-    // A long loop of fast steps would otherwise hold the server: let the
-    // other requests through now and then.
     if (i % ITERATIONS_PER_YIELD === 0) await nextTick();
   }
-  // `main` auto-propagates after execute returns.
-}
+};
 
 nodeKinds.register("forRange", execute, {
   continuationPorts: ["main"],
@@ -78,7 +78,5 @@ nodeKinds.register("forRange", execute, {
       { name: "value", type: "number" },
       { name: "index", type: "number" },
     ],
-    // start/end/step are data-ins; execute defaults missing ones to
-    // 0/0/1 itself, so no configSchema and no defaultConfig needed.
   },
 });

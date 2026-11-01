@@ -22,13 +22,6 @@ export class TriggerArmError extends Error {
   }
 }
 
-/** What an activation failure says, whatever threw it. */
-export function armErrorFrom(err: unknown): ArmError {
-  if (err instanceof TriggerArmError) return err.problem;
-  const error = err instanceof Error ? err.message : String(err);
-  return { code: "armFailed", params: { error }, message: error };
-}
-
 /** The arm errors stored on a procedure, by trigger node id. */
 function readArmErrors(procedure: Procedure): Record<string, ArmError> {
   if (!procedure.armErrors) return {};

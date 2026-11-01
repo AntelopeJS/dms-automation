@@ -2,13 +2,6 @@ const assert = require("node:assert/strict");
 const { beforeEach, test } = require("node:test");
 const { DuplicateKeyError, Schema } = require("@antelopejs/interface-database");
 
-// DeclareProcedure against in-memory tables: a procedure shipped as code is
-// created once under its declared id, never touched afterwards, and
-// validated as an import (and as enabling it in the builder when it is
-// enabled).
-
-// GetModel builds its models on a registered schema: hand it a bare one, the
-// data access is replaced below.
 Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
 
 const {
@@ -102,13 +95,11 @@ test("a first declaration stores the procedure under its id, enabled and armed",
   assert.deepEqual(JSON.parse(stored.graph).nodes[1].config, {
     message: "hello",
   });
-  // The reconcile hook arms it now, not at the next restart.
   assert.deepEqual(changed, ["shop.welcome"]);
 });
 
 test("a later declaration leaves the stored procedure as it is", async () => {
   await declareProcedure(declaration());
-  // An edit from the builder, then a declaration that changed upstream.
   const row = procedures.get("shop.welcome");
   procedures.set("shop.welcome", {
     ...row,
@@ -132,7 +123,6 @@ test("a later declaration leaves the stored procedure as it is", async () => {
 });
 
 test("two declarations at the same moment: one creates, the other keeps", async () => {
-  // Both read before either writes, as two instances starting together do.
   let release;
   const bothRead = new Promise((resolve) => (release = resolve));
   let reads = 0;

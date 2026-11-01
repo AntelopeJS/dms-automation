@@ -12,7 +12,7 @@ interface FieldSpec {
   names?: Record<string, number>;
 }
 
-const MONTH_NAMES: Record<string, number> = {
+const MONTH_NAMES = {
   jan: 1,
   feb: 2,
   mar: 3,
@@ -27,7 +27,7 @@ const MONTH_NAMES: Record<string, number> = {
   dec: 12,
 };
 
-const DAY_NAMES: Record<string, number> = {
+const DAY_NAMES = {
   sun: 0,
   mon: 1,
   tue: 2,
@@ -72,7 +72,11 @@ function rangeOf(part: string, spec: FieldSpec): [number, number] {
   return [start, to === undefined ? start : valueOf(to, spec)];
 }
 
-/** The values one field allows. */
+/**
+ * The values one field allows.
+ *
+ * `5/15` means from 5 to the end of the field, every 15.
+ */
 function parseField(field: string, spec: FieldSpec): Set<number> {
   const values = new Set<number>();
   for (const part of field.split(",")) {
@@ -82,7 +86,6 @@ function parseField(field: string, spec: FieldSpec): Set<number> {
       throw new Error(`invalid cron step "${part}"`);
     }
     const [start, end] = rangeOf(range ?? "", spec);
-    // `5/15` means from 5 to the end of the field, every 15.
     const last =
       stepText !== undefined && !range?.includes("-") ? spec.max : end;
     for (let v = start; v <= last; v += step) values.add(v);
@@ -111,7 +114,10 @@ function parseCron(expression: string): ParsedCron {
   const seconds = withSeconds ? parseField(parts[0]!, SECONDS) : new Set([0]);
   const [minute, hour, dayOfMonth, month, dayOfWeek] = fields.map((f, i) =>
     parseField(f, FIELDS[i]!),
-  ) as [Set<number>, Set<number>, Set<number>, Set<number>, Set<number>];
+  );
+  if (!minute || !hour || !dayOfMonth || !month || !dayOfWeek) {
+    throw new Error(`invalid cron expression "${expression}"`);
+  }
   if (dayOfWeek.has(SUNDAY_ALIAS)) dayOfWeek.add(0);
   return {
     seconds: [...seconds].sort((a, b) => a - b),
@@ -125,8 +131,10 @@ function parseCron(expression: string): ParsedCron {
   };
 }
 
-// Like cron: when both day fields are restricted, either one matching is
-// enough; when one is `*`, the other decides.
+/**
+ * Like cron: when both day fields are restricted, either one matching is
+ * enough; when one is `*`, the other decides.
+ */
 function dayMatches(cron: ParsedCron, date: Date): boolean {
   const dom = cron.daysOfMonth.has(date.getDate());
   const dow = cron.daysOfWeek.has(date.getDay());

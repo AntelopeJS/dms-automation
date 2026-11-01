@@ -2,13 +2,15 @@ const fs = require("node:fs");
 const Module = require("node:module");
 const path = require("node:path");
 
-// Loads the frontend's sources through `require`, for the tests that render
-// its components on a server: TypeScript is transpiled to CommonJS, and
-// single-file components are compiled first (template inlined), with
-// `import.meta.env.SSR` true. Packages resolve from frontend-vue, as the
-// generated application resolves them.
+/**
+ * Loads the frontend's sources through `require`, for the tests that render
+ * its components on a server: TypeScript is transpiled to CommonJS, and
+ * single-file components are compiled first (template inlined), with
+ * `import.meta.env.SSR` true. Packages resolve from frontend-vue, as the
+ * generated application resolves them.
+ */
 
-const FRONTEND = path.resolve(__dirname, "../frontend-vue");
+const FRONTEND = path.resolve(__dirname, "../../frontend-vue");
 const frontendRequire = Module.createRequire(
   path.join(FRONTEND, "package.json"),
 );

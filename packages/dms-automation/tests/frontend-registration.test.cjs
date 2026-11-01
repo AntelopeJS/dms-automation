@@ -12,7 +12,6 @@ test("registers Vue with the automation configuration and original priority", as
       AddFrontendModule: (registration) => registrations.push(registration),
     },
     "@antelopejs/interface-core": { ...interfaceCore, ImplementInterface() {} },
-    // construct() hands its config to these before registering the frontend.
     "./runtime/retention": { configureRetention() {} },
     "./runtime/boundRunLog": { configureRedaction() {} },
     "./runtime/builtins/actions/http": { setHttpRequestOptions() {} },

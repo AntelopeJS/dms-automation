@@ -10,10 +10,11 @@ export interface SerialQueue {
   run(op: () => Promise<void>): Promise<void>;
   /**
    * Queue `op` unless a request is already queued and not started yet: a
-   * burst of requests shares one run. Never rejects: failures go to
-   * `onError`.
+   * burst of requests shares one run. The returned promise reflects the real
+   * outcome of the run this request started, and resolves at once for a
+   * request that shares one.
    */
-  request(op: () => Promise<void>, onError: (err: unknown) => void): void;
+  request(op: () => Promise<void>): Promise<void>;
 }
 
 export function serialQueue(): SerialQueue {
@@ -26,13 +27,13 @@ export function serialQueue(): SerialQueue {
   };
   return {
     run,
-    request(op, onError) {
-      if (requested) return;
+    request(op) {
+      if (requested) return Promise.resolve();
       requested = true;
-      run(() => {
+      return run(() => {
         requested = false;
         return op();
-      }).catch(onError);
+      });
     },
   };
 }

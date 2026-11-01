@@ -3,6 +3,7 @@ import type {
   LogLevel,
 } from "@antelopejs/interface-dms-automation";
 import { z } from "zod";
+import type { DataRecord } from "../types/dataValue";
 import type { GraphNode } from "../types/graph";
 
 /**
@@ -75,7 +76,8 @@ export interface NodeCtx {
   resolveInputs(): Record<string, unknown>;
 }
 
-type NodeExecute = (
+/** The handler a node kind registers: runs one node with its resolved inputs. */
+export type NodeExecute = (
   node: GraphNode,
   inputs: Record<string, unknown>,
   ctx: NodeCtx,
@@ -161,7 +163,7 @@ interface NodeKindUI {
    * canvas. structuredCloned per instance. Type-registry-backed kinds
    * derive their defaults from the selected type's schema instead.
    */
-  defaultConfig?: Record<string, unknown>;
+  defaultConfig?: DataRecord;
   /**
    * JsonSchema the inspector renders into a config form. For type-registry
    * kinds the inspector uses the selected type's config/input schemas

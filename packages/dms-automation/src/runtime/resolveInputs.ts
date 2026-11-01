@@ -1,5 +1,7 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
 import type { DataEdge, GraphNode } from "../types/graph";
+import { isPropertyBag } from "../types/guards";
+import { propertiesOf } from "./schemaProperties";
 
 export type DataNodeEvaluator = (
   sourceNodeId: string,
@@ -24,8 +26,17 @@ export type DataNodeEvaluator = (
 export class DataCache {
   private outputs = new Map<string, unknown>();
   private versions = new Map<string, number>();
-  /** For data nodes: the upstream versions seen when the cache was filled. */
-  private dataDeps = new Map<string, Map<string, number>>();
+  /**
+   * For data nodes: the result and the upstream versions seen when the cache
+   * was filled.
+   */
+  private dataResults = new Map<
+    string,
+    {
+      result: NonNullable<ReturnType<DataNodeEvaluator>>;
+      deps: Map<string, number>;
+    }
+  >();
 
   /** Read the most recent value written for `nodeId`, if any. */
   getOutput(nodeId: string): unknown {
@@ -48,21 +59,22 @@ export class DataCache {
   /**
    * Returns the cached data-node result if every recorded upstream version
    * still matches; otherwise undefined (caller must recompute).
+   *
+   * Stale: a dependency changed. Drop the cache entry so future
+   * reads from this node go through evaluation again.
    */
   getCachedData(nodeId: string): Record<string, unknown> | undefined {
     if (!this.outputs.has(nodeId)) return undefined;
-    const deps = this.dataDeps.get(nodeId);
-    if (!deps) return undefined;
-    for (const [depId, seen] of deps) {
+    const cached = this.dataResults.get(nodeId);
+    if (!cached) return undefined;
+    for (const [depId, seen] of cached.deps) {
       if (this.versionOf(depId) !== seen) {
-        // Stale: a dependency changed. Drop the cache entry so future
-        // reads from this node go through evaluation again.
         this.outputs.delete(nodeId);
-        this.dataDeps.delete(nodeId);
+        this.dataResults.delete(nodeId);
         return undefined;
       }
     }
-    return this.outputs.get(nodeId) as Record<string, unknown>;
+    return cached.result;
   }
 
   /**
@@ -78,7 +90,7 @@ export class DataCache {
     this.setOutput(nodeId, value);
     const depMap = new Map<string, number>();
     for (const depId of deps) depMap.set(depId, this.versionOf(depId));
-    this.dataDeps.set(nodeId, depMap);
+    this.dataResults.set(nodeId, { result: value, deps: depMap });
   }
 
   /** Whether any output has been written for `nodeId`. */
@@ -92,10 +104,8 @@ export class DataCache {
  * saved without a value (imported, created through the API, or a field the
  * editor never seeded) then gets the value its schema documents.
  */
-export function schemaDefaults(
-  schema: JsonSchema | undefined,
-): Record<string, unknown> {
-  const properties = (schema?.properties ?? {}) as Record<string, JsonSchema>;
+export function schemaDefaults(schema: JsonSchema | undefined) {
+  const properties = propertiesOf(schema);
   const out: Record<string, unknown> = {};
   for (const [name, prop] of Object.entries(properties)) {
     if (prop.default !== undefined) out[name] = prop.default;
@@ -111,15 +121,19 @@ export function schemaDefaults(
  *
  * Edges whose source has no output and no evaluator hit are skipped, and
  * the target field falls back to its static config value (if any).
+ *
+ * Upstream must be an object to expose named ports. Triggers / actions
+ * that emit primitives have no ports to read; skip such edges rather
+ * than crashing on `port in primitive`.
  */
 export function resolveInputs(
   node: GraphNode,
   dataEdges: DataEdge[],
   cache: DataCache,
   evaluateDataNode?: DataNodeEvaluator,
-  defaults: Record<string, unknown> = {},
-): Record<string, unknown> {
-  const result: Record<string, unknown> = { ...defaults, ...node.config };
+  defaults: ReturnType<typeof schemaDefaults> = {},
+) {
+  const result = { ...defaults, ...node.config };
 
   for (const edge of dataEdges) {
     if (edge.to.node !== node.id) continue;
@@ -130,14 +144,10 @@ export function resolveInputs(
       upstream = evaluateDataNode(edge.from.node);
     }
 
-    // Upstream must be an object to expose named ports. Triggers / actions
-    // that emit primitives have no ports to read; skip such edges rather
-    // than crashing on `port in primitive`.
-    if (upstream === null || typeof upstream !== "object") continue;
+    if (!isPropertyBag(upstream)) continue;
 
-    const record = upstream as Record<string, unknown>;
-    if (edge.from.port in record) {
-      result[edge.to.field] = record[edge.from.port];
+    if (edge.from.port in upstream) {
+      result[edge.to.field] = upstream[edge.from.port];
     }
   }
 

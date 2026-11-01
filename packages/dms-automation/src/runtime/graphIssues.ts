@@ -23,6 +23,9 @@ import {
   graphProblems,
   type ProblemParams,
 } from "./validate";
+import { propertiesOf, type SchemaProperty } from "./schemaProperties";
+import type { DataRecord, DataValue } from "../types/dataValue";
+import { isNumber, isString } from "../types/guards";
 
 /** How much a problem on the graph matters: an error blocks enabling. */
 type GraphIssueSeverity = "error" | "warning";
@@ -51,30 +54,29 @@ export interface GraphIssueOptions {
   templates?: { has(id: string): boolean };
 }
 
-// Sentinels and data nodes are not steps: nothing has to trigger them.
+/** Sentinels and data nodes are not steps: nothing has to trigger them. */
 const NOT_TRIGGERED_KINDS = new Set(["trigger", "data", "groupInput", "group"]);
 
-const TYPE_LOOKUP: Record<string, (id: string) => unknown> = {
-  trigger: (id) => registry.getTrigger(id),
-  action: (id) => registry.getAction(id),
-  data: (id) => registry.getDataNode(id),
-};
+const TYPE_LOOKUP = new Map<string, (id: string) => object | undefined>([
+  ["trigger", (id) => registry.getTrigger(id)],
+  ["action", (id) => registry.getAction(id)],
+  ["data", (id) => registry.getDataNode(id)],
+]);
 
-const DISABLED_LOOKUP: Record<string, (id: string) => boolean> = {
-  trigger: isTriggerTypeDisabled,
-  action: isActionTypeDisabled,
-};
+const DISABLED_LOOKUP = new Map<string, (id: string) => boolean>([
+  ["trigger", isTriggerTypeDisabled],
+  ["action", isActionTypeDisabled],
+]);
 
 /** Settings a trigger type checks beyond its schema. */
-const CONFIG_CHECKS: Record<
-  string,
-  (config: Record<string, unknown>) => ConfigProblem | undefined
-> = {
-  [cronTrigger.id]: (config) => cronProblem(config.cron),
-  [webhookTrigger.id]: (config) => {
+const CONFIG_CHECKS = {
+  [cronTrigger.id]: (config: DataRecord) => cronProblem(config.cron),
+  /**
+   * This module's armed webhooks are left out: a procedure's own webhook
+   * is no conflict, and another procedure's is checked on the procedures.
+   */
+  [webhookTrigger.id]: (config: DataRecord) => {
     const { method, path } = webhookRouteOf(config);
-    // This module's armed webhooks are left out: a procedure's own webhook
-    // is no conflict, and another procedure's is checked on the procedures.
     return (
       webhookPathProblem(config.path) ??
       webhookRouteConflict(method, path, armedWebhookRouteIds())
@@ -82,11 +84,11 @@ const CONFIG_CHECKS: Record<
   },
 };
 
-const FOR_RANGE_DEFAULTS: Record<string, number> = {
-  start: 0,
-  end: 0,
-  step: 1,
-};
+const FOR_RANGE_DEFAULTS = new Map([
+  ["start", 0],
+  ["end", 0],
+  ["step", 1],
+]);
 const CONSTANT_NUMBER = "const.number";
 
 function issueOf(problem: GraphProblem): GraphIssue {
@@ -132,15 +134,14 @@ function settingsSchemaOf(node: GraphNode): JsonSchema | undefined {
   if (node.kind === "action" && node.typeId) {
     return registry.getAction(node.typeId)?.inputSchema;
   }
-  if (node.kind === "data") return undefined; // fed by wires, not settings
+  if (node.kind === "data") return undefined;
   return nodeKinds.metaOf(node.kind)?.ui?.configSchema;
 }
 
-type SchemaProperty = {
-  title?: string;
-  minimum?: number;
-  maximum?: number;
-  enum?: unknown[];
+/** The words a problem names a setting by: its key and its label. */
+type FieldParams = {
+  field: string;
+  label: string;
 };
 
 /**
@@ -151,7 +152,7 @@ type SchemaProperty = {
 function fieldParams(
   field: string,
   property: SchemaProperty | undefined,
-): { field: string; label: string } {
+): FieldParams {
   const title = property?.title;
   if (title && !title.startsWith("$")) return { field, label: title };
   const words = field
@@ -164,22 +165,19 @@ function fieldParams(
 /** A settings problem; `missing` when the setting is only left empty. */
 type SettingProblem = ConfigProblem & { missing?: true };
 
-const isEmpty = (value: unknown) =>
+const isEmpty = (value: DataValue) =>
   value === undefined ||
   value === null ||
-  (typeof value === "string" && value.trim() === "");
+  (isString(value) && value.trim() === "");
 
 /** The required settings of a node left empty and not wired. */
 function missingSettings(
   schema: JsonSchema,
-  config: Record<string, unknown>,
+  config: DataRecord,
   wired: ReadonlySet<string>,
 ): SettingProblem[] {
   const required = Array.isArray(schema.required) ? schema.required : [];
-  const properties = (schema.properties ?? {}) as Record<
-    string,
-    SchemaProperty
-  >;
+  const properties = propertiesOf(schema);
   return required
     .filter((field): field is string => typeof field === "string")
     .filter((field) => !wired.has(field) && isEmpty(config[field]))
@@ -202,14 +200,14 @@ function invalidSetting(
 ): ConfigProblem | undefined {
   const { minimum, maximum } = property;
   const named = fieldParams(field, property);
-  if (typeof value === "number" && minimum !== undefined && value < minimum) {
+  if (isNumber(value) && minimum !== undefined && value < minimum) {
     return {
       code: "belowMinimum",
       params: { ...named, minimum },
       message: `${named.label} must be at least ${minimum}`,
     };
   }
-  if (typeof value === "number" && maximum !== undefined && value > maximum) {
+  if (isNumber(value) && maximum !== undefined && value > maximum) {
     return {
       code: "aboveMaximum",
       params: { ...named, maximum },
@@ -238,10 +236,7 @@ function settingsProblems(
   if (!schema) return [];
   const config = node.config ?? {};
   const problems = missingSettings(schema, config, wired);
-  const properties = (schema.properties ?? {}) as Record<
-    string,
-    SchemaProperty
-  >;
+  const properties = propertiesOf(schema);
   for (const [field, property] of Object.entries(properties)) {
     const value = config[field];
     if (wired.has(field) || isEmpty(value)) continue;
@@ -257,7 +252,7 @@ function typeIssues(
   reportOn: string,
   options: GraphIssueOptions,
 ): GraphIssue[] {
-  const lookup = TYPE_LOOKUP[node.kind];
+  const lookup = TYPE_LOOKUP.get(node.kind);
   if (lookup && !(node.typeId && lookup(node.typeId))) {
     const type = node.typeId ?? "";
     return [
@@ -270,7 +265,7 @@ function typeIssues(
       },
     ];
   }
-  if (node.typeId && DISABLED_LOOKUP[node.kind]?.(node.typeId)) {
+  if (node.typeId && DISABLED_LOOKUP.get(node.kind)?.(node.typeId)) {
     return [
       {
         severity: "warning",
@@ -299,7 +294,14 @@ function typeIssues(
   return [];
 }
 
-/** The settings of every node that keep it from running. */
+/**
+ * The settings of every node that keep it from running.
+ *
+ * A setting left empty is reported once, as missing.
+ *
+ * An empty setting is only a warning on a draft: the user may still
+ * be filling the node in.
+ */
 function configIssues(
   graph: ProcedureGraph,
   options: GraphIssueOptions,
@@ -313,7 +315,6 @@ function configIssues(
         .map((e) => e.to.field),
     );
     const problems = settingsProblems(node, wired);
-    // A setting left empty is reported once, as missing.
     const check = node.kind === "trigger" && CONFIG_CHECKS[node.typeId ?? ""];
     const checked =
       check && !problems.some((p) => p.missing)
@@ -321,8 +322,6 @@ function configIssues(
         : undefined;
     if (checked) problems.push(checked);
     for (const { missing, ...problem } of problems) {
-      // An empty setting is only a warning on a draft: the user may still
-      // be filling the node in.
       const severity = missing && !options.enabling ? "warning" : "error";
       issues.push({ severity, ...problem, nodeId: reportOn });
     }
@@ -342,7 +341,8 @@ function literalInput(
   const edge = level.dataEdges.find(
     (e) => e.to.node === node.id && e.to.field === field,
   );
-  if (!edge) return Number(node.config?.[field] ?? FOR_RANGE_DEFAULTS[field]);
+  if (!edge)
+    return Number(node.config?.[field] ?? FOR_RANGE_DEFAULTS.get(field));
   const source = level.nodes.find((n) => n.id === edge.from.node);
   if (source?.kind !== "data" || source.typeId !== CONSTANT_NUMBER) {
     return undefined;

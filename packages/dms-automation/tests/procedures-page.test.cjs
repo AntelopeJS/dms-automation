@@ -111,8 +111,7 @@ const ROWS = [
 const names = (rows) => rows.map((r) => r.name);
 
 test("an empty search or filter, sent as a bare parameter, keeps every row", () => {
-  const { applyQuery } = require("../dist/data/procedures-table.js");
-  // The API hands `?search` and `?filter_status` without a value in as `true`.
+  const { applyQuery } = require("../dist/data/procedures-query.js");
   assert.equal(
     applyQuery(ROWS, { search: true, filter_status: true }).length,
     4,
@@ -121,7 +120,7 @@ test("an empty search or filter, sent as a bare parameter, keeps every row", () 
 });
 
 test("the search reads webhook paths, schedules and errors, without accents", () => {
-  const { applyQuery } = require("../dist/data/procedures-table.js");
+  const { applyQuery } = require("../dist/data/procedures-query.js");
   assert.deepEqual(names(applyQuery(ROWS, { search: "cafe" })), ["Café sync"]);
   assert.deepEqual(names(applyQuery(ROWS, { search: "demo-payment" })), [
     "Payments",
@@ -133,7 +132,7 @@ test("the search reads webhook paths, schedules and errors, without accents", ()
 });
 
 test("the status and trigger filters keep or drop rows by any of their values", () => {
-  const { applyQuery } = require("../dist/data/procedures-table.js");
+  const { applyQuery } = require("../dist/data/procedures-query.js");
   assert.deepEqual(
     names(applyQuery(ROWS, { filter_status: "is:failing,degraded" })),
     ["Payments", "Nightly"],
@@ -151,7 +150,7 @@ test("the status and trigger filters keep or drop rows by any of their values", 
 });
 
 test("sorting on the status orders the states by severity, either way", () => {
-  const { sortRows } = require("../dist/data/procedures-table.js");
+  const { sortRows } = require("../dist/data/procedures-query.js");
   assert.deepEqual(names(sortRows(ROWS, "status", "asc")), [
     "Payments",
     "Nightly",
@@ -164,7 +163,6 @@ test("sorting on the status orders the states by severity, either way", () => {
     "Nightly",
     "Payments",
   ]);
-  // No sort: the procedures that need attention first.
   assert.deepEqual(
     names(sortRows(ROWS, true)),
     names(sortRows(ROWS, "status")),
@@ -172,13 +170,12 @@ test("sorting on the status orders the states by severity, either way", () => {
 });
 
 test("the picker's options narrow to the ids asked for, whatever the page size", () => {
-  const { procedureOptions } = require("../dist/data/procedures-table.js");
+  const { procedureOptions } = require("../dist/data/procedures-query.js");
   const procedures = [
     { _id: "p-a", name: "Alpha" },
     { _id: "p-z", name: "Zulu" },
     { _id: "p-m", name: "Mike" },
   ];
-  // `?ids=p-z`: the row of that id alone, not the first one by name.
   assert.deepEqual(procedureOptions(procedures, undefined, ["p-z"]), [
     { procedureId: "p-z", _id: "p-z", name: "Zulu" },
   ]);
@@ -188,7 +185,6 @@ test("the picker's options narrow to the ids asked for, whatever the page size",
     ),
     ["Mike", "Zulu"],
   );
-  // No ids: every procedure the search matches, by name.
   assert.deepEqual(
     procedureOptions(procedures, true).map((p) => p.name),
     ["Alpha", "Mike", "Zulu"],

@@ -17,7 +17,7 @@ const {
 } = require("../dist/runtime/builtins/triggers/webhook.js");
 const { changesExecution } = require("../dist/runtime/graphVersion.js");
 
-// The module registers its built-in types at start; the tests do it here.
+/** The module registers its built-in types at start; the tests do it here. */
 for (const t of builtinTriggers) registry.addTrigger(t.id, t);
 for (const a of builtinActions) registry.addAction(a.id, a);
 for (const d of builtinDataNodes) registry.addDataNode(d.id, d);

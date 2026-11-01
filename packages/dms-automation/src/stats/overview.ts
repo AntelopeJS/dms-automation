@@ -19,6 +19,7 @@ import {
   timeOf,
 } from "./health";
 import { bucketStarts, kpiPayload, runsPerBucket } from "./kpi";
+import { isNumber } from "../types/guards";
 
 /** The last failure, as the overview links to it. */
 interface FailureRef {
@@ -101,12 +102,16 @@ function byUrgency(a: Urgency, b: Urgency): number {
  * The overview's one-line state, over the selected window: a procedure whose
  * last run failed is failing whatever the window, one that failed in the
  * window and recovered is degraded.
+ *
+ * In the order of "Needs attention", so the one the line names is its first.
+ *
+ * While a procedure is failing, its failure is the one to inspect (none
+ * when it fails because a trigger did not arm).
  */
 export function healthHero(ctx: StatsContext, window: StatsWindow): HealthHero {
   const health = healthByProcedure(ctx, window.from);
   const states = [...health.values()].map((h) => h.state);
   const figures = runFigures(windowRuns(ctx, window));
-  // In the order of "Needs attention", so the one the line names is its first.
   const urgency = (id: string): Urgency => {
     const h = health.get(id)!;
     return { state: h.state, streak: h.failureStreak, failed: h.failed };
@@ -127,8 +132,6 @@ export function healthHero(ctx: StatsContext, window: StatsWindow): HealthHero {
         armError: h.armError ?? null,
       };
     });
-  // While a procedure is failing, its failure is the one to inspect (none
-  // when it fails because a trigger did not arm).
   const first = failing[0];
   const lastFailed = first
     ? ctx.runs.find((r) => r._id === first.lastRunId && r.status === "failed")
@@ -270,7 +273,18 @@ function formatDuration(ms: number | null): string {
 /** Runs the overview's recent runs show; its skeleton draws as many rows. */
 export const RECENT_RUNS = 8;
 
-/** The overview's recent runs, newest first, each linking to its trace. */
+/** The values a feed line names: how long it took, what failed, which step and procedure. */
+type FeedParams = {
+  duration: string;
+  error: string;
+  step?: string;
+  name?: string;
+};
+/**
+ * The overview's recent runs, newest first, each linking to its trace.
+ *
+ * A deleted procedure keeps the name its runs were stored with.
+ */
 export function recentRunItems(
   ctx: StatsContext,
   traceUrl: string,
@@ -278,13 +292,12 @@ export function recentRunItems(
   return ctx.runs.slice(0, RECENT_RUNS).map((run) => {
     const failed = run.status === "failed";
     const step = failedStepOf(ctx, run);
-    const params: Record<string, string> = {
+    const params: FeedParams = {
       duration: formatDuration(durationOf(run)),
       error: run.errorMessage ?? "",
     };
     if (step) params.step = stepTitle(step);
     const name = procedureNameOf(ctx, run.procedureId);
-    // A deleted procedure keeps the name its runs were stored with.
     if (name === undefined && run.procedureName) {
       params.name = run.procedureName;
     }
@@ -428,6 +441,8 @@ export interface ChartPayload {
  * The runs of every bucket of the compared window, drawn over the buckets of
  * the window: the first hour (or day) of the one under the first of the
  * other. Both windows are as long, so they have as many buckets.
+ *
+ * A line over the stacked bars, dashed by the chart as a comparison.
  */
 function comparedRunsSeries(
   ctx: StatsContext,
@@ -441,7 +456,6 @@ function comparedRunsSeries(
   });
   return {
     name: "$dms_automation.overview.comparedRuns",
-    // A line over the stacked bars, dashed by the chart as a comparison.
     type: "line",
     data: starts.map((start, i) => ({
       x: start.toISOString(),
@@ -483,7 +497,7 @@ export function runsPerDayChart(
   if (!compared) return chart;
   const { previousValue, delta } = kpiPayload("runs", ctx.runs, window);
   if (previousValue !== undefined) chart.previousValue = previousValue;
-  if (typeof delta === "number") chart.delta = delta;
+  if (isNumber(delta)) chart.delta = delta;
   chart.comparisonSeries = [compared];
   return chart;
 }

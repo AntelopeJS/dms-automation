@@ -4,7 +4,7 @@
 
 <a href="https://www.npmjs.com/package/@antelopejs/interface-dms-automation"><img alt="npm" src="https://img.shields.io/npm/v/@antelopejs/interface-dms-automation?style=for-the-badge&labelColor=000000&color=000000"></a>
 <a href="./LICENSE"><img alt="License" src="https://img.shields.io/npm/l/@antelopejs/interface-dms-automation?style=for-the-badge&labelColor=000000&color=000000"></a>
-<a href="https://discord.gg/sjK28QHrA7"><img alt="Discord" src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000"></a>
+<a href="https://discord.gg/g4pFt6eXqu"><img alt="Discord" src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000"></a>
 <a href="https://dms.antelopejs.com/docs/modules/automation/extending"><img alt="Documentation" src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000"></a>
 
 The AntelopeJS interface to add triggers, actions and data nodes to the DMS automation builder.
@@ -68,11 +68,13 @@ Triggers also take a `cluster` mode: `"singleton"` fires on the elected leader o
 
 Interface 0.3 requires `@antelopejs/dms-automation >=0.5.0` for its complete contract, including `DeclareProcedure` and `RunProcedure`. Module 0.4 implements interface 0.2. The interface declares this peer dependency:
 
-<!-- docs-compat: ./package.json#peerDependencies -->
+<!-- antelopejs-docs-compat:start -->
 
-| Package | Range |
-| --- | --- |
-| `@antelopejs/interface-core` | `>=0.2.4 <1.0.0` |
+| Package                      | Supported        | Tested with |
+| ---------------------------- | ---------------- | ----------- |
+| `@antelopejs/interface-core` | `>=0.2.4 <1.0.0` | —           |
+
+<!-- antelopejs-docs-compat:end -->
 
 `InvokeProcedure`, `RunProcedure` and the `List*Types` functions reject when no implementation is loaded; check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core` to branch on availability instead.
 

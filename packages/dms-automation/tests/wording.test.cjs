@@ -127,8 +127,6 @@ test("a key nested in a composed text is composed, a name is kept", () => {
   assert.equal(asParam("Notify the team"), "Notify the team");
 });
 
-// The routes the builder, the trace and the library read send the text next
-// to the trigger: the browser no longer words triggers itself.
 test("the saved triggers of a procedure come with their text", () => {
   const { savedTriggersOf } = require("../dist/routes/procedures.js");
   const graph = {
@@ -161,7 +159,7 @@ test("the saved triggers of a procedure come with their text", () => {
     key: `${CRON}.daily`,
     params: { time: `02:00 (${scheduleTimeZone()})` },
   });
-  assert.equal(typeof triggers[0].nextAt, "string");
+  assert.match(triggers[0].nextAt, /\S/);
   assert.equal(triggers[1].text, "PUT /hooks/in");
   assert.equal(triggers[1].nextAt, null);
   assert.equal(triggers[2].text, triggers[2].typeName);

@@ -10,13 +10,6 @@ const { Logging } = require("@antelopejs/interface-core/logging");
 const { Schema } = require("@antelopejs/interface-database");
 const automation = require("@antelopejs/interface-dms-automation");
 
-// A project registers its own node types and stops (a hot reload, a stop):
-// the core takes its registrations back, then invalidates its context. Its
-// triggers must be torn down while they still can be, without an error, and
-// a run on its steps fails, like any other error, still stored by this module.
-
-// GetModel builds its models on a registered schema: hand it a bare one, the
-// data access is replaced below.
 Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
 
 const { ProcedureModel } = require("../dist/db/models/procedure.model.js");
@@ -72,7 +65,6 @@ Object.assign(AutomationTemplateModel.prototype, { listAll: async () => [] });
 Object.assign(TypeSwitchModel.prototype, { getAll: async () => [] });
 Object.assign(ProcedureRunModel.prototype, {
   insert: async (row) => {
-    // Throws when the run goes on in a context that is no longer valid.
     runs.push({ ...row, storedBy: GetResponsibleModule() });
     return [`run-${runs.length}`];
   },
@@ -149,11 +141,9 @@ test("a departing project's triggers go quietly and its run fails", async (t) =>
   });
   await until(() => project.armed.size === 1, "the project's trigger to arm");
 
-  // The project's own code fires its trigger, in its own context.
   RunWithResponsibleModule(PROJECT, () => project.emit({ ticket: 1 }));
   await entered.promise;
 
-  // It stops while the run waits on its step.
   Events.ModuleDestroyed.emit(PROJECT);
   assert.equal(project.armed.size, 0, "torn down before its context went");
   gate.resolve();
@@ -165,7 +155,6 @@ test("a departing project's triggers go quietly and its run fails", async (t) =>
   assert.equal(run.failedNodeId, "after");
   assert.equal(run.storedBy, SELF);
 
-  // A timer the project left behind starts nothing.
   project.emit({ ticket: 2 });
   await subscriptions.onProcedureChange();
   assert.equal(runs.length, 1);
@@ -176,7 +165,7 @@ test("a departing project's triggers go quietly and its run fails", async (t) =>
   await subscriptions._deactivateAll();
 });
 
-// The executor alone: a module gone mid-run is an ordinary step error.
+/** The executor alone: a module gone mid-run is an ordinary step error. */
 
 const { ModuleContextInvalidatedError } = require("@antelopejs/interface-core");
 const { builtinTriggers } = require("../dist/runtime/builtins");

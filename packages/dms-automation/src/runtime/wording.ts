@@ -1,6 +1,7 @@
 import type { BlockText } from "@antelopejs/interface-dms/base/types";
 import type { StepName, TriggerSummary } from "./describe";
 import { scheduleTimeZone } from "./schedule";
+import { isString } from "../types/guards";
 
 /**
  * The texts the pages draw for a trigger or a step, composed in the reader's
@@ -30,12 +31,19 @@ function cronFields(
   expression: string,
 ): { seconds: string; fields: CronFields } | null {
   const parts = expression.trim().split(/\s+/);
-  if (parts.length === 6) {
-    return { seconds: parts[0]!, fields: parts.slice(1) as CronFields };
+  if (hasSecondsField(parts)) {
+    const [seconds, ...fields] = parts;
+    return { seconds, fields };
   }
-  return parts.length === 5
-    ? { seconds: "0", fields: parts as CronFields }
-    : null;
+  return hasFiveFields(parts) ? { seconds: "0", fields: parts } : null;
+}
+
+function hasFiveFields(parts: string[]): parts is CronFields {
+  return parts.length === 5;
+}
+
+function hasSecondsField(parts: string[]): parts is [string, ...CronFields] {
+  return parts.length === 6;
 }
 
 /** The shapes that fire several times a minute: every second, every N seconds. */
@@ -157,7 +165,5 @@ export function stepText(step: StepName | null | undefined): BlockText | null {
  * nested `ComposedText`, since a string parameter is inserted as written.
  */
 export function asParam(text: BlockText): BlockText {
-  return typeof text === "string" && text.startsWith("$")
-    ? { key: text.slice(1) }
-    : text;
+  return isString(text) && text.startsWith("$") ? { key: text.slice(1) } : text;
 }

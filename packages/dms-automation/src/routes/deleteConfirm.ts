@@ -7,23 +7,27 @@ import { parseGraphSafe, triggersOf } from "../runtime/describe";
 import { cronText } from "../runtime/wording";
 import type { ProcedureGraph } from "../types/graph";
 import { API_MESSAGES } from "./requests";
+import { isObject, isString } from "../types/guards";
 
 const WEEKDAY_KEY = /\.days\.(\w+)$/;
+
+type DialogParams = NonNullable<ConfirmDialog["params"]>;
 
 /**
  * A schedule as an impact line of the delete dialog: the dialog draws a `$`
  * key with its own params, so the schedule's words go in `params` when no
  * other line uses them; the expression is shown as written otherwise.
+ *
+ * A weekday is a nested key the dialog cannot compose: one key per day.
  */
-function scheduleImpact(cron: string, params: Record<string, unknown>): string {
+function scheduleImpact(cron: string, params: DialogParams): string {
   const text = cronText(cron);
-  if (typeof text === "string") return text;
-  const own: Record<string, unknown> = { ...text.params };
+  if (isString(text)) return text;
+  const own = { ...text.params };
   let key = text.key;
-  // A weekday is a nested key the dialog cannot compose: one key per day.
-  const day = own.day as { key?: string } | undefined;
-  if (day && typeof day === "object") {
-    const weekday = WEEKDAY_KEY.exec(day.key ?? "")?.[1];
+  const day = own.day;
+  if (isObject(day)) {
+    const weekday = WEEKDAY_KEY.exec("key" in day ? day.key : "")?.[1];
     if (!weekday) return cron;
     key = `${API_MESSAGES.slice(1)}.weekly.${weekday}`;
     delete own.day;
@@ -36,7 +40,7 @@ function scheduleImpact(cron: string, params: Record<string, unknown>): string {
 /** What changes when a procedure stops: its webhooks and schedules. */
 function stopImpact(
   graph: ProcedureGraph | undefined,
-  params: Record<string, unknown>,
+  params: DialogParams,
 ): ConfirmDialogImpact[] {
   return (graph ? triggersOf(graph) : [])
     .filter((t) => t.path || t.cron)
@@ -59,12 +63,14 @@ function stopImpact(
  * The delete dialog, worded for the procedure: what stops answering, how
  * often it ran this week (`runCount`), and, for an enabled one, its name to
  * type. A disabled one is told the delete cannot be undone.
+ *
+ * An enabled procedure is deleted by typing its name.
  */
 export function deleteDialogOf(
   procedure: Procedure,
   runCount: number,
 ): ConfirmDialog {
-  const params: Record<string, unknown> = {
+  const params: DialogParams = {
     name: procedure.name,
     count: runCount,
   };
@@ -81,7 +87,6 @@ export function deleteDialogOf(
       ? stopImpact(parseGraphSafe(procedure.graph), params)
       : [],
   };
-  // An enabled procedure is deleted by typing its name.
   if (procedure.enabled) dialog.confirmText = procedure.name;
   return dialog;
 }

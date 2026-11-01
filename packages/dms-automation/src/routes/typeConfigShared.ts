@@ -17,12 +17,16 @@ import {
 import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
 import { parseBody } from "./requests";
+import type { DataValue } from "../types/dataValue";
 
 /** The body of a type-config PUT endpoint (action-types, trigger-types). */
 const configBodySchema = z.object({ enabled: z.boolean() });
 
 /** 404 for a type no module registered: there is nothing to configure. */
-function assertRegistered(type: unknown, id: string): void {
+function assertRegistered(
+  type: ActionType | TriggerType | undefined,
+  id: string,
+): void {
   if (!type) throw new HTTPResult(404, { error: `type "${id}" not found` });
 }
 
@@ -41,18 +45,21 @@ export async function listWithSwitches<T extends { id: string }, S>(
   );
 }
 
-/** Switch a registered type on or off (`PUT /:id/config`). */
+/**
+ * Switch a registered type on or off (`PUT /:id/config`).
+ *
+ * The switch takes effect on the next reconcile: run it now, here and on
+ * every peer, so a disabled trigger type stops firing at once.
+ */
 export async function switchType(
   kind: SwitchableKind,
-  type: unknown,
+  type: ActionType | TriggerType | undefined,
   id: string,
-  body: unknown,
+  body: DataValue,
 ): Promise<{ id: string }> {
   assertRegistered(type, id);
   const { enabled } = parseBody(configBodySchema, body);
   await GetModel(TypeSwitchModel, DATABASE_NAME).setEnabled(kind, id, enabled);
-  // The switch takes effect on the next reconcile: run it now, here and on
-  // every peer, so a disabled trigger type stops firing at once.
   await subscriptions.onProcedureChange();
   return { id };
 }
@@ -70,25 +77,19 @@ type SerializedTriggerType = Omit<TriggerType, "activate" | "deactivate"> &
 type SerializedDataNodeType = Omit<DataNodeType, "evaluate"> & TypeOrigin;
 
 export function serializeAction(a: ActionType): SerializedActionType {
-  // The extracted binding exists only to drop the key from `rest`; it is
-  // never called, so it cannot lose its `this`.
-  // oxlint-disable-next-line typescript/unbound-method
+  // oxlint-disable-next-line typescript/unbound-method -- the extracted binding exists only to drop the key from `rest`; it is never called, so it cannot lose its `this`
   const { execute: _execute, ...rest } = a;
   return { ...rest, ...actionTypeOrigin(a.id) };
 }
 
 export function serializeTrigger(t: TriggerType): SerializedTriggerType {
-  // The extracted binding exists only to drop the key from `rest`; it is
-  // never called, so it cannot lose its `this`.
-  // oxlint-disable-next-line typescript/unbound-method
+  // oxlint-disable-next-line typescript/unbound-method -- the extracted binding exists only to drop the key from `rest`; it is never called, so it cannot lose its `this`
   const { activate: _activate, deactivate: _deactivate, ...rest } = t;
   return { ...rest, ...triggerTypeOrigin(t.id) };
 }
 
 export function serializeDataNode(d: DataNodeType): SerializedDataNodeType {
-  // The extracted binding exists only to drop the key from `rest`; it is
-  // never called, so it cannot lose its `this`.
-  // oxlint-disable-next-line typescript/unbound-method
+  // oxlint-disable-next-line typescript/unbound-method -- the extracted binding exists only to drop the key from `rest`; it is never called, so it cannot lose its `this`
   const { evaluate: _evaluate, ...rest } = d;
   return { ...rest, ...dataNodeTypeOrigin(d.id) };
 }

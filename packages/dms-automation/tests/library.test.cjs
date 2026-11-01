@@ -5,9 +5,11 @@ const {
   walkPlacedNodes,
 } = require("../dist/runtime/resolveSubgraph.js");
 
-// How the library finds where a block is used, and how deleting a template
-// turns its instances into local groups: through nested groups and through
-// the templates a procedure places.
+/**
+ * How the library finds where a block is used, and how deleting a template
+ * turns its instances into local groups: through nested groups and through
+ * the templates a procedure places.
+ */
 
 const node = (id, kind, extra = {}) => ({
   id,
@@ -25,7 +27,6 @@ const localGroup = (id, subgraph, label) =>
 const templates = new Map([
   ["inner", { subgraph: graph(node("echo", "action", { typeId: "echo" })) }],
   ["outer", { subgraph: graph(instance("i2", "inner")) }],
-  // A reference cycle (refused on save, but a stored graph may hold one).
   ["loop", { subgraph: graph(instance("again", "loop")) }],
 ]);
 
@@ -77,7 +78,6 @@ test("forking turns every instance, nested ones included, into a local group", (
     assert.deepEqual(forked.subgraph, sub);
     assert.notEqual(forked.subgraph, sub, "each fork owns its copy");
   }
-  // The group keeps the name the builder showed: the template's, or its own.
   assert.equal(a.label, "Notify");
   assert.equal(b.label, "Mine");
   assert.equal(c.templateId, "other");

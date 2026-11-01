@@ -67,7 +67,7 @@ test("the trace lists the trigger, the steps that ran and the skipped ones", asy
   );
   const failed = trace.steps[2];
   assert.equal(failed.error, "HTTP 502 Bad Gateway");
-  assert.equal(typeof failed.durationMs, "number");
+  assert.ok(Number.isFinite(failed.durationMs));
   assert.equal(trace.steps[1].name.label, "Say hello");
   assert.deepEqual(
     trace.skipped.map((s) => s.nodeId),
@@ -94,8 +94,10 @@ function edge(id, from, to, branch) {
   return e;
 }
 
-// A loop over three items, a Try/Catch whose try fails, an If that takes
-// `then`, then a step that fails for good.
+/**
+ * A loop over three items, a Try/Catch whose try fails, an If that takes
+ * `then`, then a step that fails for good.
+ */
 const flowGraph = {
   nodes: [
     node("t", "trigger", "manual"),
@@ -236,7 +238,6 @@ test("against a later version, steps keep the names the run stored and nothing i
   assert.equal(outdated.steps[2].name.label, "Push to ERP");
   assert.deepEqual(outdated.skipped, []);
   assert.deepEqual(outdated.edgesTaken, []);
-  // The graph that ran names its steps before the stored names.
   const current = traceOf(graph, result.logs, undefined, { names });
   assert.equal(current.steps[0].name.label, "Say hello");
 });
@@ -264,7 +265,6 @@ test("a cut log lists no skipped step and says how much was cut", async () => {
 
 test("a step whose end was cut from the log reads as cut, not running", async () => {
   const result = await run(graph, "t", { a: 1 });
-  // Drop the end of "Say hello", as the size budget may.
   const entries = result.logs.entries.filter(
     (e) => !(e.nodeId === "log" && e.message === "executed"),
   );

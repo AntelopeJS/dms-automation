@@ -1,3 +1,4 @@
+import type { ProcedureRunStatus } from "@antelopejs/interface-dms-automation";
 import {
   Field,
   Index,
@@ -35,7 +36,7 @@ export class ProcedureRun extends Table {
   declare endedAt?: Date;
 
   @Field("string")
-  declare status: string;
+  declare status: ProcedureRunStatus;
 
   @Field("string")
   declare errorMessage?: string;
