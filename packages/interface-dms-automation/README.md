@@ -50,7 +50,7 @@ export function start(): void {
       required: ["userId", "message"],
     },
     outputSchema: { type: "object", properties: { delivered: { type: "boolean" } } },
-    async execute(input, ctx) {
+    async execute(input: { userId: string; message: string }, ctx) {
       ctx.log("info", "notifying", input);
       return { delivered: true };
     },

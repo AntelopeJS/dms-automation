@@ -3,7 +3,7 @@ import type {
   LogLevel,
 } from "@antelopejs/interface-dms-automation";
 import { z } from "zod";
-import type { DataRecord } from "../types/dataValue";
+import type { DataRecord, DataValue } from "../types/dataValue";
 import type { GraphNode } from "../types/graph";
 
 /**
@@ -59,13 +59,13 @@ export interface NodeCtx {
    * Called once for terminal nodes; called multiple times within a single
    * `execute` for higher-order nodes (foreach per iteration).
    */
-  setOutputs(values: Record<string, unknown>): void;
+  setOutputs(values: DataRecord): void;
 
   /**
    * Structured log entry. Attached to the enclosing fire and
    * auto-tagged with this node's id/kind.
    */
-  log(level: LogLevel, message: string, value?: unknown): void;
+  log(level: LogLevel, message: string, value?: DataValue): void;
 
   /**
    * Re-resolve this node's data inputs from the current cache. Lets a
@@ -73,13 +73,13 @@ export interface NodeCtx {
    * a body sub-walk has mutated dependent outputs. No built-in kind calls
    * it yet.
    */
-  resolveInputs(): Record<string, unknown>;
+  resolveInputs(): DataRecord;
 }
 
 /** The handler a node kind registers: runs one node with its resolved inputs. */
 export type NodeExecute = (
   node: GraphNode,
-  inputs: Record<string, unknown>,
+  inputs: DataRecord,
   ctx: NodeCtx,
 ) => Promise<void>;
 

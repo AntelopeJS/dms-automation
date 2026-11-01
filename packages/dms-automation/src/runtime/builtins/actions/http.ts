@@ -17,13 +17,13 @@ interface HttpInput {
 
 const BODYLESS_METHODS = new Set(["GET", "HEAD"]);
 
-interface HttpOutput {
+type HttpOutput = {
   status: number;
   headers: Record<string, string>;
   body: string;
   /** The body parsed, when the server says it is JSON; null otherwise. */
-  json: unknown;
-}
+  json: DataValue;
+};
 
 /** Module-wide settings of the action, from the module config. */
 export interface HttpRequestOptions {

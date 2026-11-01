@@ -1,5 +1,4 @@
 import { Logging } from "@antelopejs/interface-core/logging";
-import type { TriggerType } from "@antelopejs/interface-dms-automation";
 import type { Procedure } from "../db/tables/procedure.table";
 import type { ProcedureGraph } from "../types/graph";
 import { withTimeout } from "./withTimeout";
@@ -13,8 +12,11 @@ export interface Armed {
 }
 
 export interface HandleEntry {
-  handle: unknown;
-  type: TriggerType;
+  /**
+   * Tears the trigger down: the `deactivate` of the definition that armed it,
+   * given the handle its `activate` resolved with.
+   */
+  disarm: () => Promise<void>;
   typeId: string;
   configHash: string;
   procedureId: string;
@@ -53,13 +55,14 @@ export const TRIGGER_OP_TIMEOUT_MS = 10_000;
 /**
  * Tear down one trigger handle, bounded so a misbehaving deactivate can't wedge
  * the caller. Returns whether teardown succeeded; callers decide whether to drop
- * the handle or keep it for retry. Keep the definition that created EACH handle:
- * a reload can replace the registry entry while another activation is awaiting.
+ * the handle or keep it for retry. Each entry tears down through the definition
+ * that created it: a reload can replace the registry entry while another
+ * activation is awaiting.
  */
 async function tryDeactivate(k: string, entry: HandleEntry): Promise<boolean> {
   try {
     await withTimeout(
-      entry.type.deactivate(entry.handle),
+      entry.disarm(),
       TRIGGER_OP_TIMEOUT_MS,
       `deactivate ${entry.typeId} for ${k}`,
     );

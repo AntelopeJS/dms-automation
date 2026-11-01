@@ -1,4 +1,5 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
+import type { DataRecord, DataValue } from "../../../types/dataValue";
 import { isObject, isPropertyBag } from "../../../types/guards";
 
 const objProp = { type: "object", default: {} };
@@ -11,10 +12,10 @@ const resultArrAny = { type: "array" };
 /** What defining a plain property takes, where an assignment of `__proto__` would set the prototype. */
 const OWN_DATA = { writable: true, enumerable: true, configurable: true };
 
-function getPath(obj: unknown, path: string): unknown {
+function getPath(obj: DataValue, path: string): DataValue {
   if (!path) return obj;
   const parts = path.split(".");
-  let cur: unknown = obj;
+  let cur = obj;
   for (const p of parts) {
     if (!isPropertyBag(cur)) {
       return null;
@@ -24,15 +25,11 @@ function getPath(obj: unknown, path: string): unknown {
   return cur ?? null;
 }
 
-function setPath(
-  obj: unknown,
-  path: string,
-  value: unknown,
-): Record<string, unknown> {
+function setPath(obj: DataValue, path: string, value: DataValue): DataRecord {
   const base = isPropertyBag(obj) ? { ...obj } : {};
   if (!path) return base;
   const parts = path.split(".");
-  let cur: Record<string, unknown> = base;
+  let cur: DataRecord = base;
   for (let i = 0; i < parts.length - 1; i++) {
     const k = parts[i]!;
     const next = Object.hasOwn(cur, k) ? cur[k] : undefined;
@@ -60,7 +57,7 @@ export const objectNodes: DataNodeType[] = [
     },
     outputSchema: { type: "object", properties: { result: anyVal } },
     evaluate: (i) => {
-      const { obj, path } = i as { obj: unknown; path: string };
+      const { obj, path } = i as { obj: DataValue; path: string };
       return { result: getPath(obj, String(path ?? "")) };
     },
   },
@@ -77,9 +74,9 @@ export const objectNodes: DataNodeType[] = [
     outputSchema: { type: "object", properties: { result: resultObj } },
     evaluate: (i) => {
       const { obj, path, value } = i as {
-        obj: unknown;
+        obj: DataValue;
         path: string;
-        value: unknown;
+        value: DataValue;
       };
       return { result: setPath(obj, String(path ?? ""), value) };
     },
@@ -120,7 +117,7 @@ export const objectNodes: DataNodeType[] = [
     icon: "i-ph-stack",
     inputSchema: { type: "object", properties: { a: objProp, b: objProp } },
     outputSchema: { type: "object", properties: { result: resultObj } },
-    evaluate: ({ a, b }: { a: unknown; b: unknown }) => {
+    evaluate: ({ a, b }: { a: DataValue; b: DataValue }) => {
       const ao = isPropertyBag(a) ? { ...a } : {};
       const bo = isPropertyBag(b) ? { ...b } : {};
       return { result: { ...ao, ...bo } };

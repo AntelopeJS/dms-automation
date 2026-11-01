@@ -1,4 +1,5 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
+import type { DataRecord, DataValue } from "../types/dataValue";
 import { isPropertyBag } from "../types/guards";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
@@ -158,7 +159,7 @@ function describeRecord(obj: Record<string, unknown>) {
 export async function run(
   graph: ProcedureGraph,
   triggerNodeId: string,
-  payload: unknown,
+  payload: DataValue,
   options: RunOptions = {},
 ): Promise<ExecutionResult> {
   const procedureId = options.procedureId ?? "unknown";
@@ -421,10 +422,7 @@ function inputDefaults(node: GraphNode) {
  * `"x-redact": "headers"` (HTTP header maps) have their credentials masked.
  * Only the log is masked; the node ran with the real values.
  */
-function redacted(
-  values: Record<string, unknown>,
-  schema: JsonSchema | undefined,
-) {
+function redacted(values: DataRecord, schema: JsonSchema | undefined) {
   const properties = propertiesOf(schema);
   const out = { ...values };
   for (const [name, prop] of Object.entries(properties)) {
@@ -558,9 +556,9 @@ function makeDataNodeEvaluator(
         evaluator,
         inputDefaults(dn),
       );
-      let out: Record<string, unknown>;
+      let out: DataRecord;
       try {
-        const evaluated: unknown = type.evaluate(inputs);
+        const evaluated = type.evaluate(inputs);
         if (!isPropertyBag(evaluated) || Array.isArray(evaluated)) {
           throw new Error(
             `data node type "${dn.typeId}" must evaluate to an object`,

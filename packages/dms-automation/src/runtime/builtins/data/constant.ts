@@ -2,6 +2,7 @@ import type {
   DataNodeType,
   JsonSchema,
 } from "@antelopejs/interface-dms-automation";
+import type { DataValue } from "../../../types/dataValue";
 
 /**
  * Constant nodes emit a single value typed into the node — the way to wire a
@@ -26,7 +27,7 @@ function constant(
     inputSchema: { type: "object", properties: {} },
     configSchema: { type: "object", properties: { value: valueSchema } },
     outputSchema: { type: "object", properties: { value: valueSchema } },
-    evaluate: ({ value }: { value: unknown }) => ({ value }),
+    evaluate: ({ value }: { value: DataValue }) => ({ value }),
   };
 }
 

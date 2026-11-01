@@ -211,7 +211,7 @@ export class RunsTableAPI extends DataController(
     name: "$dms_automation.runs.cols.procedureFilter",
     type: new DefaultDataTypes.RelationType({
       dataApiController: ProceduresTableAPI,
-      keyMapping: { label: "name", value: "procedureId" as never },
+      keyMapping: { label: "name", value: "procedureId" },
       filterOnly: true,
     }),
     filterable: true,

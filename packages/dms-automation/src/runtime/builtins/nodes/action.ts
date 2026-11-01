@@ -20,7 +20,7 @@ const execute: NodeExecute = async (node, inputs, ctx) => {
   }
   const simulate = ctx.dryRun && simulates(actionType);
   if (simulate) ctx.log("info", "Simulated (test run): no effect");
-  const output: unknown = await (simulate && actionType.dryRun
+  const output = await (simulate && actionType.dryRun
     ? actionType.dryRun(inputs, ctx)
     : actionType.execute(inputs, ctx));
   if (output === undefined) {
