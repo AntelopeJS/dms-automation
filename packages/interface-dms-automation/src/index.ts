@@ -6,15 +6,13 @@ import {
 /** A JSON scalar. */
 export type JsonPrimitive = string | number | boolean | null;
 
-/**
- * A value made of JSON scalars, arrays and objects: what a node reads,
- * returns, emits or logs. `undefined` marks a value left unset, and is
- * written as `JSON.stringify` writes it: an object key holding it is left
- * out, an array item holding it becomes `null`.
- */
-export type JsonValue = JsonPrimitive | (JsonValue | undefined)[] | JsonObject;
+/** A JSON value: what a node reads, returns, emits or logs. */
+export type JsonValue = JsonPrimitive | JsonValue[] | JsonObject;
 
-/** A JSON object; a key may hold `undefined` for a field left unset. */
+/**
+ * A JSON object. A key may hold `undefined` for a field left unset:
+ * `JSON.stringify` leaves that key out, so the object still writes as JSON.
+ */
 export type JsonObject = { [key: string]: JsonValue | undefined };
 
 /**
