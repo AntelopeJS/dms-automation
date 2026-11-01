@@ -37,21 +37,21 @@ export interface AutomationTemplateRow {
 }
 
 /** A single group-node usage of a template, located by a procedure scan. */
-export interface TemplateUsage {
+export type TemplateUsage = {
   procedureId: string;
   nodeId: string;
   /** Ids of the local groups the node sits in, outermost first. */
   groupPath: string[];
-}
+};
 
 /** A group node placing a template inside another template's graph. */
-export interface TemplateNesting {
+export type TemplateNesting = {
   /** The template whose graph places it. */
   templateId: string;
   nodeId: string;
   /** Ids of the local groups the node sits in, outermost first. */
   groupPath: string[];
-}
+};
 
 /** A template instance of a stored graph, and the local groups around it. */
 export interface PlacedInstance {

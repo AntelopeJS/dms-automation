@@ -1,7 +1,8 @@
-import { HTTPResult } from "@antelopejs/interface-api";
+import { type HTTPBody, HTTPResult } from "@antelopejs/interface-api";
 import type { z } from "zod";
 import type { GraphIssue } from "../runtime/graphIssues";
 import type { DataValue } from "../types/dataValue";
+import { zodIssuesJson } from "./zodJson";
 
 /** Prefix of the i18n keys the routes answer refusals with. */
 export const API_MESSAGES = "$dms_automation.api";
@@ -21,8 +22,8 @@ export function refused(
   return new HTTPResult(status, { error, message, ...details });
 }
 
-/** The issues a refused body lists: those of its schema or of its graph. */
-type RefusedIssues = z.ZodIssue[] | GraphIssue[];
+/** The issues a refused body lists: those of its schema (as JSON) or of its graph. */
+type RefusedIssues = HTTPBody | GraphIssue[];
 
 /** A refused body, its issues listed. */
 export function invalid(
@@ -38,7 +39,8 @@ export function parseBody<T>(
   body: DataValue,
 ): T {
   const parsed = schema.safeParse(body);
-  if (!parsed.success) throw invalid("invalid body", parsed.error.issues);
+  if (!parsed.success)
+    throw invalid("invalid body", zodIssuesJson(parsed.error.issues));
   return parsed.data;
 }
 
