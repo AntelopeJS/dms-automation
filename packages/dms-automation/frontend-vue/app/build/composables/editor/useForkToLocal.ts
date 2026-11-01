@@ -23,6 +23,7 @@ export function useForkToLocal(ctx: EditorContext, nav: SubgraphNavigation) {
     toast,
   } = ctx;
   const { onUpdateNode } = nav;
+  const consumeRefusal = useReadOnlyRefusal();
 
   // ---------------------------------------------------------------------------
   // Fork-to-local-group
@@ -171,6 +172,7 @@ export function useForkToLocal(ctx: EditorContext, nav: SubgraphNavigation) {
         icon: "i-ph-check-circle",
       });
     } catch (e) {
+      if (consumeRefusal(e)) return;
       forkError.value = formatForkError(e);
     } finally {
       forkSubmitting.value = false;

@@ -46,6 +46,7 @@ const { processI18n } = useTranslation()
 const { t, te } = useI18n()
 const { dateTimeFormat } = useRegionalFormat()
 const toast = useToast()
+const consumeRefusal = useReadOnlyRefusal()
 
 // Read like the DMS cards: over the page's period, on its refreshes, through
 // its Live / Pause.
@@ -108,6 +109,7 @@ interface Change {
 }
 
 function failed(e: unknown) {
+	if (consumeRefusal(e)) return
 	toast.add({
 		title: processI18n('$dms_automation.common.actionFailed'),
 		description: describeApiError(e),

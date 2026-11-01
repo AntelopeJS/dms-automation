@@ -126,6 +126,13 @@ export function useDraftProblems(
         triggers?: WordedTrigger[];
       }>(`${props.apiUrl}/procedures/validate`, {
         method: "POST",
+        onResponse({ response, options }) {
+          if (
+            response.status === HTTP_FORBIDDEN &&
+            response.headers.get("x-dms-readonly") === "1"
+          )
+            options.onResponseError = undefined;
+        },
         // With the procedure and its name, the server also checks what other
         // procedures hold (a webhook path, a name).
         body: {

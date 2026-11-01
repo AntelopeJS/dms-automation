@@ -59,6 +59,7 @@ export function useRunOverlay(
   const { changeCount, savedName, selectNode, summariesRead } = problems;
   const { ofSelected, selectedProcedureUrl } = triggers;
   const { askChoice } = guards;
+  const consumeRefusal = useReadOnlyRefusal();
 
   // ---------------------------------------------------------------------------
   // Runs over the canvas: Test run of the draft, debugging a stored run (AU-05)
@@ -215,7 +216,8 @@ export function useRunOverlay(
     let run: RunDetail;
     try {
       run = await runsApi.getRun(runId);
-    } catch {
+    } catch (e) {
+      if (consumeRefusal(e)) return;
       notFound();
       return;
     }
@@ -321,6 +323,7 @@ export function useRunOverlay(
       dockCollapsed.value = false;
       void recentRunsRead.refresh();
     } catch (e) {
+      if (consumeRefusal(e)) return;
       const refused = issuesOf(e);
       if (refused) {
         issues.value = refused;
@@ -390,7 +393,8 @@ export function useRunOverlay(
     let run: RunDetail;
     try {
       run = await showRun(runId);
-    } catch {
+    } catch (e) {
+      if (consumeRefusal(e)) return;
       toast.add({
         title: t("dms_automation.editor.runStarted", { name }),
         color: "neutral",

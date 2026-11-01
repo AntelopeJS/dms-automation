@@ -33,6 +33,7 @@ const STATE_TONES = {
 const NO_USAGES: TemplateUsages = { procedures: [], templates: [] }
 
 const { $authFetch } = useAuthFetch()
+const consumeRefusal = useReadOnlyRefusal()
 const route = useDmsRoute()
 const router = useDmsRouter()
 const toast = useToast()
@@ -192,6 +193,7 @@ async function onSave() {
 		replaceListed((rows) => rows.map((x) => (x._id === s._id ? { ...s, ...updated, usageCount: s.usageCount } : x)))
 		toast.add({ title: t('dms_automation.templates.saved', { name: updated.name }), color: 'success', icon: 'i-ph-check-circle' })
 	} catch (e) {
+		if (consumeRefusal(e)) return
 		if (errorCode(e) === 'name-taken') {
 			await fieldErrors.setError('name', t('dms_automation.templates.nameTaken'))
 			return
@@ -218,6 +220,7 @@ async function onDelete() {
 	await usagesRead.refresh()
 	const fresh = usagesRead.data.value
 	if (usagesRead.error.value || !fresh) {
+		if (consumeRefusal(usagesRead.error.value)) return
 		toast.add({ title: t('dms_automation.templates.deleteError'), description: errorMessage(usagesRead.error.value), color: 'error', icon: 'i-ph-warning' })
 		return
 	}
@@ -233,6 +236,10 @@ async function onDelete() {
 	try {
 		await $authFetch(`${props.apiUrl}/templates/${s._id}?force=1`, { method: 'DELETE' })
 	} catch (e) {
+		if (consumeRefusal(e)) {
+			await usagesRead.refresh()
+			return
+		}
 		const kept = errorCode(e) === 'fork-incomplete'
 		toast.add({
 			title: kept ? t('dms_automation.templates.forkIncomplete') : t('dms_automation.templates.deleteError'),

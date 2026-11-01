@@ -35,6 +35,7 @@ export function useSaveAsTemplate(
   const { isDirty } = history;
   const { groupName, onUpdateNode } = nav;
   const { onSave } = save;
+  const consumeRefusal = useReadOnlyRefusal();
 
   // Visible when the user has selected a single local group (kind === 'group',
   // no templateId). On submit:
@@ -144,6 +145,7 @@ export function useSaveAsTemplate(
       });
       if (linkOnly) await onSave();
     } catch (e) {
+      if (consumeRefusal(e)) return;
       saveAsTemplateError.value = formatTemplateError(e);
     } finally {
       saveAsTemplateSubmitting.value = false;

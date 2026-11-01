@@ -76,6 +76,7 @@ const STATE_ORDER: ProcedureState[] = ['failing', 'degraded', 'healthy', 'paused
 const USES_SHOWN = 8
 
 const { $authFetch } = useAuthFetch()
+const consumeRefusal = useReadOnlyRefusal()
 const { processI18n } = useTranslation()
 const { processText } = useComposedText()
 const { t, te } = useI18n()
@@ -256,6 +257,7 @@ async function setEnabled(enabled: boolean) {
 			icon: 'i-ph-check-circle',
 		})
 	} catch (e) {
+		if (consumeRefusal(e)) return
 		toast.add({ title: t('dms_automation.common.actionFailed'), description: describeApiError(e), color: 'error', icon: 'i-ph-warning' })
 	} finally {
 		saving.value = false

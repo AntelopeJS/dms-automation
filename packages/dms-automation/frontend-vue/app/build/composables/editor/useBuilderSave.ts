@@ -46,6 +46,7 @@ export function useBuilderSave(
   const { savedTriggersRead } = triggers;
   const { askChoice } = guards;
   const { onTestRun } = later;
+  const consumeRefusal = useReadOnlyRefusal();
 
   async function enableNow() {
     if (!selected.value) return;
@@ -123,6 +124,7 @@ export function useBuilderSave(
       void savedTriggersRead.refresh();
       return true;
     } catch (e) {
+      if (consumeRefusal(e)) return false;
       if (editorMode.value === "procedure" && apiErrorStatus(e) === 409)
         return await resolveStale(current, e);
       const refused = issuesOf(e);
@@ -224,6 +226,7 @@ export function useBuilderSave(
       void summariesRead.refresh();
       void savedTriggersRead.refresh();
     } catch (e) {
+      if (consumeRefusal(e)) return;
       toast.add({
         title: t("dms_automation.editor.loadProceduresError"),
         description: describeApiError(e),
