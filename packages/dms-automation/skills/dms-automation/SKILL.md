@@ -25,7 +25,7 @@ Runs procedures: a trigger starts a run, actions run along trigger edges, data n
 ## Gotchas
 
 - Webhook paths cannot overlap an existing route or start with `/api`, `/auth`, `/dms`, `/modules`, `/settings`; two enabled procedures cannot share method + path. URLs shown use the DMS `apiBaseUrl` (the API server, not the frontend server).
-- Version 0.4+ needs `@antelopejs/dms` 0.9 (`interface-dms` 0.7) and `@antelopejs/dms-frontend` 0.6; 0.3 is the DMS 0.8 line.
+- It needs `@antelopejs/dms` 0.11 or later (`interface-dms` 0.9 or later) and `@antelopejs/dms-frontend` 0.9; 0.6.0 is the DMS 0.10 line.
 - **Test run** simulates only actions declaring `dryRun` (and runs `sideEffects: false` ones as is); every other action (HTTP request, module actions without `dryRun`) acts for real. The builder lists those steps and asks first; `POST …/:id/test` answers 409 with `realEffects` until called with `confirmRealEffects: true` (`POST …/:id/test-effects` `{ graph }` lists them). To make a project or module action safe to test, give it `dryRun` (see `dms-automation-interface`).
 - A re-run sends `[redacted]` where the original request held credentials.
 - Data-change triggers on a project's own tables: `database.table-watch` from `@antelopejs/dms-database` (`schema` = the `RegisterSchema` id, `table`). It needs a change feed: MongoDB **replica set** only (single node `--replSet rs0` + `rs.initiate()` + `replicaSet=rs0` in the URL); on a standalone server the procedure is Failing with "$changeStream is only supported on replica sets".

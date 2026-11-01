@@ -1,3 +1,5 @@
 dist
 node_modules
 .antelope
+# The production frontend workspace `ajs dms build` writes into a project
+.dms-frontend
