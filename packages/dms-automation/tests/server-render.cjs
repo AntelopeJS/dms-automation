@@ -101,6 +101,7 @@ Object.assign(globalThis, {
   }),
   useKeyboardPlatform: () => ({ formatShortcut: same }),
   useToast: () => ({ add: noop }),
+  useApiErrorPresenter: () => ({ presentError: noop }),
   useConfirm: () => ({ confirm: async () => false }),
   useConfirmFrom: () => ({ confirmFrom: async () => {} }),
   useUnsavedChanges: () => ({ confirmLeave: async () => true }),

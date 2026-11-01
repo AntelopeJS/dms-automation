@@ -46,6 +46,7 @@ const { processI18n } = useTranslation()
 const { t, te } = useI18n()
 const { dateTimeFormat } = useRegionalFormat()
 const toast = useToast()
+const { presentError } = useApiErrorPresenter()
 
 // Read like the DMS cards: over the page's period, on its refreshes, through
 // its Live / Pause.
@@ -108,12 +109,7 @@ interface Change {
 }
 
 function failed(e: unknown) {
-	toast.add({
-		title: processI18n('$dms_automation.common.actionFailed'),
-		description: describeApiError(e),
-		color: 'error',
-		icon: 'i-ph-warning',
-	})
+	presentError(e, { fallbackKey: 'dms_automation.common.actionFailed' })
 }
 
 /**

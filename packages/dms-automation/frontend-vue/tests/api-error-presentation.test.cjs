@@ -20,6 +20,12 @@ const {
 const {
   useRunOverlay,
 } = require("../app/build/composables/editor/useRunOverlay.ts");
+const {
+  useSaveAsTemplate,
+} = require("../app/build/composables/editor/useSaveAsTemplate.ts");
+const {
+  useForkToLocal,
+} = require("../app/build/composables/editor/useForkToLocal.ts");
 
 const notices = [];
 const readonlyTitle = "Read-only demo, changes are not saved";
@@ -50,7 +56,13 @@ beforeEach(() => {
     useDmsState: () => presented,
     getPluginI18n: () => ({
       i18n: {
-        tm: (key) => (key === "error.read_only_demo" ? readonlyTitle : key),
+        tm: (key) => {
+          if (key === "error.read_only_demo") return readonlyTitle;
+          if (key === "dms_automation.editor.dock.invalidJson")
+            return "Invalid JSON";
+          if (key === "error.500.description") return "Unexpected error";
+          return {};
+        },
         rt: (message) => message,
       },
     }),
@@ -94,6 +106,9 @@ function context() {
     selectedNodeId: ref(null),
     testTriggerNodeId: ref(null),
     currentGraph: computed(() => selected.value.graph),
+    selectedNode: ref({ id: "group", kind: "group", subgraph: { nodes: [] } }),
+    isCurrentGraphReadOnly: ref(false),
+    subgraphFrames: ref([]),
   };
 }
 
@@ -123,6 +138,17 @@ const scenarios = [
         {},
       );
       return { act: actions.onTestRun, pending: ctx.testing };
+    },
+  ],
+  [
+    "save as template",
+    (ctx) => {
+      const actions = useSaveAsTemplate(ctx, {}, {}, {});
+      actions.saveAsTemplateName.value = "Shared";
+      return {
+        act: actions.submitSaveAsTemplate,
+        pending: actions.saveAsTemplateSubmitting,
+      };
     },
   ],
   [
@@ -185,3 +211,47 @@ for (const [name, setup] of scenarios) {
     });
   }
 }
+
+test("fork refusal resolves the server key and warning inline without adding a toast", async () => {
+  const ctx = context();
+  ctx.selectedNode.value.templateId = "t1";
+  const fetch = createFetch({
+    fetch: async () =>
+      new Response(
+        JSON.stringify({
+          message: "error.read_only_demo",
+          severity: "warning",
+        }),
+        {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    defaults: { retry: 0 },
+  });
+  request = () => fetch("https://example.test/template");
+  const actions = scope.run(() => useForkToLocal(ctx, {}));
+  await actions.submitFork();
+  assert.equal(actions.forkSubmitting.value, false);
+  assert.deepEqual(actions.forkError.value, {
+    message: readonlyTitle,
+    severity: "warning",
+  });
+  assert.deepEqual(notices, []);
+});
+
+test("invalid test payload stays a local validation error and makes no request", async () => {
+  const ctx = context();
+  ctx.testPayload.value = "{";
+  request = () => assert.fail("Invalid JSON must not reach the backend");
+  const actions = scope.run(() =>
+    useRunOverlay(ctx, {}, {}, { selectedProcedureUrl: () => null }, {}),
+  );
+  await actions.onTestRun();
+  assert.deepEqual(
+    notices.map(({ title, color }) => ({ title, color })),
+    [{ title: "Invalid JSON", color: "error" }],
+  );
+  assert.equal(ctx.dockTab.value, "payload");
+  assert.equal(ctx.dockCollapsed.value, false);
+});

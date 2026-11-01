@@ -43,12 +43,8 @@ export function issuesOf(error: unknown): GraphIssue[] | null {
   );
 }
 
-// Render the 400 body from src/routes/templates.ts:
-//   - Zod failure → { error: 'invalid body', issues: ZodIssue[] }
-//   - validateGraph failure → { error: 'invalid graph', issues: string[] }
-//   - cycle → { error: 'template reference cycle', cycle: string[] }
-// Other errors (network, 401, 500) fall back to the message string.
-export function formatTemplateError(err: unknown): string {
+/** Formats structured template validation issues and reference cycles. */
+export function formatTemplateError(err: unknown): string | null {
   const data = (err as { data?: unknown; message?: string } | undefined)
     ?.data as
     | {
@@ -73,18 +69,6 @@ export function formatTemplateError(err: unknown): string {
     if (Array.isArray(data.cycle) && data.cycle.length > 0) {
       return `${head}: ${data.cycle.join(" → ")}`;
     }
-    return head;
   }
-  return describeApiError(err);
-}
-
-export function formatForkError(err: unknown): string {
-  const status = err as { statusCode?: number; status?: number } | undefined;
-  const code = status?.statusCode ?? status?.status;
-  if (code === 404) {
-    return "This template no longer exists. It may have been deleted by another user.";
-  }
-  const data = (err as { data?: { error?: string } } | undefined)?.data;
-  if (data?.error) return data.error;
-  return describeApiError(err);
+  return null;
 }
