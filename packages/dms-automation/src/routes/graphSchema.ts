@@ -9,6 +9,7 @@ import {
 import type { DataValue } from "../types/dataValue";
 import type { GraphNode, GroupPort, ProcedureGraph } from "../types/graph";
 import { isObject } from "../types/guards";
+import { zodIssuesJson } from "./zodJson";
 
 /**
  * Shared Zod schemas for ProcedureGraph and its constituents. Imported by
@@ -122,7 +123,7 @@ export function parseAndValidate<T>(
   if (!parsed.success) {
     throw new HTTPResult(400, {
       error: "invalid body",
-      issues: parsed.error.issues,
+      issues: zodIssuesJson(parsed.error.issues),
     });
   }
   const verdict: ValidateResult = validateGraph(graphSelector(parsed.data));
