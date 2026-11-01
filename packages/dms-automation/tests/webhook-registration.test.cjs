@@ -1,14 +1,16 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { getRegisteredRouteHandlers } = require("@antelopejs/interface-api");
-const { webhookTrigger } = require("../dist/runtime/builtins/triggers/webhook.js");
+const {
+  webhookTrigger,
+} = require("../dist/runtime/builtins/triggers/webhook.js");
 
 const handlerAt = (location) =>
   getRegisteredRouteHandlers().find(
     (entry) => entry.handler.location === location,
   )?.handler;
 
-test("an armed webhook registers its route under a controller class", async () => {
+void test("an armed webhook registers its route under a controller class", async () => {
   const handle = await webhookTrigger.activate(
     { path: "/webhooks/registration-probe", method: "POST" },
     () => undefined,
@@ -22,7 +24,7 @@ test("an armed webhook registers its route under a controller class", async () =
   }
 });
 
-test("a deactivated webhook leaves no route behind", async () => {
+void test("a deactivated webhook leaves no route behind", async () => {
   const handle = await webhookTrigger.activate(
     { path: "/webhooks/deactivation-probe", method: "GET" },
     () => undefined,
