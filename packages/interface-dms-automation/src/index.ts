@@ -3,7 +3,38 @@ import {
   RegisteringProxy,
 } from "@antelopejs/interface-core";
 
-export type JsonSchema = Record<string, unknown>;
+/** A JSON scalar. */
+export type JsonPrimitive = string | number | boolean | null;
+
+/**
+ * A value made of JSON scalars, arrays and objects: what a node reads,
+ * returns, emits or logs. `undefined` marks a value left unset, and is
+ * written as `JSON.stringify` writes it: an object key holding it is left
+ * out, an array item holding it becomes `null`.
+ */
+export type JsonValue = JsonPrimitive | (JsonValue | undefined)[] | JsonObject;
+
+/** A JSON object; a key may hold `undefined` for a field left unset. */
+export type JsonObject = { [key: string]: JsonValue | undefined };
+
+/**
+ * A JSON Schema, as a node type declares its settings, inputs and outputs.
+ * The keywords the builder and the runtime read are typed; any other keyword
+ * (`additionalProperties`, `format`, an `x-` extension…) holds a JSON value.
+ */
+export interface JsonSchema {
+  type?: string | string[];
+  title?: string;
+  description?: string;
+  properties?: { [name: string]: JsonSchema };
+  items?: JsonSchema;
+  required?: string[];
+  enum?: JsonValue[];
+  default?: JsonValue;
+  minimum?: number;
+  maximum?: number;
+  [keyword: string]: JsonValue | undefined;
+}
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -24,17 +55,18 @@ export interface ExecutionCtx {
    * binds this per-node so the entry is auto-tagged with the calling
    * nodeId / nodeKind.
    */
-  log(level: LogLevel, message: string, value?: unknown): void;
+  log(level: LogLevel, message: string, value?: JsonValue): void;
 }
 
 /**
  * A trigger: `activate` arms it and resolves with a handle, `deactivate`
  * receives that handle back. `THandle` types it for the implementer; the
- * automation module treats it as opaque.
+ * automation module treats it as opaque. `emit` hands the graph a payload,
+ * which the run stores and shows: a JSON value.
  */
 export interface TriggerType<
   TConfig = unknown,
-  TOutput = unknown,
+  TOutput extends JsonValue = JsonValue,
   THandle = unknown,
 > {
   id: string;
@@ -57,7 +89,15 @@ export interface TriggerType<
   deactivate(handle: THandle): Promise<void>;
 }
 
-export interface ActionType<TInput = unknown, TOutput = unknown> {
+/**
+ * An action. It resolves with the values its output ports carry, a JSON
+ * object, or with nothing: the step then has no output. A run fails the step
+ * whose action resolves with anything else.
+ */
+export interface ActionType<
+  TInput = unknown,
+  TOutput extends JsonObject | void = JsonObject | void,
+> {
   id: string;
   name: string;
   description: string;
@@ -82,7 +122,15 @@ export interface ActionType<TInput = unknown, TOutput = unknown> {
   execute(input: TInput, ctx: ExecutionCtx): Promise<TOutput>;
 }
 
-export interface DataNodeType<TInput = unknown, TOutput = unknown> {
+/**
+ * A data node. It evaluates to the values its output ports carry, a JSON
+ * object; a run fails the step that reads a data node evaluating to anything
+ * else.
+ */
+export interface DataNodeType<
+  TInput = unknown,
+  TOutput extends JsonObject = JsonObject,
+> {
   id: string;
   category: string;
   name: string;
@@ -145,19 +193,19 @@ export function UnregisterDataNodeType(id: string): void {
  * writes it. `kind` is "trigger", "action", "data", "group" or a flow kind
  * ("if", "switch", "foreach"…); trigger, action and data nodes name their
  * registered type in `typeId`. Group nodes carry `ports` with either a
- * `templateId` or an inline `subgraph`. Other fields (a `label`, canvas
- * metadata) are kept as given.
+ * `templateId` or an inline `subgraph`.
  */
 export interface ProcedureGraphNode {
   id: string;
   kind: string;
   typeId?: string;
-  config: Record<string, unknown>;
+  /** The name the builder gave the step, when it gave one. */
+  label?: string;
+  config: JsonObject;
   position: { x: number; y: number };
   templateId?: string;
   ports?: ProcedureGroupPort[];
   subgraph?: ProcedureGraph;
-  [field: string]: unknown;
 }
 
 export interface ProcedureGroupPort {
@@ -218,7 +266,8 @@ export interface ProcedureIssue {
   code: string;
   message: string;
   nodeId?: string;
-  params?: Record<string, unknown>;
+  /** The values the message names (a field, a bound, a type id), for its translations. */
+  params?: { [name: string]: string | number };
 }
 
 export interface DeclaredProcedure {
@@ -238,7 +287,7 @@ export interface RunProcedureOptions {
    * What the trigger hands the graph. Left out, the last payload that
    * trigger received in a stored run, else `{}`: Run now's default.
    */
-  payload?: unknown;
+  payload?: JsonValue;
   /** The trigger node to start from: the manual one, else the first, by default. */
   triggerNodeId?: string;
 }
@@ -255,7 +304,7 @@ export const ListTriggerTypes = InterfaceFunction<() => TriggerType[]>();
 export const ListActionTypes = InterfaceFunction<() => ActionType[]>();
 export const ListDataNodeTypes = InterfaceFunction<() => DataNodeType[]>();
 export const InvokeProcedure =
-  InterfaceFunction<(id: string, payload?: unknown) => Promise<string>>();
+  InterfaceFunction<(id: string, payload?: JsonValue) => Promise<string>>();
 /**
  * Run a saved procedure now, from any of its triggers (a schedule, a
  * webhook, a manual one…), as "Run now" in the builder does: a graph with

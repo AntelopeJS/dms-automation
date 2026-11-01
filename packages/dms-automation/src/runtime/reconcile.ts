@@ -1,7 +1,10 @@
 import { AsyncResource } from "node:async_hooks";
 import { Logging } from "@antelopejs/interface-core/logging";
 import { GetModel } from "@antelopejs/interface-database-decorators";
-import type { TriggerType } from "@antelopejs/interface-dms-automation";
+import type {
+  JsonValue,
+  TriggerType,
+} from "@antelopejs/interface-dms-automation";
 import { ProcedureModel } from "../db/models/procedure.model";
 import type { Procedure } from "../db/tables/procedure.table";
 import { DATABASE_NAME } from "../types/constants";
@@ -287,7 +290,7 @@ async function activateTrigger(
   liveKey: string,
   live: Armed,
 ): Promise<() => Promise<void>> {
-  const emit = AsyncResource.bind((payload: unknown) => {
+  const emit = AsyncResource.bind((payload: JsonValue) => {
     if (!live.armed) return;
     const meta = liveMeta.get(liveKey);
     if (!meta) {

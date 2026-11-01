@@ -1,18 +1,19 @@
 import { Logging } from "@antelopejs/interface-core/logging";
 import type { ActionType } from "@antelopejs/interface-dms-automation";
+import type { DataValue } from "../../../types/dataValue";
 
 type LogLevelName = "info" | "warn" | "error";
 
 interface LogInput {
   message?: string;
-  value?: unknown;
+  value?: DataValue;
   level?: LogLevelName;
 }
 
-interface LogOutput {
+type LogOutput = {
   message: string;
-  value: unknown;
-}
+  value: DataValue;
+};
 
 const channel = new Logging.Channel("dms-automation");
 

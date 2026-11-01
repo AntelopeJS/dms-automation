@@ -1,18 +1,16 @@
+import type {
+  JsonObject,
+  JsonValue,
+} from "@antelopejs/interface-dms-automation";
+
 /**
  * A value a node reads or writes: JSON, plus `undefined` for a field that was
  * not set.
  */
-export type DataValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | DataValue[]
-  | { [key: string]: DataValue };
+export type DataValue = JsonValue | undefined;
 
 /** The named values of a node's inputs, outputs or config. */
-export type DataRecord = { [key: string]: DataValue };
+export type DataRecord = JsonObject;
 
 /** A value of the object arm of `DataValue`: not an array, not `null`. */
 export function isDataRecord(value: DataValue): value is DataRecord {
@@ -26,7 +24,7 @@ export function isDataRecord(value: DataValue): value is DataRecord {
  * have none, passes: the check is for the output of `JSON.parse`, which never
  * holds one. Iterative, so a deeply nested value cannot overflow the stack.
  */
-function isDataValue(value: unknown): value is DataValue {
+export function isDataValue(value: unknown): value is DataValue {
   const pending: unknown[] = [value];
   while (pending.length > 0) {
     const item = pending.pop();

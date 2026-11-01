@@ -41,6 +41,8 @@ import {
   type DataNodeType,
   type ExecutionCtx,
   type JsonSchema,
+  type JsonObject,
+  type JsonValue,
   type LogLevel,
 } from "@antelopejs/interface-dms-automation";
 ```
@@ -62,7 +64,7 @@ export function start(): void {
       required: ["ingredient", "supplier"],
     },
     outputSchema: { type: "object", properties: { ordered: { type: "boolean" } } },
-    async execute(input: unknown, ctx) {
+    async execute(input: { ingredient: string; supplier: string }, ctx) {
       ctx.log("info", "placing restock order", input);
       return { ordered: true };
     },
@@ -140,6 +142,12 @@ const declared = await DeclareProcedure({
   cluster-wide, leader-only, e.g. cron) or `"replicated"` (every instance activates,
   e.g. webhook). `activate` returns a handle passed back to `deactivate`; type it with the third
   parameter, `TriggerType<TConfig, TOutput, THandle>` (default `unknown`).
+- Node values are JSON (`JsonValue`): a trigger's `emit` payload, an action's
+  output (a `JsonObject`, or nothing), a data node's output (a `JsonObject`), a
+  `ctx.log` value and an `InvokeProcedure`/`RunProcedure` payload. Convert a
+  `Date` to an ISO string and a class instance to a plain object first, and
+  declare object payloads with a `type` alias: an `interface` is not accepted as
+  a `JsonObject` (it declares no index signature).
 - `ExecutionCtx` has no tenant: procedures are platform-wide and a schedule or
   webhook has no tenant. A tenant-scoped action takes `tenantId` as an input
   (wired from the `tenantId` output of a DMS event trigger), defaulting to

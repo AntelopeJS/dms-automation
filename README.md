@@ -45,7 +45,7 @@ RegisterActionType({
   icon: "i-lucide-shopping-cart",
   inputSchema: { type: "object", properties: { ingredient: { type: "string" } } },
   outputSchema: { type: "object", properties: { ordered: { type: "boolean" } } },
-  async execute(input, ctx) {
+  async execute(input: { ingredient?: string }, ctx) {
     ctx.log("info", "placing restock order", input);
     return { ordered: true };
   },

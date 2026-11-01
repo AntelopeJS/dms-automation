@@ -1,7 +1,16 @@
 import { isString } from "../../../types/guards";
 import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
-const execute: NodeExecute = async (node, inputs, ctx) => {
+/**
+ * Takes the branch named after the value's text, `String(value)`, whatever the
+ * value: an object reads `[object Object]`, an array its items joined by
+ * commas. The switch reads its inputs as unknown values for that reason.
+ */
+const execute: NodeExecute = async (
+  node,
+  inputs: Record<string, unknown>,
+  ctx,
+) => {
   const cases = node.config.cases ?? [];
   const key = String(inputs.value);
   if (!isString(cases) && !Array.isArray(cases)) {

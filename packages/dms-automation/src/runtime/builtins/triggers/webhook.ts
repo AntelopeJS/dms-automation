@@ -22,13 +22,13 @@ interface WebhookConfig {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 }
 
-interface WebhookOutput {
+type WebhookOutput = {
   method: string;
   headers: Record<string, string | string[] | undefined>;
   query: Record<string, string | string[]>;
   body: DataValue;
   params: Record<string, string>;
-}
+};
 
 interface WebhookHandle {
   routeId: string;

@@ -53,7 +53,7 @@ const node = (id, kind, typeId, config = {}) => ({
 async function evaluateResult(id, inputs) {
   const dataNode = registry.getDataNode(id);
   assert.ok(dataNode);
-  const output = await dataNode.evaluate(inputs);
+  const output = dataNode.evaluate(inputs);
   assert.ok(isPropertyBag(output));
   return output.result;
 }

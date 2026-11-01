@@ -1,4 +1,3 @@
-import type { JsonSchema } from "@antelopejs/interface-dms-automation";
 import type { DataRecord } from "./dataValue";
 
 /**
@@ -67,8 +66,12 @@ export interface GroupPort {
   name: string;
   kind: "data" | "trigger";
   direction: "in" | "out";
-  /** Present iff kind === "data". */
-  schema?: JsonSchema;
+  /**
+   * The port's JSON Schema; present iff kind === "data". Kept as the builder
+   * or the declaring module sent it: the module stores and serves it without
+   * reading it, and a request is only checked to hold an object there.
+   */
+  schema?: object;
 }
 
 export interface GroupNode extends GraphNode {
