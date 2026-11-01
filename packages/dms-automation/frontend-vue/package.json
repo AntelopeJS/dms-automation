@@ -8,6 +8,7 @@
     "build": "pnpm --dir \"${DMS_FRONTEND_WORKSPACE:?Set DMS_FRONTEND_WORKSPACE to the generated Inertia workspace}\" build",
     "typecheck": "pnpm --dir \"${DMS_FRONTEND_WORKSPACE:?Set DMS_FRONTEND_WORKSPACE to the generated Inertia workspace}\" typecheck",
     "format": "prettier --write .",
+    "test": "node --test tests/*.test.cjs",
     "lint": "eslint . --max-warnings=3",
     "lint:fix": "eslint . --fix"
   },
@@ -16,7 +17,7 @@
     "vue": "^3.5.18"
   },
   "devDependencies": {
-    "@antelopejs/dms": ">=0.11.0 <1.0.0",
+    "@antelopejs/dms": ">=0.13.0 <1.0.0",
     "@antelopejs/dms-frontend": ">=0.9.1 <0.10.0",
     "@antelopejs/tooling-configs": ">=0.0.9 <1.0.0",
     "@eslint/js": "^9.0.0",
