@@ -41,7 +41,7 @@ importers:
         specifier: file:../../.campaign/tgz/antelopejs-interface-dms-0cfaaa3.tgz
         version: file:../../.campaign/tgz/antelopejs-interface-dms-0cfaaa3.tgz(6251a637b637cc4003b8909ecc29ab1a)
       '@antelopejs/interface-dms-automation':
-        specifier: '>=0.5.0 <0.6.0'
+        specifier: '>=0.6.0 <0.7.0'
         version: link:../interface-dms-automation
       defu:
         specifier: ^6.1.4
