@@ -80,6 +80,7 @@ const { processI18n } = useTranslation()
 const { processText } = useComposedText()
 const { t, te } = useI18n()
 const toast = useToast()
+const { presentError } = useApiErrorPresenter()
 const { confirm } = useConfirm()
 const route = useDmsRoute()
 const router = useDmsRouter()
@@ -256,7 +257,7 @@ async function setEnabled(enabled: boolean) {
 			icon: 'i-ph-check-circle',
 		})
 	} catch (e) {
-		toast.add({ title: t('dms_automation.common.actionFailed'), description: describeApiError(e), color: 'error', icon: 'i-ph-warning' })
+		presentError(e, { fallbackKey: 'dms_automation.common.actionFailed' })
 	} finally {
 		saving.value = false
 	}

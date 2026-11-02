@@ -17,6 +17,7 @@ export function useBuilderSave(
   guards: UnsavedGuards,
   later: { onTestRun: () => Promise<void> },
 ) {
+  const { presentError } = useApiErrorPresenter();
   const {
     $authFetch,
     dockCollapsed,
@@ -132,14 +133,11 @@ export function useBuilderSave(
         dockTab.value = "problems";
         dockCollapsed.value = false;
       } else {
-        toast.add({
-          title:
+        presentError(e, {
+          fallbackKey:
             editorMode.value === "template"
-              ? t("dms_automation.templates.saveError")
-              : t("dms_automation.editor.saveError"),
-          description: describeApiError(e),
-          color: "error",
-          icon: "i-ph-warning",
+              ? "dms_automation.templates.saveError"
+              : "dms_automation.editor.saveError",
         });
       }
       return false;
@@ -224,11 +222,8 @@ export function useBuilderSave(
       void summariesRead.refresh();
       void savedTriggersRead.refresh();
     } catch (e) {
-      toast.add({
-        title: t("dms_automation.editor.loadProceduresError"),
-        description: describeApiError(e),
-        color: "error",
-        icon: "i-ph-warning",
+      presentError(e, {
+        fallbackKey: "dms_automation.editor.loadProceduresError",
       });
     }
   }

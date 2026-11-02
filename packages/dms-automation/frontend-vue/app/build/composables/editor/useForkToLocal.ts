@@ -5,11 +5,11 @@ import type {
   GroupPort,
   ProcedureGraph,
 } from "../../../composables/useGraphConnect";
-import { formatForkError } from "../../utils/editor/apiErrors";
 import type { SubgraphNavigation } from "./useSubgraphNavigation";
 
 /** Turning a template instance back into a local group. */
 export function useForkToLocal(ctx: EditorContext, nav: SubgraphNavigation) {
+  const { resolveError } = useApiErrorPresenter();
   const {
     $authFetch,
     currentGraph,
@@ -83,7 +83,7 @@ export function useForkToLocal(ctx: EditorContext, nav: SubgraphNavigation) {
 
   const forkOpen = ref<boolean>(false);
   const forkSubmitting = ref<boolean>(false);
-  const forkError = ref<string | null>(null);
+  const forkError = ref<ReturnType<typeof resolveError>>(null);
 
   function openFork() {
     if (!canForkToLocal.value) return;
@@ -171,7 +171,9 @@ export function useForkToLocal(ctx: EditorContext, nav: SubgraphNavigation) {
         icon: "i-ph-check-circle",
       });
     } catch (e) {
-      forkError.value = formatForkError(e);
+      forkError.value = resolveError(e, {
+        fallbackKey: "dms_automation.editor.forkModal.error",
+      });
     } finally {
       forkSubmitting.value = false;
     }

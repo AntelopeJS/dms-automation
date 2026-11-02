@@ -25,6 +25,7 @@ export function useRunOverlay(
   triggers: SavedTriggers,
   guards: UnsavedGuards,
 ) {
+  const { presentError } = useApiErrorPresenter();
   const {
     $authFetch,
     builderPath,
@@ -215,8 +216,11 @@ export function useRunOverlay(
     let run: RunDetail;
     try {
       run = await runsApi.getRun(runId);
-    } catch {
-      notFound();
+    } catch (error) {
+      presentError(error, {
+        fallbackKey: "dms_automation.editor.debug.runNotFound",
+      });
+      exitDebug();
       return;
     }
     if (run.procedureId !== selectedId.value) {
@@ -286,13 +290,11 @@ export function useRunOverlay(
     let payload: unknown;
     try {
       payload = JSON.parse(testPayload.value || "null");
-    } catch {
+    } catch (error) {
       dockTab.value = "payload";
       dockCollapsed.value = false;
-      toast.add({
-        title: t("dms_automation.editor.dock.invalidJson"),
-        color: "error",
-        icon: "i-ph-warning",
+      presentError(error, {
+        fallbackKey: "dms_automation.editor.dock.invalidJson",
       });
       return;
     }
@@ -327,11 +329,8 @@ export function useRunOverlay(
         dockTab.value = "problems";
         dockCollapsed.value = false;
       }
-      toast.add({
-        title: t("dms_automation.editor.testRunError"),
-        description: describeApiError(e),
-        color: "error",
-        icon: "i-ph-warning",
+      presentError(e, {
+        fallbackKey: "dms_automation.editor.testRunError",
       });
     } finally {
       testing.value = false;
@@ -390,12 +389,13 @@ export function useRunOverlay(
     let run: RunDetail;
     try {
       run = await showRun(runId);
-    } catch {
-      toast.add({
-        title: t("dms_automation.editor.runStarted", { name }),
-        color: "neutral",
-        icon: "i-ph-play-circle",
-        actions: [trace],
+    } catch (error) {
+      presentError(error, {
+        fallbackKey: "dms_automation.editor.runStarted",
+        params: { name },
+        actions: [
+          { labelKey: "dms_automation.runs.trace", onSelect: trace.onClick },
+        ],
       });
       return;
     }
