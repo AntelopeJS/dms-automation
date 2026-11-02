@@ -58,7 +58,7 @@
     "knip:all": "knip"
   },
   "devDependencies": {
-    "@antelopejs/interface-core": "file:../../.campaign/tgz/antelopejs-interface-core-52413a9.tgz",
+    "@antelopejs/interface-core": "file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz",
     "@antelopejs/tooling-configs": "file:../../.campaign/tgz/antelopejs-tooling-configs-c5ffa8e.tgz",
     "@types/node": "^24.0.0",
     "knip": "^6.34.0",
@@ -77,7 +77,7 @@
   "pnpm": {
     "overrides": {
       "@antelopejs/tooling-configs": "file:../../.campaign/tgz/antelopejs-tooling-configs-c5ffa8e.tgz",
-      "@antelopejs/interface-core": "file:../../.campaign/tgz/antelopejs-interface-core-52413a9.tgz"
+      "@antelopejs/interface-core": "file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz"
     }
   },
   "antelopeJs": {
