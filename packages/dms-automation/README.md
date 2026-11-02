@@ -54,25 +54,21 @@ RegisterActionType({
 
 ## Compatibility
 
-<!-- vale off -->
-
 <!-- antelopejs-docs-compat:start -->
 
-| Package                                     | Supported                                                                       | Tested with |
-| ------------------------------------------- | ------------------------------------------------------------------------------- | ----------- |
-| `@antelopejs/interface-api`                 | `file:../../.campaign/tgz/antelopejs-interface-api-f2a99b5.tgz`                 | —           |
-| `@antelopejs/interface-api-util`            | `file:../../.campaign/tgz/antelopejs-interface-api-util-639f38b.tgz`            | —           |
-| `@antelopejs/interface-core`                | `file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz`                | —           |
-| `@antelopejs/interface-data-api`            | `file:../../.campaign/tgz/antelopejs-interface-data-api-d8a868f.tgz`            | —           |
-| `@antelopejs/interface-database`            | `file:../../.campaign/tgz/antelopejs-interface-database-02e0360.tgz`            | —           |
-| `@antelopejs/interface-database-decorators` | `file:../../.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz` | —           |
-| `@antelopejs/interface-dms`                 | `file:../../.campaign/tgz/antelopejs-interface-dms-0cfaaa3.tgz`                 | —           |
-| `@antelopejs/interface-dms-automation`      | `>=0.6.0 <0.7.0`                                                                | —           |
-| `@antelopejs/interface-redis`               | `>=0.0.9 <1.0.0`                                                                | —           |
+| Package                                     | Supported                                                                       | Tested with                                                                     |
+| ------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `@antelopejs/interface-api`                 | `file:../../.campaign/tgz/antelopejs-interface-api-f2a99b5.tgz`                 | `file:../../.campaign/tgz/antelopejs-interface-api-f2a99b5.tgz`                 |
+| `@antelopejs/interface-api-util`            | `file:../../.campaign/tgz/antelopejs-interface-api-util-639f38b.tgz`            | `file:../../.campaign/tgz/antelopejs-interface-api-util-639f38b.tgz`            |
+| `@antelopejs/interface-core`                | `file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz`                | `file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz`                |
+| `@antelopejs/interface-data-api`            | `file:../../.campaign/tgz/antelopejs-interface-data-api-d8a868f.tgz`            | `file:../../.campaign/tgz/antelopejs-interface-data-api-d8a868f.tgz`            |
+| `@antelopejs/interface-database`            | `file:../../.campaign/tgz/antelopejs-interface-database-02e0360.tgz`            | `file:../../.campaign/tgz/antelopejs-interface-database-02e0360.tgz`            |
+| `@antelopejs/interface-database-decorators` | `file:../../.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz` | `file:../../.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz` |
+| `@antelopejs/interface-dms`                 | `file:../../.campaign/tgz/antelopejs-interface-dms-0cfaaa3.tgz`                 | `file:../../.campaign/tgz/antelopejs-interface-dms-0cfaaa3.tgz`                 |
+| `@antelopejs/interface-dms-automation`      | `>=0.6.0 <0.7.0`                                                                | `0.6.0`                                                                         |
+| `@antelopejs/interface-redis`               | `>=0.0.9 <1.0.0`                                                                | `0.0.9`                                                                         |
 
 <!-- antelopejs-docs-compat:end -->
-
-<!-- vale on -->
 
 The `@antelopejs/interface-dms-automation` row is the interface range this release implements. The module also needs these:
 

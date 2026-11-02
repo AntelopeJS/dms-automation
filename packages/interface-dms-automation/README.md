@@ -69,17 +69,13 @@ A trigger also declares a required `cluster` mode. A `"singleton"` trigger, such
 
 The compatibility block of the [module README](../dms-automation/README.md#compatibility) lists the interface range that each `@antelopejs/dms-automation` release implements. The interface declares this peer dependency:
 
-<!-- vale off -->
-
 <!-- antelopejs-docs-compat:start -->
 
-| Package                      | Supported        | Tested with |
-| ---------------------------- | ---------------- | ----------- |
-| `@antelopejs/interface-core` | `>=0.2.4 <1.0.0` | —           |
+| Package                      | Supported        | Tested with                                                      |
+| ---------------------------- | ---------------- | ---------------------------------------------------------------- |
+| `@antelopejs/interface-core` | `>=0.2.4 <1.0.0` | `file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz` |
 
 <!-- antelopejs-docs-compat:end -->
-
-<!-- vale on -->
 
 `InvokeProcedure`, `RunProcedure`, `DeclareProcedure` and the `List*Types` functions queue their call until an implementation attaches. With no implementation loaded, the returned promise stays pending. To branch on availability, check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core`.
 

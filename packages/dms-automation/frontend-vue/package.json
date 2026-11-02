@@ -19,7 +19,7 @@
     "@antelopejs/core": "file:../../../.campaign/tgz/antelopejs-core-184eb90.tgz",
     "@antelopejs/dms": "file:../../../.campaign/tgz/antelopejs-dms-80e4dc1.tgz",
     "@antelopejs/dms-frontend": ">=0.10.0 <0.11.0",
-    "@antelopejs/tooling-configs": "file:../../../.campaign/tgz/antelopejs-tooling-configs-6b759e6.tgz",
+    "@antelopejs/tooling-configs": "file:../../../.campaign/tgz/antelopejs-tooling-configs-dab0aea.tgz",
     "@eslint/js": "^9.0.0",
     "@nuxt/ui": "4.10.0",
     "eslint": "^9.0.0",
@@ -40,7 +40,7 @@
   "pnpm": {
     "overrides": {
       "@antelopejs/interface-database": "file:../../../.campaign/tgz/antelopejs-interface-database-02e0360.tgz",
-      "@antelopejs/tooling-configs": "file:../../../.campaign/tgz/antelopejs-tooling-configs-6b759e6.tgz",
+      "@antelopejs/tooling-configs": "file:../../../.campaign/tgz/antelopejs-tooling-configs-dab0aea.tgz",
       "@antelopejs/interface-api": "file:../../../.campaign/tgz/antelopejs-interface-api-f2a99b5.tgz",
       "@antelopejs/interface-api-util": "file:../../../.campaign/tgz/antelopejs-interface-api-util-639f38b.tgz",
       "@antelopejs/interface-database-decorators": "file:../../../.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz",
