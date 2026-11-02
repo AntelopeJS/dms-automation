@@ -1,6 +1,6 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
 import type { DataRecord, DataValue } from "../../../types/dataValue";
-import { isObject, isPropertyBag } from "../../../types/guards";
+import { isObject, isPlainScalar, isPropertyBag } from "../../../types/guards";
 
 const objProp = { type: "object", default: {} };
 const pathProp = { type: "string", default: "" };
@@ -11,6 +11,10 @@ const resultArrAny = { type: "array" };
 
 /** What defining a plain property takes, where an assignment of `__proto__` would set the prototype. */
 const OWN_DATA = { writable: true, enumerable: true, configurable: true };
+
+function pathText(path: DataValue): string {
+  return isPlainScalar(path) ? String(path ?? "") : JSON.stringify(path);
+}
 
 function getPath(obj: DataValue, path: string): DataValue {
   if (!path) return obj;
@@ -56,9 +60,8 @@ export const objectNodes: DataNodeType[] = [
       properties: { obj: objProp, path: pathProp },
     },
     outputSchema: { type: "object", properties: { result: anyVal } },
-    evaluate: (i) => {
-      const { obj, path } = i as { obj: DataValue; path: string };
-      return { result: getPath(obj, String(path ?? "")) };
+    evaluate: ({ obj, path }: { obj: DataValue; path: DataValue }) => {
+      return { result: getPath(obj, pathText(path)) };
     },
   },
   {
@@ -72,13 +75,16 @@ export const objectNodes: DataNodeType[] = [
       properties: { obj: objProp, path: pathProp, value: anyVal },
     },
     outputSchema: { type: "object", properties: { result: resultObj } },
-    evaluate: (i) => {
-      const { obj, path, value } = i as {
-        obj: DataValue;
-        path: string;
-        value: DataValue;
-      };
-      return { result: setPath(obj, String(path ?? ""), value) };
+    evaluate: ({
+      obj,
+      path,
+      value,
+    }: {
+      obj: DataValue;
+      path: DataValue;
+      value: DataValue;
+    }) => {
+      return { result: setPath(obj, pathText(path), value) };
     },
   },
   {

@@ -1,4 +1,5 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
+import type { DataValue } from "../../../types/dataValue";
 import {
   isBoolean,
   isNumber,
@@ -20,13 +21,13 @@ const modeProp = {
 const DECIMAL = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
 
 /** The number a value stands for: a number, or text written as a decimal. */
-function asNumber(value: unknown): number | undefined {
+function asNumber(value: DataValue): number | undefined {
   if (isNumber(value)) return Number.isFinite(value) ? value : undefined;
   if (!isString(value) || !DECIMAL.test(value.trim())) return undefined;
   return Number(value);
 }
 
-function asText(value: unknown): string {
+function asText(value: DataValue): string {
   if (isPlainScalar(value)) return String(value ?? "");
   return JSON.stringify(value);
 }
@@ -36,7 +37,7 @@ function sign(n: number): number {
 }
 
 /** Kinds `auto` never equates: null, a boolean, anything else. */
-function kindRank(value: unknown): number {
+function kindRank(value: DataValue): number {
   if (value === null || value === undefined) return 0;
   return isBoolean(value) ? 1 : 2;
 }
@@ -48,7 +49,12 @@ function kindRank(value: unknown): number {
  * ranks null before booleans before anything else, so null is never "" and
  * true is never "true".
  */
-function order(id: string, a: unknown, b: unknown, mode: unknown): number {
+function order(
+  id: string,
+  a: DataValue,
+  b: DataValue,
+  mode: DataValue,
+): number {
   const na = asNumber(a);
   const nb = asNumber(b);
   if (mode === "number") {
@@ -81,7 +87,15 @@ function cmp(
     inputSchema: { type: "object", properties: { a: anyVal, b: anyVal } },
     configSchema: { type: "object", properties: { mode: modeProp } },
     outputSchema: { type: "object", properties: { result: resultBool } },
-    evaluate: ({ a, b, mode }: { a: unknown; b: unknown; mode?: unknown }) => {
+    evaluate: ({
+      a,
+      b,
+      mode,
+    }: {
+      a: DataValue;
+      b: DataValue;
+      mode?: DataValue;
+    }) => {
       return { result: test(order(id, a, b, mode ?? "auto")) };
     },
   };

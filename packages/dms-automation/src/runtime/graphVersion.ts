@@ -20,13 +20,15 @@ const VISUAL_NODE_KEYS = new Set([
   "color",
 ]);
 
-function executableNode(node: GraphNode) {
+type NodeWithSubgraph = GraphNode & { subgraph?: ProcedureGraph };
+
+function executableNode(node: NodeWithSubgraph) {
   const kept: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node)) {
     if (VISUAL_NODE_KEYS.has(key)) continue;
     kept[key] =
-      key === "subgraph" && value
-        ? executableGraph(value as ProcedureGraph)
+      key === "subgraph" && node.subgraph
+        ? executableGraph(node.subgraph)
         : value;
   }
   return kept;

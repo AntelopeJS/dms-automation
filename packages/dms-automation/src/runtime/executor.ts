@@ -1,5 +1,5 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
-import type { DataRecord, DataValue } from "../types/dataValue";
+import { type DataRecord, type DataValue, kindOf } from "../types/dataValue";
 import { isPropertyBag } from "../types/guards";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
@@ -123,16 +123,16 @@ function appendEntry(
 
 interface DescribedValue {
   type: string;
-  value: unknown;
+  value: DataValue;
 }
 
-function describeValue(v: unknown): DescribedValue {
+function describeValue(v: DataValue): DescribedValue {
   if (v === null) return { type: "null", value: null };
   if (Array.isArray(v)) return { type: "array", value: v };
-  return { type: typeof v, value: v };
+  return { type: kindOf(v), value: v };
 }
 
-function describeRecord(obj: Record<string, unknown>) {
+function describeRecord(obj: DataRecord) {
   const out: Record<string, DescribedValue> = {};
   for (const [k, v] of Object.entries(obj)) out[k] = describeValue(v);
   return out;

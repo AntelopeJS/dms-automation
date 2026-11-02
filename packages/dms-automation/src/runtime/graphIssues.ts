@@ -220,7 +220,7 @@ function invalidSetting(
       message: `${named.label} must be at most ${maximum}`,
     };
   }
-  if (property.enum && !property.enum.includes(value)) {
+  if (property.enum && !property.enum.some((item) => item === value)) {
     return {
       code: "notInEnum",
       params: { ...named, value: String(value) },

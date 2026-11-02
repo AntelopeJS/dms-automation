@@ -1,3 +1,4 @@
+import { type DataValue, kindOf } from "../types/dataValue";
 import { isGroupNode, type ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
 import { type StepName, stepName } from "./describe";
@@ -89,7 +90,7 @@ const BRANCH_MESSAGE = /^branch: (.+)$/;
 /** The trigger a run started from, and what it received. */
 export interface TriggerSeed {
   nodeId: string;
-  payload: unknown;
+  payload: DataValue;
 }
 
 const topLevel = (flatId: string) =>
@@ -112,7 +113,7 @@ function triggerStep(
     startMs: 0,
     durationMs: 0,
     status: "ok",
-    output: { type: typeof trigger.payload, value: trigger.payload },
+    output: { type: kindOf(trigger.payload), value: trigger.payload },
     depth: 0,
   };
 }
