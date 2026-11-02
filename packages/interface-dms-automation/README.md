@@ -1,11 +1,11 @@
 <div align="center">
 
-# @antelopejs/interface-dms-automation
+# `@antelopejs/interface-dms-automation`
 
-<a href="https://www.npmjs.com/package/@antelopejs/interface-dms-automation"><img alt="npm" src="https://img.shields.io/npm/v/@antelopejs/interface-dms-automation?style=for-the-badge&labelColor=000000&color=000000"></a>
-<a href="./LICENSE"><img alt="License" src="https://img.shields.io/npm/l/@antelopejs/interface-dms-automation?style=for-the-badge&labelColor=000000&color=000000"></a>
-<a href="https://discord.gg/sjK28QHrA7"><img alt="Discord" src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000"></a>
-<a href="https://dms.antelopejs.com/docs/modules/automation/extending"><img alt="Documentation" src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000"></a>
+<a href="https://www.npmjs.com/package/@antelopejs/interface-dms-automation"><img alt="npm" src="https://img.shields.io/npm/v/@antelopejs/interface-dms-automation?style=for-the-badge&labelColor=000000&color=000000" data-illustration></a>
+<a href="./LICENSE"><img alt="License" src="https://img.shields.io/npm/l/@antelopejs/interface-dms-automation?style=for-the-badge&labelColor=000000&color=000000" data-illustration></a>
+<a href="https://discord.gg/sjK28QHrA7"><img alt="Discord" src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000" data-illustration></a>
+<a href="https://dms.antelopejs.com/docs/modules/automation/extending"><img alt="Documentation" src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000" data-illustration></a>
 
 The AntelopeJS interface to add triggers, actions and data nodes to the DMS automation builder.
 
@@ -13,10 +13,11 @@ The AntelopeJS interface to add triggers, actions and data nodes to the DMS auto
 
 ## What it does
 
-- Declares trigger, action and data node types from any module: `RegisterTriggerType`, `RegisterActionType`, `RegisterDataNodeType` and their `Unregister*` counterparts.
+- Declares trigger, action and data node types from any module, with `RegisterTriggerType`, `RegisterActionType`, `RegisterDataNodeType` and their `Unregister*` counterparts.
 - Queues registrations made before the automation module attaches and replays them, so load order does not matter.
-- Lists the available node types (`ListTriggerTypes`, `ListActionTypes`, `ListDataNodeTypes`) and starts a procedure from code: `InvokeProcedure` from its manual trigger, `RunProcedure` from any trigger, as Run now in the builder.
-- Ships procedures as code (`DeclareProcedure`): created once under a stable id, never touched again.
+- Lists the available node types with `ListTriggerTypes`, `ListActionTypes` and `ListDataNodeTypes`.
+- Starts a procedure from code. `InvokeProcedure` starts it from its manual trigger. `RunProcedure` starts it from any trigger, as **Run now** in the builder does.
+- Ships procedures as code with `DeclareProcedure`. The automation module creates the procedure once under a stable ID and never changes it after that.
 - Keeps your module independent of the implementation, [`@antelopejs/dms-automation`](https://www.npmjs.com/package/@antelopejs/dms-automation).
 
 ## Install
@@ -27,11 +28,11 @@ Add the interface to the module that declares nodes:
 pnpm add @antelopejs/interface-dms-automation
 ```
 
-Move it to `optionalDependencies` when your nodes are a bonus: with no implementation loaded, registrations wait for attachment and your module keeps working. Keep it in `dependencies` when your module needs automation to run. Use a wide consumer range, such as `>=0.3.0 <1.0.0`, so package managers can deduplicate. The implementing module caps its own dependency below the next interface minor instead.
+If your module works without automation, move the interface to `optionalDependencies`. With no implementation loaded, registrations wait for one to attach, and your module keeps working. If your module needs automation to run, keep the interface in `dependencies`. Use a wide consumer range, from the interface release you build against up to `<1.0.0`, so package managers can deduplicate it. The implementing module caps its own dependency below the next interface minor instead.
 
 ## Quick start
 
-Register in `start()`, unregister in `stop()`:
+Register each node in `start()` and unregister it in `stop()`:
 
 ```ts
 import { RegisterActionType, UnregisterActionType } from "@antelopejs/interface-dms-automation";
@@ -62,11 +63,13 @@ export function stop(): void {
 }
 ```
 
-Triggers also take a `cluster` mode: `"singleton"` fires on the elected leader only (schedules), `"replicated"` on every instance (webhooks). Namespace node ids as `<module>.<node>` and keep schemas flat, one property per port.
+A trigger also declares a required `cluster` mode. A `"singleton"` trigger, such as a schedule, fires on the elected leader only. A `"replicated"` trigger, such as a webhook, fires on every instance. Namespace node IDs as `<module>.<node>`, and keep schemas flat, with one property per port.
 
 ## Compatibility
 
-Interface 0.3 needs a `@antelopejs/dms-automation` release that implements it for its complete contract, including `DeclareProcedure` and `RunProcedure`; the compatibility block of the [module README](../dms-automation/README.md#compatibility) lists the interface range that module release supports. Module 0.4 implements interface 0.2. The interface declares this peer dependency:
+The compatibility block of the [module README](../dms-automation/README.md#compatibility) lists the interface range that each `@antelopejs/dms-automation` release implements. The interface declares this peer dependency:
+
+<!-- vale off -->
 
 <!-- antelopejs-docs-compat:start -->
 
@@ -76,13 +79,15 @@ Interface 0.3 needs a `@antelopejs/dms-automation` release that implements it fo
 
 <!-- antelopejs-docs-compat:end -->
 
-`InvokeProcedure`, `RunProcedure` and the `List*Types` functions reject when no implementation is loaded; check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core` to branch on availability instead.
+<!-- vale on -->
+
+`InvokeProcedure`, `RunProcedure`, `DeclareProcedure` and the `List*Types` functions queue their call until an implementation attaches. With no implementation loaded, the returned promise stays pending. To branch on availability, check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core`.
 
 ## Documentation
 
-- [Consumer reference](./docs/1.index.md): node contracts, lifecycle, clustering, invocation and failures
-- [Extending the automation module](https://dms.antelopejs.com/docs/modules/automation/extending): node kinds, required members, running a procedure from code
-- [Automation module guide](https://dms.antelopejs.com/docs/modules/automation)
+- [Consumer reference](./docs/1.index.md) covers node contracts, lifecycle, clustering, invocation and failures.
+- [Extending the automation module](https://dms.antelopejs.com/docs/modules/automation/extending) covers node kinds, required members and running a procedure from code.
+- The [automation module guide](https://dms.antelopejs.com/docs/modules/automation) covers the rest of the module.
 
 The package also ships the `dms-automation-interface` Claude Code skill in [`skills/`](https://github.com/AntelopeJS/dms-automation/tree/main/packages/interface-dms-automation/skills), declared under `antelopeJs.skills`.
 
