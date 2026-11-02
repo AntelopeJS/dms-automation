@@ -1,3 +1,4 @@
+import type { DataRecord, DataValue } from "../types/dataValue";
 import {
   type GraphNode,
   parseGraph,
@@ -20,20 +21,22 @@ const VISUAL_NODE_KEYS = new Set([
   "color",
 ]);
 
-function executableNode(node: GraphNode) {
-  const kept: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(node)) {
+type NodeWithSubgraph = GraphNode & { subgraph?: ProcedureGraph };
+
+function executableNode(node: NodeWithSubgraph): DataRecord {
+  const kept: DataRecord = {};
+  for (const [key, value] of Object.entries<DataValue>(node)) {
     if (VISUAL_NODE_KEYS.has(key)) continue;
     kept[key] =
-      key === "subgraph" && value
-        ? executableGraph(value as ProcedureGraph)
+      key === "subgraph" && node.subgraph
+        ? executableGraph(node.subgraph)
         : value;
   }
   return kept;
 }
 
 /** A graph without what only the canvas reads, nested groups included. */
-function executableGraph(graph: ProcedureGraph) {
+function executableGraph(graph: ProcedureGraph): DataRecord {
   return {
     nodes: graph.nodes.map(executableNode),
     triggerEdges: graph.triggerEdges,

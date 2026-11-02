@@ -105,6 +105,7 @@ function parseRow(row: AutomationTemplate): AutomationTemplateRow {
     dataEdges: [],
   };
   try {
+    // SAFETY: the ports column is written only by create and update in this model, as JSON.stringify of a GroupPort[], and stored rows are never schema-parsed on read.
     ports = row.ports ? (JSON.parse(row.ports) as GroupPort[]) : [];
   } catch {
     ports = [];

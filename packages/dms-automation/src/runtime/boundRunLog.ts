@@ -1,3 +1,4 @@
+import type { JsonValue } from "@antelopejs/interface-dms-automation";
 import {
   type DataValue,
   isDataRecord,
@@ -26,7 +27,7 @@ const TRIGGER_PAYLOAD_PREVIEW_CHARS = 4096;
  */
 function byteSize(value: LogEntry | FireNode | FireNode[]): number {
   try {
-    const json = JSON.stringify(value, (_key, v: unknown) =>
+    const json = JSON.stringify(value, (_key, v: bigint | DataValue) =>
       isBigInt(v) ? v.toString() : v,
     );
     return json === undefined ? 0 : Buffer.byteLength(json);
@@ -267,21 +268,28 @@ export function secretsOf(payload: DataValue): string[] {
  * {@link REDACTED}, in its strings at any depth (a step's inputs and output, a
  * log message). Returned as it is when there is no secret.
  */
-export function scrubSecrets<T>(value: T, secrets: readonly string[]): T {
+export function scrubSecrets<T extends DataValue>(
+  value: T,
+  secrets: readonly string[],
+): T {
   if (secrets.length === 0) return value;
-  const scrub = (v: unknown): unknown => {
+  const scrub = (v: JsonValue): JsonValue => {
     if (isString(v)) {
       return secrets.reduce((text, s) => text.replaceAll(s, REDACTED), v);
     }
     if (Array.isArray(v)) return v.map(scrub);
-    if (isRecord(v)) {
+    if (isDataRecord(v)) {
       return Object.fromEntries(
-        Object.entries(v).map(([k, item]) => [k, scrub(item)]),
+        Object.entries(v).map(([k, item]) => [
+          k,
+          item === undefined ? item : scrub(item),
+        ]),
       );
     }
     return v;
   };
-  return scrub(value) as T;
+  // SAFETY: scrub rewrites only the strings of a JSON-shaped value and keeps every key, array item and non-string leaf, so the result has the shape of its argument T.
+  return (value === undefined ? value : scrub(value)) as T;
 }
 
 /**

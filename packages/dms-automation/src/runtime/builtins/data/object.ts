@@ -12,6 +12,11 @@ const resultArrAny = { type: "array" };
 /** What defining a plain property takes, where an assignment of `__proto__` would set the prototype. */
 const OWN_DATA = { writable: true, enumerable: true, configurable: true };
 
+function pathText(path: DataValue): string {
+  // oxlint-disable-next-line typescript/no-base-to-string -- a path wired from a list or saved as one reads as String() reads it today ("a" for ["a"]); any other text changes what a saved graph answers
+  return String(path ?? "");
+}
+
 function getPath(obj: DataValue, path: string): DataValue {
   if (!path) return obj;
   const parts = path.split(".");
@@ -56,9 +61,8 @@ export const objectNodes: DataNodeType[] = [
       properties: { obj: objProp, path: pathProp },
     },
     outputSchema: { type: "object", properties: { result: anyVal } },
-    evaluate: (i) => {
-      const { obj, path } = i as { obj: DataValue; path: string };
-      return { result: getPath(obj, String(path ?? "")) };
+    evaluate: ({ obj, path }: { obj: DataValue; path: DataValue }) => {
+      return { result: getPath(obj, pathText(path)) };
     },
   },
   {
@@ -72,13 +76,16 @@ export const objectNodes: DataNodeType[] = [
       properties: { obj: objProp, path: pathProp, value: anyVal },
     },
     outputSchema: { type: "object", properties: { result: resultObj } },
-    evaluate: (i) => {
-      const { obj, path, value } = i as {
-        obj: DataValue;
-        path: string;
-        value: DataValue;
-      };
-      return { result: setPath(obj, String(path ?? ""), value) };
+    evaluate: ({
+      obj,
+      path,
+      value,
+    }: {
+      obj: DataValue;
+      path: DataValue;
+      value: DataValue;
+    }) => {
+      return { result: setPath(obj, pathText(path), value) };
     },
   },
   {

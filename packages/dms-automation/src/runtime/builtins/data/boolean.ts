@@ -1,4 +1,5 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
+import type { DataValue } from "../../../types/dataValue";
 import { isString } from "../../../types/guards";
 
 const boolProp = { type: "boolean", default: false };
@@ -12,7 +13,7 @@ const FALSE_TEXT = new Set(["", "false", "0"]);
  * "false" and "0" are false: values from a query string or a form are text,
  * and `?active=false` must not read as true.
  */
-export function toBoolean(value: unknown): boolean {
+export function toBoolean(value: DataValue): boolean {
   if (isString(value)) {
     return !FALSE_TEXT.has(value.trim().toLowerCase());
   }
@@ -32,7 +33,7 @@ function bin(
     icon,
     inputSchema: { type: "object", properties: { a: boolProp, b: boolProp } },
     outputSchema: { type: "object", properties: { result: resultBool } },
-    evaluate: ({ a, b }: { a: unknown; b: unknown }) => {
+    evaluate: ({ a, b }: { a: DataValue; b: DataValue }) => {
       return { result: fn(toBoolean(a), toBoolean(b)) };
     },
   };
@@ -50,7 +51,7 @@ export const booleanNodes: DataNodeType[] = [
     icon: "i-ph-exclamation-mark",
     inputSchema: { type: "object", properties: { a: boolProp } },
     outputSchema: { type: "object", properties: { result: resultBool } },
-    evaluate: ({ a }: { a: unknown }) => {
+    evaluate: ({ a }: { a: DataValue }) => {
       return { result: !toBoolean(a) };
     },
   },

@@ -18,3 +18,11 @@ void test("a JSON text reads as the value it holds", () => {
     },
   );
 });
+
+void test("a cyclic value ends the walk", () => {
+  /** @type {Record<string, unknown>} */
+  const loop = {};
+  loop.self = loop;
+  assert.equal(isDataValue(loop), true);
+  assert.equal(isDataValue([loop, () => 1]), false);
+});

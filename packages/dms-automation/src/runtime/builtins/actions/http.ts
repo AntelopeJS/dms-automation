@@ -1,8 +1,9 @@
 import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 import type { ActionType } from "@antelopejs/interface-dms-automation";
+import { z } from "zod";
 import { type DataValue, parseJsonText } from "../../../types/dataValue";
-import { isObject, isPropertyBag, isString } from "../../../types/guards";
+import { isString } from "../../../types/guards";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
@@ -109,7 +110,7 @@ function isPrivateAddress(address: string, family: number): boolean {
   return privateNetwork.check(address, "ipv6");
 }
 
-function checkUrl(raw: unknown): URL {
+function checkUrl(raw: DataValue): URL {
   if (!isString(raw) || raw.trim() === "") {
     throw new Error("The URL is empty.");
   }
@@ -127,16 +128,19 @@ function checkUrl(raw: unknown): URL {
   return url;
 }
 
-function toHeaders(raw: unknown): Headers {
+const headersSchema = z.record(z.unknown());
+
+function toHeaders(raw: DataValue): Headers {
   if (raw === undefined || raw === null) return new Headers();
-  if (!isPropertyBag(raw) || Array.isArray(raw)) {
+  const parsed = headersSchema.safeParse(raw);
+  if (!parsed.success) {
     throw new Error(
       'Headers must be an object of names and values, like {"Accept": "application/json"}.',
     );
   }
   try {
     return new Headers(
-      Object.entries(raw).map(([name, value]): [string, string] => [
+      Object.entries(parsed.data).map(([name, value]): [string, string] => [
         name,
         String(value),
       ]),
@@ -235,18 +239,17 @@ function seconds(ms: number): string {
 }
 
 /** Why the request got no response, in words, from the error fetch threw. */
-function failureReason(err: unknown, url: URL, timeoutMs: number): string {
-  if (err instanceof Error && err.name === "TimeoutError") {
+function failureReason(err: Error, url: URL, timeoutMs: number): string {
+  if (err.name === "TimeoutError") {
     return `no response after ${seconds(timeoutMs)}. Raise the timeout (timeoutMs) if the server is slow.`;
   }
-  const cause =
-    err instanceof Error && err.cause instanceof Error ? err.cause : err;
-  const code = isObject(cause) && "code" in cause ? cause.code : undefined;
+  const cause = err.cause instanceof Error ? err.cause : err;
+  const code = "code" in cause ? cause.code : undefined;
   if (isString(code)) {
     const reason = networkReason(code, url);
     if (reason) return `${reason} (${code}).`;
   }
-  const message = cause instanceof Error ? cause.message : String(cause);
+  const message = cause.message;
   if (message === "bad port") {
     return `port ${url.port} is not allowed for HTTP requests.`;
   }
@@ -403,8 +406,9 @@ export const httpAction: ActionType<HttpInput, HttpOutput> = {
       res = await send(url, init);
       body = await readBody(res);
     } catch (err) {
+      const failure = err instanceof Error ? err : new Error(String(err));
       throw new Error(
-        `${request} failed: ${failureReason(err, url, timeoutMs)}`,
+        `${request} failed: ${failureReason(failure, url, timeoutMs)}`,
         { cause: err },
       );
     }
