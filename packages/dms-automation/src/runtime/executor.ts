@@ -121,10 +121,10 @@ function appendEntry(
   runCtx.entries.push(entry);
 }
 
-interface DescribedValue {
+type DescribedValue = {
   type: string;
   value: DataValue;
-}
+};
 
 function describeValue(v: DataValue): DescribedValue {
   if (v === null) return { type: "null", value: null };

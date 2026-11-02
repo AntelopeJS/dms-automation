@@ -13,6 +13,7 @@ const {
   setHttpRequestOptions,
 } = require("../dist/runtime/builtins/actions/http.js");
 const { isPropertyBag } = require("../dist/types/guards.js");
+const { parseJsonText } = require("../dist/types/dataValue.js");
 
 /** @typedef {import("../dist/types/dataValue.js").DataValue} DataValue */
 /** @typedef {import("../dist/types/dataValue.js").DataRecord} DataRecord */
@@ -349,6 +350,9 @@ before(async () => {
       res.end(
         JSON.stringify({ ok: true, auth: req.headers.authorization ?? null }),
       );
+    } else if (req.url === "/header-names") {
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify(req.rawHeaders.filter((_name, i) => i % 2 === 0)));
     } else if (req.url === "/missing") {
       res.statusCode = 404;
       res.setHeader("content-type", "application/json");
@@ -441,6 +445,29 @@ void test("network failures are said in words", async () => {
     {},
   );
   assert.match(headers.errorMessage, /Headers must be an object/);
+});
+
+void test("the headers of a request are the own keys of its object, a __proto__ key sends none", async () => {
+  const sent = await run(
+    httpGraph({
+      url: `${base}/header-names`,
+      headers: parseJsonText('{"__proto__":"x","X-A":"1"}'),
+      failOnStatus: false,
+    }),
+    "t",
+    {},
+  );
+  assert.equal(sent.status, "ok");
+  const names = parseJsonText(String(at(outputRecord(sent, "h"), "body")));
+  assert.ok(Array.isArray(names));
+  assert.ok(names.includes("X-A"));
+  assert.ok(!names.includes("__proto__"));
+  const date = await run(
+    httpGraph({ url: `${base}/ok`, headers: new Date(0) }),
+    "t",
+    {},
+  );
+  assert.match(date.errorMessage, /Headers must be an object/);
 });
 
 void test("a request that gets no answer fails after its timeout", async () => {

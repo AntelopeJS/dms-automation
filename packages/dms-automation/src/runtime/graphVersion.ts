@@ -1,3 +1,4 @@
+import type { DataRecord, DataValue } from "../types/dataValue";
 import {
   type GraphNode,
   parseGraph,
@@ -22,10 +23,9 @@ const VISUAL_NODE_KEYS = new Set([
 
 type NodeWithSubgraph = GraphNode & { subgraph?: ProcedureGraph };
 
-function executableNode(node: NodeWithSubgraph) {
-  // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- the entries of a stored or posted node are read by key, including the extra fields its schema passes through; they have no common value type, and a union of the known ones would only relabel unknown
-  const kept: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(node)) {
+function executableNode(node: NodeWithSubgraph): DataRecord {
+  const kept: DataRecord = {};
+  for (const [key, value] of Object.entries<DataValue>(node)) {
     if (VISUAL_NODE_KEYS.has(key)) continue;
     kept[key] =
       key === "subgraph" && node.subgraph
@@ -36,7 +36,7 @@ function executableNode(node: NodeWithSubgraph) {
 }
 
 /** A graph without what only the canvas reads, nested groups included. */
-function executableGraph(graph: ProcedureGraph) {
+function executableGraph(graph: ProcedureGraph): DataRecord {
   return {
     nodes: graph.nodes.map(executableNode),
     triggerEdges: graph.triggerEdges,

@@ -1,6 +1,6 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
 import type { DataRecord, DataValue } from "../../../types/dataValue";
-import { isObject, isPlainScalar, isPropertyBag } from "../../../types/guards";
+import { isObject, isPropertyBag } from "../../../types/guards";
 
 const objProp = { type: "object", default: {} };
 const pathProp = { type: "string", default: "" };
@@ -13,7 +13,8 @@ const resultArrAny = { type: "array" };
 const OWN_DATA = { writable: true, enumerable: true, configurable: true };
 
 function pathText(path: DataValue): string {
-  return isPlainScalar(path) ? String(path ?? "") : JSON.stringify(path);
+  // oxlint-disable-next-line typescript/no-base-to-string -- a path wired from a list or saved as one reads as String() reads it today ("a" for ["a"]); any other text changes what a saved graph answers
+  return String(path ?? "");
 }
 
 function getPath(obj: DataValue, path: string): DataValue {
