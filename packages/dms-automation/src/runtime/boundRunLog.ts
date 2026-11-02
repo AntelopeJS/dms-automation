@@ -26,6 +26,7 @@ const TRIGGER_PAYLOAD_PREVIEW_CHARS = 4096;
  */
 function byteSize(value: LogEntry | FireNode | FireNode[]): number {
   try {
+    // oxlint-disable-next-line anti-slop/no-unknown-parameters -- JSON.stringify hands its replacer the value under any key of a log entry, whose value is unknown (LogEntry.value, passed through to the database as is); a named type would only relabel unknown
     const json = JSON.stringify(value, (_key, v: unknown) =>
       isBigInt(v) ? v.toString() : v,
     );
@@ -269,6 +270,7 @@ export function secretsOf(payload: DataValue): string[] {
  */
 export function scrubSecrets<T>(value: T, secrets: readonly string[]): T {
   if (secrets.length === 0) return value;
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns -- scrub walks any run log or message, whose entry values are unknown (LogEntry.value) and whose type is the caller's T; typing the walk DataValue needs the interface RunLog and every entry value to be JSON-typed, which reaches the executor, the trace and appendEntry
   const scrub = (v: unknown): unknown => {
     if (isString(v)) {
       return secrets.reduce((text, s) => text.replaceAll(s, REDACTED), v);
@@ -281,6 +283,7 @@ export function scrubSecrets<T>(value: T, secrets: readonly string[]): T {
     }
     return v;
   };
+  // SAFETY: scrub rewrites only the strings of a JSON-shaped value and keeps every key, array item and non-string leaf, so the result has the shape of its argument T.
   return scrub(value) as T;
 }
 

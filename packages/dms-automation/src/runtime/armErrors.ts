@@ -26,6 +26,7 @@ export class TriggerArmError extends Error {
 function readArmErrors(procedure: Procedure): Record<string, ArmError> {
   if (!procedure.armErrors) return {};
   try {
+    // SAFETY: the armErrors column is written only by storeArmErrors below, as JSON.stringify of a Record<string, ArmError>, and stored rows are never schema-parsed on read.
     return JSON.parse(procedure.armErrors) as Record<string, ArmError>;
   } catch {
     return {};

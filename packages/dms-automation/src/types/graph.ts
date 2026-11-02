@@ -113,5 +113,6 @@ export function* walkNodesRecursive(
 
 /** A graph as `JSON.stringify` stored it in a procedure or template row. */
 export function parseGraph(raw: string): ProcedureGraph {
+  // SAFETY: the graph column and a template's subgraph column are written only as JSON.stringify of a ProcedureGraph (routes/procedures.ts, runtime/declaredProcedures.ts, the template model), and stored rows are never schema-parsed on read.
   return JSON.parse(raw) as ProcedureGraph;
 }

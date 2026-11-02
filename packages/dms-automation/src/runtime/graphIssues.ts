@@ -202,6 +202,7 @@ function missingSettings(
 function invalidSetting(
   field: string,
   property: SchemaProperty,
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- the value is whatever the node holds for a setting (a stored or posted config value); typed DataValue, the String(value) in the message moves the row to typescript/no-base-to-string, and changing the message text for objects and arrays would change what the builder shows
   value: unknown,
 ): ConfigProblem | undefined {
   const { minimum, maximum } = property;
