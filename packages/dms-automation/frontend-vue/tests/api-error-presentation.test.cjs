@@ -1,13 +1,10 @@
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { beforeEach, after, test } = require("node:test");
-const {
-  FRONTEND,
-  frontendRequire,
-} = require("../../tests/helpers/frontend.cjs");
+const { FRONTEND } = require("../../tests/helpers/frontend.cjs");
 const { componentSetup, clientComposable } = require("./helpers/setup.cjs");
-const { ref, computed, effectScope } = frontendRequire("vue");
-const { createFetch } = frontendRequire("ofetch");
+const { ref, computed, effectScope } = require("vue");
+const { createFetch } = require("ofetch");
 const { useApiErrorPresenter } = clientComposable(
   path.join(
     FRONTEND,
