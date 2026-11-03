@@ -10,6 +10,7 @@ const FRONTEND_PACKAGES = [
   "eslint",
   "vue-eslint-parser",
   "typescript-eslint",
+  "ofetch",
 ];
 
 export default antelopeKnipConfig({ ignoreDependencies: FRONTEND_PACKAGES });
