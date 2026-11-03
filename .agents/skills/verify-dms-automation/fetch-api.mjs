@@ -1,11 +1,12 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const target = join(here, "api-module");
-const work = join(process.env.TMPDIR ?? here, "verify-dms-automation-api-pack");
+const work = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), "verify-dms-automation-api-pack-"));
 const VERSION = "1.6.0";
 const OLD = "handler.proto.constructor";
 const NEW = "handler.controller ?? handler.proto.constructor";
@@ -16,8 +17,6 @@ const NEW = "handler.controller ?? handler.proto.constructor";
  * published package into the playground and lets it read `controller` first, so webhook calls reach the module.
  */
 if (existsSync(target)) rmSync(target, { recursive: true, force: true });
-rmSync(work, { recursive: true, force: true });
-mkdirSync(work, { recursive: true });
 execFileSync("npm", ["pack", `@antelopejs/api@${VERSION}`, "--silent", "--pack-destination", work], { stdio: "ignore" });
 execFileSync("tar", ["-xzf", join(work, `antelopejs-api-${VERSION}.tgz`), "-C", work]);
 cpSync(join(work, "package"), target, { recursive: true });
