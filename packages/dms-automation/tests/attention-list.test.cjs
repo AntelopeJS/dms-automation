@@ -23,6 +23,7 @@ globalThis.useI18n = () => ({
   te: () => false,
 });
 globalThis.useToast = () => ({ add() {} });
+globalThis.useApiErrorPresenter = () => ({ presentError() {} });
 globalThis.useRegionalFormat = () => ({
   /** @param {Intl.DateTimeFormatOptions} [options] */
   dateTimeFormat: (options) => new Intl.DateTimeFormat("en", options),

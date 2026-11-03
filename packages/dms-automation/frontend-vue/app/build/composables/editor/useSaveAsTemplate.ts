@@ -22,6 +22,7 @@ export function useSaveAsTemplate(
   nav: SubgraphNavigation,
   save: BuilderSave,
 ) {
+  const { presentError } = useApiErrorPresenter();
   const {
     $authFetch,
     currentGraph,
@@ -144,7 +145,10 @@ export function useSaveAsTemplate(
       });
       if (linkOnly) await onSave();
     } catch (e) {
-      saveAsTemplateError.value = formatTemplateError(e);
+      const validation = formatTemplateError(e);
+      if (validation) saveAsTemplateError.value = validation;
+      else
+        presentError(e, { fallbackKey: "dms_automation.templates.saveError" });
     } finally {
       saveAsTemplateSubmitting.value = false;
     }
