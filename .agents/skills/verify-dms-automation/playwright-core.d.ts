@@ -67,7 +67,14 @@ declare module "playwright-core" {
     type(text: string): Promise<void>;
   }
 
+  interface Mouse {
+    move(x: number, y: number, options?: { steps?: number }): Promise<void>;
+    down(): Promise<void>;
+    up(): Promise<void>;
+  }
+
   interface Page {
+    mouse: Mouse;
     getByRole(role: Role, options?: RoleOptions): Locator;
     getByText(text: string | RegExp): Locator;
     locator(selector: string): Locator;

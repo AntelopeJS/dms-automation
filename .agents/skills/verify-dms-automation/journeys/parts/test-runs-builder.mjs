@@ -52,11 +52,12 @@ export const builderJourneys = [
       await tab.visible({ role: "button", name: "Test run" }, { timeoutMs: 40_000 });
       let dialog = await tab.visible({ role: "dialog", name: "Test with real effects?" }, { timeoutMs: 1000 });
       for (let attempt = 0; attempt < 8 && !dialog.pass; attempt += 1) {
+        if ((await tab.page.getByRole("dialog").count()) > 0) break;
         await tab.click({ role: "button", name: "Test run" });
         dialog = await tab.visible({ role: "dialog", name: "Test with real effects?" }, { timeoutMs: 3000 });
       }
       await ctx.verify("Test run asks first", [
-        dialog,
+        check("the dialog is titled Test with real effects?", dialog.pass, dialog.detail),
         await tab.shows(/This test acts for real: 1 step below changes something outside the run \(sends, writes, calls a service\) and can’t be simulated\. Steps that can simulate are simulated\./),
         await tab.shows(/Fixture verify\.effect-nodry\s+Charge/),
         await tab.visible({ role: "button", name: "Cancel" }),

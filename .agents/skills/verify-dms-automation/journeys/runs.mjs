@@ -4,12 +4,16 @@ import { createProcedure, manualLog, runNow, withConfig } from "../procs.mjs";
 import { insertRuns, MS_PER_HOUR, openPage, runDocument, runTable, textWhen, twoStepProcedure } from "./parts/runs-common.mjs";
 import { listJourneys } from "./parts/runs-list.mjs";
 import { pageJourneys } from "./parts/runs-page.mjs";
+import { drawerWidthJourneys } from "./parts/runs-drawer-width.mjs";
+import { holdJourneys } from "./parts/runs-hold.mjs";
 
 /** @typedef {import("../auto.mjs").Ctx} Ctx */
 
 export const journeys = guarded([
   ...listJourneys,
   ...pageJourneys,
+  ...drawerWidthJourneys,
+  ...holdJourneys,
   {
     id: "run-routes-refuse-an-unknown-run-and-odd-methods",
     title: "an unknown run id answers 404 `run \"<id>\" not found` on the run, its log, its re-run confirmation and its re-run; an unknown KPI metric answers 404; the run routes accept only the documented methods",

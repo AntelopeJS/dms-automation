@@ -35,6 +35,7 @@ The graph editor: bar, palette, canvas, inspector and dock, with test runs, Run 
 ## How to get to it (user POV)
 
 - `/modules/automation/builder?selected=<procedureId>` (or `?template=<id>`).
+- `saving-over-a-change-made-elsewhere-asks-keep-editing-reload-or-overwrite`: saving over a version saved elsewhere opens a dialog titled “<name> was changed elsewhere” with Keep editing (nothing stored), Reload saved version (the other version is brought in) and Overwrite with mine (this tab's graph is stored).
 
 ## Driving it with dms-control
 

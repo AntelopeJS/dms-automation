@@ -41,6 +41,7 @@ The lifecycle of a procedure through `/api/automation/procedures`: create, impor
 - `routes-the-module-does-not-serve-answer-404-and-change-nothing`: wrong methods through raw.
 - `avg-is-the-average-run-duration-not-the-newest`: runs of 100, 200 and 600 ms (the newest the slowest) give `avgDurationMs` 300.
 - `the-delete-confirmation-counts-only-the-runs-of-this-week`: runs 6 days and an hour ago count, a run 8 days ago does not.
+- `a-failure-six-days-old-degrades-and-one-eight-days-old-does-not`: an enabled procedure with a failure 6 days old and a newer success is Degraded (1 of 2 failed in 7 days, Success 50%, Degraded 1 in Procedures · last 7 days); its twin with the failure 8 days old stays Healthy at 100%.
 
 ## How to get to it (user POV)
 

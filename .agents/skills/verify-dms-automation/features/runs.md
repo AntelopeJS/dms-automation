@@ -36,6 +36,8 @@ The Run history at `/modules/automation/runs`: every run of every procedure grou
 - `the-run-figures-count-runs-success-rate-failed-and-p95-against-the-compared-window`: the four figures with the change, tests excluded, the page's figures.
 - `the-retention-footer-says-how-long-runs-are-kept`: the three footer sentences by `runs.retentionDays`.
 - `run-routes-refuse-an-unknown-run-and-odd-methods`: 404 texts, unknown KPI metric, wrong methods, anonymous.
+- `the-drawer-opens-again-at-the-width-it-was-dragged-to`: a mouse drag on the drawer's separator widens it by the distance dragged, and it opens again at that width after it is closed and the page reloaded.
+- `the-list-keeps-its-rows-through-a-search-and-another-page-until-show`: while paused with 30 runs, a run stored since is counted as 1 new · Show, the 25 rows stay through a search, page 2 does not hold the new run, and Show brings the list to 31 items.
 
 ## How to get to it (user POV)
 

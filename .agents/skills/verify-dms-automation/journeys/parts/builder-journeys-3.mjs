@@ -21,7 +21,8 @@ export const builderJourneys3 = [
       await clearLedger(ctx);
       const tab = await openBuilder(ctx, `?selected=${id}`);
       await tab.click({ role: "button", name: "Test run Ctrl ↵" });
-      await tab.visible({ role: "dialog", name: "Test with real effects?" });
+      const asked = await tab.visible({ role: "dialog", name: "Test with real effects?" }, { timeoutMs: 15_000 });
+      await ctx.verify("the confirmation dialog", [check("the dialog is titled Test with real effects?", asked.pass, asked.detail)], { critical: true });
       const dialog = tab.page.getByRole("dialog", { name: "Test with real effects?" });
       await ctx.verify("the confirmation names the step that acts for real", [
         same("the sentence", (await dialog.locator("p").first().innerText()).trim(), "This test acts for real: 1 step below changes something outside the run (sends, writes, calls a service) and can’t be simulated. Steps that can simulate are simulated."),
@@ -54,7 +55,8 @@ export const builderJourneys3 = [
       await tab.visible({ role: "button", name: "Procedures" });
       await settle(tab);
       await tab.click({ role: "button", name: "Test run Ctrl ↵" });
-      await tab.visible({ role: "dialog", name: "Test with real effects?" });
+      const askedAgain = await tab.visible({ role: "dialog", name: "Test with real effects?" }, { timeoutMs: 15_000 });
+      await ctx.verify("the confirmation dialog", [check("the dialog is titled Test with real effects?", askedAgain.pass, askedAgain.detail)], { critical: true });
       const plural = tab.page.getByRole("dialog", { name: "Test with real effects?" });
       await ctx.verify("several steps read in the plural, in graph order", [
         same("the sentence", (await plural.locator("p").first().innerText()).trim(), "This test acts for real: 2 steps below change something outside the run (send, write, call a service) and can’t be simulated. Steps that can simulate are simulated."),
