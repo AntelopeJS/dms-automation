@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@antelopejs/tooling-configs': file:../../.campaign/tgz/antelopejs-tooling-configs-6b759e6.tgz
+  '@antelopejs/tooling-configs': file:../../.campaign/tgz/antelopejs-tooling-configs-dab0aea.tgz
   '@antelopejs/interface-core': file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
 
 importers:
@@ -17,8 +17,8 @@ importers:
         version: file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
     devDependencies:
       '@antelopejs/tooling-configs':
-        specifier: file:../../.campaign/tgz/antelopejs-tooling-configs-6b759e6.tgz
-        version: file:../../.campaign/tgz/antelopejs-tooling-configs-6b759e6.tgz(knip@6.41.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2004))
+        specifier: file:../../.campaign/tgz/antelopejs-tooling-configs-dab0aea.tgz
+        version: file:../../.campaign/tgz/antelopejs-tooling-configs-dab0aea.tgz(knip@6.41.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2004))
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.2
@@ -53,8 +53,8 @@ packages:
     resolution: {integrity: sha512-ur2KLvtD8h4SCZ0VSoQDc1pg+E9Bk/py3EW3qHHdoo3i6RvKWrrDKsX2khVdqQESuF2QMc1sJ6B+7ISjx5TvpQ==, tarball: file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz}
     version: 0.4.0
 
-  '@antelopejs/tooling-configs@file:../../.campaign/tgz/antelopejs-tooling-configs-6b759e6.tgz':
-    resolution: {integrity: sha512-QfhlLga353+OolT4PpYHawrSwecx+FmHg0AR3bxEF/R4t2ea6l87n2IAiNcjnLDQQlv2SfWaBhaszDkH8AnmWQ==, tarball: file:../../.campaign/tgz/antelopejs-tooling-configs-6b759e6.tgz}
+  '@antelopejs/tooling-configs@file:../../.campaign/tgz/antelopejs-tooling-configs-dab0aea.tgz':
+    resolution: {integrity: sha512-qw4AhQIL9HcyJkEQYmCrm1JWzJ65wa34Ih//q0E6Mgpx9cLEOyLQlzzIVpIVvGKX35Q6HtADDV12sLOzYcEl/g==, tarball: file:../../.campaign/tgz/antelopejs-tooling-configs-dab0aea.tgz}
     version: 0.2.17
     engines: {node: '>=22.18.0'}
     hasBin: true
@@ -1763,7 +1763,7 @@ snapshots:
     dependencies:
       reflect-metadata: 0.2.2
 
-  '@antelopejs/tooling-configs@file:../../.campaign/tgz/antelopejs-tooling-configs-6b759e6.tgz(knip@6.41.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2004))':
+  '@antelopejs/tooling-configs@file:../../.campaign/tgz/antelopejs-tooling-configs-dab0aea.tgz(knip@6.41.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2004))':
     dependencies:
       '@oxlint/plugins': 1.81.0
       dts-bundle-generator: 9.5.1
