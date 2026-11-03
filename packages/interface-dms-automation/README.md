@@ -77,7 +77,7 @@ The compatibility block of the [module README](../dms-automation/README.md#compa
 
 <!-- antelopejs-docs-compat:end -->
 
-`InvokeProcedure`, `RunProcedure`, `DeclareProcedure` and the `List*Types` functions queue their call until an implementation attaches. With no implementation loaded, the returned promise stays pending. To branch on availability, check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core`.
+`InvokeProcedure`, `RunProcedure`, `DeclareProcedure` and the `List*Types` functions queue their call until an implementation attaches. With no implementation loaded, the returned promise stays pending. By default, each function queues at most 1,000 calls, and the next one rejects with `ProviderQueueFullError`. A queued call whose calling module stopped rejects with `ModuleContextInvalidatedError` when an implementation attaches. To branch on availability, check `GetInterfaceInstances("@antelopejs/interface-dms-automation")` from `@antelopejs/interface-core`.
 
 ## Documentation
 
