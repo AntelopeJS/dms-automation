@@ -1,0 +1,12 @@
+diff --git a/packages/dms-automation/src/runtime/builtins/nodes/action.ts b/packages/dms-automation/src/runtime/builtins/nodes/action.ts
+--- a/packages/dms-automation/src/runtime/builtins/nodes/action.ts
++++ b/packages/dms-automation/src/runtime/builtins/nodes/action.ts
+@@ -52,7 +52,7 @@
+ 
+ /** Whether a test run would really act through it: neither pure nor simulated. */
+ export function actsForReal(type: ActionType): boolean {
+-  return type.sideEffects !== false && !simulates(type);
++  return type.sideEffects === true && !simulates(type);
+ }
+ 
+ nodeKinds.register("action", execute, {

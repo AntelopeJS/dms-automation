@@ -1,0 +1,13 @@
+diff --git a/packages/dms-automation/src/db/tables/procedure.table.ts b/packages/dms-automation/src/db/tables/procedure.table.ts
+index ef58023..231cffd 100644
+--- a/packages/dms-automation/src/db/tables/procedure.table.ts
++++ b/packages/dms-automation/src/db/tables/procedure.table.ts
+@@ -12,7 +12,7 @@ export const proceduresTableName = "procedures";
+ export class Procedure extends Table {
+   @Index()
+   @Field("string")
+-  declare name: string;
++  declare title: string;
+ 
+   @Field("string")
+   declare description: string;

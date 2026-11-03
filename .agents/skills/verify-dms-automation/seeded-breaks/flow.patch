@@ -1,0 +1,12 @@
+diff --git a/packages/dms-automation/src/runtime/builtins/nodes/forRange.ts b/packages/dms-automation/src/runtime/builtins/nodes/forRange.ts
+--- a/packages/dms-automation/src/runtime/builtins/nodes/forRange.ts
++++ b/packages/dms-automation/src/runtime/builtins/nodes/forRange.ts
+@@ -50,7 +50,7 @@
+   let value = start;
+   let i = 0;
+   const goingUp = step > 0;
+-  while (goingUp ? value < end : value > end) {
++  while (goingUp ? value <= end : value > end) {
+     ctx.setOutputs({ value, index: i });
+     await ctx.fireTrigger("body", { iteration: i });
+     value += step;

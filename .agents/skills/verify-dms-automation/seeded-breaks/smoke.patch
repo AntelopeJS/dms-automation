@@ -1,0 +1,13 @@
+diff --git a/packages/dms-automation/src/runtime/builtins/actions/log.ts b/packages/dms-automation/src/runtime/builtins/actions/log.ts
+index 92e1657..6808ea4 100644
+--- a/packages/dms-automation/src/runtime/builtins/actions/log.ts
++++ b/packages/dms-automation/src/runtime/builtins/actions/log.ts
+@@ -39,7 +39,7 @@ export const logAction: ActionType<LogInput, LogOutput> = {
+       level: {
+         type: "string",
+         enum: ["info", "warn", "error"],
+-        default: "info",
++        default: "warn",
+       },
+     },
+   },

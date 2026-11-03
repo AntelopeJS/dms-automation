@@ -1,0 +1,11 @@
+--- a/packages/dms-automation/src/routes/runs.ts
++++ b/packages/dms-automation/src/routes/runs.ts
+@@ -156,7 +156,7 @@
+     : undefined;
+   const failuresInRow =
+     run.status === "failed"
+-      ? 1 +
++      ? 0 +
+         (await model.countHistory(run.procedureId, {
+           tests,
+           after: lastSuccess ? new Date(lastSuccess.startedAt) : undefined,

@@ -1,0 +1,11 @@
+--- a/packages/dms-automation/src/pages/runs.ts
++++ b/packages/dms-automation/src/pages/runs.ts
+@@ -133,7 +133,7 @@
+     grouped: { groupByField: "startedAt", by: "day", count: true },
+     defaultDisplay: "grouped",
+     pagination: "pages",
+-    pageSize: 25,
++    pageSize: 20,
+     rowClick: "single",
+     liveHold: { whileRowOpen: true, whileScrolled: true },
+     footer: { hint: "$dms_automation.runs.retentionHint" },

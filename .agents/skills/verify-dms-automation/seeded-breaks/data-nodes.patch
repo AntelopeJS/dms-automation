@@ -1,0 +1,12 @@
+diff --git a/packages/dms-automation/src/runtime/builtins/data/object.ts b/packages/dms-automation/src/runtime/builtins/data/object.ts
+--- a/packages/dms-automation/src/runtime/builtins/data/object.ts
++++ b/packages/dms-automation/src/runtime/builtins/data/object.ts
+@@ -127,7 +127,7 @@
+     evaluate: ({ a, b }: { a: DataValue; b: DataValue }) => {
+       const ao = isPropertyBag(a) ? { ...a } : {};
+       const bo = isPropertyBag(b) ? { ...b } : {};
+-      return { result: { ...ao, ...bo } };
++      return { result: { ...bo, ...ao } };
+     },
+   },
+ ];
