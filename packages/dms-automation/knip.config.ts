@@ -13,4 +13,12 @@ const FRONTEND_PACKAGES = [
   "ofetch",
 ];
 
-export default antelopeKnipConfig({ ignoreDependencies: FRONTEND_PACKAGES });
+/**
+ * Packages the verification skill's runs load: `dms-control` reaches the
+ * MongoDB driver through `mongodb-memory-server-core`.
+ */
+const VERIFICATION_PACKAGES = ["mongodb-memory-server-core"];
+
+export default antelopeKnipConfig({
+  ignoreDependencies: [...FRONTEND_PACKAGES, ...VERIFICATION_PACKAGES],
+});
