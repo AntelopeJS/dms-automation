@@ -57,9 +57,6 @@
     "knip": "knip --dependencies",
     "knip:all": "knip"
   },
-  "dependencies": {
-    "@antelopejs/interface-core": "file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz"
-  },
   "devDependencies": {
     "@antelopejs/interface-core": "file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz",
     "@antelopejs/tooling-configs": "file:../../.campaign/tgz/antelopejs-tooling-configs-6b759e6.tgz",
