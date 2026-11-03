@@ -78,7 +78,7 @@ const config: VerifyConfig = {
         `${MODULE}/src/data/runs-table.ts`,
       ],
       funnels: [],
-      containments: ["procedures/delete-takes-the-graph-and-keeps-the-runs"],
+      containments: ["procedures/delete-takes-the-graph-and-keeps-the-runs", "redaction-and-retention/runs-older-than-the-retention-are-deleted-when-the-module-starts"],
       why: "these delete procedures, templates and runs, or rewrite a stored graph, which a revert of the code does not bring back",
     },
     format: {

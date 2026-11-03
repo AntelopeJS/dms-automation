@@ -69,7 +69,7 @@ $C down "$RUN"
 3. **Every registered journey of a feature in `run` must have run and passed.** Known findings stay as failing journeys (see Gotchas): they fail a verdict only when the diff touches their feature.
 4. **Docs.** Judge every `docs:` page of each touched feature against what the journeys showed.
 5. **Formal checks.** `formal-leader-triggers` covers the leader election of the Redis mode: `$C formal "$RUN"` runs it when the diff touches its files.
-6. **One-way doors.** The section comes right after the result line and is mandatory. `$C doors` prints the `One-way-door:` line for the diff. A Data door is contained only by `procedures/delete-takes-the-graph-and-keeps-the-runs` passing in this run, an Outbound door by `test-runs/a-test-run-asks-before-it-acts-for-real`; no journey contains the other kinds, so those rows say so.
+6. **One-way doors.** The section comes right after the result line and is mandatory. `$C doors` prints the `One-way-door:` line for the diff. A Data door is contained only by `procedures/delete-takes-the-graph-and-keeps-the-runs` and `redaction-and-retention/runs-older-than-the-retention-are-deleted-when-the-module-starts` both passing in this run, an Outbound door by `test-runs/a-test-run-asks-before-it-acts-for-real`; no journey contains the other kinds, so those rows say so.
 7. **Result.** FAIL if any of rules 1 to 6 fail. PASS+NOTES when something is not verified or needs the owner's attention. PASS otherwise.
 
 Write `$RUN/evidence/judgement.json` (`doors`, `docs`, `notVerified`, `attention`, `verifier`), then `$C verdict "$RUN" --pr <n>` and, from a thread that did not write the change, `$C publish "$RUN" --pr <n>`.
