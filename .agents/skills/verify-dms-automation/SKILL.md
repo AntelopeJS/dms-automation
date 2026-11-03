@@ -22,7 +22,7 @@ Give `seeded`, `doors` and `--skill` absolute paths: the command runs in `packag
 RUN=$($C up --prepare --base origin/campaign/integration)   # installs, builds, starts; prints the run folder
 ```
 
-`--prepare` runs the `prepare` commands of `verify.config.ts`: the frozen install, the build of the interface and the module, `playwright-core` into this folder, `link-modules.mjs` (the playground's `node_modules`, made of links to the module's), `fetch-api.mjs` (see Gotchas) and the TypeScript build of the playground's fixture module. Without it `up` uses the builds already there, and `doctor` fails on a stale one. `up` starts an isolated DMS from `playground/`:
+`--prepare` runs the `prepare` commands of `verify.config.ts`: the frozen install, the build of the interface and the module, `playwright-core` into this folder, the link of the playground's `node_modules` to `packages/dms-automation/node_modules`, `fetch-api.mjs` (see Gotchas) and the TypeScript build of the playground's fixture module. Without it `up` uses the builds already there, and `doctor` fails on a stale one. `up` starts an isolated DMS from `playground/`:
 
 - the checkout is laid out again under `$RUN/root`, every sibling linked, and the playground copied without `node_modules`, so the run's build, `.antelope/` and data are its own;
 - the API, the dashboard and the mail sink get free ports from the kernel, and `HOME` is `$RUN/home`;

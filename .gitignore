@@ -5,6 +5,5 @@ node_modules
 .dms-frontend
 
 /.agents/skills/verify-dms-automation/playground/dist
-/.agents/skills/verify-dms-automation/playground/node_modules
 /.agents/skills/verify-dms-automation/node_modules
 /.agents/skills/verify-dms-automation/api-module
