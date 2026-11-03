@@ -1,6 +1,6 @@
 import { auto, check, same, text } from "../../auto.mjs";
 import { chain, action, createProcedure, trigger, runNow } from "../../procs.mjs";
-import { bodyText, dialogText, groupHeadings, insertRuns, MS_PER_DAY, openPage, runDocument, tableRows, textWhen } from "./runs-common.mjs";
+import { bodyText, dialogText, groupHeadings, insertRuns, MS_PER_DAY, MS_PER_HOUR, openPage, runDocument, tableRows, textWhen } from "./runs-common.mjs";
 
 /** @typedef {import("../../auto.mjs").Ctx} Ctx */
 
@@ -54,7 +54,8 @@ export const pageJourneys = [
       const { tab } = await openPage(ctx, "/modules/automation/runs", /Run history/);
       const shown = await textWhen(tab, /Page 1 of 1/, 40_000);
       const flat = shown.replace(/\s+/g, " ");
-      const rows = (await tableRows(tab)).map((cells) => cells.slice(1, 8).map((cell) => cell.replace(ID, "<id>").replace(/^(Just now|\d+ min\. ago|\d+ hr\. ago)$/, "<recent>").replace(/^\d+ days ago$/, "<days ago>")));
+      const rows = (await tableRows(tab)).map((cells) => cells.slice(1, 8).map((cell) => cell.replace(ID, "<id>").replace(/^(Just now|\d+ min\. ago|\d+ hr\. ago)$/, "<recent>").replace(/^\d+ days ago$/, "<days ago>").replace(/^Yesterday$/, "<yesterday>")));
+      const yesterdayNoon = (now.getTime() - noon(1).getTime()) / MS_PER_HOUR < 24 ? "<recent>" : "<yesterday>";
       const groups = (await groupHeadings(tab)).map((heading) => heading.replace(/\s+/g, " "));
       await ctx.verify("the list", [
         same("older day groups with their counts, newest day first", groups.slice(1), [`${headingOf(now, 1)} 2`, `${headingOf(now, 3)} 1`]),
@@ -64,8 +65,8 @@ export const pageJourneys = [
           ["<recent>", "Succeeded", `${procedureName} <id>`, "Manual", "—", "7 ms", "Test"],
           ["<recent>", "Failed disk full ☕ 日本", `${procedureName} <id>`, "Manual", "Charge card", "1.5 s", "Run"],
           ["<recent>", "Succeeded", `${procedureName} <id>`, "Manual", "—", "12 ms", "Run"],
-          ["<recent>", "Succeeded", `${procedureName} <id>`, "Manual", "—", "4 ms", "Re-run"],
-          ["<recent>", "Succeeded", `${procedureName} <id>`, "Manual", "—", "3 ms", "Run"],
+          [yesterdayNoon, "Succeeded", `${procedureName} <id>`, "Manual", "—", "4 ms", "Re-run"],
+          [yesterdayNoon, "Succeeded", `${procedureName} <id>`, "Manual", "—", "3 ms", "Run"],
           ["<days ago>", "Succeeded", `${procedureName} <id>`, "Manual", "—", "5 ms", "Run"],
         ]),
         same("tab counts", /All 6 Failed 1 Succeeded 5 Tests 1/.test(flat.replace(/ (?=\d)/g, " ")) || /All\s*6\s*Failed\s*1\s*Succeeded\s*5\s*Tests\s*1/.test(shown), true),
