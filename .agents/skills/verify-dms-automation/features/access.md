@@ -5,6 +5,7 @@ covers:
   - packages/dms-automation/src/data/procedures-table.ts
   - packages/dms-automation/src/data/runs-table.ts
   - packages/dms-automation/src/routes/*-types.ts
+  - packages/dms-automation/src/routes/procedures.ts
 docs:
   - packages/dms-automation/docs/1.introduction.md
   - packages/dms-automation/skills/dms-automation/SKILL.md

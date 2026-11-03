@@ -69,3 +69,4 @@ dms-control journey "$RUN" interface
 - The ids of the stored run and `ctx.runId` differ: the context holds an id of the execution, the stored run gets its own after the run.
 - `VERIFY_AUTO_DECLARE` makes the fixture call `DeclareProcedure` from `start()`: `withConfig(ctx, declareFile(ctx, declarations), ...)`.
 - `hang-arm` and the slow `deactivate` each take 10 s on purpose; the journey that drives them runs about 40 s.
+- `an-unparseable-stored-graph-is-refused-with-400-by-invoke-and-run`: a stored graph that is not JSON gives 400 from InvokeProcedure, RunProcedure and Run now, and stores no run.

@@ -14,6 +14,7 @@ covers:
   - packages/dms-automation/src/routes/zodJson.ts
   - packages/dms-automation/src/runtime/graphIssues.ts
   - packages/dms-automation/src/runtime/validate.ts
+  - packages/dms-automation/src/db/models/stats.model.ts
 docs:
   - packages/dms-automation/docs/4.usage/2.procedures.md
   - packages/dms-automation/skills/dms-automation/SKILL.md
@@ -38,6 +39,8 @@ The lifecycle of a procedure through `/api/automation/procedures`: create, impor
 - `run-now-sends-the-payload-of-the-last-real-call`, `triggers-are-listed-in-words-with-the-next-schedule-time`, `validate-lists-the-problems-of-a-draft-graph`.
 - `the-list-pages-newest-first-and-refuses-bad-pages`, `the-runs-of-a-procedure-list-newest-first-and-page`.
 - `routes-the-module-does-not-serve-answer-404-and-change-nothing`: wrong methods through raw.
+- `avg-is-the-average-run-duration-not-the-newest`: runs of 100, 200 and 600 ms (the newest the slowest) give `avgDurationMs` 300.
+- `the-delete-confirmation-counts-only-the-runs-of-this-week`: runs 6 days and an hour ago count, a run 8 days ago does not.
 
 ## How to get to it (user POV)
 

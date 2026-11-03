@@ -94,6 +94,7 @@ $C doors "$PWD/.agents/skills/verify-dms-automation/seeded-doors/data.patch"
 - A journey that needs old or hand-made runs writes them through the MongoDB driver that `mongodb-memory-server-core` brings (`dms-control` resolves it the same way), then reads them back through the API and the pages.
 - `mongod` comes from `DMS_CONTROL_MONGOD`, `PATH`, or the mongodb-memory-server cache (`~/.cache/mongodb-binaries`).
 - A step whose check fails because the backend or the dashboard stopped answering ends the journey with a `NOT VERIFIED` error and no failing check (`guard.mjs`), so `seeded` never counts an outage as a catch.
+- The Overview feature has 25 journeys and takes about 25 minutes on one run; the rule that every journey of a touched feature must run is met by splitting its journey ids over two runs (`$C up` twice, `$C journey "$RUN" overview <ids...>`) rather than by skipping some.
 - Some journeys take 30 to 45 s on purpose (a trigger that never arms waits for the module's 10 s timeouts; the HTTP request action's default timeout is 30 s).
 - Known findings at the integration head are failing journeys, each with an issue draft; the list is in the pull request's Attention section.
 
