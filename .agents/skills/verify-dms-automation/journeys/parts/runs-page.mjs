@@ -72,6 +72,8 @@ export const pageJourneys = [
         same("tab counts", /All 6 Failed 1 Succeeded 5 Tests 1/.test(flat.replace(/ (?=\d)/g, " ")) || /All\s*6\s*Failed\s*1\s*Succeeded\s*5\s*Tests\s*1/.test(shown), true),
         check("the footer counts the items and the page size", /6 items Page size 25/.test(flat) && /Page 1 of 1/.test(flat), flat.slice(-120)),
       ]);
+      await tab.click({ role: "button", name: "Open search" });
+      await ctx.verify("the search box", [await tab.visible({ role: "textbox", name: "Search procedures, errors, steps, paths or run ids…", exact: true })]);
     },
   },
   {
@@ -87,6 +89,7 @@ export const pageJourneys = [
       const [first, second, third] = spec.map((doc) => String(doc._id));
       const { tab } = await openPage(ctx, `/modules/automation/runs?record=${second}`, /Run history/);
       await textWhen(tab, /Run 2 of 3/, 40_000);
+      await textWhen(tab, /Open trace\s+Debug in builder/, 60_000);
       const flat = (await dialogText(tab)).replace(/\s+/g, " ");
       await ctx.verify("summary of a failed run", [
         check("title is the procedure and the place in the list", flat.includes(`${procedureName} Run 2 of 3`), flat.slice(-500)),

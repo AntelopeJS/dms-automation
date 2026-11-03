@@ -3,6 +3,7 @@ import * as create from "./parts/procedures-create.mjs";
 import * as more from "./parts/procedures-more.mjs";
 import * as life from "./parts/procedures-lifecycle.mjs";
 import * as saved from "./parts/procedures-save.mjs";
+import { journeys as windows } from "./parts/procedures-windows.mjs";
 
 /** @typedef {import("../auto.mjs").Ctx} Ctx */
 
@@ -28,4 +29,5 @@ export const journeys = guarded([
   { id: "saving-moves-the-revision-and-the-version-only-when-a-run-would-differ", title: "Saving with the open revision bumps the revision, bumps the version only when what runs changed, renames its runs and pauses by saving; a save on an old revision is a 409 stale and a bad body names its field", entryPoint: "PUT /procedures/:id", run: (/** @type {Ctx} */ ctx) => saved.saving(ctx) },
   { id: "routes-the-module-does-not-serve-answer-404-and-change-nothing", title: "other methods on the procedure routes are a plain 404 Not Found, new and validate are not ids, odd ids are not found", entryPoint: "PATCH/PUT/DELETE/POST/GET/OPTIONS/HEAD on /procedures routes", run: (/** @type {Ctx} */ ctx) => saved.wrongMethods(ctx) },
   { id: "the-runs-of-a-procedure-list-newest-first-and-page", title: "GET /procedures/:id/runs lists only that procedure's runs newest first, one row more than the limit, and refuses a malformed page", entryPoint: "GET /procedures/:id/runs", run: (/** @type {Ctx} */ ctx) => saved.runsOfAProcedure(ctx) },
+  ...windows,
 ]);

@@ -182,12 +182,15 @@ export const listJourneys = [
       tab.page.on("request", (request) => {
         if (request.url().includes("/stats/kpi/runs")) reads.push(Date.now());
       });
-      for (let index = 0; index < 5; index += 1) await runNow(ctx, a.id);
-      await tab.page.waitForTimeout(12_000);
+      for (let index = 0; index < 24; index += 1) {
+        await runNow(ctx, a.id);
+        await tab.page.waitForTimeout(1000);
+      }
       const quick = reads.length;
-      await ctx.verify("a burst is read at most once per interval", [
-        check("five runs in a row make one or two reads in twelve seconds", quick >= 1 && quick <= 2, `${quick} reads`),
-        await shows(tab, "and the page catches up", "RUNS 9", { timeoutMs: 20_000 }),
+      const gaps = reads.slice(1).map((at, index) => at - (reads[index] ?? at));
+      await ctx.verify("a stream of runs is read at most once per ten seconds", [
+        check("twenty-four runs over about thirty seconds make two to four reads, not one per run", quick >= 2 && quick <= 4, `${quick} reads, gaps ${gaps.join(", ")} ms`),
+        await shows(tab, "and the page catches up", "RUNS 28", { timeoutMs: 20_000 }),
       ]);
       void createEnabled; void manualLog; void aria;
     },

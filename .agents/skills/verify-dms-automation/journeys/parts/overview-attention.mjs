@@ -65,6 +65,7 @@ export const attentionJourneys = [
         same("the failing row's last failure", pick(list(attention.body, "items")[0], "lastFailure", "runId"), f3.runIds[2]),
         same("the degraded row's last failure is its failed run", pick(list(attention.body, "items")[3], "lastFailure", "runId"), d1.runIds[0]),
         await shows(tab, "the count", "NEEDS ATTENTION 5"),
+        await shows(tab, "exactly five procedures: no Show all", "Show all", { not: true, timeoutMs: 1500 }),
         check("failing, many runs: how many in a row, the step and the error", failingThree.includes("Last 3 runs failed at Fixture failure · triple 日本"), failingThree),
         check("failing, one run", failingOne.includes("Last run failed at Fixture failure · single é"), failingOne),
         check("degraded: failed of runs in the period and when", /2 of 3 runs failed in this period · last at \d{1,2}:\d{2} (AM|PM), none since/.test(degradedTwo), degradedTwo),
