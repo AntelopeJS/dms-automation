@@ -37,5 +37,6 @@ dms-control journey "$RUN" redaction-and-retention
 ## Gotchas
 
 - `withConfig(ctx, { VERIFY_AUTO_SENSITIVE_NAMES: "a, b", VERIFY_AUTO_RETENTION_DAYS: "7" }, ...)` restarts the backend with the option.
+- `a-run-log-over-2000-entries-keeps-2000-with-a-truncation-notice`: a run whose log holds exactly 2000 entries is stored whole, with no notice; one with 2001 is stored as 2000 entries, the last a warning `log truncated: 2 entries dropped`.
 - Old runs are inserted in MongoDB (`parts/runs-common.mjs`), the purge runs at module start, so the journeys restart the backend and poll.
 - The hourly purge and the leader-only rule need a clock of hours and a cluster: not driven.
