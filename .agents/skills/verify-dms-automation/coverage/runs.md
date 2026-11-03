@@ -27,7 +27,7 @@ Docs: `packages/dms-automation/docs/4.usage/4.runs.md` (Run history), `docs/3.co
 | 4.runs.md:17 | The tabs show their counts | the-list-is-grouped-by-day-with-the-documented-columns-and-tabs | tab counts |
 | 4.runs.md:17 | The Procedure filter narrows the list | the-tabs-and-filters-narrow-the-list-by-outcome-kind-and-procedure | Procedure filter is; is not; a blank procedure filter filters nothing |
 | 4.runs.md:17 | Column filters narrow the list | the-tabs-and-filters-narrow-the-list-by-outcome-kind-and-procedure | Kind Re-run; Kind Run; Trigger type filter |
-| 4.runs.md:18 | The search placeholder reads "Search procedures, errors, steps, paths or run ids…" | Not driven | the search box is behind the Open search button; the wording is i18n only and the API searches below are driven |
+| 4.runs.md:18 | The search placeholder reads "Search procedures, errors, steps, paths or run ids…" | `the-list-is-grouped-by-day-with-the-documented-columns-and-tabs` | check `the search box` (Open search, then the textbox named with the exact placeholder) |
 | 4.runs.md:18 | Search matches procedure names | search-finds-procedures-errors-steps-paths-and-run-ids | by procedure name (accents, CJK) |
 | 4.runs.md:18 | Search matches errors | search-finds-procedures-errors-steps-paths-and-run-ids | by the error message (emoji and CJK) |
 | 4.runs.md:18 | Search matches steps | search-finds-procedures-errors-steps-paths-and-run-ids | by the failed step's label |

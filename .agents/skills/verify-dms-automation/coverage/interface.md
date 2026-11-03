@@ -92,7 +92,7 @@ Docs read: `packages/dms-automation/docs/5.extending.md` (ext), `packages/interf
 | ref:203 | `InvokeProcedure` runs the first manual trigger | invoke-procedure-rejects-404-and-400-and-returns-the-id-of-a-failed-run | the first manual trigger of the graph |
 | ref:203 | 404 for an unknown procedure | invoke-procedure-rejects-404-and-400-and-returns-the-id-of-a-failed-run | an unknown procedure > status; message |
 | ref:203 | 400 for a graph without a manual trigger | invoke-procedure-rejects-404-and-400-and-returns-the-id-of-a-failed-run | a graph without a manual trigger > status; message; no run was stored |
-| ref:203 | 400 for an unparseable stored graph | Not driven | the API never stores an invalid graph and the playground has no door to the module's tables |
+| ref:203 | 400 for an unparseable stored graph | `an-unparseable-stored-graph-is-refused-with-400-by-invoke-and-run` | checks `InvokeProcedure rejects with 400`, `RunProcedure rejects with 400`, `Run now answers 400`, `no run was stored` (the graph is stored through the MongoDB driver) |
 | ref:203 | a storage failure can reject after actions ran; no rollback, no idempotency key | invoke-procedure-rejects-404-and-400-and-returns-the-id-of-a-failed-run | a failed run still returns its id > a second call is another run: no idempotency key. The storage failure is Not driven (needs a database that refuses writes) |
 | ref:205 | `RunProcedure` starts any saved procedure, whatever its triggers | run-procedure-picks-the-trigger-and-answers-404-for-unknown-ones | which trigger starts |
 | ref:205 | `RunProcedure` waits until the automation module has started | Not driven | a call before the module started needs a boot race the playground cannot stage |

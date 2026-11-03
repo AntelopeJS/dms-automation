@@ -39,3 +39,5 @@ Journey ids are `procedures/<id>`. Docs are 4.usage/2.procedures.md unless anoth
 | (router) | Other methods are not routes | routes-the-module-does-not-serve-answer-404-and-change-nothing | 17 wrong method/path pairs plus HEAD, ids |
 | TSDoc procedures.ts | Test and test-effects routes | Not driven here: covered by the test-runs feature | |
 | 2.procedures.md:35 | Event trigger wording (User registered) | Not driven: needs the DMS event trigger; triggers feature | |
+| 2.procedures.md:39 | Avg is the average run duration, not the newest or the slowest | `avg-is-the-average-run-duration-not-the-newest` | check `avgDurationMs is the mean, 300` over runs of 100, 200 and 600 ms |
+| 2.procedures.md:62 | The delete confirmation counts the runs of this week only: 6 days ago counts, 8 days ago does not | `the-delete-confirmation-counts-only-the-runs-of-this-week` | check `two runs this week` |
