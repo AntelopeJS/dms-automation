@@ -1,0 +1,13 @@
+diff --git a/packages/dms-automation/src/routes/stats.ts b/packages/dms-automation/src/routes/stats.ts
+index 8ab9eae..861e135 100644
+--- a/packages/dms-automation/src/routes/stats.ts
++++ b/packages/dms-automation/src/routes/stats.ts
+@@ -196,7 +196,7 @@ export class StatsController extends Controller("/api/automation/stats") {
+   }
+ 
+   /** Compared as the KPIs are: the window the scope resolved, kept runs only. */
+-  @Get("/runs-per-day")
++  @Get("/runs-by-day")
+   // oxlint-disable-next-line eslint/max-params -- one decorator per query input
+   async runsPerDay(
+     @AuthRawUser() _user: User,

@@ -2,6 +2,7 @@ import type {
   ActionType,
   DataNodeType,
   DeclaredProcedure,
+  JsonValue,
   ProcedureDeclaration,
   ProcedureRunOutcome,
   RunProcedureOptions,
@@ -59,7 +60,7 @@ export async function ListDataNodeTypes(): Promise<DataNodeType[]> {
 
 export async function InvokeProcedure(
   id: string,
-  payload?: unknown,
+  payload?: JsonValue,
 ): Promise<string> {
   return subscriptions.invokeManual(id, payload);
 }

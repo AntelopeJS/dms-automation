@@ -1,11 +1,13 @@
 import { HTTPResult } from "@antelopejs/interface-api";
 import { Logging } from "@antelopejs/interface-core/logging";
 import { GetModel } from "@antelopejs/interface-database-decorators";
+import type { JsonValue } from "@antelopejs/interface-dms-automation";
 import type { BusMessage, ChangeMessage } from "../cluster/bus";
 import * as bus from "../cluster/bus";
 import { instanceId } from "../cluster/instance";
 import { AutomationTemplateModel } from "../db/models/automation_template.model";
 import { DATABASE_NAME } from "../types/constants";
+import type { DataValue } from "../types/dataValue";
 import type { ProcedureGraph } from "../types/graph";
 import { MANUAL_TRIGGER_ID } from "./builtins/triggers/manual";
 import {
@@ -301,7 +303,10 @@ export const subscriptions = {
     });
     requestReconcile(`trigger type "${typeId}" unregistered`);
   },
-  async invokeManual(procedureId: string, payload?: unknown): Promise<string> {
+  async invokeManual(
+    procedureId: string,
+    payload?: JsonValue,
+  ): Promise<string> {
     const procedure = await loadProcedure(procedureId);
     const graph = parseStoredGraph(procedure);
     const manualNode = graph.nodes.find(
@@ -327,7 +332,7 @@ export const subscriptions = {
    */
   async runNow(
     procedureId: string,
-    payload: unknown,
+    payload: DataValue,
     triggerNodeId?: string,
   ): Promise<string> {
     const procedure = await loadProcedure(procedureId);
@@ -350,7 +355,7 @@ export const subscriptions = {
    */
   async rerun(
     procedureId: string,
-    run: { _id: string; triggerNodeId: string; triggerPayload: unknown },
+    run: { _id: string; triggerNodeId: string; triggerPayload: DataValue },
   ): Promise<string> {
     const procedure = await loadProcedure(procedureId);
     const graph = parseStoredGraph(procedure);
@@ -375,7 +380,7 @@ export const subscriptions = {
   async testRun(
     procedureId: string,
     graph: ProcedureGraph,
-    payload: unknown,
+    payload: DataValue,
     triggerNodeId?: string,
   ): Promise<string> {
     const procedure = await loadProcedure(procedureId);

@@ -8,8 +8,8 @@ const {
   serverRender,
 } = require("./server-render.cjs");
 
-describe("run drawer and log", () => {
-  test("reads the run of the row opened through useApiData, and hands it over", async () => {
+void describe("run drawer and log", () => {
+  void test("reads the run of the row opened through useApiData, and hands it over", async () => {
     const render = await serverRender(
       component("RunPeek.vue"),
       {
@@ -25,7 +25,7 @@ describe("run drawer and log", () => {
     assert.match(render.html, /Oct 14, 8:00 AM · 1 s · Manual/);
   });
 
-  test("leaves the run's name to the row header, pins its actions to the bottom", async () => {
+  void test("leaves the run's name to the row header, pins its actions to the bottom", async () => {
     const props = {
       rowData: { _id: "run-1" },
       apiUrl: API,
@@ -42,7 +42,7 @@ describe("run drawer and log", () => {
     assert.equal(html.match(/class="whitespace-nowrap"/g).length, 2);
   });
 
-  test("wraps a step's name while its bar takes a line of its own", async () => {
+  void test("wraps a step's name while its bar takes a line of its own", async () => {
     const label = "Assign the on-call technician of the week";
     const step = {
       nodeId: "n1",
@@ -67,7 +67,7 @@ describe("run drawer and log", () => {
     );
   });
 
-  test("says a run of the row does not exist", async () => {
+  void test("says a run of the row does not exist", async () => {
     const render = await serverRender(
       component("RunPeek.vue"),
       {
@@ -82,7 +82,7 @@ describe("run drawer and log", () => {
     assert.match(render.html, /dms_automation\.trace\.loadError/);
   });
 
-  test("reads the log a run did not come with, and hands it over", async () => {
+  void test("reads the log a run did not come with, and hands it over", async () => {
     const render = await serverRender(
       component("Run/RunLogList.vue"),
       { apiUrl: API, runId: "run-1", names: new Map() },

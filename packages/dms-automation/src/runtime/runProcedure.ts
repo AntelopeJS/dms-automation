@@ -8,6 +8,7 @@ import type { Procedure } from "../db/tables/procedure.table";
 import type { ProcedureRun } from "../db/tables/procedure_run.table";
 import { RUNS_TOPIC, notifyTopic } from "../realtime";
 import { DATABASE_NAME } from "../types/constants";
+import type { DataValue } from "../types/dataValue";
 import {
   type GraphNode,
   parseGraph,
@@ -31,7 +32,7 @@ interface RunRecord {
   procedureId: string;
   procedureName: string;
   triggerNodeId: string;
-  triggerPayload: unknown;
+  triggerPayload: DataValue;
   startedAt: Date;
   endedAt: Date;
   result: ExecutionResult;
@@ -142,7 +143,7 @@ export async function executeProcedure(
   procedure: Procedure,
   graph: ProcedureGraph,
   triggerNodeId: string,
-  payload: unknown,
+  payload: DataValue,
   templates: TemplateCache,
   origin: RunOrigin = TRIGGERED_RUN,
 ): Promise<string> {

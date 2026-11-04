@@ -12,7 +12,7 @@ const { scheduleTimeZone } = require("../dist/runtime/schedule.js");
 
 const CRON = "dms_automation.cron";
 
-test("a schedule reads in words, composed in the reader's language", () => {
+void test("a schedule reads in words, composed in the reader's language", () => {
   assert.deepEqual(cronText("* * * * *"), { key: `${CRON}.everyMinute` });
   assert.deepEqual(cronText("*/10 * * * *"), {
     key: `${CRON}.everyMinutes`,
@@ -45,14 +45,14 @@ test("a schedule reads in words, composed in the reader's language", () => {
   assert.equal(cronText("not a cron"), "not a cron");
 });
 
-test("a clock time names the zone the schedules fire in, the server's", () => {
+void test("a clock time names the zone the schedules fire in, the server's", () => {
   assert.deepEqual(cronText("0 2 * * *"), {
     key: `${CRON}.daily`,
     params: { time: `02:00 (${scheduleTimeZone()})` },
   });
 });
 
-test("a schedule with seconds keeps them, a step of hours its minute", () => {
+void test("a schedule with seconds keeps them, a step of hours its minute", () => {
   assert.deepEqual(cronText("*/20 * * * * *"), {
     key: `${CRON}.everySeconds`,
     params: { n: "20" },
@@ -70,7 +70,7 @@ test("a schedule with seconds keeps them, a step of hours its minute", () => {
   });
 });
 
-test("a trigger reads as its settings, its type under them", () => {
+void test("a trigger reads as its settings, its type under them", () => {
   const webhook = {
     nodeId: "t1",
     typeId: "webhook",
@@ -86,7 +86,7 @@ test("a trigger reads as its settings, its type under them", () => {
   assert.equal(triggerText(null), "$dms_automation.trigger.none");
 });
 
-test("a schedule trigger reads in the zone its summary names", () => {
+void test("a schedule trigger reads in the zone its summary names", () => {
   const schedule = {
     nodeId: "t1",
     typeId: "cron",
@@ -110,7 +110,7 @@ test("a schedule trigger reads in the zone its summary names", () => {
   );
 });
 
-test("a step reads as its label, else its type, else its id", () => {
+void test("a step reads as its label, else its type, else its id", () => {
   assert.equal(
     stepText({ nodeId: "a1", label: "Notify", typeName: "Log" }),
     "Notify",
@@ -120,14 +120,14 @@ test("a step reads as its label, else its type, else its id", () => {
   assert.equal(stepText(null), null);
 });
 
-test("a key nested in a composed text is composed, a name is kept", () => {
+void test("a key nested in a composed text is composed, a name is kept", () => {
   assert.deepEqual(asParam("$dms_automation.types.log.name"), {
     key: "dms_automation.types.log.name",
   });
   assert.equal(asParam("Notify the team"), "Notify the team");
 });
 
-test("the saved triggers of a procedure come with their text", () => {
+void test("the saved triggers of a procedure come with their text", () => {
   const { savedTriggersOf } = require("../dist/routes/procedures.js");
   const graph = {
     nodes: [
@@ -165,7 +165,7 @@ test("the saved triggers of a procedure come with their text", () => {
   assert.equal(triggers[2].text, triggers[2].typeName);
 });
 
-test("a schedule placed in a procedure is listed in the library in words", () => {
+void test("a schedule placed in a procedure is listed in the library in words", () => {
   const { triggerUsageOf } = require("../dist/routes/library.js");
   const schedule = triggerUsageOf({
     id: "s",

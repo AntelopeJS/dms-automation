@@ -1,11 +1,12 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
+import type { DataRecord, DataValue } from "../types/dataValue";
 import type { DataEdge, GraphNode } from "../types/graph";
 import { isPropertyBag } from "../types/guards";
 import { propertiesOf } from "./schemaProperties";
 
 export type DataNodeEvaluator = (
   sourceNodeId: string,
-) => Record<string, unknown> | undefined;
+) => DataRecord | undefined;
 
 /**
  * Run-scoped output store with version-stamped invalidation.
@@ -24,7 +25,7 @@ export type DataNodeEvaluator = (
  * time by the data-node evaluator's evalStack guard (executor.ts).
  */
 export class DataCache {
-  private outputs = new Map<string, unknown>();
+  private outputs = new Map<string, DataValue>();
   private versions = new Map<string, number>();
   /**
    * For data nodes: the result and the upstream versions seen when the cache
@@ -39,7 +40,7 @@ export class DataCache {
   >();
 
   /** Read the most recent value written for `nodeId`, if any. */
-  getOutput(nodeId: string): unknown {
+  getOutput(nodeId: string): DataValue {
     return this.outputs.get(nodeId);
   }
 
@@ -47,7 +48,7 @@ export class DataCache {
    * Write a node's output. Bumps the version, invalidating any data cache
    * entry that depends on this source.
    */
-  setOutput(nodeId: string, value: unknown): void {
+  setOutput(nodeId: string, value: DataValue): void {
     this.outputs.set(nodeId, value);
     this.versions.set(nodeId, (this.versions.get(nodeId) ?? 0) + 1);
   }
@@ -63,7 +64,7 @@ export class DataCache {
    * Stale: a dependency changed. Drop the cache entry so future
    * reads from this node go through evaluation again.
    */
-  getCachedData(nodeId: string): Record<string, unknown> | undefined {
+  getCachedData(nodeId: string): DataRecord | undefined {
     if (!this.outputs.has(nodeId)) return undefined;
     const cached = this.dataResults.get(nodeId);
     if (!cached) return undefined;
@@ -82,11 +83,7 @@ export class DataCache {
    * computed against. Bumps the node's own version so any *downstream*
    * data-node caches dependent on this node revalidate.
    */
-  cacheData(
-    nodeId: string,
-    value: Record<string, unknown>,
-    deps: Iterable<string>,
-  ): void {
+  cacheData(nodeId: string, value: DataRecord, deps: Iterable<string>): void {
     this.setOutput(nodeId, value);
     const depMap = new Map<string, number>();
     for (const depId of deps) depMap.set(depId, this.versionOf(depId));
@@ -105,12 +102,11 @@ export class DataCache {
  * editor never seeded) then gets the value its schema documents.
  */
 export function schemaDefaults(schema: JsonSchema | undefined) {
-  const properties = propertiesOf(schema);
-  const out: Record<string, unknown> = {};
-  for (const [name, prop] of Object.entries(properties)) {
-    if (prop.default !== undefined) out[name] = prop.default;
+  const defaults: [string, DataValue][] = [];
+  for (const [name, prop] of Object.entries(propertiesOf(schema))) {
+    if (prop.default !== undefined) defaults.push([name, prop.default]);
   }
-  return out;
+  return Object.fromEntries(defaults);
 }
 
 /**
@@ -133,7 +129,7 @@ export function resolveInputs(
   evaluateDataNode?: DataNodeEvaluator,
   defaults: ReturnType<typeof schemaDefaults> = {},
 ) {
-  const result = { ...defaults, ...node.config };
+  const wired = new Map<string, DataValue>();
 
   for (const edge of dataEdges) {
     if (edge.to.node !== node.id) continue;
@@ -146,10 +142,10 @@ export function resolveInputs(
 
     if (!isPropertyBag(upstream)) continue;
 
-    if (edge.from.port in upstream) {
-      result[edge.to.field] = upstream[edge.from.port];
+    if (Object.hasOwn(upstream, edge.from.port)) {
+      wired.set(edge.to.field, upstream[edge.from.port]);
     }
   }
 
-  return result;
+  return { ...defaults, ...node.config, ...Object.fromEntries(wired) };
 }

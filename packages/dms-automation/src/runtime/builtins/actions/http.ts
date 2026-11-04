@@ -1,8 +1,9 @@
 import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 import type { ActionType } from "@antelopejs/interface-dms-automation";
+import { z } from "zod";
 import { type DataValue, parseJsonText } from "../../../types/dataValue";
-import { isObject, isString } from "../../../types/guards";
+import { isString } from "../../../types/guards";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
@@ -17,13 +18,13 @@ interface HttpInput {
 
 const BODYLESS_METHODS = new Set(["GET", "HEAD"]);
 
-interface HttpOutput {
+type HttpOutput = {
   status: number;
   headers: Record<string, string>;
   body: string;
   /** The body parsed, when the server says it is JSON; null otherwise. */
-  json: unknown;
-}
+  json: DataValue;
+};
 
 /** Module-wide settings of the action, from the module config. */
 export interface HttpRequestOptions {
@@ -109,7 +110,7 @@ function isPrivateAddress(address: string, family: number): boolean {
   return privateNetwork.check(address, "ipv6");
 }
 
-function checkUrl(raw: unknown): URL {
+function checkUrl(raw: DataValue): URL {
   if (!isString(raw) || raw.trim() === "") {
     throw new Error("The URL is empty.");
   }
@@ -127,16 +128,23 @@ function checkUrl(raw: unknown): URL {
   return url;
 }
 
-function toHeaders(raw: unknown): Headers {
-  if (raw !== undefined && raw !== null) {
-    if (!isObject(raw) || Array.isArray(raw)) {
-      throw new Error(
-        'Headers must be an object of names and values, like {"Accept": "application/json"}.',
-      );
-    }
+const headersSchema = z.record(z.unknown());
+
+function toHeaders(raw: DataValue): Headers {
+  if (raw === undefined || raw === null) return new Headers();
+  const parsed = headersSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error(
+      'Headers must be an object of names and values, like {"Accept": "application/json"}.',
+    );
   }
   try {
-    return new Headers((raw ?? {}) as Record<string, string>);
+    return new Headers(
+      Object.entries(parsed.data).map(([name, value]): [string, string] => [
+        name,
+        String(value),
+      ]),
+    );
   } catch (err) {
     throw new Error(
       `Invalid header: ${err instanceof Error ? err.message : String(err)}`,
@@ -231,18 +239,17 @@ function seconds(ms: number): string {
 }
 
 /** Why the request got no response, in words, from the error fetch threw. */
-function failureReason(err: unknown, url: URL, timeoutMs: number): string {
-  if (err instanceof Error && err.name === "TimeoutError") {
+function failureReason(err: Error, url: URL, timeoutMs: number): string {
+  if (err.name === "TimeoutError") {
     return `no response after ${seconds(timeoutMs)}. Raise the timeout (timeoutMs) if the server is slow.`;
   }
-  const cause =
-    err instanceof Error && err.cause instanceof Error ? err.cause : err;
-  const code = isObject(cause) && "code" in cause ? cause.code : undefined;
+  const cause = err.cause instanceof Error ? err.cause : err;
+  const code = "code" in cause ? cause.code : undefined;
   if (isString(code)) {
     const reason = networkReason(code, url);
     if (reason) return `${reason} (${code}).`;
   }
-  const message = cause instanceof Error ? cause.message : String(cause);
+  const message = cause.message;
   if (message === "bad port") {
     return `port ${url.port} is not allowed for HTTP requests.`;
   }
@@ -295,12 +302,8 @@ function excerpt(text: string, max: number): string {
   return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 }
 
-function headersOf(res: Response) {
-  const out: Record<string, string> = {};
-  res.headers.forEach((value, name) => {
-    out[name] = value;
-  });
-  return out;
+export function headersOf(res: Response) {
+  return Object.fromEntries(res.headers);
 }
 
 function parseJson(res: Response, body: string): DataValue {
@@ -403,8 +406,9 @@ export const httpAction: ActionType<HttpInput, HttpOutput> = {
       res = await send(url, init);
       body = await readBody(res);
     } catch (err) {
+      const failure = err instanceof Error ? err : new Error(String(err));
       throw new Error(
-        `${request} failed: ${failureReason(err, url, timeoutMs)}`,
+        `${request} failed: ${failureReason(failure, url, timeoutMs)}`,
         { cause: err },
       );
     }

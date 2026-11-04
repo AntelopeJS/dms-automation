@@ -20,12 +20,31 @@ const {
   InvokeProcedure,
   RunProcedure,
 } = require("../dist/implementations/dms-automation/index.js");
+const {
+  isNumber,
+  isPropertyBag,
+  isString,
+} = require("../dist/types/guards.js");
+
+/** @typedef {import("../dist/types/graph.js").GraphNode} GraphNode */
+/** @typedef {import("../dist/types/graph.js").TriggerEdge} TriggerEdge */
+/** @typedef {import("../dist/db/tables/procedure_run.table.js").ProcedureRun} ProcedureRun */
+/** @typedef {import("../dist/db/models/procedure_run.model.js").HistoryQuery} HistoryQuery */
+/** @typedef {Partial<ProcedureRun> & { _id: string }} RunRow */
+/** @typedef {{ _id: string, name: string, enabled: boolean, graph: string, revision: number, version: number }} StoredProcedure */
 
 for (const t of builtinTriggers) registry.addTrigger(t.id, t);
 for (const a of builtinActions) registry.addAction(a.id, a);
 for (const d of builtinDataNodes) registry.addDataNode(d.id, d);
 markModuleStarted();
 
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {string} typeId
+ * @param {Record<string, unknown>} [config]
+ * @returns {GraphNode}
+ */
 const node = (id, kind, typeId, config = {}) => ({
   id,
   kind,
@@ -33,13 +52,21 @@ const node = (id, kind, typeId, config = {}) => ({
   config,
   position: { x: 0, y: 0 },
 });
+/**
+ * @param {string} from
+ * @param {string} to
+ * @returns {TriggerEdge}
+ */
 const edge = (from, to) => ({
   id: `${from}-${to}`,
   from: { node: from },
   to: { node: to },
 });
 
-/** A schedule and a webhook start it; nothing else does. */
+/**
+ * A schedule and a webhook start it; nothing else does.
+ * @type {StoredProcedure}
+ */
 const scheduled = {
   _id: "reports.weekly",
   name: "Weekly report",
@@ -56,27 +83,37 @@ const scheduled = {
   revision: 1,
   version: 1,
 };
+/** @type {StoredProcedure} */
 const broken = {
   ...scheduled,
   _id: "reports.broken",
   graph: JSON.stringify({ nodes: [], triggerEdges: [], dataEdges: [] }),
 };
+/** @type {Map<string, StoredProcedure>} */
 const procedures = new Map([
   [scheduled._id, scheduled],
   [broken._id, broken],
 ]);
 
+/** @type {RunRow[]} */
 const runs = [];
 Object.assign(ProcedureModel.prototype, {
+  /** @param {string} id */
   get: async (id) => procedures.get(id),
 });
 Object.assign(ProcedureRunModel.prototype, {
+  /** @param {Partial<ProcedureRun>} row */
   insert: async (row) => {
     const _id = `run-${runs.length + 1}`;
     runs.push({ ...row, _id, startedAt: row.startedAt });
     return [_id];
   },
+  /** @param {string} id */
   get: async (id) => runs.find((r) => r._id === id),
+  /**
+   * @param {string} procedureId
+   * @param {HistoryQuery} query
+   */
   newest: async (procedureId, { before }) =>
     runs
       .filter(
@@ -88,9 +125,20 @@ Object.assign(ProcedureRunModel.prototype, {
       .sort((a, b) => b.startedAt - a.startedAt)[0],
 });
 
-test("a procedure without a manual trigger runs from code", async () => {
+/**
+ * @param {unknown} err
+ * @returns {Record<string, unknown>}
+ */
+function thrown(err) {
+  assert.ok(isPropertyBag(err));
+  return err;
+}
+
+void test("a procedure without a manual trigger runs from code", async () => {
   await assert.rejects(InvokeProcedure(scheduled._id), (err) => {
-    assert.match(err.body, /no manual trigger/);
+    const { body } = thrown(err);
+    assert.ok(isString(body));
+    assert.match(body, /no manual trigger/);
     return true;
   });
 
@@ -101,12 +149,13 @@ test("a procedure without a manual trigger runs from code", async () => {
   const [run] = runs;
   assert.equal(run.triggerNodeId, "monday");
   assert.equal(run.kind, "run");
+  assert.ok(isString(run.triggerPayload));
   assert.deepEqual(JSON.parse(run.triggerPayload), {
     firedAt: "2026-10-12T09:00:00.000Z",
   });
 });
 
-test("it starts from the trigger named, with its last payload by default", async () => {
+void test("it starts from the trigger named, with its last payload by default", async () => {
   runs.push({
     _id: "earlier",
     procedureId: scheduled._id,
@@ -119,23 +168,26 @@ test("it starts from the trigger named, with its last payload by default", async
   const outcome = await RunProcedure(scheduled._id, { triggerNodeId: "hook" });
   assert.equal(outcome.status, "ok");
   const run = runs.find((r) => r._id === outcome.runId);
+  assert.ok(run);
   assert.equal(run.triggerNodeId, "hook");
+  assert.ok(isString(run.triggerPayload));
   assert.deepEqual(JSON.parse(run.triggerPayload), { body: { week: 41 } });
 });
 
-test("it is refused as Run now is", async () => {
+void test("it is refused as Run now is", async () => {
   await assert.rejects(RunProcedure("reports.missing"), (err) => {
-    assert.equal(err.status, 404);
+    assert.equal(thrown(err).status, 404);
     return true;
   });
   await assert.rejects(RunProcedure(broken._id), (err) => {
-    assert.ok(err.status >= 400 && err.status < 500);
+    const { status } = thrown(err);
+    assert.ok(isNumber(status) && status >= 400 && status < 500);
     return true;
   });
   await assert.rejects(
     RunProcedure(scheduled._id, { triggerNodeId: "nope" }),
     (err) => {
-      assert.equal(err.status, 404);
+      assert.equal(thrown(err).status, 404);
       return true;
     },
   );

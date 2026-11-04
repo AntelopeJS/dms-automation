@@ -1,9 +1,31 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
+const { isPropertyBag, isString } = require("../dist/types/guards.js");
 
-test("a procedure row opens the builder, and the list offers no form", () => {
+/**
+ * The options of the list's table, which the framework keeps on the builder
+ * and its types do not show.
+ * @returns {Record<string, unknown>}
+ */
+function tableOptions() {
   const { ProceduresPageController } = require("../dist/pages/procedures.js");
+  /** @type {unknown} */
   const options = ProceduresPageController.table._options;
+  assert.ok(isPropertyBag(options), "the list's table has options");
+  return options;
+}
+
+/**
+ * @param {Record<string, unknown>} action
+ * @returns {Record<string, unknown>}
+ */
+function targetOf(action) {
+  assert.ok(isPropertyBag(action.target), "the action has a target");
+  return action.target;
+}
+
+void test("a procedure row opens the builder, and the list offers no form", () => {
+  const options = tableOptions();
 
   assert.deepEqual(options.formContainer, {
     type: "page",
@@ -17,6 +39,7 @@ test("a procedure row opens the builder, and the list offers no form", () => {
     },
   });
   const { rowActions } = options;
+  assert.ok(isPropertyBag(rowActions));
   assert.equal(rowActions.add, false);
   assert.equal(rowActions.edit, false);
   assert.deepEqual(rowActions.details, {
@@ -30,11 +53,14 @@ test("a procedure row opens the builder, and the list offers no form", () => {
   });
 });
 
-test("the list has a tab per state, the failing one feeding the menu badge", () => {
-  const { ProceduresPageController } = require("../dist/pages/procedures.js");
-  const { tabs } = ProceduresPageController.table._options;
+void test("the list has a tab per state, the failing one feeding the menu badge", () => {
+  const { tabs } = tableOptions();
+  assert.ok(Array.isArray(tabs));
   assert.deepEqual(
-    tabs.map((t) => [t.id, t.filter.value, t.navBadge]),
+    tabs.map((/** @type {unknown} */ t) => {
+      assert.ok(isPropertyBag(t) && isPropertyBag(t.filter));
+      return [t.id, t.filter.value, t.navBadge];
+    }),
     [
       ["failing", "failing", true],
       ["degraded", "degraded", false],
@@ -45,42 +71,70 @@ test("the list has a tab per state, the failing one feeding the menu badge", () 
   );
 });
 
-test("run now, pause and resume act on the right rows", () => {
-  const { ProceduresPageController } = require("../dist/pages/procedures.js");
-  const custom = ProceduresPageController.table._options.rowActions.custom;
+void test("run now, pause and resume act on the right rows", () => {
+  const { rowActions } = tableOptions();
+  assert.ok(isPropertyBag(rowActions) && Array.isArray(rowActions.custom));
   const byLabel = Object.fromEntries(
-    custom.map((a) => [a.label.split(".").at(-1), a]),
+    rowActions.custom.map(
+      /**
+       * @param {unknown} a
+       * @returns {[string, Record<string, unknown>]}
+       */
+      (a) => {
+        assert.ok(isPropertyBag(a) && isString(a.label));
+        return [a.label.slice(a.label.lastIndexOf(".") + 1), a];
+      },
+    ),
   );
   assert.equal(
-    byLabel.runNow.target.url,
+    targetOf(byLabel.runNow).url,
     "/api/automation/procedures/{{row.procedureId}}/run-now",
   );
   assert.deepEqual(byLabel.runNow.rule, { field: "status", notIn: ["draft"] });
-  assert.deepEqual(byLabel.pause.target.body, { enabled: false });
+  assert.deepEqual(targetOf(byLabel.pause).body, { enabled: false });
   assert.deepEqual(byLabel.pause.rule, { field: "enabled", equals: true });
-  assert.deepEqual(byLabel.resume.target.body, { enabled: true });
+  assert.deepEqual(targetOf(byLabel.resume).body, { enabled: true });
   assert.equal(
-    byLabel.viewRuns.target.url,
+    targetOf(byLabel.viewRuns).url,
     "/modules/automation/runs?procedure={{row.procedureId}}",
   );
   assert.equal(
-    byLabel.openLastRun.target.url,
+    targetOf(byLabel.openLastRun).url,
     "/modules/automation/trace?run={{row.lastRunId}}",
   );
   assert.equal(
-    byLabel.duplicate.target.url,
+    targetOf(byLabel.duplicate).url,
     "/api/automation/procedures/{{row.procedureId}}/duplicate",
   );
 });
 
-test("the list reloads on the procedures' and the runs' realtime topics", () => {
-  const { ProceduresPageController } = require("../dist/pages/procedures.js");
-  assert.deepEqual(ProceduresPageController.table._options.realtimeTopic, [
+void test("the list reloads on the procedures' and the runs' realtime topics", () => {
+  assert.deepEqual(tableOptions().realtimeTopic, [
     "automation.procedures",
     "automation.runs",
   ]);
 });
 
+/**
+ * @typedef {Pick<
+ *   import("../dist/db/models/stats.model.js").ProcedureSummaryRow,
+ *   | "procedureId"
+ *   | "name"
+ *   | "description"
+ *   | "status"
+ *   | "lastError"
+ *   | "triggerTypes"
+ * > & {
+ *   triggers: Partial<import("../dist/runtime/describe.js").TriggerSummary>[];
+ * }} FixtureRow
+ */
+
+/**
+ * @param {string} name
+ * @param {FixtureRow["status"]} status
+ * @param {Partial<FixtureRow>} [extra]
+ * @returns {FixtureRow}
+ */
 function row(name, status, extra = {}) {
   return {
     procedureId: name,
@@ -108,9 +162,10 @@ const ROWS = [
   row("Archive", "paused"),
 ];
 
+/** @param {{ name: string }[]} rows */
 const names = (rows) => rows.map((r) => r.name);
 
-test("an empty search or filter, sent as a bare parameter, keeps every row", () => {
+void test("an empty search or filter, sent as a bare parameter, keeps every row", () => {
   const { applyQuery } = require("../dist/data/procedures-query.js");
   assert.equal(
     applyQuery(ROWS, { search: true, filter_status: true }).length,
@@ -119,7 +174,7 @@ test("an empty search or filter, sent as a bare parameter, keeps every row", () 
   assert.equal(applyQuery(ROWS, { search: "  ", filter_status: "" }).length, 4);
 });
 
-test("the search reads webhook paths, schedules and errors, without accents", () => {
+void test("the search reads webhook paths, schedules and errors, without accents", () => {
   const { applyQuery } = require("../dist/data/procedures-query.js");
   assert.deepEqual(names(applyQuery(ROWS, { search: "cafe" })), ["Café sync"]);
   assert.deepEqual(names(applyQuery(ROWS, { search: "demo-payment" })), [
@@ -131,7 +186,7 @@ test("the search reads webhook paths, schedules and errors, without accents", ()
   assert.deepEqual(names(applyQuery(ROWS, { search: "0 2 *" })), ["Nightly"]);
 });
 
-test("the status and trigger filters keep or drop rows by any of their values", () => {
+void test("the status and trigger filters keep or drop rows by any of their values", () => {
   const { applyQuery } = require("../dist/data/procedures-query.js");
   assert.deepEqual(
     names(applyQuery(ROWS, { filter_status: "is:failing,degraded" })),
@@ -149,7 +204,7 @@ test("the status and trigger filters keep or drop rows by any of their values", 
   );
 });
 
-test("sorting on the status orders the states by severity, either way", () => {
+void test("sorting on the status orders the states by severity, either way", () => {
   const { sortRows } = require("../dist/data/procedures-query.js");
   assert.deepEqual(names(sortRows(ROWS, "status", "asc")), [
     "Payments",
@@ -169,7 +224,7 @@ test("sorting on the status orders the states by severity, either way", () => {
   );
 });
 
-test("the picker's options narrow to the ids asked for, whatever the page size", () => {
+void test("the picker's options narrow to the ids asked for, whatever the page size", () => {
   const { procedureOptions } = require("../dist/data/procedures-query.js");
   const procedures = [
     { _id: "p-a", name: "Alpha" },

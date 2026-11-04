@@ -1,4 +1,3 @@
-import type { JsonSchema } from "@antelopejs/interface-dms-automation";
 import type { DataRecord } from "./dataValue";
 
 /**
@@ -14,7 +13,7 @@ import type { DataRecord } from "./dataValue";
  *    group's subgraph; they are registered like any other kind but the
  *    editor manages them automatically.
  */
-export interface GraphNode {
+export type GraphNode = {
   id: string;
   kind: string;
   typeId?: string;
@@ -22,13 +21,13 @@ export interface GraphNode {
   position: { x: number; y: number };
   /** The name the builder gave the node, when it gave one. */
   label?: string;
-}
+};
 
 /** One end of a trigger edge. `branch` is absent when the end has none. */
-export interface TriggerEdgeEnd {
+export type TriggerEdgeEnd = {
   node: string;
   branch?: string;
-}
+};
 
 /** Builds an end, setting `branch` only when there is one. */
 export function triggerEdgeEnd(
@@ -40,7 +39,7 @@ export function triggerEdgeEnd(
   return end;
 }
 
-export interface TriggerEdge {
+export type TriggerEdge = {
   id: string;
   from: TriggerEdgeEnd;
   /**
@@ -49,26 +48,30 @@ export interface TriggerEdge {
    * for ordinary target nodes, whose trigger-in is a single fixed handle.
    */
   to: TriggerEdgeEnd;
-}
+};
 
-export interface DataEdge {
+export type DataEdge = {
   id: string;
   from: { node: string; port: string };
   to: { node: string; field: string };
-}
+};
 
-export interface ProcedureGraph {
+export type ProcedureGraph = {
   nodes: GraphNode[];
   triggerEdges: TriggerEdge[];
   dataEdges: DataEdge[];
-}
+};
 
 export interface GroupPort {
   name: string;
   kind: "data" | "trigger";
   direction: "in" | "out";
-  /** Present iff kind === "data". */
-  schema?: JsonSchema;
+  /**
+   * The port's JSON Schema; present iff kind === "data". Kept as the builder
+   * or the declaring module sent it: the module stores and serves it without
+   * reading it, and a request is only checked to hold an object there.
+   */
+  schema?: object;
 }
 
 export interface GroupNode extends GraphNode {
@@ -110,5 +113,6 @@ export function* walkNodesRecursive(
 
 /** A graph as `JSON.stringify` stored it in a procedure or template row. */
 export function parseGraph(raw: string): ProcedureGraph {
+  // SAFETY: the graph column and a template's subgraph column are written only as JSON.stringify of a ProcedureGraph (routes/procedures.ts, runtime/declaredProcedures.ts, runtime/templateUsages.ts, the template model), and stored rows are never schema-parsed on read.
   return JSON.parse(raw) as ProcedureGraph;
 }

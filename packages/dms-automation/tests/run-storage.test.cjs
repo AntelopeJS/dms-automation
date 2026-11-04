@@ -21,6 +21,7 @@ const {
   serializeTriggerPayload,
 } = require("../dist/runtime/boundRunLog.js");
 const { ProcedureRun } = require("../dist/db/tables/procedure_run.table.js");
+const { isPropertyBag, isString } = require("../dist/types/guards.js");
 
 const ROOT = {
   id: "f0",
@@ -31,6 +32,12 @@ const ROOT = {
   seq: 0,
 };
 
+/**
+ * @param {number} seq
+ * @param {string} [message]
+ * @param {unknown} [value]
+ * @returns {import("../dist/types/runLog.js").LogEntry}
+ */
 function entry(seq, message = `m${seq}`, value) {
   const e = {
     fireId: "f0",
@@ -44,23 +51,27 @@ function entry(seq, message = `m${seq}`, value) {
   return e;
 }
 
+/**
+ * @param {number} n
+ * @param {unknown} [value]
+ */
 function entries(n, value) {
   return Array.from({ length: n }, (_, i) => entry(i + 1, undefined, value));
 }
 
-test("procedure_runs indexes serve the startedAt sort and per-procedure history", () => {
+void test("procedure_runs indexes serve the startedAt sort and per-procedure history", () => {
   const { indexes } = getMetadata(ProcedureRun, DatumStaticMetadata);
   assert.deepEqual(indexes.startedAt, ["startedAt"]);
   assert.deepEqual(indexes.procedureId_startedAt, ["procedureId", "startedAt"]);
   assert.equal(indexes.procedureId, undefined);
 });
 
-test("a log within budget is returned unchanged", () => {
+void test("a log within budget is returned unchanged", () => {
   const log = { fires: [ROOT], entries: entries(MAX_LOG_ENTRIES) };
   assert.equal(boundRunLog(log), log);
 });
 
-test("too many entries are cut to the entry budget with a notice", () => {
+void test("too many entries are cut to the entry budget with a notice", () => {
   const total = MAX_LOG_ENTRIES + 500;
   const bounded = boundRunLog({ fires: [ROOT], entries: entries(total) });
 
@@ -82,7 +93,7 @@ test("too many entries are cut to the entry budget with a notice", () => {
   assert.deepEqual(bounded.fires, [ROOT]);
 });
 
-test("large entry values are cut to the byte budget", () => {
+void test("large entry values are cut to the byte budget", () => {
   const big = "x".repeat(64 * 1024);
   const log = { fires: [ROOT], entries: entries(200, big) };
   const bounded = boundRunLog(log);
@@ -92,7 +103,7 @@ test("large entry values are cut to the byte budget", () => {
   assert.equal(bounded.entries.length, 200 - bounded.truncated + 1);
 });
 
-test("an unserializable value counts as over budget instead of throwing", () => {
+void test("an unserializable value counts as over budget instead of throwing", () => {
   const circular = {};
   circular.self = circular;
   const log = {
@@ -107,7 +118,7 @@ test("an unserializable value counts as over budget instead of throwing", () => 
   );
 });
 
-test("an oversized log keeps its errors, its start and its end", () => {
+void test("an oversized log keeps its errors, its start and its end", () => {
   const total = MAX_LOG_ENTRIES * 2;
   const log = { fires: [ROOT], entries: entries(total) };
   log.entries[total / 2].level = "error";
@@ -126,7 +137,7 @@ test("an oversized log keeps its errors, its start and its end", () => {
   assert.match(bounded.entries.at(-1).message, /entries dropped/);
 });
 
-test("an oversized log keeps only the fires its kept entries hang from", () => {
+void test("an oversized log keeps only the fires its kept entries hang from", () => {
   const total = MAX_LOG_ENTRIES * 3;
   const fires = [ROOT];
   const log = { fires, entries: [] };
@@ -150,7 +161,7 @@ test("an oversized log keeps only the fires its kept entries hang from", () => {
   for (const e of bounded.entries) assert.ok(kept.has(e.fireId), e.fireId);
 });
 
-test("a webhook payload is stored without the value of its credential headers", () => {
+void test("a webhook payload is stored without the value of its credential headers", () => {
   const payload = {
     method: "POST",
     headers: {
@@ -177,7 +188,7 @@ test("a webhook payload is stored without the value of its credential headers", 
   assert.doesNotMatch(serializeTriggerPayload(payload), /SUPER-SECRET|abc/);
 });
 
-test("credential headers are told by their name, whatever its case", () => {
+void test("credential headers are told by their name, whatever its case", () => {
   for (const name of [
     "X-Shopify-Hmac-Sha256",
     "X-Auth-User",
@@ -201,16 +212,18 @@ test("credential headers are told by their name, whatever its case", () => {
   }
 });
 
-test("a trigger payload within budget is stored as plain JSON", () => {
+void test("a trigger payload within budget is stored as plain JSON", () => {
   assert.equal(serializeTriggerPayload({ a: 1 }), '{"a":1}');
   assert.equal(serializeTriggerPayload(undefined), "null");
 });
 
-test("an oversized trigger payload is replaced by a JSON marker", () => {
+void test("an oversized trigger payload is replaced by a JSON marker", () => {
   const payload = { body: "y".repeat(MAX_TRIGGER_PAYLOAD_BYTES) };
   const stored = serializeTriggerPayload(payload);
+  /** @type {unknown} */
   const marker = JSON.parse(stored);
 
+  assert.ok(isPropertyBag(marker) && isString(marker.preview));
   assert.equal(marker.truncated, true);
   assert.equal(
     marker.originalBytes,
@@ -220,7 +233,7 @@ test("an oversized trigger payload is replaced by a JSON marker", () => {
   assert.ok(marker.preview.startsWith('{"body":"yyy'));
 });
 
-test("a webhook's secret query parameters are not stored either", () => {
+void test("a webhook's secret query parameters are not stored either", () => {
   const stored = readTriggerPayload(
     serializeTriggerPayload({
       query: { token: "abcdef123", api_key: "k-123456", page: "2" },
@@ -233,7 +246,7 @@ test("a webhook's secret query parameters are not stored either", () => {
   });
 });
 
-test("a credential a step copied from the trigger is scrubbed from its log", () => {
+void test("a credential a step copied from the trigger is scrubbed from its log", () => {
   const payload = {
     headers: {
       authorization: "Bearer tok-SECRET-1",
@@ -261,7 +274,7 @@ test("a credential a step copied from the trigger is scrubbed from its log", () 
   assert.equal(scrubSecrets(log, []), log);
 });
 
-test("the project names its own credentials", () => {
+void test("the project names its own credentials", () => {
   assert.equal(isSensitiveHeader("X-Shop-Pin"), false);
   configureRedaction(["shop-pin"]);
   try {
@@ -272,7 +285,7 @@ test("the project names its own credentials", () => {
   }
 });
 
-test("the error filter finds the payloads stored with a credential in clear", () => {
+void test("the error filter finds the payloads stored with a credential in clear", () => {
   const pattern = new RegExp(clearCredentialPattern().replace("(?i)", ""), "i");
   const clear = [
     { headers: { Authorization: "Bearer x" } },
@@ -295,7 +308,7 @@ test("the error filter finds the payloads stored with a credential in clear", ()
   }
 });
 
-test("a payload stored before its name was sensitive is redacted when it is read", () => {
+void test("a payload stored before its name was sensitive is redacted when it is read", () => {
   const old = JSON.stringify({
     headers: { authorization: "Bearer OLD" },
     body: { a: 1 },
@@ -305,10 +318,12 @@ test("a payload stored before its name was sensitive is redacted when it is read
   assert.equal(redactStoredPayload("not json"), "not json");
 });
 
-test("a range loop refuses more than 10 000 iterations before the first one", async () => {
+void test("a range loop refuses more than 10 000 iterations before the first one", async () => {
   require("../dist/runtime/builtins/nodes/forRange.js");
   const { nodeKinds } = require("../dist/runtime/nodeKinds.js");
-  const { execute } = nodeKinds.get("forRange");
+  const forRange = nodeKinds.get("forRange");
+  assert.ok(forRange);
+  const { execute } = forRange;
   let fired = 0;
   const ctx = {
     log() {},
@@ -326,7 +341,7 @@ test("a range loop refuses more than 10 000 iterations before the first one", as
   assert.equal(fired, 10_000);
 });
 
-test("a run read after a name became sensitive hides it in its payload, error and log", () => {
+void test("a run read after a name became sensitive hides it in its payload, error and log", () => {
   const old = {
     triggerPayload: JSON.stringify({
       headers: { "x-api-key": "OLDSECRET99" },

@@ -4,6 +4,7 @@ const { builtinActions, builtinTriggers } = require("../dist/runtime/builtins");
 const { registry } = require("../dist/runtime/registry.js");
 const { run } = require("../dist/runtime/executor.js");
 const { realEffectStepsOf } = require("../dist/runtime/sideEffects.js");
+const { isPropertyBag } = require("../dist/types/guards.js");
 
 /**
  * A test run of a draft must not act behind the user's back: an action that
@@ -63,12 +64,30 @@ registry.addAction("acme.read", {
   },
 });
 
+/**
+ * @typedef {import("../dist/types/graph.js").GraphNode & {
+ *   ports?: import("../dist/types/graph.js").GroupPort[];
+ *   subgraph?: import("../dist/types/graph.js").ProcedureGraph;
+ * }} FixtureNode
+ */
+
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {string} [typeId]
+ * @param {Partial<FixtureNode>} [extra]
+ * @returns {FixtureNode}
+ */
 function node(id, kind, typeId, extra = {}) {
   const n = { id, kind, config: {}, position: { x: 0, y: 0 }, ...extra };
   if (typeId) n.typeId = typeId;
   return n;
 }
 
+/**
+ * @param {string} from
+ * @param {string} to
+ */
 function edge(from, to) {
   return { id: `${from}-${to}`, from: { node: from }, to: { node: to } };
 }
@@ -92,14 +111,21 @@ function graph() {
   };
 }
 
+/**
+ * @param {import("../dist/runtime/executionResult.js").ExecutionResult} result
+ * @param {string} nodeId
+ * @returns {unknown}
+ */
 function outputOf(result, nodeId) {
   const entry = result.logs.entries.findLast(
     (e) => e.nodeId === nodeId && e.message === "executed",
   );
-  return entry?.value.output.value;
+  if (entry === undefined) return undefined;
+  assert.ok(isPropertyBag(entry.value) && isPropertyBag(entry.value.output));
+  return entry.value.output.value;
 }
 
-test("a dry run simulates the actions that can and runs the others", async () => {
+void test("a dry run simulates the actions that can and runs the others", async () => {
   sent.length = 0;
   const result = await run(graph(), "t", {}, { dryRun: true });
   assert.equal(result.status, "ok");
@@ -113,7 +139,7 @@ test("a dry run simulates the actions that can and runs the others", async () =>
   );
 });
 
-test("a real run executes every action", async () => {
+void test("a real run executes every action", async () => {
   sent.length = 0;
   const result = await run(graph(), "t", {});
   assert.equal(result.status, "ok");
@@ -124,7 +150,7 @@ test("a real run executes every action", async () => {
   ]);
 });
 
-test("the real effects of a draft are the actions that cannot simulate", () => {
+void test("the real effects of a draft are the actions that cannot simulate", () => {
   assert.deepEqual(realEffectStepsOf(graph()), [
     {
       nodeId: "notify",
@@ -135,7 +161,7 @@ test("the real effects of a draft are the actions that cannot simulate", () => {
   ]);
 });
 
-test("real effects inside a group are listed under their flattened id", () => {
+void test("real effects inside a group are listed under their flattened id", () => {
   const g = {
     nodes: [
       node("t", "trigger", "manual"),
@@ -161,7 +187,7 @@ test("real effects inside a group are listed under their flattened id", () => {
   assert.match(steps[0].nodeId, /^g__inner$/);
 });
 
-test("a draft of pure and simulated actions has no real effect", () => {
+void test("a draft of pure and simulated actions has no real effect", () => {
   const g = graph();
   g.nodes = g.nodes.filter((n) => n.id !== "notify");
   assert.deepEqual(realEffectStepsOf(g), []);

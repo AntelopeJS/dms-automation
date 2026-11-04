@@ -1,0 +1,11 @@
+diff --git a/packages/interface-dms-automation/package.json b/packages/interface-dms-automation/package.json
+--- a/packages/interface-dms-automation/package.json
++++ b/packages/interface-dms-automation/package.json
+@@ -22,7 +22,6 @@
+     "dist",
+     "!dist/.tsbuildinfo",
+     "docs",
+-    "skills",
+     "package.json",
+     "README.md",
+     "LICENSE"

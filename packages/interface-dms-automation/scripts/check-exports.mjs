@@ -8,18 +8,21 @@ import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import manifest from "../package.json" with { type: "json" };
 
 const packageRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const manifest = JSON.parse(
-  fs.readFileSync(path.join(packageRoot, "package.json"), "utf8"),
-);
 const distRoot = path.join(packageRoot, "dist");
 
+/** @type {string[]} */
 const failures = [];
 
+/**
+ * @param {boolean} condition
+ * @param {string} message
+ */
 function check(condition, message) {
   if (!condition) failures.push(message);
 }
@@ -30,6 +33,10 @@ if (!fs.existsSync(distRoot)) {
   );
 }
 
+/**
+ * @param {string} directory
+ * @returns {string[]}
+ */
 function listFiles(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(directory, entry.name);
@@ -37,6 +44,7 @@ function listFiles(directory) {
   });
 }
 
+/** @param {string} file */
 function toSubpath(file) {
   const relative = path
     .relative(distRoot, file)
@@ -70,10 +78,9 @@ for (const subpath of explicit) {
   try {
     scopedRequire.resolve(specifier);
   } catch (error) {
-    check(
-      false,
-      `exports["${subpath}"] does not resolve: ${error.code ?? error.message}`,
-    );
+    if (!(error instanceof Error)) throw error;
+    const reason = "code" in error ? String(error.code) : error.message;
+    check(false, `exports["${subpath}"] does not resolve: ${reason}`);
   }
 }
 

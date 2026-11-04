@@ -1,3 +1,9 @@
+import type { JsonValue } from "@antelopejs/interface-dms-automation";
+import {
+  type DataValue,
+  isDataRecord,
+  parseJsonText,
+} from "../types/dataValue";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
 import { isBigInt, isNumber, isObject, isString } from "../types/guards";
 
@@ -21,7 +27,7 @@ const TRIGGER_PAYLOAD_PREVIEW_CHARS = 4096;
  */
 function byteSize(value: LogEntry | FireNode | FireNode[]): number {
   try {
-    const json = JSON.stringify(value, (_key, v: unknown) =>
+    const json = JSON.stringify(value, (_key, v: bigint | DataValue) =>
       isBigInt(v) ? v.toString() : v,
     );
     return json === undefined ? 0 : Buffer.byteLength(json);
@@ -179,8 +185,8 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
  * secret one replaced by {@link REDACTED}; anything but a plain object comes
  * back as it is.
  */
-export function redactHeaders(headers: unknown): unknown {
-  if (!isRecord(headers)) return headers;
+export function redactHeaders(headers: DataValue): DataValue {
+  if (!isDataRecord(headers)) return headers;
   return Object.fromEntries(
     Object.entries(headers).map(([name, value]) => [
       name,
@@ -195,8 +201,8 @@ export function redactHeaders(headers: unknown): unknown {
  * credential (Authorization, Cookie, ?token=…). The run itself received them
  * in full.
  */
-function redactPayload(payload: unknown): unknown {
-  if (!isRecord(payload)) return payload;
+function redactPayload(payload: DataValue): DataValue {
+  if (!isDataRecord(payload)) return payload;
   const redacted = { ...payload };
   if ("headers" in payload) redacted.headers = redactHeaders(payload.headers);
   if ("query" in payload) redacted.query = redactHeaders(payload.query);
@@ -236,8 +242,8 @@ function secretForms(value: string): string[] {
 }
 
 /** The string values of the credentials in a set of headers or parameters. */
-function credentialValues(group: unknown): string[] {
-  if (!isRecord(group)) return [];
+function credentialValues(group: DataValue): string[] {
+  if (!isDataRecord(group)) return [];
   return Object.entries(group)
     .filter(([name]) => isSensitiveHeader(name))
     .flatMap(([, value]) => [value].flat())
@@ -248,8 +254,8 @@ function credentialValues(group: unknown): string[] {
  * The credentials a trigger payload carries, in every form a step may have
  * copied them in, so they can be scrubbed from what the run logged.
  */
-export function secretsOf(payload: unknown): string[] {
-  if (!isRecord(payload)) return [];
+export function secretsOf(payload: DataValue): string[] {
+  if (!isDataRecord(payload)) return [];
   const forms = [payload.headers, payload.query]
     .flatMap(credentialValues)
     .flatMap(secretForms)
@@ -262,21 +268,28 @@ export function secretsOf(payload: unknown): string[] {
  * {@link REDACTED}, in its strings at any depth (a step's inputs and output, a
  * log message). Returned as it is when there is no secret.
  */
-export function scrubSecrets<T>(value: T, secrets: readonly string[]): T {
+export function scrubSecrets<T extends DataValue>(
+  value: T,
+  secrets: readonly string[],
+): T {
   if (secrets.length === 0) return value;
-  const scrub = (v: unknown): unknown => {
+  const scrub = (v: JsonValue): JsonValue => {
     if (isString(v)) {
       return secrets.reduce((text, s) => text.replaceAll(s, REDACTED), v);
     }
     if (Array.isArray(v)) return v.map(scrub);
-    if (isRecord(v)) {
+    if (isDataRecord(v)) {
       return Object.fromEntries(
-        Object.entries(v).map(([k, item]) => [k, scrub(item)]),
+        Object.entries(v).map(([k, item]) => [
+          k,
+          item === undefined ? item : scrub(item),
+        ]),
       );
     }
     return v;
   };
-  return scrub(value) as T;
+  // SAFETY: scrub rewrites only the strings of a JSON-shaped value and keeps every key, array item and non-string leaf, so the result has the shape of its argument T.
+  return (value === undefined ? value : scrub(value)) as T;
 }
 
 /**
@@ -286,7 +299,7 @@ export function scrubSecrets<T>(value: T, secrets: readonly string[]): T {
  */
 export function storedSecretsOf(stored: string | undefined): string[] {
   try {
-    return secretsOf(stored ? JSON.parse(stored) : null);
+    return secretsOf(stored ? parseJsonText(stored) : null);
   } catch {
     return [];
   }
@@ -297,7 +310,7 @@ export function storedSecretsOf(stored: string | undefined): string[] {
  * payload over MAX_TRIGGER_PAYLOAD_BYTES is replaced by a JSON marker carrying
  * its original size and a short preview, so the stored value stays valid JSON.
  */
-export function serializeTriggerPayload(payload: unknown): string {
+export function serializeTriggerPayload(payload: DataValue): string {
   const json = JSON.stringify(redactPayload(payload) ?? null);
   const bytes = Buffer.byteLength(json);
   if (bytes <= MAX_TRIGGER_PAYLOAD_BYTES) return json;
@@ -310,7 +323,7 @@ export function serializeTriggerPayload(payload: unknown): string {
 
 /** A stored trigger payload, read back: the payload, or the marker of one too large to keep. */
 export type StoredPayload =
-  | { kept: true; payload: unknown }
+  | { kept: true; payload: DataValue }
   | { kept: false; originalBytes: number };
 
 /**
@@ -319,14 +332,14 @@ export type StoredPayload =
  * redacted on read, for the trace, a re-run and Run now alike.
  */
 export function readTriggerPayload(stored: string | undefined): StoredPayload {
-  let parsed: unknown;
+  let parsed: DataValue;
   try {
-    parsed = stored ? JSON.parse(stored) : null;
+    parsed = stored ? parseJsonText(stored) : null;
   } catch {
     return { kept: true, payload: stored };
   }
   if (
-    isRecord(parsed) &&
+    isDataRecord(parsed) &&
     parsed.truncated === true &&
     isNumber(parsed.originalBytes)
   ) {

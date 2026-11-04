@@ -29,6 +29,7 @@ import { subscriptions } from "../runtime/subscriptions";
 import { stepDurations, traceOf } from "../runtime/trace";
 import { triggerText } from "../runtime/wording";
 import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
+import type { DataValue } from "../types/dataValue";
 import type { ProcedureGraph } from "../types/graph";
 import type { RunLog } from "../types/runLog";
 import { refused } from "./requests";
@@ -79,7 +80,7 @@ function graphOf(
 function runTrace(
   run: ProcedureRun,
   procedure: Procedure | undefined,
-  payload: unknown,
+  payload: DataValue,
 ) {
   const { graph, outdated } = graphOf(run, procedure);
   const trace = traceOf(
@@ -193,7 +194,7 @@ function shown(run: ProcedureRun): ProcedureRun {
  * The headers and query parameters a stored payload names without their
  * value (see REDACTED).
  */
-function redactedNamesOf(payload: unknown): string[] {
+function redactedNamesOf(payload: DataValue): string[] {
   if (!isObject(payload)) return [];
   const headers = "headers" in payload ? payload.headers : undefined;
   const query = "query" in payload ? payload.query : undefined;
@@ -248,7 +249,7 @@ type RerunPlan =
   | {
       blocked?: undefined;
       procedure: Procedure;
-      payload: unknown;
+      payload: DataValue;
       /** The draft a test run executed, run again as a test. */
       draft?: ProcedureGraph;
     };

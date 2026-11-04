@@ -6,9 +6,10 @@ import {
   type ValidateResult,
   validateGraph,
 } from "../runtime/validate";
-import type { DataValue } from "../types/dataValue";
+import { type DataValue, isDataValue } from "../types/dataValue";
 import type { GraphNode, GroupPort, ProcedureGraph } from "../types/graph";
 import { isObject } from "../types/guards";
+import { zodIssuesJson } from "./zodJson";
 
 /**
  * Shared Zod schemas for ProcedureGraph and its constituents. Imported by
@@ -48,7 +49,7 @@ const dataEdgeSchema = z.object({
  * and stopping past `max`: a hostile body nesting thousands of groups must be
  * refused before the recursive schema below walks it.
  */
-function groupDepthOf(value: unknown, max: number): number {
+function groupDepthOf(value: DataValue, max: number): number {
   let deepest = 0;
   const pending: { graph: unknown; depth: number }[] = [
     { graph: value, depth: 0 },
@@ -81,7 +82,7 @@ export const procedureGraphSchema: z.ZodType<
   z.ZodTypeDef,
   unknown
 > = z
-  .unknown()
+  .custom<DataValue>(isDataValue)
   .refine((graph) => groupDepthOf(graph, MAX_GROUP_DEPTH) <= MAX_GROUP_DEPTH, {
     message: `groups are nested more than ${MAX_GROUP_DEPTH} levels deep`,
   })
@@ -98,14 +99,14 @@ const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
       id: z.string(),
       kind: nodeKindSchema,
       typeId: z.string().optional(),
-      config: z.record(z.unknown()),
+      config: z.record(z.custom<DataValue>(isDataValue)),
       position: z.object({ x: z.number(), y: z.number() }),
       templateId: z.string().optional(),
       ports: z.array(z.lazy(() => groupPortSchema)).optional(),
       subgraph: graphBodySchema.optional(),
     })
     .passthrough(),
-) as z.ZodType<GraphNode>;
+);
 
 /**
  * Parse `body` against `schema`, run graph validation on whatever the
@@ -122,7 +123,7 @@ export function parseAndValidate<T>(
   if (!parsed.success) {
     throw new HTTPResult(400, {
       error: "invalid body",
-      issues: parsed.error.issues,
+      issues: zodIssuesJson(parsed.error.issues),
     });
   }
   const verdict: ValidateResult = validateGraph(graphSelector(parsed.data));

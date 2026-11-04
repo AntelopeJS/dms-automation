@@ -259,6 +259,12 @@ export class ProceduresTableAPI extends DataController(
   declare model: ProcedureModel;
 
   /**
+   * The procedure's id, on every row the `list`, `get` and `select` routes
+   * serve: the builder link and the runs table's relation key on it.
+   */
+  declare procedureId: string;
+
+  /**
    * Five columns whose widths add up to the list beside an open sidebar at
    * 1024 px; wider screens spread them. The state comes second, so a phone
    * still shows it by the name. The last run's date sits under the run strip;

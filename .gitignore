@@ -3,3 +3,7 @@ node_modules
 .antelope
 # The production frontend workspace `ajs dms build` writes into a project
 .dms-frontend
+
+/.agents/skills/verify-dms-automation/playground/dist
+/.agents/skills/verify-dms-automation/node_modules
+/.agents/skills/verify-dms-automation/api-module

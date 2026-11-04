@@ -1,7 +1,8 @@
+import { type DataValue, isDataRecord, kindOf } from "../types/dataValue";
 import { isGroupNode, type ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
 import { type StepName, stepName } from "./describe";
-import { isObject } from "../types/guards";
+import { isNumber, isObject } from "../types/guards";
 
 /**
  * How a step of a run ended. `truncated`: its start is in the log but its
@@ -89,7 +90,7 @@ const BRANCH_MESSAGE = /^branch: (.+)$/;
 /** The trigger a run started from, and what it received. */
 export interface TriggerSeed {
   nodeId: string;
-  payload: unknown;
+  payload: DataValue;
 }
 
 const topLevel = (flatId: string) =>
@@ -112,13 +113,19 @@ function triggerStep(
     startMs: 0,
     durationMs: 0,
     status: "ok",
-    output: { type: typeof trigger.payload, value: trigger.payload },
+    output: { type: kindOf(trigger.payload), value: trigger.payload },
     depth: 0,
   };
 }
 
 function valueOf(entry: LogEntry): StepValue {
-  return isObject(entry.value) ? entry.value : {};
+  const { value } = entry;
+  if (!isDataRecord(value)) return {};
+  return {
+    durationMs: isNumber(value.durationMs) ? value.durationMs : undefined,
+    inputs: value.inputs,
+    output: value.output,
+  };
 }
 
 /**
@@ -380,13 +387,15 @@ function edgesTaken(
  * trace compares with the last success.
  */
 export function stepDurations(steps: readonly TraceStep[]) {
-  const durations: Record<string, number | null> = {};
+  const durations = new Map<string, number | null>();
   for (const step of steps) {
-    const before = durations[step.nodeId];
-    durations[step.nodeId] =
+    const before = durations.get(step.nodeId);
+    durations.set(
+      step.nodeId,
       step.durationMs === null
         ? (before ?? null)
-        : (before ?? 0) + step.durationMs;
+        : (before ?? 0) + step.durationMs,
+    );
   }
-  return durations;
+  return Object.fromEntries(durations);
 }

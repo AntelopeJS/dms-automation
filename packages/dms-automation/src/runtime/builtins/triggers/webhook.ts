@@ -1,4 +1,5 @@
 import {
+  Controller,
   getRegisteredRouteHandlers,
   HTTPResult,
   ReadBody,
@@ -22,13 +23,13 @@ interface WebhookConfig {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 }
 
-interface WebhookOutput {
+type WebhookOutput = {
   method: string;
   headers: Record<string, string | string[] | undefined>;
   query: Record<string, string | string[]>;
   body: DataValue;
   params: Record<string, string>;
-}
+};
 
 interface WebhookHandle {
   routeId: string;
@@ -173,13 +174,13 @@ export function armedWebhookRouteIds(): ReadonlySet<string> {
 }
 
 /** The query string, a key given several times read as a list. */
-function queryOf(url: URL) {
-  const query: Record<string, string | string[]> = {};
-  for (const key of new Set(url.searchParams.keys())) {
-    const values = url.searchParams.getAll(key);
-    query[key] = values.length > 1 ? values : (values[0] ?? "");
-  }
-  return query;
+export function queryOf(url: URL) {
+  return Object.fromEntries(
+    [...new Set(url.searchParams.keys())].map((key) => {
+      const values = url.searchParams.getAll(key);
+      return [key, values.length > 1 ? values : (values[0] ?? "")];
+    }),
+  );
 }
 
 /** The body as JSON, a decoded form, or the raw text. */
@@ -193,6 +194,9 @@ function parseBody(text: string, contentType: string | undefined): DataValue {
     return text;
   }
 }
+
+/** The controller every webhook route registers under: a route armed at run time has no class of its own. */
+const WebhookController = Controller("");
 
 export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
   id: "webhook",
@@ -246,7 +250,7 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
       location: path,
       parameters: [{ provider: (ctx) => ctx, modifiers: [] }],
       properties: {},
-      proto: {},
+      controller: WebhookController,
       callback: async (ctx: RequestContext) => {
         const buf = await ReadBody(ctx);
         const body =

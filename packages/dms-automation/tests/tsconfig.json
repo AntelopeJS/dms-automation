@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "types": ["node"],
+    "noEmit": true,
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "rootDir": "..",
+    "rootDirs": ["../dist", "../src"],
+    "incremental": false,
+    "declaration": false
+  },
+  "include": ["./**/*.cjs"]
+}

@@ -36,13 +36,13 @@ type GraphIssueSeverity = "error" | "warning";
  * it in the user's language (`dms_automation.editor.problems.codes.<code>`);
  * `message` is the English fallback.
  */
-export interface GraphIssue {
+export type GraphIssue = {
   severity: GraphIssueSeverity;
   code: string;
   params?: ProblemParams;
   message: string;
   nodeId?: string;
-}
+};
 
 export interface GraphIssueOptions {
   /**
@@ -69,20 +69,26 @@ const DISABLED_LOOKUP = new Map<string, (id: string) => boolean>([
 ]);
 
 /** Settings a trigger type checks beyond its schema. */
-const CONFIG_CHECKS = {
-  [cronTrigger.id]: (config: DataRecord) => cronProblem(config.cron),
+const CONFIG_CHECKS = new Map<
+  string,
+  (config: DataRecord) => ConfigProblem | undefined
+>([
+  [cronTrigger.id, (config) => cronProblem(config.cron)],
   /**
    * This module's armed webhooks are left out: a procedure's own webhook
    * is no conflict, and another procedure's is checked on the procedures.
    */
-  [webhookTrigger.id]: (config: DataRecord) => {
-    const { method, path } = webhookRouteOf(config);
-    return (
-      webhookPathProblem(config.path) ??
-      webhookRouteConflict(method, path, armedWebhookRouteIds())
-    );
-  },
-};
+  [
+    webhookTrigger.id,
+    (config) => {
+      const { method, path } = webhookRouteOf(config);
+      return (
+        webhookPathProblem(config.path) ??
+        webhookRouteConflict(method, path, armedWebhookRouteIds())
+      );
+    },
+  ],
+]);
 
 const FOR_RANGE_DEFAULTS = new Map([
   ["start", 0],
@@ -196,6 +202,7 @@ function missingSettings(
 function invalidSetting(
   field: string,
   property: SchemaProperty,
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- the value is whatever the node holds for a setting (a stored or posted config value); typed DataValue, the String(value) in the message moves the row to typescript/no-base-to-string, and changing the message text for objects and arrays would change what the builder shows
   value: unknown,
 ): ConfigProblem | undefined {
   const { minimum, maximum } = property;
@@ -214,7 +221,7 @@ function invalidSetting(
       message: `${named.label} must be at most ${maximum}`,
     };
   }
-  if (property.enum && !property.enum.includes(value)) {
+  if (property.enum && !property.enum.some((item) => item === value)) {
     return {
       code: "notInEnum",
       params: { ...named, value: String(value) },
@@ -315,7 +322,10 @@ function configIssues(
         .map((e) => e.to.field),
     );
     const problems = settingsProblems(node, wired);
-    const check = node.kind === "trigger" && CONFIG_CHECKS[node.typeId ?? ""];
+    const check =
+      node.kind === "trigger"
+        ? CONFIG_CHECKS.get(node.typeId ?? "")
+        : undefined;
     const checked =
       check && !problems.some((p) => p.missing)
         ? check(node.config ?? {})

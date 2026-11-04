@@ -1,4 +1,5 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
+import type { DataValue } from "../../../types/dataValue";
 import { isBoolean, isNumber, isString } from "../../../types/guards";
 
 const numA = { type: "number", default: 0 };
@@ -10,7 +11,7 @@ const resultNum = { type: "number" };
  * values often are text); anything else fails the node by name rather than
  * computing with NaN, which the run log shows as an empty value.
  */
-function operand(id: string, port: string, value: unknown): number {
+function operand(id: string, port: string, value: DataValue): number {
   const n =
     isString(value) && value.trim() !== ""
       ? Number(value)
@@ -52,7 +53,7 @@ function binary(
     icon,
     inputSchema: { type: "object", properties: { a: numA, b: numB } },
     outputSchema: { type: "object", properties: { result: resultNum } },
-    evaluate: (i: { a: unknown; b: unknown }) => {
+    evaluate: (i: { a: DataValue; b: DataValue }) => {
       const a = operand(id, "a", i.a);
       const b = operand(id, "b", i.b);
       return { result: finite(id, fn(a, b), `a = ${a}, b = ${b}`) };
@@ -73,7 +74,7 @@ function unary(
     icon,
     inputSchema: { type: "object", properties: { a: numA } },
     outputSchema: { type: "object", properties: { result: resultNum } },
-    evaluate: (input: { a: unknown }) => {
+    evaluate: (input: { a: DataValue }) => {
       const a = operand(id, "a", input.a);
       return { result: finite(id, fn(a), `a = ${a}`) };
     },

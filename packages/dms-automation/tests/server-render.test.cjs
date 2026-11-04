@@ -22,10 +22,17 @@ const {
  * read in pages, and the templates its palette places.
  */
 const keyed = {
-  "dms-automation-builder-procedures": (read) =>
-    read.url.startsWith(`${API}/procedures?`),
-  "dms-automation-palette-templates": (read) => read.url === `${API}/templates`,
+  "dms-automation-builder-procedures":
+    /** @param {import("./server-render.cjs").Read} read */
+    (read) => read.url.startsWith(`${API}/procedures?`),
+  "dms-automation-palette-templates":
+    /** @param {import("./server-render.cjs").Read} read */
+    (read) => read.url === `${API}/templates`,
 };
+/**
+ * @param {string} url
+ * @param {number} [settle]
+ */
 const builder = (url, settle) =>
   serverRender(
     component("Editor.vue"),
@@ -33,8 +40,8 @@ const builder = (url, settle) =>
     { url, respond, keyed, settle },
   );
 
-describe("builder", () => {
-  test("reads what it opens, its palette and its bar once, and hands every answer over", async () => {
+void describe("builder", () => {
+  void test("reads what it opens, its palette and its bar once, and hands every answer over", async () => {
     const render = await builder("/modules/automation/builder?selected=p-cron");
     assert.deepEqual(paths(render.reads), [
       "GET /action-types",
@@ -55,7 +62,7 @@ describe("builder", () => {
     assert.match(render.html, /every day at 03:00/);
   });
 
-  test("leaves the draft check and the test payload to the browser", async () => {
+  void test("leaves the draft check and the test payload to the browser", async () => {
     const render = await builder(
       "/modules/automation/builder?selected=p-cron",
       700,
@@ -68,7 +75,7 @@ describe("builder", () => {
     );
   });
 
-  test("opens a template without reading the procedures", async () => {
+  void test("opens a template without reading the procedures", async () => {
     const render = await builder("/modules/automation/builder?template=tpl-1");
     assert.deepEqual(paths(render.reads), [
       "GET /action-types",
@@ -81,7 +88,7 @@ describe("builder", () => {
     assert.deepEqual(render.untransferred, []);
   });
 
-  test("says a template does not exist from the server, and hands the failure over", async () => {
+  void test("says a template does not exist from the server, and hands the failure over", async () => {
     const render = await builder("/modules/automation/builder?template=gone");
     assert.deepEqual(render.untransferred, []);
     assert.deepEqual(
@@ -92,8 +99,8 @@ describe("builder", () => {
   });
 });
 
-describe("library", () => {
-  test("renders a catalog and where its entries are used", async () => {
+void describe("library", () => {
+  void test("renders a catalog and where its entries are used", async () => {
     const render = await serverRender(
       component("Catalog.vue"),
       { kind: "triggers", apiUrl: API, builderUrl: "/b" },
@@ -107,7 +114,7 @@ describe("library", () => {
     assert.match(render.html, /Webhook/);
   });
 
-  test("renders the templates, the one shown filled in its form, and where it is used", async () => {
+  void test("renders the templates, the one shown filled in its form, and where it is used", async () => {
     const render = await serverRender(
       component("Templates.vue"),
       { apiUrl: API, builderUrl: "/b" },
@@ -122,7 +129,7 @@ describe("library", () => {
     assert.match(render.html, /modelvalue="Notify team"/i);
   });
 
-  test("reads the webhook address once for every endpoint of the page", async () => {
+  void test("reads the webhook address once for every endpoint of the page", async () => {
     const WebhookEndpoint = component("WebhookEndpoint.vue");
     const render = await serverRender(
       {
@@ -140,7 +147,8 @@ describe("library", () => {
   });
 });
 
-describe("run trace", () => {
+void describe("run trace", () => {
+  /** @param {string} id */
   const trace = (id) =>
     serverRender(
       component("RunTrace.vue"),
@@ -148,22 +156,22 @@ describe("run trace", () => {
       { url: `/modules/automation/trace?run=${id}`, respond },
     );
 
-  test("renders the run and hands it over", async () => {
+  void test("renders the run and hands it over", async () => {
     const render = await trace("run-1");
     assert.deepEqual(paths(render.reads), ["GET /runs/run-1"]);
     assert.deepEqual(render.untransferred, []);
     assert.match(render.html, /Failing call/);
   });
 
-  test("says a run does not exist from the server", async () => {
+  void test("says a run does not exist from the server", async () => {
     const render = await trace("gone");
     assert.deepEqual(render.untransferred, []);
     assert.match(render.html, /dms_automation\.trace\.notFound/);
   });
 });
 
-describe("run now dialog", () => {
-  test("reads the last payload only once opened", async () => {
+void describe("run now dialog", () => {
+  void test("reads the last payload only once opened", async () => {
     const render = await serverRender(
       component("Editor/RunNowDialog.vue"),
       {

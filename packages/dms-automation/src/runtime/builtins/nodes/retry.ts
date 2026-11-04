@@ -1,4 +1,15 @@
+import type { DataValue } from "../../../types/dataValue";
 import { type NodeExecute, nodeKinds } from "../../nodeKinds";
+
+const DEFAULT_ATTEMPTS = 3;
+
+/** The configured attempts, at least one; a value that converts to NaN is the default, and an infinite one keeps retrying. */
+function attemptsOf(configured: DataValue | undefined): number {
+  const attempts = Number(configured ?? DEFAULT_ATTEMPTS);
+  return Number.isNaN(attempts)
+    ? DEFAULT_ATTEMPTS
+    : Math.max(1, Math.floor(attempts));
+}
 
 /**
  * First success: just return — `main` auto-propagates as the
@@ -12,7 +23,7 @@ import { type NodeExecute, nodeKinds } from "../../nodeKinds";
  * that particular run.
  */
 const execute: NodeExecute = async (node, _inputs, ctx) => {
-  const max = Math.max(1, Math.floor(Number(node.config.maxAttempts ?? 3)));
+  const max = attemptsOf(node.config.maxAttempts);
   let lastFailure: { error: unknown } | undefined;
   for (let i = 0; i < max; i++) {
     ctx.setOutputs({ attempt: i });

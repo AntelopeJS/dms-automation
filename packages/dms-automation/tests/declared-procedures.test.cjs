@@ -21,15 +21,28 @@ const {
   markModuleStopped,
 } = require("../dist/runtime/readiness.js");
 
+const { parseGraph } = require("../dist/types/graph.js");
+
+/** @typedef {import("@antelopejs/interface-dms-automation").ProcedureDeclaration} ProcedureDeclaration */
+/** @typedef {import("@antelopejs/interface-dms-automation").ProcedureGraph} ProcedureGraph */
+/** @typedef {{ _id: string, name: string, enabled: boolean, graph: string, version: number, revision: number, description?: string }} StoredProcedure */
+
 for (const t of builtinTriggers) registry.addTrigger(t.id, t);
 for (const a of builtinActions) registry.addAction(a.id, a);
 for (const d of builtinDataNodes) registry.addDataNode(d.id, d);
 
+/** @type {Map<string, StoredProcedure>} */
 const procedures = new Map();
+/** @type {Array<string | undefined>} */
 const changed = [];
 
+/** @param {string} id */
 const readProcedure = async (id) =>
   procedures.has(id) ? structuredClone(procedures.get(id)) : undefined;
+/**
+ * @param {StoredProcedure} doc
+ * @returns {Promise<string[]>}
+ */
 const insertProcedure = async (doc) => {
   if (procedures.has(doc._id)) throw new DuplicateKeyError("_id", ["_id"]);
   procedures.set(doc._id, structuredClone(doc));
@@ -49,6 +62,12 @@ subscriptions.onProcedureChange = async (id) => {
   changed.push(id);
 };
 
+/**
+ * @param {string} id
+ * @param {string} kind
+ * @param {string} typeId
+ * @param {Record<string, unknown>} [config]
+ */
 const node = (id, kind, typeId, config = {}) => ({
   id,
   kind,
@@ -57,6 +76,10 @@ const node = (id, kind, typeId, config = {}) => ({
   position: { x: 0, y: 0 },
 });
 
+/**
+ * @param {string} [message]
+ * @returns {ProcedureGraph}
+ */
 const graphOf = (message = "hello") => ({
   nodes: [
     node("start", "trigger", "manual"),
@@ -66,6 +89,10 @@ const graphOf = (message = "hello") => ({
   dataEdges: [],
 });
 
+/**
+ * @param {Partial<ProcedureDeclaration>} [extra]
+ * @returns {ProcedureDeclaration}
+ */
 const declaration = (extra = {}) => ({
   id: "shop.welcome",
   name: "Welcome",
@@ -80,27 +107,29 @@ beforeEach(() => {
   changed.length = 0;
 });
 
-test("a first declaration stores the procedure under its id, enabled and armed", async () => {
+void test("a first declaration stores the procedure under its id, enabled and armed", async () => {
   const result = await declareProcedure(declaration());
   assert.equal(result.id, "shop.welcome");
   assert.equal(result.status, "created");
   assert.equal(result.enabled, true);
 
   const stored = procedures.get("shop.welcome");
+  assert.ok(stored);
   assert.equal(stored.name, "Welcome");
   assert.equal(stored.enabled, true);
   assert.equal(stored.version, 1);
   assert.equal(stored.revision, 1);
   assert.equal("declaredHash" in stored, false);
-  assert.deepEqual(JSON.parse(stored.graph).nodes[1].config, {
+  assert.deepEqual(parseGraph(stored.graph).nodes[1].config, {
     message: "hello",
   });
   assert.deepEqual(changed, ["shop.welcome"]);
 });
 
-test("a later declaration leaves the stored procedure as it is", async () => {
+void test("a later declaration leaves the stored procedure as it is", async () => {
   await declareProcedure(declaration());
   const row = procedures.get("shop.welcome");
+  assert.ok(row);
   procedures.set("shop.welcome", {
     ...row,
     graph: JSON.stringify(graphOf("edited by hand")),
@@ -122,10 +151,12 @@ test("a later declaration leaves the stored procedure as it is", async () => {
   assert.deepEqual(changed, []);
 });
 
-test("two declarations at the same moment: one creates, the other keeps", async () => {
+void test("two declarations at the same moment: one creates, the other keeps", async () => {
+  /** @type {(value?: unknown) => void} */
   let release;
   const bothRead = new Promise((resolve) => (release = resolve));
   let reads = 0;
+  /** @param {string} id */
   ProcedureModel.prototype.get = async (id) => {
     const found = await readProcedure(id);
     if (++reads === 2) release();
@@ -145,7 +176,7 @@ test("two declarations at the same moment: one creates, the other keeps", async 
   }
 });
 
-test("an insert failing for another reason still rejects", async () => {
+void test("an insert failing for another reason still rejects", async () => {
   ProcedureModel.prototype.insert = async () => {
     throw new Error("connection lost");
   };
@@ -156,7 +187,7 @@ test("an insert failing for another reason still rejects", async () => {
   }
 });
 
-test("a deleted procedure is created again by the next declaration", async () => {
+void test("a deleted procedure is created again by the next declaration", async () => {
   await declareProcedure(declaration());
   procedures.delete("shop.welcome");
 
@@ -165,7 +196,7 @@ test("a deleted procedure is created again by the next declaration", async () =>
   assert.equal(procedures.size, 1);
 });
 
-test("a disabled declaration is stored as a draft, its problems listed", async () => {
+void test("a disabled declaration is stored as a draft, its problems listed", async () => {
   const graph = graphOf();
   graph.nodes = [node("say", "action", "log.message")];
   graph.triggerEdges = [];
@@ -175,7 +206,7 @@ test("a disabled declaration is stored as a draft, its problems listed", async (
   assert.ok(result.issues.some((i) => i.code === "untriggered"));
 });
 
-test("an enabled declaration with a blocking problem is refused, nothing stored", async () => {
+void test("an enabled declaration with a blocking problem is refused, nothing stored", async () => {
   const graph = graphOf();
   graph.nodes = [node("say", "action", "log.message")];
   graph.triggerEdges = [];
@@ -186,7 +217,11 @@ test("an enabled declaration with a blocking problem is refused, nothing stored"
   assert.equal(procedures.size, 0);
 });
 
-test("an enabled declaration on a webhook route another procedure answers is refused", async () => {
+void test("an enabled declaration on a webhook route another procedure answers is refused", async () => {
+  /**
+   * @param {string} path
+   * @returns {ProcedureGraph}
+   */
   const webhookGraph = (path) => ({
     nodes: [node("hook", "trigger", "webhook", { path, method: "POST" })],
     triggerEdges: [],
@@ -207,7 +242,7 @@ test("an enabled declaration on a webhook route another procedure answers is ref
   assert.equal(procedures.has("shop.welcome"), false);
 });
 
-test("a trigger type not registered yet does not block: it arms when it registers", async () => {
+void test("a trigger type not registered yet does not block: it arms when it registers", async () => {
   const graph = graphOf();
   graph.nodes[0] = node("start", "trigger", "support.ticket-opened");
   const result = await declareProcedure(declaration({ graph }));
@@ -217,7 +252,7 @@ test("a trigger type not registered yet does not block: it arms when it register
   assert.equal(late?.severity, "warning");
 });
 
-test("a malformed declaration is refused with what is wrong", async () => {
+void test("a malformed declaration is refused with what is wrong", async () => {
   await assert.rejects(
     declareProcedure({ ...declaration(), id: "has spaces" }),
     /refused: id: letters, digits/,
@@ -233,7 +268,7 @@ test("a malformed declaration is refused with what is wrong", async () => {
   assert.equal(procedures.size, 0);
 });
 
-test("the interface call waits until the module has started", async () => {
+void test("the interface call waits until the module has started", async () => {
   markModuleStopped();
   markModuleStarted();
   markModuleStopped();

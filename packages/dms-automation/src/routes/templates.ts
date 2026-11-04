@@ -144,10 +144,10 @@ async function computeUsageCounts(
 }
 
 /** Where a template is placed: in procedures, and in other templates. */
-interface TemplateUsages {
+type TemplateUsages = {
   procedures: TemplateUsage[];
   templates: TemplateNesting[];
-}
+};
 
 async function usagesOf(id: string): Promise<TemplateUsages> {
   const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);

@@ -1,4 +1,5 @@
 import type { LogLevel } from "@antelopejs/interface-dms-automation";
+import type { DataValue } from "./dataValue";
 
 /**
  * A fire is one invocation of a trigger-out port: the boundary inside which
@@ -15,7 +16,7 @@ import type { LogLevel } from "@antelopejs/interface-dms-automation";
  *    its fires (aborts and failures included), so a persisted RunLog never
  *    contains an open fire.
  */
-export interface FireNode {
+export type FireNode = {
   id: string;
   parentFireId: string | null;
   sourceNodeId: string;
@@ -29,14 +30,14 @@ export interface FireNode {
   seq: number;
   iteration?: number;
   closedAt?: number;
-}
+};
 
 /**
  * A log entry attaches to exactly one fire by id. `ts` is
  * millisecond-resolution and ties across fast interleaved fires; `seq`
  * is the unambiguous ordering key.
  */
-export interface LogEntry {
+export type LogEntry = {
   fireId: string;
   ts: number;
   /** Monotonic per-run sequence number; shared counter with FireNode.seq. */
@@ -48,14 +49,14 @@ export interface LogEntry {
   nodeKind?: string;
   message: string;
   /** Optional structured payload; passed through to the DB adapter as-is. */
-  value?: unknown;
-}
+  value?: DataValue;
+};
 
 /**
  * The run-log shape persisted with each procedure run. The fire tree
  * carries the nested-group / iteration structure.
  */
-export interface RunLog {
+export type RunLog = {
   fires: FireNode[];
   entries: LogEntry[];
   /**
@@ -63,7 +64,7 @@ export interface RunLog {
    * budget (see runtime/boundRunLog). Absent when nothing was dropped.
    */
   truncated?: number;
-}
+};
 
 /**
  * What started a run: a trigger or Run now (`run`), Re-run with this payload

@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/interface-dms-automation",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "AntelopeJS interface for the DMS automation module: declare trigger, action and data node types from any module.",
   "keywords": [
     "antelopejs",
@@ -58,8 +58,8 @@
     "knip:all": "knip"
   },
   "devDependencies": {
-    "@antelopejs/interface-core": ">=0.2.4 <1.0.0",
-    "@antelopejs/tooling-configs": ">=0.0.9 <1.0.0",
+    "@antelopejs/interface-core": ">=0.4.0 <1.0.0",
+    "@antelopejs/tooling-configs": ">=0.2.18 <1.0.0",
     "@types/node": "^24.0.0",
     "knip": "^6.34.0",
     "oxfmt": "^0.66.0",

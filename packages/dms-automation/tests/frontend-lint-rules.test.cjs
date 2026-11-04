@@ -1,17 +1,19 @@
 const assert = require("node:assert/strict");
-const path = require("node:path");
-const { pathToFileURL } = require("node:url");
 const { test } = require("node:test");
-const { FRONTEND, frontendRequire } = require("./helpers/frontend.cjs");
 
-const { Linter } = frontendRequire("eslint");
-const vueParser = frontendRequire("vue-eslint-parser");
-const tsParser = frontendRequire("typescript-eslint").parser;
+const { Linter } = require("../frontend-vue/node_modules/eslint");
+const vueParser = require("../frontend-vue/node_modules/vue-eslint-parser");
+const tsParser =
+  require("../frontend-vue/node_modules/typescript-eslint/dist/index.js").parser;
 
+/**
+ * @param {string} filename
+ * @param {string} code
+ * @param {string} rule
+ */
 async function lint(filename, code, rule) {
-  const { default: automation } = await import(
-    pathToFileURL(path.join(FRONTEND, "eslint-rules/index.mjs")).href
-  );
+  const { default: automation } =
+    await import("../frontend-vue/eslint-rules/index.mjs");
   const messages = new Linter({ configType: "flat" }).verify(
     code,
     [
@@ -39,7 +41,7 @@ async function lint(filename, code, rule) {
 
 const vueFile = (template) => `<template>\n${template}\n</template>\n`;
 
-test("a template comment before v-else-if or v-else is reported where it sits", async () => {
+void test("a template comment before v-else-if or v-else is reported where it sits", async () => {
   const found = await lint(
     "Branches.vue",
     vueFile(
@@ -63,7 +65,7 @@ test("a template comment before v-else-if or v-else is reported where it sits", 
   );
 });
 
-test("a template comment inside a branch, or ahead of the chain, is accepted", async () => {
+void test("a template comment inside a branch, or ahead of the chain, is accepted", async () => {
   const found = await lint(
     "Branches.vue",
     vueFile(
@@ -81,7 +83,7 @@ test("a template comment inside a branch, or ahead of the chain, is accepted", a
   assert.deepEqual(found, []);
 });
 
-test("a comment before the first branch of a chain nested in another element is accepted", async () => {
+void test("a comment before the first branch of a chain nested in another element is accepted", async () => {
   const found = await lint(
     "Branches.vue",
     vueFile(
@@ -99,7 +101,7 @@ test("a comment before the first branch of a chain nested in another element is 
   assert.deepEqual(found, []);
 });
 
-test("a confirmFrom URL with a bare token is reported, in a script and in a template", async () => {
+void test("a confirmFrom URL with a bare token is reported, in a script and in a template", async () => {
   const script = await lint(
     "run.ts",
     "confirmFrom(`/runs/{id}/rerun-confirm`, { params: {} })",
@@ -118,7 +120,7 @@ test("a confirmFrom URL with a bare token is reported, in a script and in a temp
   assert.deepEqual([script.length, member.length, template.length], [1, 1, 1]);
 });
 
-test("a confirmFrom URL filled by row tokens or interpolation is accepted", async () => {
+void test("a confirmFrom URL filled by row tokens or interpolation is accepted", async () => {
   const found = await lint(
     "run.ts",
     [

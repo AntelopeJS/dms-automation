@@ -1,7 +1,11 @@
 import { z } from "zod";
+import { type DataValue, isDataValue } from "../types/dataValue";
 import { procedureGraphSchema } from "./graphSchema";
 
 /** The bodies the procedures routes accept. */
+
+/** What a run hands its trigger: a value of the JSON body. */
+const payloadSchema = z.custom<DataValue>(isDataValue);
 
 export const MAX_NAME_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 2000;
@@ -57,14 +61,14 @@ export const validateSchema = z.object({
 
 export const runNowSchema = z
   .object({
-    payload: z.unknown().optional(),
+    payload: payloadSchema.optional(),
     triggerNodeId: z.string().optional(),
   })
   .nullish();
 
 export const testSchema = z.object({
   graph: procedureGraphSchema,
-  payload: z.unknown().optional(),
+  payload: payloadSchema.optional(),
   triggerNodeId: z.string().optional(),
   /**
    * The user confirmed the steps the test executes for real (see

@@ -1,0 +1,11 @@
+diff --git a/packages/dms-automation/package.json b/packages/dms-automation/package.json
+index d1ec3c4..cb08edc 100644
+--- a/packages/dms-automation/package.json
++++ b/packages/dms-automation/package.json
+@@ -1,5 +1,5 @@
+ {
+-  "name": "@antelopejs/dms-automation",
++  "name": "@antelopejs/dms-automation-fork",
+   "version": "0.8.0",
+   "description": "Visual automation builder for the AntelopeJS DMS: procedures as node graphs started by schedules, webhooks, manual runs or DMS events, with a trace for every run.",
+   "keywords": [

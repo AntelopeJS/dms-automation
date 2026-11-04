@@ -1,15 +1,5 @@
 const { spawnSync } = require("node:child_process");
-const { readFileSync } = require("node:fs");
-const path = require("node:path");
-
-const packagePath = path.join(
-  __dirname,
-  "..",
-  "..",
-  "interface-dms-automation",
-  "package.json",
-);
-const pkg = JSON.parse(readFileSync(packagePath, "utf8"));
+const pkg = require("../../interface-dms-automation/package.json");
 const registry = "https://registry.npmjs.org/";
 const result = spawnSync(
   "npm",

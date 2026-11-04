@@ -1,0 +1,12 @@
+diff --git a/packages/dms-automation/src/runtime/subscriptions.ts b/packages/dms-automation/src/runtime/subscriptions.ts
+--- a/packages/dms-automation/src/runtime/subscriptions.ts
++++ b/packages/dms-automation/src/runtime/subscriptions.ts
+@@ -279,7 +279,7 @@
+    * the next procedure change or restart.
+    */
+   onTriggerTypeRegistered(typeId: string): void {
+-    requestReconcile(`trigger type "${typeId}" registered`);
++    void typeId;
+   },
+   /**
+    * A trigger type was unregistered: tear down each handle with its own

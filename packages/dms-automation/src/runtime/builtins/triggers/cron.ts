@@ -12,9 +12,9 @@ interface CronConfig {
   cron: string;
 }
 
-interface CronOutput {
+type CronOutput = {
   firedAt: string;
-}
+};
 
 /** Why a cron expression can never fire, or undefined when it is valid. */
 export function cronProblem(expression: DataValue): ConfigProblem | undefined {

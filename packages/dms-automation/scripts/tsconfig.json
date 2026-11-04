@@ -1,0 +1,19 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "noEmit": true,
+    "types": ["node"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "rootDir": "../..",
+    "incremental": false,
+    "declaration": false
+  },
+  "include": [
+    "./*.mjs",
+    "./*.cjs",
+    "../package.json",
+    "../../interface-dms-automation/package.json"
+  ]
+}

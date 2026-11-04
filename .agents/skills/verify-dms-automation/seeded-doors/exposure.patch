@@ -1,0 +1,13 @@
+diff --git a/packages/dms-automation/src/runtime/builtins/triggers/webhook.ts b/packages/dms-automation/src/runtime/builtins/triggers/webhook.ts
+index c44fabb..085ff81 100644
+--- a/packages/dms-automation/src/runtime/builtins/triggers/webhook.ts
++++ b/packages/dms-automation/src/runtime/builtins/triggers/webhook.ts
+@@ -43,7 +43,7 @@ const DEFAULT_METHOD = "POST";
+  * before their routes are registered; any other registered route is found in
+  * the router (see webhookRouteConflict).
+  */
+-const RESERVED_PREFIXES = ["/api", "/auth", "/dms", "/modules", "/settings"];
++const RESERVED_PREFIXES = ["/auth", "/dms", "/modules", "/settings"];
+ /** Letters, digits, `-._~`, `/` between segments and `:` for route parameters. */
+ const PATH_PATTERN = /^\/[A-Za-z0-9._~:/-]*$/;
+ const UNSAFE_SEGMENTS = /\/\/|(^|\/)\.\.?(\/|$)/;

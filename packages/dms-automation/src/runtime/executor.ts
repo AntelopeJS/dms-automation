@@ -1,4 +1,5 @@
 import type { JsonSchema } from "@antelopejs/interface-dms-automation";
+import { type DataRecord, type DataValue, kindOf } from "../types/dataValue";
 import { isPropertyBag } from "../types/guards";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
@@ -120,21 +121,21 @@ function appendEntry(
   runCtx.entries.push(entry);
 }
 
-interface DescribedValue {
+type DescribedValue = {
   type: string;
-  value: unknown;
-}
+  value: DataValue;
+};
 
-function describeValue(v: unknown): DescribedValue {
+function describeValue(v: DataValue): DescribedValue {
   if (v === null) return { type: "null", value: null };
   if (Array.isArray(v)) return { type: "array", value: v };
-  return { type: typeof v, value: v };
+  return { type: kindOf(v), value: v };
 }
 
-function describeRecord(obj: Record<string, unknown>) {
-  const out: Record<string, DescribedValue> = {};
-  for (const [k, v] of Object.entries(obj)) out[k] = describeValue(v);
-  return out;
+function describeRecord(obj: DataRecord) {
+  return Object.fromEntries(
+    Object.entries(obj).map(([k, v]) => [k, describeValue(v)]),
+  );
 }
 
 /**
@@ -158,7 +159,7 @@ function describeRecord(obj: Record<string, unknown>) {
 export async function run(
   graph: ProcedureGraph,
   triggerNodeId: string,
-  payload: unknown,
+  payload: DataValue,
   options: RunOptions = {},
 ): Promise<ExecutionResult> {
   const procedureId = options.procedureId ?? "unknown";
@@ -421,10 +422,7 @@ function inputDefaults(node: GraphNode) {
  * `"x-redact": "headers"` (HTTP header maps) have their credentials masked.
  * Only the log is masked; the node ran with the real values.
  */
-function redacted(
-  values: Record<string, unknown>,
-  schema: JsonSchema | undefined,
-) {
+function redacted(values: DataRecord, schema: JsonSchema | undefined) {
   const properties = propertiesOf(schema);
   const out = { ...values };
   for (const [name, prop] of Object.entries(properties)) {
@@ -558,9 +556,15 @@ function makeDataNodeEvaluator(
         evaluator,
         inputDefaults(dn),
       );
-      let out: Record<string, unknown>;
+      let out: DataRecord;
       try {
-        out = type.evaluate(inputs) as Record<string, unknown>;
+        const evaluated = type.evaluate(inputs);
+        if (!isPropertyBag(evaluated) || Array.isArray(evaluated)) {
+          throw new Error(
+            `data node type "${dn.typeId}" must evaluate to an object`,
+          );
+        }
+        out = evaluated;
       } catch (err) {
         throw withEmptySources(err, dn, inputs, graph, nodeById);
       }

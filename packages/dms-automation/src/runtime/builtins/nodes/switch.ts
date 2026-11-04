@@ -1,8 +1,18 @@
+import { isObject, isString } from "../../../types/guards";
 import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
+/**
+ * Takes the branch named after the value's text: a string as is, a number or
+ * a boolean as `String(value)` writes it, an object or an array as its JSON
+ * text.
+ */
 const execute: NodeExecute = async (node, inputs, ctx) => {
-  const cases = (node.config.cases as string[] | undefined) ?? [];
-  const key = String(inputs.value);
+  const cases = node.config.cases ?? [];
+  const value = inputs.value;
+  const key = isObject(value) ? JSON.stringify(value) : String(value);
+  if (!isString(cases) && !Array.isArray(cases)) {
+    throw new TypeError("cases.includes is not a function");
+  }
   const branch = cases.includes(key) ? key : "default";
   ctx.log("info", `branch: ${branch}`);
   ctx.continueWith(branch);
