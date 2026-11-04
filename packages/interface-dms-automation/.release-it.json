@@ -17,6 +17,7 @@
     }
   },
   "npm": {
-    "skipChecks": true
+    "skipChecks": true,
+    "allowSameVersion": true
   }
 }
