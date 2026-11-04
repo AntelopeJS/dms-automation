@@ -133,9 +133,9 @@ function describeValue(v: DataValue): DescribedValue {
 }
 
 function describeRecord(obj: DataRecord) {
-  const out: Record<string, DescribedValue> = {};
-  for (const [k, v] of Object.entries(obj)) out[k] = describeValue(v);
-  return out;
+  return Object.fromEntries(
+    Object.entries(obj).map(([k, v]) => [k, describeValue(v)]),
+  );
 }
 
 /**
