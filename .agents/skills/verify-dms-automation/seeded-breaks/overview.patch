@@ -1,0 +1,12 @@
+diff --git a/packages/dms-automation/src/stats/overview.ts b/packages/dms-automation/src/stats/overview.ts
+--- a/packages/dms-automation/src/stats/overview.ts
++++ b/packages/dms-automation/src/stats/overview.ts
+@@ -176,7 +176,7 @@
+ ]);
+ 
+ /** Rows of "Needs attention"; the rest is counted and a link lists them all. */
+-const MAX_ATTENTION_ROWS = 5;
++const MAX_ATTENTION_ROWS = 6;
+ 
+ function isDismissed(
+   dismissedAt: Date | null | undefined,

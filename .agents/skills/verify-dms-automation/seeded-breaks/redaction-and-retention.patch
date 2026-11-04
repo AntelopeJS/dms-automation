@@ -1,0 +1,11 @@
+--- a/packages/dms-automation/src/runtime/boundRunLog.ts
++++ b/packages/dms-automation/src/runtime/boundRunLog.ts
+@@ -148,7 +148,7 @@
+   "sig",
+ ]);
+ const SENSITIVE_NAME_PATTERN =
+-  /token|secret|signature|hmac|passw(or)?d|session|api[-_]?key|access[-_]?key|^x-auth|[-_]key$/i;
++  /token|secret|signature|hmac|passw(or)?d|session|api[-_]?key|access[-_]?key|^x-auth|-key$/i;
+ 
+ /** More names the project marks as credentials (`runs.sensitiveNames`). */
+ let projectNames: string[] = [];

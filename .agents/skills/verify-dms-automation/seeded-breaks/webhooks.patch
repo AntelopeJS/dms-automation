@@ -1,0 +1,12 @@
+diff --git a/packages/dms-automation/src/runtime/builtins/triggers/webhook.ts b/packages/dms-automation/src/runtime/builtins/triggers/webhook.ts
+--- a/packages/dms-automation/src/runtime/builtins/triggers/webhook.ts
++++ b/packages/dms-automation/src/runtime/builtins/triggers/webhook.ts
+@@ -51,7 +51,7 @@
+ function isReserved(path: string): boolean {
+   const lower = path.toLowerCase();
+   return RESERVED_PREFIXES.some(
+-    (prefix) => lower === prefix || lower.startsWith(`${prefix}/`),
++    (prefix) => lower.startsWith(prefix),
+   );
+ }
+ 
