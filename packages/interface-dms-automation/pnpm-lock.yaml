@@ -5,16 +5,15 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@antelopejs/interface-core': file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
+  '@antelopejs/interface-core': 0.4.0
 
 importers:
 
   .:
-    dependencies:
-      '@antelopejs/interface-core':
-        specifier: file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
-        version: file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
     devDependencies:
+      '@antelopejs/interface-core':
+        specifier: 0.4.0
+        version: 0.4.0
       '@antelopejs/tooling-configs':
         specifier: '>=0.2.18 <1.0.0'
         version: 0.2.18(knip@6.41.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2004))
@@ -48,9 +47,8 @@ importers:
 
 packages:
 
-  '@antelopejs/interface-core@file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz':
-    resolution: {integrity: sha512-ur2KLvtD8h4SCZ0VSoQDc1pg+E9Bk/py3EW3qHHdoo3i6RvKWrrDKsX2khVdqQESuF2QMc1sJ6B+7ISjx5TvpQ==, tarball: file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz}
-    version: 0.4.0
+  '@antelopejs/interface-core@0.4.0':
+    resolution: {integrity: sha512-IPX6dtt3KHknclN4mLOYeRYL2Odz1Pts+dtaZul62NghsBUX/0OFHD4Qhoaf+Beva4hjInbaF918ajr4Z5HVWQ==}
 
   '@antelopejs/tooling-configs@0.2.18':
     resolution: {integrity: sha512-bLZ5u4GQUdatgN0+9tJjwv2WXUBApPslgBKb3h98GYK34U1Potxrv5VVldLwmx54+Ldu8EPOp4PShLZqw+SkJw==}
@@ -1757,7 +1755,7 @@ packages:
 
 snapshots:
 
-  '@antelopejs/interface-core@file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz':
+  '@antelopejs/interface-core@0.4.0':
     dependencies:
       reflect-metadata: 0.2.2
 
