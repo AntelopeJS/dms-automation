@@ -43,10 +43,13 @@ export const pageJourneys = [
         return day;
       };
       const base = { procedureId: id, procedureName };
+      const midnight = new Date(now);
+      midnight.setHours(0, 0, 0, 0);
+      const recent = (/** @type {number} */ minutes) => new Date(Math.max(now.getTime() - minutes * 60_000, midnight.getTime() + (4 - minutes) * 1000));
       await insertRuns(ctx, [
-        runDocument({ ...base, startedAt: new Date(now.getTime() - 3 * 60_000), durationMs: 12 }),
-        runDocument({ ...base, startedAt: new Date(now.getTime() - 2 * 60_000), durationMs: 1500, status: "failed", steps: [{ id: "a", durationMs: 1 }, { id: "b", durationMs: 2, error: "disk full ☕ 日本" }], failedStep: { nodeId: "b", kind: "action", label: "Charge card" } }),
-        runDocument({ ...base, startedAt: new Date(now.getTime() - 60_000), kind: "test", durationMs: 7 }),
+        runDocument({ ...base, startedAt: recent(3), durationMs: 12 }),
+        runDocument({ ...base, startedAt: recent(2), durationMs: 1500, status: "failed", steps: [{ id: "a", durationMs: 1 }, { id: "b", durationMs: 2, error: "disk full ☕ 日本" }], failedStep: { nodeId: "b", kind: "action", label: "Charge card" } }),
+        runDocument({ ...base, startedAt: recent(1), kind: "test", durationMs: 7 }),
         runDocument({ ...base, startedAt: noon(1), durationMs: 3 }),
         runDocument({ ...base, startedAt: new Date(noon(1).getTime() + 60_000), kind: "rerun", durationMs: 4 }),
         runDocument({ ...base, startedAt: noon(3), durationMs: 5 }),
