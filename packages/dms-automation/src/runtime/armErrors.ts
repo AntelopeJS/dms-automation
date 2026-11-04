@@ -62,18 +62,19 @@ export async function storeArmErrors(
     const triggers = new Set(
       first.graph.nodes.filter((n) => n.kind === "trigger").map((n) => n.id),
     );
-    const next: Record<string, ArmError> = {};
+    const next = new Map<string, ArmError>();
     for (const [nodeId, error] of Object.entries(
       readArmErrors(first.procedure),
     )) {
-      if (triggers.has(nodeId)) next[nodeId] = error;
+      if (triggers.has(nodeId)) next.set(nodeId, error);
     }
     for (const [key, { nodeId }] of entries) {
       const error = errors.get(key);
-      if (error) next[nodeId] = error;
-      else delete next[nodeId];
+      if (error) next.set(nodeId, error);
+      else next.delete(nodeId);
     }
-    const stored = Object.keys(next).length > 0 ? JSON.stringify(next) : "";
+    const stored =
+      next.size > 0 ? JSON.stringify(Object.fromEntries(next)) : "";
     if (stored !== (first.procedure.armErrors ?? "")) {
       await model.update(id, { armErrors: stored });
     }

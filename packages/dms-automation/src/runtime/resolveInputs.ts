@@ -102,12 +102,11 @@ export class DataCache {
  * editor never seeded) then gets the value its schema documents.
  */
 export function schemaDefaults(schema: JsonSchema | undefined) {
-  const properties = propertiesOf(schema);
-  const out: DataRecord = {};
-  for (const [name, prop] of Object.entries(properties)) {
-    if (prop.default !== undefined) out[name] = prop.default;
+  const defaults: [string, DataValue][] = [];
+  for (const [name, prop] of Object.entries(propertiesOf(schema))) {
+    if (prop.default !== undefined) defaults.push([name, prop.default]);
   }
-  return out;
+  return Object.fromEntries(defaults);
 }
 
 /**
@@ -130,7 +129,7 @@ export function resolveInputs(
   evaluateDataNode?: DataNodeEvaluator,
   defaults: ReturnType<typeof schemaDefaults> = {},
 ) {
-  const result = { ...defaults, ...node.config };
+  const wired = new Map<string, DataValue>();
 
   for (const edge of dataEdges) {
     if (edge.to.node !== node.id) continue;
@@ -143,10 +142,10 @@ export function resolveInputs(
 
     if (!isPropertyBag(upstream)) continue;
 
-    if (edge.from.port in upstream) {
-      result[edge.to.field] = upstream[edge.from.port];
+    if (Object.hasOwn(upstream, edge.from.port)) {
+      wired.set(edge.to.field, upstream[edge.from.port]);
     }
   }
 
-  return result;
+  return { ...defaults, ...node.config, ...Object.fromEntries(wired) };
 }
