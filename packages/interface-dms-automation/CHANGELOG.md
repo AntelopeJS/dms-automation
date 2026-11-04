@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.6.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.5.0...v0.6.0)
+
+### 🚀 Enhancements
+
+- **frontend:** Enforce the backend boundary in production builds ([#93](https://github.com/AntelopeJS/dms-automation/pull/93))
+
+### 🩹 Fixes
+
+- **declare:** A procedure declared twice at the same moment is kept ([#75](https://github.com/AntelopeJS/dms-automation/pull/75))
+- **frontend:** Present API failures once ([#128](https://github.com/AntelopeJS/dms-automation/pull/128))
+
+### 💅 Refactors
+
+- Move comments into TSDoc or delete them ([#85](https://github.com/AntelopeJS/dms-automation/pull/85))
+- Replace assertions, typeof checks and unknown types with guards and domain types ([#91](https://github.com/AntelopeJS/dms-automation/pull/91))
+- Split the oversize files along their seams ([#92](https://github.com/AntelopeJS/dms-automation/pull/92))
+- **amp:** Narrow the forwarded location header with a JSDoc type guard ([#94](https://github.com/AntelopeJS/dms-automation/pull/94))
+- Clear the residual ratchet findings ([#96](https://github.com/AntelopeJS/dms-automation/pull/96))
+
+### 📖 Documentation
+
+- **changelog:** Upgrade notes of interface-dms-automation 0.5.0 ([#76](https://github.com/AntelopeJS/dms-automation/pull/76))
+- **changelog:** Upgrade notes of dms-automation 0.7.0 ([#78](https://github.com/AntelopeJS/dms-automation/pull/78))
+- **readme:** Link the DMS and fix the renderer range ([#119](https://github.com/AntelopeJS/dms-automation/pull/119))
+- **readme:** Use one Discord invite ([#117](https://github.com/AntelopeJS/dms-automation/pull/117))
+- Name DMS 0.11 and renderer 0.9, and ignore the playground's frontend build ([#79](https://github.com/AntelopeJS/dms-automation/pull/79))
+- **github:** Send questions and ideas to Discord ([#134](https://github.com/AntelopeJS/dms-automation/pull/134))
+
+### 📦 Build
+
+- **deps:** Run on dms 0.11, dms-frontend 0.9 and implement interface-dms-automation 0.5 ([#74](https://github.com/AntelopeJS/dms-automation/pull/74))
+- Adopt the AntelopeJS guardrail pack ([#80](https://github.com/AntelopeJS/dms-automation/pull/80))
+- Upgrade the guardrail pack to 0.2.11 ([#83](https://github.com/AntelopeJS/dms-automation/pull/83))
+- **deps:** Bump @antelopejs/tooling-configs to 0.2.17 ([#95](https://github.com/AntelopeJS/dms-automation/pull/95))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/dms-automation v0.7.0 ([4f02c24](https://github.com/AntelopeJS/dms-automation/commit/4f02c24))
+- Configure Renovate with the shared preset ([#81](https://github.com/AntelopeJS/dms-automation/pull/81))
+- **release:** @antelopejs/dms-automation v0.8.0 ([2407d4e](https://github.com/AntelopeJS/dms-automation/commit/2407d4e))
+- Land the cleanup campaign on main ([#158](https://github.com/AntelopeJS/dms-automation/pull/158))
+
+### ✅ Tests
+
+- **declare:** Restore the in-memory fakes without unbound methods ([#77](https://github.com/AntelopeJS/dms-automation/pull/77))
+- **skills:** Add eval cases for the dms-automation skills ([#82](https://github.com/AntelopeJS/dms-automation/pull/82))
+- Move the source-text invariants to lint rules and the loaders to helpers ([#84](https://github.com/AntelopeJS/dms-automation/pull/84))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.5.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.4.0...v0.5.0)
