@@ -59,7 +59,7 @@
   },
   "devDependencies": {
     "@antelopejs/interface-core": "file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz",
-    "@antelopejs/tooling-configs": "file:../../.campaign/tgz/antelopejs-tooling-configs-dab0aea.tgz",
+    "@antelopejs/tooling-configs": ">=0.2.18 <1.0.0",
     "@types/node": "^24.0.0",
     "knip": "^6.34.0",
     "oxfmt": "^0.66.0",
@@ -76,7 +76,6 @@
   "packageManager": "pnpm@10.2.0",
   "pnpm": {
     "overrides": {
-      "@antelopejs/tooling-configs": "file:../../.campaign/tgz/antelopejs-tooling-configs-dab0aea.tgz",
       "@antelopejs/interface-core": "file:../../.campaign/tgz/antelopejs-interface-core-f7df541.tgz"
     }
   },
