@@ -191,3 +191,33 @@ void test("a reload during activation releases each definition's own handles", a
   await subscriptions._deactivateAll();
   assert.equal(second.armed.size, 0);
 });
+
+void test("a trigger with the id __proto__ that fails to arm keeps its arm error under that id", async (t) => {
+  t.after(async () => {
+    procedures.delete("P3");
+    await subscriptions._deactivateAll();
+  });
+  procedures.set("P3", {
+    _id: "P3",
+    name: "Three",
+    enabled: true,
+    graph: JSON.stringify({
+      nodes: [
+        {
+          id: "__proto__",
+          kind: "trigger",
+          typeId: "support.never-registered",
+          config: {},
+          position: { x: 0, y: 0 },
+        },
+      ],
+      triggerEdges: [],
+      dataEdges: [],
+    }),
+    revision: 1,
+    version: 1,
+  });
+  await subscriptions.hydrate();
+  await until(() => armErrorOf("P3") !== "", "the arm error");
+  assert.match(armErrorOf("P3"), /^\{"__proto__":\{[^}]*unknownType/);
+});

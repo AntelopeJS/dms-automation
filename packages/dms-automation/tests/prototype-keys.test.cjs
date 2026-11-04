@@ -13,6 +13,12 @@ const { usageByEntry } = require("../dist/routes/library.js");
 const { queryOf } = require("../dist/runtime/builtins/triggers/webhook.js");
 const { isPropertyBag } = require("../dist/types/guards.js");
 const { headersOf } = require("../dist/runtime/builtins/actions/http.js");
+const {
+  DataCache,
+  resolveInputs,
+  schemaDefaults,
+} = require("../dist/runtime/resolveInputs.js");
+const { run } = require("../dist/runtime/executor.js");
 
 for (const t of builtinTriggers) registry.addTrigger(t.id, t);
 for (const a of builtinActions) registry.addAction(a.id, a);
@@ -56,6 +62,23 @@ async function evaluateResult(id, inputs) {
   const output = dataNode.evaluate(inputs);
   assert.ok(isPropertyBag(output));
   return output.result;
+}
+
+/**
+ * The inputs `resolveInputs` gives node `n` for one data edge from the port
+ * `port` of node `up`, whose output is `output`, into the field `field`.
+ * @param {import("../dist/types/dataValue.js").DataRecord} output
+ * @param {string} port
+ * @param {string} field
+ */
+function wiredInputs(output, port, field) {
+  const cache = new DataCache();
+  cache.setOutput("up", output);
+  return resolveInputs(
+    node("n", "action", "log.message"),
+    [{ id: "e", from: { node: "up", port }, to: { node: "n", field } }],
+    cache,
+  );
 }
 
 /** @param {import("../dist/types/graph.js").GraphNode[]} nodes */
@@ -151,5 +174,68 @@ for (const name of INHERITED_NAMES) {
       Object.getOwnPropertyDescriptor(usage, name)?.value?.length,
       1,
     );
+  });
+
+  void test(`a data edge from a port named ${name} wires only an output the node owns`, () => {
+    assert.deepEqual(Object.keys(wiredInputs({ a: 1 }, name, "f")), []);
+  });
+
+  void test(`a data edge into a field named ${name} sets that input as its own`, () => {
+    const inputs = wiredInputs({ a: { b: 1 } }, "a", name);
+    assert.deepEqual(Object.keys(inputs), [name]);
+    assert.deepEqual(Object.getOwnPropertyDescriptor(inputs, name)?.value, {
+      b: 1,
+    });
+  });
+
+  void test(`a schema default named ${name} is kept as its own`, () => {
+    const defaults = schemaDefaults({
+      type: "object",
+      properties: { [name]: { type: "number", default: 1 } },
+    });
+    assert.deepEqual(Object.keys(defaults), [name]);
+    assert.equal(Object.getOwnPropertyDescriptor(defaults, name)?.value, 1);
+  });
+
+  void test(`a data node output named ${name} is logged as its own`, async () => {
+    const typeId = `test.outputs-${name}`;
+    registry.addDataNode(typeId, {
+      id: typeId,
+      name: "Outputs",
+      evaluate: () => Object.fromEntries([[name, 1]]),
+    });
+    const result = await run(
+      {
+        nodes: [
+          node("t", "trigger", "manual"),
+          node("d", "data", typeId),
+          node("log", "action", "log.message"),
+        ],
+        triggerEdges: [
+          { id: "t-log", from: { node: "t" }, to: { node: "log" } },
+        ],
+        dataEdges: [
+          {
+            id: "d-log",
+            from: { node: "d", port: name },
+            to: { node: "log", field: "value" },
+          },
+        ],
+      },
+      "t",
+      {},
+    );
+    const evaluated = result.logs.entries.find(
+      (entry) => entry.message === `evaluated ${typeId}`,
+    );
+    const value = evaluated?.value;
+    assert.ok(isPropertyBag(value));
+    const { output } = value;
+    assert.ok(isPropertyBag(output));
+    assert.deepEqual(Object.keys(output), [name]);
+    assert.deepEqual(Object.getOwnPropertyDescriptor(output, name)?.value, {
+      type: "number",
+      value: 1,
+    });
   });
 }
