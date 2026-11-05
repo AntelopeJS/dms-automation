@@ -1,6 +1,6 @@
 ---
 name: verify-dms-automation
-description: "Drive the AntelopeJS dms-automation module (procedures as node graphs, the builder, triggers, webhooks and schedules, runs and traces, the Overview, the Library and templates, the interface other modules register nodes through) the way the platform owner does, inside a DMS with free ports, its own MongoDB database, an HTTP sink and a fixture module, and post a verdict with evidence. Use to prove a change to AntelopeJS/dms-automation works before merge, to verify a PR, or to check that a seeded break or a seeded one-way door is caught."
+description: "Drive the AntelopeJS dms-automation module (procedures as node graphs, the builder, triggers, webhooks and schedules, runs and traces, the Overview, the Library and templates, the interface other modules register nodes through) the way the platform owner does, inside a DMS with free ports, its own MongoDB database, an HTTP sink and a fixture module, and post a verdict with evidence. Use to prove a change to AntelopeJS/dms-automation works before merge, or to verify a PR."
 ---
 
 # Verify dms-automation
@@ -14,7 +14,7 @@ C="pnpm --dir packages/dms-automation exec dms-control"
 $C                       # lists every command
 ```
 
-Give `seeded`, `doors` and `--skill` absolute paths: the command runs in `packages/dms-automation`.
+Give `doors` and `--skill` absolute paths: the command runs in `packages/dms-automation`.
 
 ## Launch
 
@@ -69,23 +69,14 @@ $C down "$RUN"
 3. **Every registered journey of a feature in `run` must have run and passed.** Known findings stay as failing journeys (see Gotchas): they fail a verdict only when the diff touches their feature.
 4. **Docs.** Judge every `docs:` page of each touched feature against what the journeys showed.
 5. **Formal checks.** `formal-leader-triggers` covers the leader election of the Redis mode: `$C formal "$RUN"` runs it when the diff touches its files.
-6. **One-way doors.** The section comes right after the result line and is mandatory. `$C doors` prints the `One-way-door:` line for the diff. A Data door is contained only by `procedures/delete-takes-the-graph-and-keeps-the-runs` and `redaction-and-retention/runs-older-than-the-retention-are-deleted-when-the-module-starts` both passing in this run, an Outbound door by `test-runs/a-test-run-asks-before-it-acts-for-real`; no journey contains the other kinds, so those rows say so.
+6. **One-way doors.** The section comes right after the result line and is mandatory. `$C doors` prints the `One-way-door:` line for the diff.
 7. **Result.** FAIL if any of rules 1 to 6 fail. PASS+NOTES when something is not verified or needs the owner's attention. PASS otherwise.
 
 Write `$RUN/evidence/judgement.json` (`doors`, `docs`, `notVerified`, `attention`, `verifier`), then `$C verdict "$RUN" --pr <n>` and, from a thread that did not write the change, `$C publish "$RUN" --pr <n>`.
 
 ## Trust
 
-The skill is not Trusted yet. It becomes Trusted when it catches every seeded break and flags every seeded door, passes a shadow run of 10 consecutive agent PRs, and its last maintain pass is newer than the last change to the repository or its `@antelopejs` dependencies and at most 30 days old.
-
-## Seeded breaks and doors
-
-```bash
-$C seeded smoke runs webhooks
-$C doors "$PWD/.agents/skills/verify-dms-automation/seeded-doors/data.patch"
-```
-
-`seeded-breaks/<feature>.patch` is one minimal product bug per feature; `seeded` builds a control and a patched worktree, runs the feature's journeys in each, and prints `CAUGHT` with the journeys that caught it, or `MISSED`. A break counts only when a journey that passes in the control fails one of its checks with the patch. `seeded-doors/<kind>.patch` holds one change per door kind.
+The skill is not Trusted yet. It becomes Trusted when it passes a shadow run of 10 consecutive agent PRs, and its last maintain pass is newer than the last change to the repository or its `@antelopejs` dependencies and at most 30 days old.
 
 ## Gotchas
 
@@ -93,7 +84,7 @@ $C doors "$PWD/.agents/skills/verify-dms-automation/seeded-doors/data.patch"
 - Every dashboard page renders on the server and hydrates after `load`; a click that lands first does nothing. The journeys click again until what the click opens shows, and `tab.signIn` waits for the sign-in form to hydrate.
 - A journey that needs old or hand-made runs writes them through the MongoDB driver that `mongodb-memory-server-core` brings (`dms-control` resolves it the same way), then reads them back through the API and the pages.
 - `mongod` comes from `DMS_CONTROL_MONGOD`, `PATH`, or the mongodb-memory-server cache (`~/.cache/mongodb-binaries`).
-- A step whose check fails because the backend or the dashboard stopped answering ends the journey with a `NOT VERIFIED` error and no failing check (`guard.mjs`), so `seeded` never counts an outage as a catch.
+- A step whose check fails because the backend or the dashboard stopped answering ends the journey with a `NOT VERIFIED` error and no failing check (`guard.mjs`).
 - The Overview feature has 25 journeys and takes about 25 minutes on one run; the rule that every journey of a touched feature must run is met by splitting its journey ids over two runs (`$C up` twice, `$C journey "$RUN" overview <ids...>`) rather than by skipping some.
 - Some journeys take 30 to 45 s on purpose (a trigger that never arms waits for the module's 10 s timeouts; the HTTP request action's default timeout is 30 s).
 - Known findings at the integration head are failing journeys, each with an issue draft; the list is in the pull request's Attention section.
