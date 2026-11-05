@@ -1,7 +1,6 @@
 import {
   Controller,
   HTTPResult,
-  JSONBody,
   MultiParameter,
   Parameter,
 } from "@antelopejs/interface-api";
@@ -41,19 +40,13 @@ import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
 import {
   applyQuery,
+  countQueries,
   procedureOptions,
-  type ProceduresQuery,
   sortRows,
   toInt,
 } from "./procedures-query";
 
 const DEFAULT_PAGE_SIZE = 10;
-
-interface CountBatchBody {
-  queries?: Array<{ id: string; query?: ProceduresQuery }>;
-}
-
-const MAX_COUNT_QUERIES = 50;
 
 /**
  * The Procedures list is a computed aggregate (state, last runs, success rate
@@ -175,23 +168,10 @@ const procedureSummaryRoutes = {
   countBatch: {
     endpoint: "/count/batch",
     callback: {
-      method: "POST",
-      args: [AuthOwnerOnly(), JSONBody()],
-      func: async (_user: User, body: CountBatchBody) => {
-        const queries = Array.isArray(body?.queries) ? body.queries : [];
-        if (queries.length > MAX_COUNT_QUERIES) {
-          throw new HTTPResult(400, {
-            error: "Too many count batch queries.",
-          });
-        }
-        const rows = await getProceduresSummary();
-        return Object.fromEntries(
-          queries.map(({ id, query }) => [
-            id,
-            applyQuery(rows, query ?? {}).length,
-          ]),
-        );
-      },
+      method: "GET",
+      args: [AuthOwnerOnly(), MultiParameter("query", "query")],
+      func: async (_user: User, entries: string[]) =>
+        countQueries(await getProceduresSummary(), entries),
     },
   },
   delete: {
