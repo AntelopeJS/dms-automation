@@ -35,7 +35,7 @@ The lifecycle of a procedure through `/api/automation/procedures`: create, impor
 - `saving-moves-the-revision-and-the-version-only-when-a-run-would-differ`: PUT /:id, 409 stale, rename of runs, pause by save, body validation.
 - `pause-and-resume-change-only-whether-it-is-enabled` and `enabling-is-refused-while-the-graph-cannot-run`: PUT /:id/enabled and its refusals.
 - `states-follow-the-runs-as-the-docs-define-them`, `last-runs-draws-twelve-runs-and-success-is-the-share-of-successes`, `dismiss-hides-a-degraded-procedure-until-it-fails-again`.
-- `delete-confirmation-is-worded-for-the-procedure` and `delete-takes-the-graph-and-keeps-the-runs` (the data-door containment named in verify.config.ts).
+- `delete-confirmation-is-worded-for-the-procedure` and `delete-takes-the-graph-and-keeps-the-runs`.
 - `run-now-sends-the-payload-of-the-last-real-call`, `triggers-are-listed-in-words-with-the-next-schedule-time`, `validate-lists-the-problems-of-a-draft-graph`.
 - `the-list-pages-newest-first-and-refuses-bad-pages`, `the-runs-of-a-procedure-list-newest-first-and-page`.
 - `routes-the-module-does-not-serve-answer-404-and-change-nothing`: wrong methods through raw.
