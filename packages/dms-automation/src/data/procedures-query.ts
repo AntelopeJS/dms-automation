@@ -1,3 +1,4 @@
+import { HTTPResult } from "@antelopejs/interface-api";
 import type { ProcedureSummaryRow } from "../db/models/stats.model";
 import { stateRank } from "../stats/health";
 import { isNumber, isObjectOrNull, isString } from "../types/guards";
@@ -155,6 +156,55 @@ export function sortRows(
 export function toInt(raw: QueryValue, fallback: number, min: number): number {
   const n = Math.trunc(Number(raw));
   return Number.isFinite(n) && n >= min ? n : fallback;
+}
+
+const MAX_COUNT_QUERIES = 50;
+const COUNT_QUERY_SEPARATOR = "?";
+
+function invalidCountQuery(): HTTPResult {
+  return new HTTPResult(400, { error: "Invalid count batch query." });
+}
+
+function countId(encoded: string): string {
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    throw invalidCountQuery();
+  }
+}
+
+function countQuery(params: URLSearchParams): ProceduresQuery {
+  return {
+    search: params.get("search") ?? undefined,
+    filter_status: params.get("filter_status") ?? undefined,
+    filter_triggerTypes: params.get("filter_triggerTypes") ?? undefined,
+  };
+}
+
+/**
+ * The tab counters of `GET count/batch`: one count per repeated `query` value,
+ * each an escaped id, `?`, and the list query string it counts, as the DMS
+ * table view sends them. Up to 50 entries; a value without `?` or with a
+ * malformed id is a 400.
+ */
+export function countQueries(
+  rows: ProcedureSummaryRow[],
+  entries: readonly string[],
+): Record<string, number> {
+  if (entries.length > MAX_COUNT_QUERIES) {
+    throw new HTTPResult(400, { error: "Too many count batch queries." });
+  }
+  return Object.fromEntries(
+    entries.map((entry) => {
+      const separator = entry.indexOf(COUNT_QUERY_SEPARATOR);
+      if (separator < 0) throw invalidCountQuery();
+      const query = new URLSearchParams(entry.slice(separator + 1));
+      return [
+        countId(entry.slice(0, separator)),
+        applyQuery(rows, countQuery(query)).length,
+      ];
+    }),
+  );
 }
 
 /** A procedure as the runs table's relation picker lists it. */
