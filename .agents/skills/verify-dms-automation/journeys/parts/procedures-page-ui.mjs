@@ -109,7 +109,14 @@ export async function openDialog(tab, name) {
 
 /** @param {Tab} tab @param {RegExp} pattern @returns {Promise<string[]>} Text of the tab strip buttons */
 export async function tabStrip(tab, pattern = /^(All|Failing|Degraded|Healthy|Paused|Drafts)/) {
-  const names = await tab.page.evaluate(() => Array.from(document.querySelectorAll('nav button, [role="navigation"] button'), (b) => (b.textContent ?? "").replace(/\s+/g, " ").trim()));
+  const names = await tab.page.evaluate(() =>
+    Array.from(document.querySelectorAll('nav button, [role="navigation"] button'), (b) => {
+      const walker = document.createTreeWalker(b, NodeFilter.SHOW_TEXT);
+      const parts = [];
+      while (walker.nextNode()) parts.push(walker.currentNode.textContent ?? "");
+      return parts.join(" ").replace(/\s+/g, " ").trim();
+    }),
+  );
   return names.filter((name) => pattern.test(name));
 }
 

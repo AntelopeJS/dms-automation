@@ -18,7 +18,7 @@ const ROUTES = [
   ["GET", "/stats/health"], ["GET", "/stats/kpi/runs"], ["GET", "/stats/runs-per-day"], ["GET", "/stats/attention"], ["GET", "/stats/recent-runs"], ["GET", "/stats/procedures"], ["GET", "/stats/triggers"],
   ["GET", "/library/counts"], ["GET", "/library/webhook-base"], ["GET", "/library/usage/triggers"],
   ["GET", "/runs/kpi/runs"], ["GET", "/runs/scope/banner"], ["GET", "/runs/x"], ["GET", "/runs/x/logs"], ["GET", "/runs/x/rerun-confirm"], ["POST", "/runs/x/rerun"],
-  ["GET", "/tables/procedures/list"], ["GET", "/tables/procedures/count"], ["GET", "/tables/procedures/select"], ["POST", "/tables/procedures/count/batch"],
+  ["GET", "/tables/procedures/list"], ["GET", "/tables/procedures/count"], ["GET", "/tables/procedures/select"], ["GET", "/tables/procedures/count/batch"],
   ["GET", "/tables/runs/list"], ["GET", "/tables/runs/count"],
 ];
 
