@@ -22,7 +22,7 @@ Give `doors` and `--skill` absolute paths: the command runs in `packages/dms-aut
 RUN=$($C up --prepare --base origin/campaign/integration)   # installs, builds, starts; prints the run folder
 ```
 
-`--prepare` runs the `prepare` commands of `verify.config.ts`: the frozen install, the build of the interface and the module, `playwright-core` into this folder, the link of the playground's `node_modules` to `packages/dms-automation/node_modules`, `fetch-api.mjs` (see Gotchas) and the TypeScript build of the playground's fixture module. Without it `up` uses the builds already there, and `doctor` fails on a stale one. `up` starts an isolated DMS from `playground/`:
+`--prepare` runs the `prepare` commands of `verify.config.ts`: the frozen install, the build of the interface and the module, `playwright-core` into this folder, the link of the playground's `node_modules` to `packages/dms-automation/node_modules` and the TypeScript build of the playground's fixture module. Without it `up` uses the builds already there, and `doctor` fails on a stale one. `up` starts an isolated DMS from `playground/`:
 
 - the checkout is laid out again under `$RUN/root`, every sibling linked, and the playground copied without `node_modules`, so the run's build, `.antelope/` and data are its own;
 - the API, the dashboard and the mail sink get free ports from the kernel, and `HOME` is `$RUN/home`;
@@ -80,7 +80,6 @@ The skill is not Trusted yet. It becomes Trusted when it passes a shadow run of 
 
 ## Gotchas
 
-- The published `@antelopejs/api` 1.6.0 reads `handler.proto.constructor`, while the module registers its webhook routes with `RouteHandler.controller`, so every webhook call answers 500 with it. `fetch-api.mjs` (a prepare step) unpacks that package into `api-module/` next to the playground with one line changed to read `controller` first; the playground loads it as a local module. Remove the step when a released api module reads `controller`.
 - Every dashboard page renders on the server and hydrates after `load`; a click that lands first does nothing. The journeys click again until what the click opens shows, and `tab.signIn` waits for the sign-in form to hydrate.
 - A journey that needs old or hand-made runs writes them through the MongoDB driver that `mongodb-memory-server-core` brings (`dms-control` resolves it the same way), then reads them back through the API and the pages.
 - `mongod` comes from `DMS_CONTROL_MONGOD`, `PATH`, or the mongodb-memory-server cache (`~/.cache/mongodb-binaries`).

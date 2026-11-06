@@ -43,7 +43,7 @@ dms-control journey "$RUN" webhooks
 
 ## Gotchas
 
-- The published `@antelopejs/api` reads `RouteHandler.proto`, while the module registers routes with `RouteHandler.controller`: every webhook call answers 500 `Cannot read properties of undefined (reading 'constructor')`. The journeys end NOT VERIFIED in that case. Start the run with an API module that reads `controller`: `dms-control up --env VERIFY_AUTO_API_PATH=<path of a local @antelopejs/api build>` (`playground/antelope.config.ts`).
+- The webhook routes need an API module that reads `RouteHandler.controller`, as the published `@antelopejs/api` 2.x does; an older one answers every webhook call 500 `Cannot read properties of undefined (reading 'constructor')` and the journeys end NOT VERIFIED. `dms-control up --env VERIFY_AUTO_API_PATH=<path of a local @antelopejs/api build>` runs another build (`playground/antelope.config.ts`).
 - Import JSON, New procedure and Duplicate move a webhook path another procedure uses to a free one (`-2`, `-3`), so a journey that needs two procedures on one route saves the graph afterwards (`PUT /procedures/:id`) or stores the procedure in the database (`withProcedures`, `storeEnabled` in `parts/triggers-common.mjs`) and restarts the backend.
 - Calls go to the API server with `callWebhook` (`parts/triggers-common.mjs`); the run is stored after the answer, so read it with `runsUntil`.
 - The `apiBaseUrl` variants restart the backend once each (`VERIFY_AUTO_API_BASE_URL`: `default`, `empty` or a URL).
