@@ -44,12 +44,14 @@ function apiBaseUrl(): string | undefined {
 }
 
 /**
- * The `@antelopejs/api` module: the published package, or a local copy that
- * reads `RouteHandler.controller` (`VERIFY_AUTO_API_PATH`), which webhooks
- * need when the published package still reads `proto`.
+ * The `@antelopejs/api` module: the published 2.x package, which reads
+ * `RouteHandler.controller` as the module's webhook routes need, or a local
+ * build at `VERIFY_AUTO_API_PATH`.
  */
 function apiSource() {
-  return { type: "local", path: process.env.VERIFY_AUTO_API_PATH ?? "../api-module" } as const;
+  const path = process.env.VERIFY_AUTO_API_PATH;
+  if (path) return { type: "local", path } as const;
+  return { type: "package", package: "@antelopejs/api", version: ">=2.0.0 <3.0.0" } as const;
 }
 
 /**
