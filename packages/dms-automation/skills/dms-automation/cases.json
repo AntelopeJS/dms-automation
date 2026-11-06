@@ -53,6 +53,17 @@
         "acceptable": ["dms-module", "dms"],
         "avoid": ["dms-automation"]
       }
+    },
+    {
+      "id": "dms-automation-avoid-interface-cluster-cron",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "Our nightly cron procedure ran three times last night on our 3-instance DMS cluster. Why, and how do I fix it?",
+      "expect": {
+        "skills": ["dms-automation"],
+        "acceptable": ["dms"],
+        "avoid": ["dms-automation-interface"]
+      }
     }
   ]
 }
