@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.6.1
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.6.0...v0.6.1)
+
+### 🩹 Fixes
+
+- **procedures:** Serve the tab counters on GET count/batch ([#165](https://github.com/AntelopeJS/dms-automation/pull/165))
+- **skills:** Split trigger cluster questions between dms-automation and its interface ([#167](https://github.com/AntelopeJS/dms-automation/pull/167))
+
+### 🏡 Chore
+
+- Land the cleanup campaign on main ([#161](https://github.com/AntelopeJS/dms-automation/pull/161))
+- **release:** @antelopejs/dms-automation v0.9.0 ([20d0895](https://github.com/AntelopeJS/dms-automation/commit/20d0895))
+- Remove the .amp directory ([#162](https://github.com/AntelopeJS/dms-automation/pull/162))
+- **verify:** Remove seeded runs from the verification skill ([#163](https://github.com/AntelopeJS/dms-automation/pull/163))
+- **verify:** Load the published api 2.x instead of patching 1.6.0 ([#164](https://github.com/AntelopeJS/dms-automation/pull/164))
+- **ci:** Remove the weekly mutation caller ([#166](https://github.com/AntelopeJS/dms-automation/pull/166))
+
+### 🤖 CI
+
+- Call ci-node.yml@v1 ([#168](https://github.com/AntelopeJS/dms-automation/pull/168))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.6.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.5.0...v0.6.0)
