@@ -70,9 +70,9 @@ $C down "$RUN"
    - `.nvmrc`, `.npmrc` and `pnpm-workspace.yaml`, and `package.json`, `pnpm-lock.yaml` and `tsconfig.json` at the root and in each `packages/*/`;
    - `package.json`, `pnpm-lock.yaml` and `.npmrc` of `packages/dms-automation/frontend-vue/`;
    - `packages/interface-dms-automation/src/**`;
-   - everything in this skill's folder except `features/`, `coverage/` and `journeys/`: the config, the playground and its fixture module, and the helpers every journey imports.
+   - everything in this skill's folder except `SKILL.md`, `features/`, `coverage/` and `journeys/`: the config, the playground and its fixture module, and the helpers every journey imports.
 
-   A change to `journeys/<feature>.mjs`, or to a part only that feature imports, runs that feature.
+   A change to `journeys/<feature>.mjs` runs that feature, and a change to a file under `journeys/parts/` runs every feature that imports it.
 2. **Unmapped surface fails the verdict.** User-facing code is `packages/dms-automation/src/**`, `frontend-vue/**`, `skills/**`, `package.json`, and `packages/interface-dms-automation/src/**`, `skills/**` and `package.json`, tests and tool configs excluded (`verify.config.ts`). `map` checks the whole tree.
 3. **Every registered journey of a feature in `run` must have run and passed.** Known findings stay as failing journeys (see Gotchas): they fail a verdict only when the diff touches their feature.
 4. **Docs.** Judge every `docs:` page of each touched feature against what the journeys showed.
