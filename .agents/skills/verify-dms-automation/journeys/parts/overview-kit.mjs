@@ -242,7 +242,8 @@ export async function ariaUntil(tab, selector, done, timeoutMs = 20_000) {
 }
 
 /**
- * Opens a page and waits for the dashboard to hydrate it.
+ * Opens a page and waits for the dashboard to mount its Vue app on it. The page's realtime stream stays open, so the
+ * network never goes idle.
  *
  * @param {Tab} tab The tab
  * @param {string} path The path
@@ -250,7 +251,7 @@ export async function ariaUntil(tab, selector, done, timeoutMs = 20_000) {
  */
 export async function open(tab, path) {
   await tab.goto(path);
-  await tab.page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+  await tab.page.waitForFunction(() => Boolean(document.querySelector("#app")?.__vue_app__), null, { timeout: 20_000 }).catch(() => undefined);
 }
 
 /**
