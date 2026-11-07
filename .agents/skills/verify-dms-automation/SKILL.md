@@ -22,7 +22,7 @@ Give `doors` and `--skill` absolute paths: the command runs in `packages/dms-aut
 RUN=$($C up --prepare --base origin/main)   # installs, builds, starts; prints the run folder
 ```
 
-`--base` is the branch the pull request merges into, `origin/main` unless it targets another one. `plan`, `doors` and `formal` read the diff from the merge base with that branch, so a stale base pulls in every feature another pull request touched.
+`--base` is the branch the pull request merges into, `origin/main` unless it targets another one. `formal` and `verdict` read it from the run; give it to `plan` and `doors` as well, which otherwise diff against `origin/main`. Each reads the diff from the merge base with that branch, so a stale base pulls in every feature another pull request touched.
 
 `--prepare` runs the `prepare` commands of `verify.config.ts`: the frozen install, the build of the interface and the module, `playwright-core` into this folder, the link of the playground's `node_modules` to `packages/dms-automation/node_modules` and the TypeScript build of the playground's fixture module. Without it `up` uses the builds already there, and `doctor` fails on a stale one. `up` starts an isolated DMS from `playground/`:
 
@@ -67,15 +67,17 @@ $C down "$RUN"
 ## Verdict rules
 
 1. **Run every feature whose `covers:` globs the diff touches, plus the smoke journey.** `plan` prints that list as `run`. Run every feature instead when the diff touches a file every feature runs on, and before a release. Those files are:
-   - `.nvmrc`, and `package.json`, `pnpm-lock.yaml` and `tsconfig.json` at the root and in each `packages/*/`;
-   - `package.json` and `pnpm-lock.yaml` of `packages/dms-automation/frontend-vue/`;
+   - `.nvmrc`, `.npmrc` and `pnpm-workspace.yaml`, and `package.json`, `pnpm-lock.yaml` and `tsconfig.json` at the root and in each `packages/*/`;
+   - `package.json`, `pnpm-lock.yaml` and `.npmrc` of `packages/dms-automation/frontend-vue/`;
    - `packages/interface-dms-automation/src/**`;
-   - this skill's `verify.config.ts`, `playground/antelope.config.ts` and `playground/package.json`.
+   - everything in this skill's folder except `features/`, `coverage/` and `journeys/`: the config, the playground and its fixture module, and the helpers every journey imports.
+
+   A change to `journeys/<feature>.mjs`, or to a part only that feature imports, runs that feature.
 2. **Unmapped surface fails the verdict.** User-facing code is `packages/dms-automation/src/**`, `frontend-vue/**`, `skills/**`, `package.json`, and `packages/interface-dms-automation/src/**`, `skills/**` and `package.json`, tests and tool configs excluded (`verify.config.ts`). `map` checks the whole tree.
 3. **Every registered journey of a feature in `run` must have run and passed.** Known findings stay as failing journeys (see Gotchas): they fail a verdict only when the diff touches their feature.
 4. **Docs.** Judge every `docs:` page of each touched feature against what the journeys showed.
 5. **Formal checks.** `formal-leader-triggers` covers the leader election of the Redis mode: `$C formal "$RUN"` runs it when the diff touches its files.
-6. **One-way doors.** The section comes right after the result line and is mandatory. `$C doors` prints the `One-way-door:` line for the diff.
+6. **One-way doors.** The section comes right after the result line and is mandatory. `$C doors --base origin/main` prints the `One-way-door:` line for the diff.
 7. **Result.** FAIL if any of rules 1 to 6 fail. PASS+NOTES when something is not verified or needs the owner's attention. PASS otherwise.
 
 Write `$RUN/evidence/judgement.json` (`doors`, `docs`, `notVerified`, `attention`, `verifier`), then `$C verdict "$RUN" --pr <n>` and, from a thread that did not write the change, `$C publish "$RUN" --pr <n>`.
