@@ -19,8 +19,10 @@ Give `doors` and `--skill` absolute paths: the command runs in `packages/dms-aut
 ## Launch
 
 ```bash
-RUN=$($C up --prepare --base origin/campaign/integration)   # installs, builds, starts; prints the run folder
+RUN=$($C up --prepare --base origin/main)   # installs, builds, starts; prints the run folder
 ```
+
+`--base` is the branch the pull request merges into, `origin/main` unless it targets another one. `plan`, `doors` and `formal` read the diff from the merge base with that branch, so a stale base pulls in every feature another pull request touched.
 
 `--prepare` runs the `prepare` commands of `verify.config.ts`: the frozen install, the build of the interface and the module, `playwright-core` into this folder, the link of the playground's `node_modules` to `packages/dms-automation/node_modules` and the TypeScript build of the playground's fixture module. Without it `up` uses the builds already there, and `doctor` fails on a stale one. `up` starts an isolated DMS from `playground/`:
 
@@ -42,7 +44,7 @@ Do not drive a run that fails doctor.
 ## Drive
 
 ```bash
-$C plan --base origin/campaign/integration   # the diff mapped to features; unmapped surfaces
+$C plan --base origin/main   # the diff mapped to features; unmapped surfaces
 $C journey "$RUN" smoke
 $C journey "$RUN" runs [journey-id...]
 ```
@@ -64,7 +66,11 @@ $C down "$RUN"
 
 ## Verdict rules
 
-1. **Run every feature whose `covers:` globs the diff touches, plus the smoke journey.** `plan` prints that list as `run`.
+1. **Run every feature whose `covers:` globs the diff touches, plus the smoke journey.** `plan` prints that list as `run`. Run every feature instead when the diff touches a file every feature runs on, and before a release. Those files are:
+   - `.nvmrc`, and `package.json`, `pnpm-lock.yaml` and `tsconfig.json` at the root and in each `packages/*/`;
+   - `package.json` and `pnpm-lock.yaml` of `packages/dms-automation/frontend-vue/`;
+   - `packages/interface-dms-automation/src/**`;
+   - this skill's `verify.config.ts`, `playground/antelope.config.ts` and `playground/package.json`.
 2. **Unmapped surface fails the verdict.** User-facing code is `packages/dms-automation/src/**`, `frontend-vue/**`, `skills/**`, `package.json`, and `packages/interface-dms-automation/src/**`, `skills/**` and `package.json`, tests and tool configs excluded (`verify.config.ts`). `map` checks the whole tree.
 3. **Every registered journey of a feature in `run` must have run and passed.** Known findings stay as failing journeys (see Gotchas): they fail a verdict only when the diff touches their feature.
 4. **Docs.** Judge every `docs:` page of each touched feature against what the journeys showed.
