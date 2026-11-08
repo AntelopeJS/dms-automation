@@ -14,6 +14,7 @@ const armed = new Set();
 
 const redis = {
   key: /** @type {string | undefined} */ (undefined),
+  /** @type {Promise<void>} */
   answerSet: Promise.resolve(),
   async set(/** @type {string} */ _key, /** @type {string} */ value) {
     await redis.answerSet;
@@ -95,29 +96,32 @@ const {
 const { TypeSwitchModel } = require("../dist/db/models/type_switch.model.js");
 const { internal } = require("../dist/implementations/dms-automation/index.js");
 
+/** @param {string} id @param {string} typeId */
+const procedureOn = (id, typeId) => ({
+  _id: id,
+  name: id,
+  enabled: true,
+  revision: 1,
+  version: 1,
+  graph: JSON.stringify({
+    nodes: [
+      {
+        id: "start",
+        kind: "trigger",
+        typeId,
+        config: {},
+        position: { x: 0, y: 0 },
+      },
+    ],
+    triggerEdges: [],
+    dataEdges: [],
+  }),
+});
+
+const procedures = [procedureOn("P1", TYPE_ID)];
+
 Object.assign(ProcedureModel.prototype, {
-  listEnabled: async () => [
-    {
-      _id: "P1",
-      name: "Nightly sweep",
-      enabled: true,
-      revision: 1,
-      version: 1,
-      graph: JSON.stringify({
-        nodes: [
-          {
-            id: "start",
-            kind: "trigger",
-            typeId: TYPE_ID,
-            config: {},
-            position: { x: 0, y: 0 },
-          },
-        ],
-        triggerEdges: [],
-        dataEdges: [],
-      }),
-    },
-  ],
+  listEnabled: async () => procedures.map((p) => ({ ...p })),
   update: async () => 1,
 });
 Object.assign(AutomationTemplateModel.prototype, { listAll: async () => [] });
@@ -164,27 +168,6 @@ void test("destroy() tears the singleton triggers down before it releases the le
   assert.equal(redis.key, undefined);
 });
 
-void test("a SET that wins the key while destroy() runs arms nothing before the release", async () => {
-  armedAtRelease.length = 0;
-  /** @type {PromiseWithResolvers<void>} */
-  const answer = Promise.withResolvers();
-  redis.answerSet = answer.promise;
-  await automation.start();
-  assert.equal(armed.size, 0);
-
-  const stopping = automation.destroy();
-  answer.resolve();
-  await stopping;
-
-  assert.deepEqual(
-    armedAtRelease,
-    [0],
-    "a promotion during shutdown arms no singleton",
-  );
-  assert.equal(armed.size, 0);
-  assert.equal(redis.key, undefined);
-});
-
 void test("a promotion still arming when destroy() starts is disarmed before the release", async () => {
   armedAtRelease.length = 0;
   internal.RegisterTriggerType.unregister(TYPE_ID);
@@ -224,5 +207,43 @@ void test("a promotion still arming when destroy() starts is disarmed before the
     "the promotion's singleton is disarmed before the release",
   );
   assert.equal(armed.size, 0, "destroy() leaves no singleton armed");
+  assert.equal(redis.key, undefined);
+});
+
+void test("a SET that wins the key during the teardown arms no trigger after destroy() returns", async () => {
+  armedAtRelease.length = 0;
+  const REPLICATED_ID = "support.ticket-opened";
+  procedures.push(procedureOn("P2", REPLICATED_ID));
+  /** @type {PromiseWithResolvers<void>} */
+  const answer = Promise.withResolvers();
+  redis.answerSet = answer.promise;
+  let activations = 0;
+  internal.RegisterTriggerType.register(REPLICATED_ID, {
+    id: REPLICATED_ID,
+    name: "Ticket opened",
+    description: "Fires on every instance",
+    icon: "i-lucide-ticket",
+    configSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    cluster: "replicated",
+    async activate() {
+      if (activations++ > 0)
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      const handle = Symbol("replicated");
+      armed.add(handle);
+      return handle;
+    },
+    async deactivate(/** @type {symbol} */ handle) {
+      armed.delete(handle);
+      answer.resolve();
+    },
+  });
+  await automation.start();
+  assert.equal(armed.size, 1, "the replicated trigger is armed");
+
+  await automation.destroy();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  assert.equal(armed.size, 0, "destroy() leaves no trigger armed");
   assert.equal(redis.key, undefined);
 });

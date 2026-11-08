@@ -65,6 +65,9 @@ export interface Config {
 
 let globalConfig: Config = {};
 
+/** Set from destroy() until the next start(): leadership changes queue no reconcile. */
+let stopping = false;
+
 export async function construct(config: Config): Promise<void> {
   globalConfig = defu(config, globalConfig);
   configureRetention(globalConfig.runs?.retentionDays);
@@ -128,8 +131,12 @@ async function startClusterSubscriber(): Promise<void> {
  */
 async function startLeaderElection(): Promise<void> {
   await leader.start({
-    onBecameLeader: () => subscriptions.onBecameLeader(),
-    onLostLeadership: () => subscriptions.onLostLeadership(),
+    onBecameLeader: async () => {
+      if (!stopping) await subscriptions.onBecameLeader();
+    },
+    onLostLeadership: async () => {
+      if (!stopping) await subscriptions.onLostLeadership();
+    },
   });
   Logging.Info(`[dms-automation] cluster mode: redis (instance ${instanceId})`);
 }
@@ -143,6 +150,7 @@ async function startLeaderElection(): Promise<void> {
  * In redis mode this brings up replicated triggers only (follower).
  */
 export async function start(): Promise<void> {
+  stopping = false;
   await RegisterSchema(SCHEMA_NAME);
   registerBuiltins();
 
@@ -162,10 +170,12 @@ export async function start(): Promise<void> {
 }
 
 /**
- * Stop leading before the key goes: every later reconcile reads no leadership,
- * and one queued behind a promotion still arming disarms what it armed.
+ * Stop leading before the key goes: a later promotion or step-down queues no
+ * reconcile, every later reconcile reads no leadership, and one queued behind
+ * a promotion still arming disarms what it armed.
  */
 async function stopLeading(): Promise<void> {
+  stopping = true;
   subscriptions.useLeadershipSource(() => false);
   if (resolveClusterMode(globalConfig.cluster?.driver) !== "redis") return;
   try {
