@@ -163,6 +163,39 @@ void test("a follower leaves a singleton trigger unarmed until it leads, and dis
   assert.equal(singleton.armed.size, 0);
 });
 
+void test("a reconcile that read leadership before a shutdown leaves nothing armed once _deactivateAll() returns", async (t) => {
+  t.after(async () => {
+    subscriptions.useLeadershipSource(() => true);
+    internal.RegisterTriggerType.unregister(TYPE_ID);
+    await subscriptions._deactivateAll();
+  });
+  const singleton = recordingType();
+  singleton.cluster = "singleton";
+  const entered = Promise.withResolvers();
+  const resume = Promise.withResolvers();
+  const activate = singleton.activate.bind(singleton);
+  singleton.activate = async () => {
+    entered.resolve();
+    await resume.promise;
+    return activate();
+  };
+  internal.RegisterTriggerType.register(TYPE_ID, singleton);
+  let leader = false;
+  subscriptions.useLeadershipSource(() => leader);
+  await subscriptions.hydrate();
+
+  leader = true;
+  const promotion = subscriptions.onBecameLeader();
+  await entered.promise;
+  leader = false;
+  const teardown = subscriptions._deactivateAll();
+  resume.resolve();
+  await teardown;
+
+  assert.equal(singleton.armed.size, 0);
+  await promotion;
+});
+
 void test("a reload during activation releases each definition's own handles", async (t) => {
   t.after(async () => {
     await subscriptions._deactivateAll();

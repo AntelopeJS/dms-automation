@@ -420,13 +420,19 @@ export const subscriptions = {
     }
     return undefined;
   },
-  /** @internal exposed for destroy() in src/index.ts */
+  /**
+   * @internal exposed for destroy() in src/index.ts. Queued after every
+   * pending reconcile, so one that read leadership before the stop cannot arm
+   * after the teardown.
+   */
   async _deactivateAll(): Promise<void> {
-    for (const [k, entry] of handles) {
-      await teardown(k, entry);
-      release(k, entry);
-    }
-    activationErrors.clear();
-    hydrated = false;
+    await reconciles.run(async () => {
+      for (const [k, entry] of handles) {
+        await teardown(k, entry);
+        release(k, entry);
+      }
+      activationErrors.clear();
+      hydrated = false;
+    });
   },
 };
