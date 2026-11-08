@@ -19,6 +19,8 @@ const redis = {
   key: /** @type {string | undefined} */ (undefined),
   /** @type {Promise<void>} */
   answerSet: Promise.resolve(),
+  /** @type {() => Promise<void>} */
+  holdRelease: async () => {},
   async set(/** @type {string} */ _key, /** @type {string} */ value) {
     commands.push("set");
     await redis.answerSet;
@@ -33,6 +35,7 @@ const redis = {
     /** @type {string} */ owner,
   ) {
     commands.push(script.includes("'del'") ? "release" : "renew");
+    if (script.includes("'del'")) await redis.holdRelease();
     if (redis.key !== owner) return 0;
     if (script.includes("'del'")) {
       armedAtRelease.push(armed.size);
@@ -100,6 +103,7 @@ const {
 } = require("../dist/db/models/automation_template.model.js");
 const { TypeSwitchModel } = require("../dist/db/models/type_switch.model.js");
 const { internal } = require("../dist/implementations/dms-automation/index.js");
+const { subscriptions } = require("../dist/runtime/subscriptions.js");
 
 /** @param {string} id @param {string} typeId */
 const procedureOn = (id, typeId) => ({
@@ -278,4 +282,31 @@ void test("a promotion that outlasts the shutdown caps keeps the key and leaves 
 
   assert.equal(armed.size, 0, "nothing stays armed once the promotion ends");
   redis.key = undefined;
+});
+
+void test("a procedure edit while destroy() releases the key arms no singleton", async (t) => {
+  armedAtRelease.length = 0;
+  registerOnly(recordingType(TYPE_ID, "singleton"));
+  /** @type {PromiseWithResolvers<void>} */
+  const releasing = Promise.withResolvers();
+  /** @type {PromiseWithResolvers<void>} */
+  const answer = Promise.withResolvers();
+  redis.holdRelease = async () => {
+    releasing.resolve();
+    await answer.promise;
+  };
+  t.after(() => {
+    redis.holdRelease = async () => {};
+  });
+  await automation.start();
+  await until(() => armed.size === 1, "the leader to arm its singleton");
+
+  const stopping = automation.destroy();
+  await releasing.promise;
+  await subscriptions.onProcedureChange("P1");
+  answer.resolve();
+  await stopping;
+
+  assert.deepEqual(armedAtRelease, [0], "no singleton is armed at the release");
+  assert.equal(armed.size, 0);
 });

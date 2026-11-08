@@ -9,7 +9,7 @@ const TTL_MS = 30_000;
 /** Tolerates two missed renews before expiry. */
 const TICK_MS = TTL_MS / 3;
 /**
- * Cap on how long stop() waits for an in-flight tick, and then for the release,
+ * Cap on how long halt() waits for an in-flight tick, and stop() for the release,
  * before tearing down anyway, so shutdown can't hang on a wedged trigger op or
  * Redis.
  */
@@ -38,7 +38,7 @@ let holdsLock = false;
 let transitions: LeaderTransitions | undefined;
 let ticking = false;
 /**
- * The in-flight tick, if any — `stop()` awaits it so teardown never races a
+ * The in-flight tick, if any — `halt()` awaits it so teardown never races a
  * running acquire/renew/transition.
  */
 let currentTick: Promise<void> | undefined;
@@ -49,7 +49,7 @@ let currentTick: Promise<void> | undefined;
  * to have expired (so a peer may have legitimately taken over).
  */
 let lastHeldAt = 0;
-/** Bumped by stop(): a tick started under an older one no longer runs leadership. */
+/** Bumped by halt(): a tick started under an older one no longer runs leadership. */
 let generation = 0;
 /** The wait of halt(), shared until stop() finishes. */
 let halting: Promise<void> | undefined;
@@ -88,7 +88,7 @@ async function release(c: RedisClient): Promise<void> {
  * Won the lock: become leader and arm singletons. On failure, release the lock
  * and step down so a fresh election — our next tick or a peer — retries cleanly,
  * instead of holding leadership with no singletons running. A failure that
- * lands after stop() leaves the lock to the generation running now.
+ * lands after halt() leaves the lock to the generation running now.
  */
 async function promote(
   c: RedisClient,
@@ -110,7 +110,7 @@ async function promote(
 
 /**
  * renewed === 0 → definitive loss (key gone or owned by another instance).
- * A stop() during the round trip leaves the lock to stop(), which releases it.
+ * A halt() during the round trip leaves the lock to stop(), which releases it.
  */
 async function renew(c: RedisClient, gen: number): Promise<Outcome> {
   const renewed = Number(
@@ -126,8 +126,8 @@ async function renew(c: RedisClient, gen: number): Promise<Outcome> {
 }
 
 /**
- * A key won after stop() began is released at once, through the client the
- * tick started with: stop() may already have returned.
+ * A key won after halt() began is released at once, through the client the
+ * tick started with: halt() may already have returned.
  */
 async function acquire(c: RedisClient, gen: number): Promise<Outcome> {
   if ((await c.set(LOCK_KEY, instanceId, "PX", TTL_MS, "NX")) !== "OK") {
@@ -172,9 +172,9 @@ async function tick(): Promise<void> {
 }
 
 /**
- * Run a tick and expose it as `currentTick` for stop() to await. Skips while a
+ * Run a tick and expose it as `currentTick` for halt() to await. Skips while a
  * tick is already in flight so the interval can't overwrite the running tick's
- * handle with a no-op (which would let stop() race a still-running tick). The
+ * handle with a no-op (which would let halt() race a still-running tick). The
  * finally only clears `currentTick` if it still points at this tick.
  */
 function runTick(): void {

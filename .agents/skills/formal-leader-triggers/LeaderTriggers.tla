@@ -4,7 +4,7 @@
 (* automation in redis mode (src/cluster/leader.ts, src/index.ts,         *)
 (* src/runtime/subscriptions.ts, src/runtime/reconcile.ts).               *)
 (*                                                                         *)
-(* Each instance runs the leader tick every TTL/3 (leader.ts:10, 198): it *)
+(* Each instance runs the leader tick every TTL/3 (leader.ts:10, 200): it *)
 (* renews the key `dms-automation:leader` while it believes it holds it,  *)
 (* or tries SET NX PX otherwise. Winning or losing queues a reconcile on  *)
 (* the instance's serial queue (subscriptions.ts:62-66, 220-229), and the *)
@@ -34,8 +34,8 @@ VARIABLES
   expires,  \* the tick the key expires at
   holds,    \* holdsLock of each instance (leader.ts:37)
   lastHeld, \* lastHeldAt of each instance (leader.ts:51)
-  due,      \* the interval fired since the last runTick (leader.ts:198)
-  pc,       \* where each instance's in-flight tick is (leader.ts:150-170)
+  due,      \* the interval fired since the last runTick (leader.ts:200)
+  pc,       \* where each instance's in-flight tick is (leader.ts:152-172)
   ticket,   \* the reconcile a promotion or step-down awaits
   queued,   \* reconciles queued on each instance's serial queue
   done,     \* reconciles that finished
@@ -60,7 +60,7 @@ Init ==
   /\ owner = None /\ expires = 0
   /\ holds = [i \in Instances |-> FALSE]
   /\ lastHeld = [i \in Instances |-> 0]
-  /\ due = [i \in Instances |-> TRUE]                          \* leader.ts:197
+  /\ due = [i \in Instances |-> TRUE]                          \* leader.ts:199
   /\ pc = [i \in Instances |-> "idle"]
   /\ ticket = [i \in Instances |-> 0]
   /\ queued = [i \in Instances |-> 0]
@@ -94,9 +94,9 @@ Steady == UNCHANGED <<now, due, armed, life, spc, external, stops, rpc, rsnap, t
 
 (* ------------------------------ the tick -------------------------------- *)
 
-(* runTick skips while a tick is in flight (leader.ts:178-179, 151). A   *)
+(* runTick skips while a tick is in flight (leader.ts:180-181, 153). A   *)
 (* holder sends the owner-checked renew, a follower SET NX PX            *)
-(* (lines 157, 113-115, 130-131).                                         *)
+(* (lines 159, 115-117, 132-133).                                         *)
 RunTick(i) ==
   /\ life[i] = "running"
   /\ due[i]
@@ -107,12 +107,12 @@ RunTick(i) ==
                  rpc, rsnap, tdAt, armed, life, spc, errors, external, stops>>
 
 (* RENEW_LUA extends the key only while it is still ours (leader.ts:19-20). *)
-(* Renewed: lastHeldAt moves (lines 118-120). Answered 0: step down, which *)
+(* Renewed: lastHeldAt moves (lines 120-122). Answered 0: step down, which *)
 (* clears holdsLock and awaits the reconcile onLostLeadership queues      *)
-(* (lines 122-123, 159, 64-70). A Redis error steps down only once TTL    *)
-(* has passed since the last confirmed hold (lines 160-166). Once stop()  *)
+(* (lines 124-125, 161, 66-72). A Redis error steps down only once TTL    *)
+(* has passed since the last confirmed hold (lines 162-168). Once halt()  *)
 (* began, an answer or an error ends the tick and leaves the lock to stop  *)
-(* (lines 117, 162).                                                      *)
+(* (lines 119, 164).                                                      *)
 RenewReply(i) ==
   /\ pc[i] = "renew"
   /\ \/ /\ life[i] # "running"
@@ -143,8 +143,8 @@ RenewReply(i) ==
 
 (* SET NX PX answers OK on a free key: holdsLock and lastHeldAt are set,  *)
 (* then promote awaits the reconcile onBecameLeader queues (leader.ts:    *)
-(* 130-141, 158, 91-107). Once stop() began, the tick takes no hold and  *)
-(* releases the key it won (lines 134-136). A taken key ends the tick. A  *)
+(* 132-143, 160, 93-109). Once halt() began, the tick takes no hold and  *)
+(* releases the key it won (lines 136-138). A taken key ends the tick. A  *)
 (* Redis error ends it too, since the instance holds nothing (160-166).   *)
 SetReply(i) ==
   /\ pc[i] = "set"
