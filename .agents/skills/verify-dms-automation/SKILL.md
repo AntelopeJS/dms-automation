@@ -1,6 +1,6 @@
 ---
 name: verify-dms-automation
-description: "Drive the AntelopeJS dms-automation module (procedures as node graphs, the builder, triggers, webhooks and schedules, runs and traces, the Overview, the Library and templates, the interface other modules register nodes through) the way the platform owner does, inside a DMS with free ports, its own MongoDB database, an HTTP sink and a fixture module, and post a verdict with evidence. Use to prove a change to AntelopeJS/dms-automation works before merge, or to verify a PR."
+description: "Drive the AntelopeJS dms-automation module (procedures as node graphs, the builder, triggers, webhooks and schedules, runs and traces, the Overview, the Library and templates, the interface other modules register nodes through) the way the platform owner does, inside a DMS with free ports, its own MongoDB database, an HTTP sink and a fixture module, and report a verdict with evidence. Use to prove a change to AntelopeJS/dms-automation works before merge, or to verify a PR."
 ---
 
 # Verify dms-automation
@@ -80,11 +80,7 @@ $C down "$RUN"
 6. **One-way doors.** The section comes right after the result line and is mandatory. `$C doors --base origin/main` prints the `One-way-door:` line for the diff.
 7. **Result.** FAIL if any of rules 1 to 6 fail. PASS+NOTES when something is not verified or needs the owner's attention. PASS otherwise.
 
-Write `$RUN/evidence/judgement.json` (`doors`, `docs`, `notVerified`, `attention`, `verifier`), then `$C verdict "$RUN" --pr <n>` and, from a thread that did not write the change, `$C publish "$RUN" --pr <n>`.
-
-## Trust
-
-The skill is not Trusted yet. It becomes Trusted when it passes a shadow run of 10 consecutive agent PRs, and its last maintain pass is newer than the last change to the repository or its `@antelopejs` dependencies and at most 30 days old.
+Write `$RUN/evidence/judgement.json` (`doors`, `docs`, `notVerified`, `attention`, `verifier`), then `$C verdict "$RUN" --pr <n>`, which writes `$RUN/evidence/verdict.md`. Report the verdict and what you saw in your own reply.
 
 ## Gotchas
 
