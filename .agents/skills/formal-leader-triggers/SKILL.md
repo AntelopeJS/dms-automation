@@ -26,8 +26,8 @@ Java 11 or later comes from `$JAVA`, else `java` on PATH, else the `eclipse-temu
 
 | Configuration | Last tick (10 s each) | States (running, shutdown) | Wall time |
 | --- | --- | --- | --- |
-| CI (`<config>.ci.cfg`) | 5 | 54,251, 689,565 | 17.2 s |
-| Full (`<config>.cfg`) | 7 running, 6 shutdown | 218,349, 1,345,983 | 17.7 s |
+| CI (`<config>.ci.cfg`) | 5 | 54,251, 678,190 | 17.2 s |
+| Full (`<config>.cfg`) | 7 running, 6 shutdown | 218,349, 1,321,666 | 17.7 s |
 
 Both configurations run two instances, one Redis error and one reconcile queued by a peer's edit. The times are one run each in Docker Java 21 on a shared 32-core machine with a load average near 32, measured before the fix of #111 shrank the shutdown state space; most of it is container and JVM start-up for the TLC runs.
 
@@ -59,7 +59,7 @@ Each finding was replayed on `packages/dms-automation/dist/cluster/leader.js` bu
 
 - **F1, a stalled leader keeps its triggers armed (`AtMostOneArmed`, `ArmedImpliesBelief`, `Running`).** `holdsLock` stays true until the leader's own tick learns the key is gone: a renew that answers 0 (leader.ts:119), or an error once `Date.now() - lastHeldAt > TTL_MS` (line 128). Nothing fences it, and a trigger's `emit` reads only its handle's `live.armed` (reconcile.ts:289), never `isLeader()`. In TLC's counterexample for `AtMostOneArmed`, i1 wins the key and arms, its next tick stalls, the key expires after three ticks, and i2 wins it and arms. The replay ended with `i1 { armed: true, isLeader: true }`, `i2 { armed: true, isLeader: true }` and the key `i2`. For `ArmedImpliesBelief`, i1's renew lands after the expiry and answers 0: the replay logged `i1 renew -> 0` and ended with i1 `{ armed: true, isLeader: false }` and its disarming reconcile still queued. That window follows every step-down.
 - **F2, destroy() hands the key over before it disarms (`AtMostOneArmed`, `ArmedImpliesBelief`, `Shutdown`).** `destroy()` runs `leader.stop()`, which deletes the key and clears `holdsLock` (leader.ts:183-186), then `bus.close()`, and only then `_deactivateAll()` (index.ts:166-168). In TLC's counterexample, i1 leads and is armed, destroy releases the key, and i2 wins it and arms before i1's handles are torn down. The replay logged `i1 release -> 1`, `i1 leader.stop() returned`, `i2 set -> "OK"`, and ended with `i1 { armed: true, isLeader: false }` and `i2 { armed: true, isLeader: true }`.
-- **F3, a stopped instance leads or re-arms (`StopDisarms`, `Shutdown`). Fixed for #111.** `stop()` now waits for the tick's Redis round trip without a cap and releases a key it wins, a tick that answers after `stop()` began does not promote or step down, and `_deactivateAll()` runs on the reconcile queue. `tests/leader-stop.test.cjs` and the `_deactivateAll()` test of `tests/trigger-rearm.test.cjs` replay both paths below against the built module. The finding as it stood: `stop()` waits for the in-flight tick at most `SHUTDOWN_GRACE_MS` (leader.ts:174-182). A `SET NX PX` sent before the stop and answered after it still runs `promote` (lines 123-125, 86-99). In TLC's counterexample, i1's first tick sends `SET`, destroy starts, its wait gives up, nothing is released, the `SET` answers `OK`, and destroy finishes. The replay logged `i1 stop's grace runs out`, `i1 leader.stop() returned`, `i1 set -> "OK"`, and ended with i1 `{ armed: false, isLeader: true }`, one reconcile queued that reads that leadership, and the key `i1`. A second path is two states longer and shows once the late `SET` is fixed (the `fix-late-set-after-stop` row below): `_deactivateAll` runs outside the reconcile queue (subscriptions.ts:419-426), so a reconcile that read leadership before the stop arms after the teardown. Its replay logged `i1 reconcile reads isLeader() = true`, `i1 stop's grace runs out`, `i1 release -> 1`, `i1 leader.stop() returned`, `i1 _deactivateAll tears the singleton down`, `i1 reconcile arms the singleton`, and ended with i1 `{ armed: true, isLeader: false }`.
+- **F3, a stopped instance leads or re-arms (`StopDisarms`, `Shutdown`). Fixed for #111.** A tick that answers after `stop()` began does not promote or step down and releases a key it wins, and `_deactivateAll()` tears the handles down at once and again after the pending reconciles. Both shutdown waits stay capped, so the fix holds under the two timing bounds in Bounds and what is left out. `tests/leader-stop.test.cjs` and the `_deactivateAll()` test of `tests/trigger-rearm.test.cjs` replay both paths below against the built module. The finding as it stood: `stop()` waits for the in-flight tick at most `SHUTDOWN_GRACE_MS` (leader.ts:174-182). A `SET NX PX` sent before the stop and answered after it still runs `promote` (lines 123-125, 86-99). In TLC's counterexample, i1's first tick sends `SET`, destroy starts, its wait gives up, nothing is released, the `SET` answers `OK`, and destroy finishes. The replay logged `i1 stop's grace runs out`, `i1 leader.stop() returned`, `i1 set -> "OK"`, and ended with i1 `{ armed: false, isLeader: true }`, one reconcile queued that reads that leadership, and the key `i1`. A second path is two states longer and shows once the late `SET` is fixed (the `fix-late-set-after-stop` row below): `_deactivateAll` runs outside the reconcile queue (subscriptions.ts:419-426), so a reconcile that read leadership before the stop arms after the teardown. Its replay logged `i1 reconcile reads isLeader() = true`, `i1 stop's grace runs out`, `i1 release -> 1`, `i1 leader.stop() returned`, `i1 _deactivateAll tears the singleton down`, `i1 reconcile arms the singleton`, and ended with i1 `{ armed: true, isLeader: false }`.
 
 Filed as AntelopeJS/dms-automation#113 (F1), #112 (F2) and #111 (F3, fixed).
 
@@ -83,14 +83,14 @@ Node runs other callbacks at every `await`, so Redis answers, interval ticks and
 | Model action | Code |
 | --- | --- |
 | `Init` | every instance has run `start()`, whose first tick is due (leader.ts:155-161) after hydrate (index.ts:144-160) |
-| `RunTick` | the interval and `runTick` (leader.ts:174-180, 194), the `ticking` guard and the command each branch sends (lines 145-152, 112-114, 129-130) |
-| `RenewReply` | `RENEW_LUA` (lines 18-19), the answer 0 that steps down (lines 121-122, 155, 68-74), a renewed hold (lines 117-119), an error (lines 156-162), and an answer after `stop()` began that ends the tick (lines 116, 158) |
-| `SetReply` | `SET NX PX`, the hold it sets, and `promote` unless `stop()` began (lines 129-135, 154, 95-108) |
+| `RunTick` | the interval and `runTick` (leader.ts:174-180, 194), the `ticking` guard and the command each branch sends (lines 146-153, 109-111, 126-127) |
+| `RenewReply` | `RENEW_LUA` (lines 18-19), the answer 0 that steps down (lines 118-119, 155, 63-69), a renewed hold (lines 114-116), an error (lines 156-162), and an answer after `stop()` began that ends the tick (lines 113, 158) |
+| `SetReply`, `LateRelease` | `SET NX PX`, the hold it sets and `promote` (lines 126-137, 154, 89-103); once `stop()` began, the release of the key it won instead (lines 130-132) |
 | `TickDone` | the tick awaits the reconcile its hook queued (subscriptions.ts:202-211, 61-63) |
 | `ReconcileRead`, `ReconcileApply` | `reconcile()`: the leader snapshot after its reads, then the diff it applies (reconcile.ts:246-264, 85-90), one pass at a time (serialQueue.ts:20-38) |
 | `External` | a procedure edit or a peer's bus message queues a reconcile (subscriptions.ts:159-165, 212-217, 241-248) |
-| `StopBegin`, `StopWait`, `StopRelease` | `destroy()` calls `leader.stop()`: the interval cleared, `generation` bumped, the uncapped wait for the Redis round trip, the capped wait for the rest of the tick, the owner-checked release, `holdsLock` cleared (index.ts:163-166, leader.ts:204-228) |
-| `StopBus`, `StopDeactivate` | `bus.close()`, then `_deactivateAll()` on the reconcile queue, after every reconcile queued before it (index.ts:167-168, subscriptions.ts:428-436) |
+| `StopBegin`, `StopWait`, `StopRelease` | `destroy()` calls `leader.stop()`: the interval cleared, `generation` bumped, the capped wait for the tick, the owner-checked release, `holdsLock` cleared (index.ts:163-166, leader.ts:204-226) |
+| `StopBus`, `StopDeactivate` | `bus.close()`, then `_deactivateAll()`: every handle torn down at once, and again on the reconcile queue after every reconcile queued before it, with a capped wait (index.ts:167-168, subscriptions.ts:445-454) |
 | `Tick` | `TICK_MS` passes (leader.ts:10) |
 
 The sync commit is `e755b34` on AntelopeJS/dms-automation `campaign/integration`. `leader.ts` and `index.ts` last changed in `aeb6988`, `reconcile.ts` and `subscriptions.ts` in `be9f793`, so the files above are byte-identical to `3d5b6d7`, where the model was written and each finding replayed. The fix of #111 changed `leader.ts` and `_deactivateAll()` in `subscriptions.ts`; the actions that map to them and their line numbers follow that change, and `index.ts` and `reconcile.ts` are unchanged.
@@ -98,6 +98,11 @@ The sync commit is `e755b34` on AntelopeJS/dms-automation `campaign/integration`
 ## Bounds and what is left out
 
 One tick is 10 s and the key lives three ticks. Both configurations run two instances, one Redis error and one peer reconcile; `Shutdown` lets one instance run `destroy()`. A pass covers these bounds only.
+
+The model assumes two timing bounds that the code caps rather than waits for:
+
+- a Redis round trip answers within `SHUTDOWN_GRACE_MS` (leader.ts:15), so `StopWait` waits for the tick's commands. When it does not, `stop()` returns at the cap and the tick releases a key it wins one round trip later: for that round trip a stopped instance holds the key. `tests/leader-stop.test.cjs` checks that release.
+- the reconciles pending at `destroy()` settle within `PENDING_RECONCILES_WAIT_MS` (subscriptions.ts:72), so `StopDeactivate` waits for them. When they do not, `_deactivateAll()` returns at the cap with every handle torn down, and a handle a late reconcile arms stays armed until the queued teardown right behind it runs.
 
 The model leaves out:
 
@@ -122,7 +127,7 @@ On a scratch copy of this folder (with `node_modules` reachable, for example a s
 | `step-down-a-tick-early`: an error steps down once `Date.now() - lastHeldAt >= TTL_MS - TICK_MS` (leader.ts:128) | `CHANGED ArmedImpliesBelief: 10 states (recorded 11)` | same |
 | Fix candidate `fix-teardown-before-release`: `destroy()` tears the handles down before `leader.stop()` releases the key (index.ts:166-168) | running unchanged; shutdown `CHANGED ArmedImpliesBelief: 9 states (recorded 8)`, `CHANGED StopDisarms: 7 states (recorded 8)`: a reconcile already past its read re-arms after the teardown | same |
 | Fix candidate `fix-late-set-after-stop`: a `SET` that answers after stop does not promote (leader.ts:123-125): `SetReply` of a stopping instance ends the tick | running unchanged; shutdown `CHANGED StopDisarms: 10 states (recorded 8)`, the re-arm path of F3 | same |
-| `stop-caps-redis-wait`, after the fix of #111: `stop()` stops waiting for the Redis round trip after `SHUTDOWN_GRACE_MS` (leader.ts:210): `StopWait` no longer waits for `pc` to leave `renew` and `set` | running unchanged; shutdown `BROKEN StopDisarms` in 8 states, the late `SET` path of F3 | same |
-| `teardown-outside-queue`, after the fix of #111: `_deactivateAll()` tears down outside the reconcile queue (subscriptions.ts:429): `StopBus` queues nothing and `StopDeactivate` waits for no reconcile | running unchanged; shutdown `BROKEN StopDisarms` in 10 states, the re-arm path of F3 | same |
+| `late-set-keeps-key`, after the fix of #111: a `SET` that wins after stop does not release the key (leader.ts:130-132): `SetReply` of a stopping instance ends the tick | running unchanged; shutdown `BROKEN StopDisarms` in 8 states, the late `SET` path of F3 | same |
+| `teardown-outside-queue`, after the fix of #111: `_deactivateAll()` tears down only outside the reconcile queue (subscriptions.ts:449): `StopBus` queues nothing and `StopDeactivate` waits for no reconcile | running unchanged; shutdown `BROKEN StopDisarms` in 10 states, the re-arm path of F3 | same |
 
 Every scratch run in the table exited 1. With the edits dropped, both configurations exit 0.

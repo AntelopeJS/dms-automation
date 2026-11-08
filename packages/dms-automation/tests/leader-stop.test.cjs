@@ -35,7 +35,7 @@ function fakeRedis() {
   return fake;
 }
 
-void test("a SET that answers after stop() neither promotes the instance nor leaves the key held", async (t) => {
+void test("stop() returns within its grace while SET is unanswered, and a late OK neither promotes the instance nor leaves the key held", async (t) => {
   mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
   t.after(() => mock.timers.reset());
   const fake = fakeRedis();
@@ -51,9 +51,8 @@ void test("a SET that answers after stop() neither promotes the instance nor lea
 
   const stopped = leader.stop();
   mock.timers.tick(SHUTDOWN_GRACE_MS);
-  await new Promise((resolve) => setImmediate(resolve));
-  fake.pendingSets[0].resolve();
   await stopped;
+  fake.pendingSets[0].resolve();
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(leader.isLeader(), false, "a stopped instance does not lead");

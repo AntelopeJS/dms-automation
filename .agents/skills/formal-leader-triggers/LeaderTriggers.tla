@@ -35,13 +35,13 @@ VARIABLES
   holds,    \* holdsLock of each instance (leader.ts:36)
   lastHeld, \* lastHeldAt of each instance (leader.ts:50)
   due,      \* the interval fired since the last runTick (leader.ts:160)
-  pc,       \* where each instance's in-flight tick is (leader.ts:110-132)
+  pc,       \* where each instance's in-flight tick is (leader.ts:146-166)
   ticket,   \* the reconcile a promotion or step-down awaits
   queued,   \* reconciles queued on each instance's serial queue
   done,     \* reconciles that finished
   rpc,      \* the reconcile running now: "none", or "apply" once it read leadership
   rsnap,    \* the leadership that reconcile read (reconcile.ts:250)
-  tdAt,     \* the queue position of destroy()'s teardown, or 0 (subscriptions.ts:428-436)
+  tdAt,     \* the queue position of destroy()'s second teardown, or 0 (subscriptions.ts:449)
   armed,    \* whether the instance's singleton trigger handle is armed
   life,     \* "running", "stopping" or "stopped"
   spc,      \* where destroy() is (index.ts:163-168, leader.ts:169-190)
@@ -52,7 +52,7 @@ VARIABLES
 vars == <<now, owner, expires, holds, lastHeld, due, pc, ticket, queued, done,
           rpc, rsnap, tdAt, armed, life, spc, errors, external, stops>>
 
-PCs == {"idle", "renew", "set", "promoteWait", "stepDownWait"}
+PCs == {"idle", "renew", "set", "lateRelease", "promoteWait", "stepDownWait"}
 SPCs == {"none", "wait", "release", "bus", "deactivate", "done"}
 
 Init ==
@@ -94,9 +94,9 @@ Steady == UNCHANGED <<now, due, armed, life, spc, external, stops, rpc, rsnap, t
 
 (* ------------------------------ the tick -------------------------------- *)
 
-(* runTick skips while a tick is in flight (leader.ts:140-141, 111). A   *)
+(* runTick skips while a tick is in flight (leader.ts:174-175, 147). A   *)
 (* holder sends the owner-checked renew, a follower SET NX PX            *)
-(* (lines 115-123).                                                       *)
+(* (lines 153, 109-111, 126-127).                                         *)
 RunTick(i) ==
   /\ life[i] = "running"
   /\ due[i]
@@ -107,12 +107,12 @@ RunTick(i) ==
                  rpc, rsnap, tdAt, armed, life, spc, errors, external, stops>>
 
 (* RENEW_LUA extends the key only while it is still ours (leader.ts:18-19). *)
-(* Renewed: lastHeldAt moves (lines 117-119). Answered 0: step down, which *)
+(* Renewed: lastHeldAt moves (lines 114-116). Answered 0: step down, which *)
 (* clears holdsLock and awaits the reconcile onLostLeadership queues      *)
-(* (lines 121-122, 155, 68-74). A Redis error steps down only once TTL    *)
+(* (lines 118-119, 155, 63-69). A Redis error steps down only once TTL    *)
 (* has passed since the last confirmed hold (lines 156-162). Once stop()  *)
 (* began, an answer or an error ends the tick and leaves the lock to stop  *)
-(* (lines 116, 158).                                                      *)
+(* (lines 113, 158).                                                      *)
 RenewReply(i) ==
   /\ pc[i] = "renew"
   /\ \/ /\ life[i] # "running"
@@ -143,21 +143,21 @@ RenewReply(i) ==
 
 (* SET NX PX answers OK on a free key: holdsLock and lastHeldAt are set,  *)
 (* then promote awaits the reconcile onBecameLeader queues (leader.ts:    *)
-(* 129-135, 154, 95-108). Once stop() began, the key is held but the tick *)
-(* ends without promoting, and stop() releases it (line 135). A taken key  *)
-(* ends the tick. A Redis error ends it too, since the instance holds     *)
-(* nothing (lines 156-162).                                               *)
+(* 126-137, 154, 89-103). Once stop() began, the tick takes no hold and  *)
+(* releases the key it won (lines 130-132). A taken key ends the tick. A  *)
+(* Redis error ends it too, since the instance holds nothing (156-162).   *)
 SetReply(i) ==
   /\ pc[i] = "set"
-  /\ \/ /\ KeyFree
+  /\ \/ /\ KeyFree /\ life[i] = "running"
         /\ owner' = i /\ expires' = now + TTL
         /\ holds' = [holds EXCEPT ![i] = TRUE]
         /\ lastHeld' = [lastHeld EXCEPT ![i] = now]
-        /\ IF life[i] = "running"
-           THEN QueueAndWait(i, "promoteWait")
-           ELSE /\ pc' = [pc EXCEPT ![i] = "idle"]
-                /\ UNCHANGED <<ticket, queued>>
+        /\ QueueAndWait(i, "promoteWait")
         /\ UNCHANGED errors
+     \/ /\ KeyFree /\ life[i] # "running"
+        /\ owner' = i /\ expires' = now + TTL
+        /\ pc' = [pc EXCEPT ![i] = "lateRelease"]
+        /\ UNCHANGED <<holds, lastHeld, ticket, queued, errors>>
      \/ /\ ~KeyFree
         /\ pc' = [pc EXCEPT ![i] = "idle"]
         /\ UNCHANGED <<owner, expires, holds, lastHeld, ticket, queued, errors>>
@@ -166,6 +166,16 @@ SetReply(i) ==
         /\ pc' = [pc EXCEPT ![i] = "idle"]
         /\ UNCHANGED <<owner, expires, holds, lastHeld, ticket, queued>>
   /\ Steady
+
+(* RELEASE_LUA deletes the key the late SET won, if it is still ours.     *)
+LateRelease(i) ==
+  /\ pc[i] = "lateRelease"
+  /\ IF owner = i /\ expires > now
+     THEN owner' = None /\ expires' = 0
+     ELSE UNCHANGED <<owner, expires>>
+  /\ pc' = [pc EXCEPT ![i] = "idle"]
+  /\ UNCHANGED <<now, holds, lastHeld, due, ticket, queued, done, rpc, rsnap,
+                 tdAt, armed, life, spc, errors, external, stops>>
 
 (* The reconcile the promotion or step-down queued has finished.          *)
 TickDone(i) ==
@@ -211,7 +221,7 @@ External(i) ==
 (* ------------------------------ destroy --------------------------------- *)
 
 (* destroy() calls leader.stop(), which clears the interval (index.ts:166,     *)
-(* leader.ts:170-173).                                                    *)
+(* leader.ts:205-209).                                                    *)
 StopBegin(i) ==
   /\ life[i] = "running"
   /\ stops < MaxStops
@@ -222,18 +232,19 @@ StopBegin(i) ==
   /\ UNCHANGED <<now, owner, expires, holds, lastHeld, pc, ticket, queued, done,
                  rpc, rsnap, tdAt, armed, errors, external>>
 
-(* stop() awaits the tick's Redis round trip without a cap, then the rest *)
-(* of the tick at most SHUTDOWN_GRACE_MS (leader.ts:209-219): a promotion  *)
-(* or step-down may still be running when it moves on.                    *)
+(* stop() awaits the in-flight tick, but at most SHUTDOWN_GRACE_MS        *)
+(* (leader.ts:209-218): a promotion or step-down may still be running    *)
+(* when it moves on. The model assumes each Redis round trip answers       *)
+(* within that grace, so the wait outlasts the tick's commands.           *)
 StopWait(i) ==
   /\ spc[i] = "wait"
-  /\ pc[i] \notin {"renew", "set"}
+  /\ pc[i] \notin {"renew", "set", "lateRelease"}
   /\ spc' = [spc EXCEPT ![i] = "release"]
   /\ UNCHANGED <<now, owner, expires, holds, lastHeld, due, pc, ticket, queued, done,
                  rpc, rsnap, tdAt, armed, life, errors, external, stops>>
 
 (* While it still believes it holds the lock, RELEASE_LUA deletes the key *)
-(* if it is ours; then holdsLock is cleared (leader.ts:220-223, 21-22).   *)
+(* if it is ours; then holdsLock is cleared (leader.ts:219-222, 21-22).   *)
 StopRelease(i) ==
   /\ spc[i] = "release"
   /\ IF holds[i] /\ owner = i /\ expires > now
@@ -244,18 +255,21 @@ StopRelease(i) ==
   /\ UNCHANGED <<now, lastHeld, due, pc, ticket, queued, done, rpc, rsnap, tdAt,
                  armed, life, errors, external, stops>>
 
-(* destroy() then awaits bus.close(), and queues _deactivateAll on the    *)
-(* reconcile queue (index.ts:167-168, subscriptions.ts:428-436).          *)
+(* destroy() then awaits bus.close(); _deactivateAll tears every handle   *)
+(* down at once and queues a second teardown on the reconcile queue       *)
+(* (index.ts:167-168, subscriptions.ts:445-449).                          *)
 StopBus(i) ==
   /\ spc[i] = "bus"
   /\ spc' = [spc EXCEPT ![i] = "deactivate"]
+  /\ armed' = [armed EXCEPT ![i] = FALSE]
   /\ queued' = [queued EXCEPT ![i] = @ + 1]
   /\ tdAt' = [tdAt EXCEPT ![i] = queued[i] + 1]
   /\ UNCHANGED <<now, owner, expires, holds, lastHeld, due, pc, ticket, done,
-                 rpc, rsnap, armed, life, errors, external, stops>>
+                 rpc, rsnap, life, errors, external, stops>>
 
-(* After every reconcile queued before it, _deactivateAll tears down      *)
-(* every handle (subscriptions.ts:429-435).                               *)
+(* After every reconcile queued before it, the second teardown runs. The   *)
+(* wait for it is capped (subscriptions.ts:448-454); the model assumes    *)
+(* the pending reconciles settle within that cap.                         *)
 StopDeactivate(i) ==
   /\ spc[i] = "deactivate"
   /\ rpc[i] = "none"
@@ -279,7 +293,8 @@ Tick ==
 
 Busy ==
   \/ \E i \in Instances :
-       \/ RunTick(i) \/ RenewReply(i) \/ SetReply(i) \/ TickDone(i)
+       \/ RunTick(i) \/ RenewReply(i) \/ SetReply(i) \/ LateRelease(i)
+       \/ TickDone(i)
        \/ ReconcileRead(i) \/ ReconcileApply(i) \/ External(i)
        \/ StopBegin(i) \/ StopWait(i) \/ StopRelease(i) \/ StopBus(i)
        \/ StopDeactivate(i)
