@@ -1,5 +1,4 @@
 import "./db";
-import "./pages";
 import "./routes";
 import { ImplementInterface } from "@antelopejs/interface-core";
 import { Logging } from "@antelopejs/interface-core/logging";
@@ -69,6 +68,7 @@ export async function construct(config: Config): Promise<void> {
   configureRetention(globalConfig.runs?.retentionDays);
   configureRedaction(globalConfig.runs?.sensitiveNames);
   setHttpRequestOptions(globalConfig.httpRequest ?? {});
+  await import("./pages");
 
   ImplementInterface(
     await import("@antelopejs/interface-dms-automation"),
