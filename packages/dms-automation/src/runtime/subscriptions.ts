@@ -423,16 +423,22 @@ export const subscriptions = {
    * at once, then again after every pending reconcile, so one that read
    * leadership before the stop cannot leave a handle armed. The second wait is
    * capped, so a reconcile that hangs cannot hang shutdown.
+   *
+   * @returns whether the second teardown finished within its cap
    */
-  async _deactivateAll(): Promise<void> {
+  async _deactivateAll(): Promise<boolean> {
     hydrated = false;
     await tearDownAll();
-    await withTimeout(
+    return withTimeout(
       reconciles.run(tearDownAll),
       PENDING_RECONCILES_WAIT_MS,
       "teardown after the pending reconciles",
-    ).catch((err: unknown) => {
-      Logging.Error("[dms-automation] shutdown:", err);
-    });
+    ).then(
+      () => true,
+      (err: unknown) => {
+        Logging.Error("[dms-automation] shutdown:", err);
+        return false;
+      },
+    );
   },
 };

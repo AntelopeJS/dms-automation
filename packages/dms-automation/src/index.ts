@@ -13,7 +13,7 @@ import { defu } from "defu";
 import * as bus from "./cluster/bus";
 import { instanceId } from "./cluster/instance";
 import * as leader from "./cluster/leader";
-import type { ClusterDriver, ClusterMode } from "./cluster/mode";
+import type { ClusterDriver } from "./cluster/mode";
 import { resolveClusterMode } from "./cluster/mode";
 import { configureRedaction } from "./runtime/boundRunLog";
 import { setHttpRequestOptions } from "./runtime/builtins/actions/http";
@@ -30,9 +30,7 @@ import {
   stopRetention,
 } from "./runtime/retention";
 import { subscriptions } from "./runtime/subscriptions";
-import { TRIGGER_OP_TIMEOUT_MS } from "./runtime/triggerHandles";
 import { isOriginAttributionWorking } from "./runtime/typeOrigin";
-import { withTimeout } from "./runtime/withTimeout";
 import { SCHEMA_NAME } from "./types/constants";
 import { frontendModule } from "./frontend-module";
 
@@ -64,12 +62,6 @@ export interface Config {
 }
 
 let globalConfig: Config = {};
-
-/** Set from destroy() until the next start(): leadership changes queue no reconcile. */
-let stopping = false;
-
-/** The mode the last start() resolved; destroy() undoes what it started. */
-let clusterMode: ClusterMode = "memory";
 
 export async function construct(config: Config): Promise<void> {
   globalConfig = defu(config, globalConfig);
@@ -134,12 +126,8 @@ async function startClusterSubscriber(): Promise<void> {
  */
 async function startLeaderElection(): Promise<void> {
   await leader.start({
-    onBecameLeader: async () => {
-      if (!stopping) await subscriptions.onBecameLeader();
-    },
-    onLostLeadership: async () => {
-      if (!stopping) await subscriptions.onLostLeadership();
-    },
+    onBecameLeader: () => subscriptions.onBecameLeader(),
+    onLostLeadership: () => subscriptions.onLostLeadership(),
   });
   Logging.Info(`[dms-automation] cluster mode: redis (instance ${instanceId})`);
 }
@@ -153,57 +141,38 @@ async function startLeaderElection(): Promise<void> {
  * In redis mode this brings up replicated triggers only (follower).
  */
 export async function start(): Promise<void> {
-  stopping = false;
   await RegisterSchema(SCHEMA_NAME);
   registerBuiltins();
 
-  clusterMode = resolveClusterMode(globalConfig.cluster?.driver);
+  const mode = resolveClusterMode(globalConfig.cluster?.driver);
   subscriptions.useLeadershipSource(
-    clusterMode === "redis" ? leader.isLeader : () => true,
+    mode === "redis" ? leader.isLeader : () => true,
   );
-  if (clusterMode === "redis") await startClusterSubscriber();
+  if (mode === "redis") await startClusterSubscriber();
 
   await subscriptions.hydrate();
 
-  if (clusterMode === "redis") await startLeaderElection();
+  if (mode === "redis") await startLeaderElection();
   else Logging.Info("[dms-automation] cluster mode: standalone (memory)");
 
-  startRetention(clusterMode === "redis" ? leader.isLeader : () => true);
+  startRetention(mode === "redis" ? leader.isLeader : () => true);
   markModuleStarted();
 }
 
 /**
- * Stop leading before the key goes: a later promotion or step-down queues no
- * reconcile, every later reconcile reads no leadership, and one queued behind
- * a promotion still arming disarms what it armed.
- */
-async function stopLeading(): Promise<void> {
-  stopping = true;
-  subscriptions.useLeadershipSource(() => false);
-  if (clusterMode !== "redis") return;
-  try {
-    await withTimeout(
-      subscriptions.onLostLeadership(),
-      TRIGGER_OP_TIMEOUT_MS,
-      "shutdown disarm",
-    );
-  } catch (err) {
-    Logging.Error("[dms-automation] destroy: disarm failed:", err);
-  }
-}
-
-/**
- * Stop leading, close the bus, tear the local handles down, and only then
- * release leadership, so a peer that wins the key never arms a singleton this
- * instance still runs.
+ * Stop arming singletons and contending, close the bus, tear the local handles
+ * down, and only then release leadership, so a peer that wins the key never
+ * arms a singleton this instance still runs. When the teardown could not wait
+ * out a pending reconcile, the key is left to expire instead.
  */
 export async function destroy(): Promise<void> {
   markModuleStopped();
   stopRetention();
-  await stopLeading();
+  subscriptions.useLeadershipSource(() => false);
+  await leader.halt();
   await bus.close();
-  await subscriptions._deactivateAll();
-  await leader.stop();
+  const tornDown = await subscriptions._deactivateAll();
+  await leader.stop(tornDown);
 }
 
 export function stop(): void {}

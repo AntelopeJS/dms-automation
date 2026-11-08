@@ -21,10 +21,10 @@ const dir = path.dirname(fileURLToPath(import.meta.url));
 const RUNNING = { AtMostOneArmed: 12, ArmedImpliesBelief: 11 };
 
 /** Rules a cluster where one instance runs destroy() breaks. */
-const SHUTDOWN = { AtMostOneArmed: 12, ArmedImpliesBelief: 8 };
+const SHUTDOWN = { AtMostOneArmed: 12, ArmedImpliesBelief: 11 };
 
 /** Rules a shutdown breaks while no key expires, which leaves F1 out. */
-const HANDOFF = { StopDisarms: 12 };
+const HANDOFF = {};
 
 /** The findings of each configuration, in run order. */
 const CONFIGS = {

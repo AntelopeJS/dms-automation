@@ -11,13 +11,16 @@ const TYPE_ID = "support.nightly-sweep";
 /** @type {number[]} */
 const armedAtRelease = [];
 const armed = new Set();
-let redisProvided = true;
+
+/** @type {string[]} */
+const commands = [];
 
 const redis = {
   key: /** @type {string | undefined} */ (undefined),
   /** @type {Promise<void>} */
   answerSet: Promise.resolve(),
   async set(/** @type {string} */ _key, /** @type {string} */ value) {
+    commands.push("set");
     await redis.answerSet;
     if (redis.key !== undefined) return null;
     redis.key = value;
@@ -29,6 +32,7 @@ const redis = {
     /** @type {string} */ _key,
     /** @type {string} */ owner,
   ) {
+    commands.push(script.includes("'del'") ? "release" : "renew");
     if (redis.key !== owner) return 0;
     if (script.includes("'del'")) {
       armedAtRelease.push(armed.size);
@@ -60,7 +64,7 @@ const mocks = {
   "@antelopejs/interface-core": {
     ...interfaceCore,
     ImplementInterface() {},
-    GetInterfaceInstances: () => (redisProvided ? [{}] : []),
+    GetInterfaceInstances: () => [{}],
   },
   "./db": {},
   "./pages": {},
@@ -169,138 +173,109 @@ void test("destroy() tears the singleton triggers down before it releases the le
   assert.equal(redis.key, undefined);
 });
 
-void test("a promotion still arming when destroy() starts is disarmed before the release", async () => {
-  armedAtRelease.length = 0;
-  internal.RegisterTriggerType.unregister(TYPE_ID);
-  /** @type {PromiseWithResolvers<void>} */
-  const arming = Promise.withResolvers();
-  /** @type {PromiseWithResolvers<void>} */
-  const gate = Promise.withResolvers();
-  internal.RegisterTriggerType.register(TYPE_ID, {
-    id: TYPE_ID,
-    name: "Nightly sweep",
-    description: "Fires once a night on the leader",
-    icon: "i-lucide-moon",
-    configSchema: { type: "object" },
-    outputSchema: { type: "object" },
-    cluster: "singleton",
-    async activate() {
-      arming.resolve();
-      await gate.promise;
-      const handle = Symbol("handle");
-      armed.add(handle);
-      return handle;
-    },
-    async deactivate(/** @type {symbol} */ handle) {
-      armed.delete(handle);
-    },
-  });
-  await automation.start();
-  await arming.promise;
-
-  redisProvided = false;
-  const stopping = automation.destroy();
-  gate.resolve();
-  await stopping;
-  redisProvided = true;
-
-  assert.deepEqual(
-    armedAtRelease,
-    [0],
-    "the promotion's singleton is disarmed before the release",
-  );
-  assert.equal(armed.size, 0, "destroy() leaves no singleton armed");
-  assert.equal(redis.key, undefined);
-});
-
-void test("a SET that wins the key during the teardown arms no trigger after destroy() returns", async () => {
-  armedAtRelease.length = 0;
-  const REPLICATED_ID = "support.ticket-opened";
-  procedures.push(procedureOn("P2", REPLICATED_ID));
-  /** @type {PromiseWithResolvers<void>} */
-  const answer = Promise.withResolvers();
-  redis.answerSet = answer.promise;
-  let activations = 0;
-  internal.RegisterTriggerType.register(REPLICATED_ID, {
-    id: REPLICATED_ID,
-    name: "Ticket opened",
-    description: "Fires on every instance",
+/**
+ * @param {string} id
+ * @param {"singleton" | "replicated"} cluster
+ * @param {{ beforeArm?: () => Promise<void>, onDeactivate?: () => void }} [hooks]
+ */
+function recordingType(id, cluster, hooks = {}) {
+  return {
+    id,
+    name: id,
+    description: "Records what it arms",
     icon: "i-lucide-ticket",
     configSchema: { type: "object" },
     outputSchema: { type: "object" },
-    cluster: "replicated",
+    cluster,
     async activate() {
-      if (activations++ > 0)
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      const handle = Symbol("replicated");
+      await hooks.beforeArm?.();
+      const handle = Symbol(id);
       armed.add(handle);
       return handle;
     },
     async deactivate(/** @type {symbol} */ handle) {
       armed.delete(handle);
-      answer.resolve();
+      hooks.onDeactivate?.();
     },
-  });
-  await automation.start();
-  assert.equal(armed.size, 1, "the replicated trigger is armed");
+  };
+}
 
-  await automation.destroy();
-  await new Promise((resolve) => setTimeout(resolve, 50));
+const REPLICATED_ID = "support.ticket-opened";
 
-  assert.equal(armed.size, 0, "destroy() leaves no trigger armed");
-  assert.equal(redis.key, undefined);
-});
-
-void test("a step-down during the teardown arms no trigger after destroy() returns", async (t) => {
-  mock.timers.enable({ apis: ["setInterval"] });
-  t.after(() => mock.timers.reset());
-  const REPLICATED_ID = "support.ticket-opened";
+/** @param {...ReturnType<typeof recordingType>} types */
+function registerOnly(...types) {
   internal.RegisterTriggerType.unregister(TYPE_ID);
   internal.RegisterTriggerType.unregister(REPLICATED_ID);
-  /** @param {string} id @param {"singleton" | "replicated"} cluster @param {(handle: symbol) => void} onDeactivate */
-  const trigger = (id, cluster, onDeactivate) => {
-    let activations = 0;
-    return {
-      id,
-      name: id,
-      description: "Records what it arms",
-      icon: "i-lucide-ticket",
-      configSchema: { type: "object" },
-      outputSchema: { type: "object" },
-      cluster,
-      async activate() {
-        if (activations++ > 0)
-          await new Promise((resolve) => setTimeout(resolve, 20));
-        const handle = Symbol(id);
-        armed.add(handle);
-        return handle;
+  for (const type of types)
+    internal.RegisterTriggerType.register(type.id, type);
+}
+
+void test("an instance sends no SET or renew once its teardown began", async (t) => {
+  mock.timers.enable({ apis: ["setInterval"] });
+  t.after(() => mock.timers.reset());
+  let tornDown = false;
+  registerOnly(
+    recordingType(TYPE_ID, "singleton"),
+    recordingType(REPLICATED_ID, "replicated", {
+      onDeactivate: () => {
+        if (tornDown) return;
+        tornDown = true;
+        commands.length = 0;
+        mock.timers.tick(10_000);
       },
-      async deactivate(/** @type {symbol} */ handle) {
-        armed.delete(handle);
-        onDeactivate(handle);
-      },
-    };
-  };
-  let renewed = false;
-  internal.RegisterTriggerType.register(
-    TYPE_ID,
-    trigger(TYPE_ID, "singleton", () => {}),
-  );
-  internal.RegisterTriggerType.register(
-    REPLICATED_ID,
-    trigger(REPLICATED_ID, "replicated", () => {
-      if (renewed) return;
-      renewed = true;
-      redis.key = "peer";
-      mock.timers.tick(10_000);
     }),
   );
+  procedures.push(procedureOn("P2", REPLICATED_ID));
+  t.after(() => void procedures.pop());
   await automation.start();
   await until(() => armed.size === 2, "the leader to arm both triggers");
 
   await automation.destroy();
-  await new Promise((resolve) => setTimeout(resolve, 50));
 
-  assert.ok(renewed, "a renew answered 0 during the teardown");
-  assert.equal(armed.size, 0, "destroy() leaves no trigger armed");
+  assert.ok(tornDown, "the teardown ran");
+  assert.deepEqual(commands, ["release"], "only the release follows");
+  assert.equal(armed.size, 0);
+});
+
+void test("a promotion that outlasts the shutdown caps keeps the key and leaves nothing armed once it ends", async (t) => {
+  armedAtRelease.length = 0;
+  mock.timers.enable({ apis: ["setTimeout"] });
+  t.after(() => mock.timers.reset());
+  /** @type {PromiseWithResolvers<void>} */
+  const arming = Promise.withResolvers();
+  /** @type {PromiseWithResolvers<void>} */
+  const gate = Promise.withResolvers();
+  registerOnly(
+    recordingType(TYPE_ID, "singleton", {
+      beforeArm: async () => {
+        arming.resolve();
+        await gate.promise;
+      },
+    }),
+    recordingType(REPLICATED_ID, "replicated"),
+  );
+  procedures.push(procedureOn("P2", REPLICATED_ID));
+  t.after(() => void procedures.pop());
+  await automation.start();
+  await arming.promise;
+
+  let returned = false;
+  const stopping = automation.destroy().then(() => {
+    returned = true;
+  });
+  for (let i = 0; i < 100 && !returned; i++) {
+    await new Promise((resolve) => setImmediate(resolve));
+    mock.timers.tick(1_000);
+  }
+  await stopping;
+
+  assert.deepEqual(armedAtRelease, [], "the key is not released");
+  assert.equal(redis.key !== undefined, true, "the key is left to expire");
+
+  gate.resolve();
+  for (let i = 0; i < 20; i++)
+    await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(armed.size, 0, "nothing stays armed once the promotion ends");
+  redis.key = undefined;
 });

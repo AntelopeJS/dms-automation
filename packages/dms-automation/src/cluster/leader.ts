@@ -51,6 +51,8 @@ let currentTick: Promise<void> | undefined;
 let lastHeldAt = 0;
 /** Bumped by stop(): a tick started under an older one no longer runs leadership. */
 let generation = 0;
+/** The wait of halt(), shared until stop() finishes. */
+let halting: Promise<void> | undefined;
 
 /** What the tick's Redis round trip asks it to do next. */
 type Outcome = "promote" | "stepDown" | "none";
@@ -209,25 +211,38 @@ async function withinGrace(p: Promise<void>): Promise<void> {
   clearTimeout(graceTimer);
 }
 
-/**
- * Stop contending and release the lock if we hold it (graceful handoff).
- *
- * Let an in-flight tick finish so release() can't race it, then release. Each
- * wait has its own cap, so a wedged tick or a silent Redis can't hang shutdown
- * forever, and a wedged tick leaves the release its full grace; a lock left
- * unreleased expires after TTL_MS. A tick still running past the cap no
- * longer promotes or steps down, and releases a key it wins.
- */
-export async function stop(): Promise<void> {
+async function stopTicking(): Promise<void> {
   if (timer) {
     clearInterval(timer);
     timer = undefined;
   }
   generation += 1;
   if (currentTick) await withinGrace(currentTick);
-  if (holdsLock && client) await withinGrace(release(client));
+}
+
+/**
+ * Stop contending but keep the lock: no tick starts, and the in-flight one is
+ * awaited, at most SHUTDOWN_GRACE_MS. A tick still running past the cap no
+ * longer promotes or steps down, and releases a key it wins. Calls until the
+ * next stop() share one wait.
+ */
+export function halt(): Promise<void> {
+  halting ??= stopTicking();
+  return halting;
+}
+
+/**
+ * Stop contending, then release the lock if we hold it and `releaseKey` is
+ * true (graceful handoff). With `releaseKey` false the lock expires after
+ * TTL_MS. The release has its own grace, so a silent Redis can't hang
+ * shutdown and a wedged tick leaves the release its full grace.
+ */
+export async function stop(releaseKey = true): Promise<void> {
+  await halt();
+  if (releaseKey && holdsLock && client) await withinGrace(release(client));
   holdsLock = false;
   ticking = false;
   client = undefined;
   transitions = undefined;
+  halting = undefined;
 }
