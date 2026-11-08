@@ -132,6 +132,17 @@ const untriggered = {
     dataEdges: [],
   }),
 };
+/** @type {StoredProcedure} */
+const bare = {
+  ...scheduled,
+  _id: "reports.bare",
+  enabled: false,
+  graph: JSON.stringify({
+    nodes: [node("call", "action", "http.request")],
+    triggerEdges: [],
+    dataEdges: [],
+  }),
+};
 /** @type {Map<string, StoredProcedure>} */
 const procedures = new Map([
   [scheduled._id, scheduled],
@@ -139,6 +150,7 @@ const procedures = new Map([
   [intake._id, intake],
   [unconfigured._id, unconfigured],
   [untriggered._id, untriggered],
+  [bare._id, bare],
 ]);
 
 /** @type {RunRow[]} */
@@ -299,6 +311,8 @@ void test("a graph with a step missing its settings or no trigger is refused wit
   const cases = [
     [unconfigured, "missingField", "graphHasErrors"],
     [untriggered, "noTrigger", "noTriggerToRun"],
+    [bare, "missingField", "noTriggerToRun"],
+    [bare, "noTrigger", "noTriggerToRun"],
   ];
   for (const [procedure, code, toast] of cases) {
     await assert.rejects(RunProcedure(procedure._id), (err) => {
@@ -309,6 +323,15 @@ void test("a graph with a step missing its settings or no trigger is refused wit
       assert.ok(codes.includes(code), `${procedure._id} lists ${code}`);
       return true;
     });
+  }
+  for (const procedure of [untriggered, unconfigured]) {
+    await assert.rejects(
+      RunProcedure(procedure._id, { triggerNodeId: "nope" }),
+      (err) => {
+        assert.equal(thrown(err).status, 404, `${procedure._id} has no "nope"`);
+        return true;
+      },
+    );
   }
   assert.equal(runs.length, stored, "no run is stored");
 });
