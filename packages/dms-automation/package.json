@@ -70,7 +70,7 @@
     "@antelopejs/interface-data-api": ">=0.6.0 <1.0.0",
     "@antelopejs/interface-database": ">=0.3.1 <1.0.0",
     "@antelopejs/interface-database-decorators": ">=0.2.1 <1.0.0",
-    "@antelopejs/interface-dms": ">=0.12.0 <1.0.0",
+    "@antelopejs/interface-dms": "file:../../.tgz-deps/antelopejs-interface-dms-a8fc510.tgz",
     "@antelopejs/interface-dms-automation": ">=0.6.1 <0.7.0",
     "defu": "^6.1.4",
     "node-cron": "^4.2.1",
@@ -78,7 +78,7 @@
   },
   "devDependencies": {
     "@antelopejs/core": "1.21.0",
-    "@antelopejs/dms": ">=0.17.0 <1.0.0",
+    "@antelopejs/dms": "file:../../.tgz-deps/antelopejs-dms-a8fc510.tgz",
     "@antelopejs/dms-frontend": ">=0.10.0 <1.0.0",
     "@antelopejs/tooling-configs": ">=0.3.3 <1.0.0",
     "@types/node": "^24.0.0",
@@ -95,7 +95,19 @@
   "optionalDependencies": {
     "@antelopejs/interface-redis": ">=0.0.9 <1.0.0"
   },
-  "packageManager": "pnpm@10.2.0",
+  "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "overrides": {
+      "@antelopejs/interface-dms": "file:../../.tgz-deps/antelopejs-interface-dms-a8fc510.tgz",
+      "@antelopejs/dms": "file:../../.tgz-deps/antelopejs-dms-a8fc510.tgz",
+      "@antelopejs/dms>@antelopejs/interface-api": "0.2.0",
+      "@antelopejs/dms>@antelopejs/interface-api-util": "0.3.0",
+      "@antelopejs/dms>@antelopejs/interface-core": "0.4.0",
+      "@antelopejs/dms>@antelopejs/interface-data-api": "0.6.0",
+      "@antelopejs/dms>@antelopejs/interface-database": "0.3.1",
+      "@antelopejs/dms>@antelopejs/interface-database-decorators": "0.2.1"
+    }
+  },
   "antelopeJs": {
     "baseUrl": "dist",
     "implements": [

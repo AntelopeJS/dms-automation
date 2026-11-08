@@ -56,7 +56,8 @@ export class ProceduresPageController extends PageController(
   });
 
   /**
-   * Paused, the rows stay as they stood through a search, a sort or a tab,
+   * Live, the rows follow each change, on screen too. Paused, the rows stay
+   * as they stood through a search, a sort or a tab,
    * with "N new · Show" counting the changes since.
    *
    * Procedures are built in the builder, not in a form: a row opens it.
@@ -68,7 +69,7 @@ export class ProceduresPageController extends PageController(
     searchPlaceholder: "$dms_automation.procedures.search",
     quickFilters: [{ field: "triggerTypes", icon: "i-ph-lightning" }],
     realtimeTopic: ["automation.procedures", "automation.runs"],
-    liveHold: true,
+    liveHold: { whileOnScreen: false },
     tabs: [
       stateTab("failing", "i-ph-x-circle", true),
       stateTab("degraded", "i-ph-warning"),
