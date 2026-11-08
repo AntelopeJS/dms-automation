@@ -39,6 +39,7 @@ void test("stop() returns within its grace while SET is unanswered, and a late O
   mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
   t.after(() => mock.timers.reset());
   const fake = fakeRedis();
+  void redis.internal.UnsetClient();
   redis.internal.SetClient(fake);
   let promotions = 0;
   await leader.start({
@@ -58,4 +59,63 @@ void test("stop() returns within its grace while SET is unanswered, and a late O
   assert.equal(leader.isLeader(), false, "a stopped instance does not lead");
   assert.equal(promotions, 0, "a stopped instance arms nothing");
   assert.equal(fake.owner, undefined, "a stopped instance holds no key");
+});
+
+void test("a promotion that fails after a restart leaves the new generation's leadership and key alone", async (t) => {
+  mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  t.after(async () => {
+    mock.timers.reset();
+    await leader.stop();
+  });
+  const fake = fakeRedis();
+  void redis.internal.UnsetClient();
+  redis.internal.SetClient(fake);
+  /** @type {PromiseWithResolvers<void>} */
+  const oldPromotion = Promise.withResolvers();
+  await leader.start({
+    onBecameLeader: () => oldPromotion.promise,
+    async onLostLeadership() {},
+  });
+  fake.pendingSets[0].resolve();
+  await new Promise((resolve) => setImmediate(resolve));
+  const stopped = leader.stop();
+  mock.timers.tick(SHUTDOWN_GRACE_MS);
+  await stopped;
+
+  await leader.start({
+    async onBecameLeader() {},
+    async onLostLeadership() {},
+  });
+  fake.pendingSets[1].resolve();
+  await new Promise((resolve) => setImmediate(resolve));
+  const newOwner = fake.owner;
+  assert.notEqual(newOwner, undefined, "the restarted instance won the key");
+  oldPromotion.reject(new Error("the old reconcile failed late"));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(leader.isLeader(), true, "the restarted instance still leads");
+  assert.equal(fake.owner, newOwner, "the restarted instance keeps its key");
+});
+
+void test("stop() of a leader returns within its grace when Redis stops answering the release", async (t) => {
+  mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
+  t.after(() => mock.timers.reset());
+  const fake = fakeRedis();
+  void redis.internal.UnsetClient();
+  redis.internal.SetClient(fake);
+  await leader.start({
+    async onBecameLeader() {},
+    async onLostLeadership() {},
+  });
+  fake.pendingSets[0].resolve();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(leader.isLeader(), true, "the instance leads");
+
+  fake.eval = () => new Promise(() => {});
+  const stopped = leader.stop();
+  await new Promise((resolve) => setImmediate(resolve));
+  mock.timers.tick(SHUTDOWN_GRACE_MS);
+  await stopped;
+
+  assert.equal(leader.isLeader(), false, "a stopped instance does not lead");
 });

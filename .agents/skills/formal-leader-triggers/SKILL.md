@@ -83,13 +83,13 @@ Node runs other callbacks at every `await`, so Redis answers, interval ticks and
 | Model action | Code |
 | --- | --- |
 | `Init` | every instance has run `start()`, whose first tick is due (leader.ts:155-161) after hydrate (index.ts:144-160) |
-| `RunTick` | the interval and `runTick` (leader.ts:174-180, 194), the `ticking` guard and the command each branch sends (lines 146-153, 109-111, 126-127) |
-| `RenewReply` | `RENEW_LUA` (lines 18-19), the answer 0 that steps down (lines 118-119, 155, 63-69), a renewed hold (lines 114-116), an error (lines 156-162), and an answer after `stop()` began that ends the tick (lines 113, 158) |
-| `SetReply`, `LateRelease` | `SET NX PX`, the hold it sets and `promote` (lines 126-137, 154, 89-103); once `stop()` began, the release of the key it won instead (lines 130-132) |
-| `TickDone` | the tick awaits the reconcile its hook queued (subscriptions.ts:202-211, 61-63) |
+| `RunTick` | the interval and `runTick` (leader.ts:177-183, 197), the `ticking` guard and the command each branch sends (lines 149-156, 112-114, 129-130) |
+| `RenewReply` | `RENEW_LUA` (lines 18-19), the answer 0 that steps down (lines 121-122, 158, 63-69), a renewed hold (lines 117-119), an error (lines 159-165), and an answer after `stop()` began that ends the tick (lines 116, 161) |
+| `SetReply`, `LateRelease` | `SET NX PX`, the hold it sets and `promote` (lines 129-140, 157, 90-106); once `stop()` began, the release of the key it won instead (lines 133-135) |
+| `TickDone` | the tick awaits the reconcile its hook queued (subscriptions.ts:218-227, 62-64) |
 | `ReconcileRead`, `ReconcileApply` | `reconcile()`: the leader snapshot after its reads, then the diff it applies (reconcile.ts:246-264, 85-90), one pass at a time (serialQueue.ts:20-38) |
-| `External` | a procedure edit or a peer's bus message queues a reconcile (subscriptions.ts:159-165, 212-217, 241-248) |
-| `StopBegin`, `StopWait`, `StopRelease` | `destroy()` calls `leader.stop()`: the interval cleared, `generation` bumped, the capped wait for the tick, the owner-checked release, `holdsLock` cleared (index.ts:163-166, leader.ts:204-226) |
+| `External` | a procedure edit or a peer's bus message queues a reconcile (subscriptions.ts:175-181, 228-233, 257-264) |
+| `StopBegin`, `StopWait`, `StopRelease` | `destroy()` calls `leader.stop()`: the interval cleared, `generation` bumped, one grace capping the wait for the tick and the owner-checked release, `holdsLock` cleared (index.ts:163-166, leader.ts:209-227) |
 | `StopBus`, `StopDeactivate` | `bus.close()`, then `_deactivateAll()`: every handle torn down at once, and again on the reconcile queue after every reconcile queued before it, with a capped wait (index.ts:167-168, subscriptions.ts:445-454) |
 | `Tick` | `TICK_MS` passes (leader.ts:10) |
 
@@ -101,7 +101,7 @@ One tick is 10 s and the key lives three ticks. Both configurations run two inst
 
 The model assumes two timing bounds that the code caps rather than waits for:
 
-- a Redis round trip answers within `SHUTDOWN_GRACE_MS` (leader.ts:15), so `StopWait` waits for the tick's commands. When it does not, `stop()` returns at the cap and the tick releases a key it wins one round trip later: for that round trip a stopped instance holds the key. `tests/leader-stop.test.cjs` checks that release.
+- a Redis round trip answers within `SHUTDOWN_GRACE_MS` (leader.ts:15), so `StopWait` waits for the tick's commands and `StopRelease` for the release. When it does not, `stop()` returns at the cap. A key the tick wins late is released one round trip later, and a release that never answers leaves the key to expire after `TTL_MS`: for that time a stopped instance holds the key. `tests/leader-stop.test.cjs` checks both.
 - the reconciles pending at `destroy()` settle within `PENDING_RECONCILES_WAIT_MS` (subscriptions.ts:72), so `StopDeactivate` waits for them. When they do not, `_deactivateAll()` returns at the cap with every handle torn down, and a handle a late reconcile arms stays armed until the queued teardown right behind it runs.
 
 The model leaves out:
@@ -127,7 +127,7 @@ On a scratch copy of this folder (with `node_modules` reachable, for example a s
 | `step-down-a-tick-early`: an error steps down once `Date.now() - lastHeldAt >= TTL_MS - TICK_MS` (leader.ts:128) | `CHANGED ArmedImpliesBelief: 10 states (recorded 11)` | same |
 | Fix candidate `fix-teardown-before-release`: `destroy()` tears the handles down before `leader.stop()` releases the key (index.ts:166-168) | running unchanged; shutdown `CHANGED ArmedImpliesBelief: 9 states (recorded 8)`, `CHANGED StopDisarms: 7 states (recorded 8)`: a reconcile already past its read re-arms after the teardown | same |
 | Fix candidate `fix-late-set-after-stop`: a `SET` that answers after stop does not promote (leader.ts:123-125): `SetReply` of a stopping instance ends the tick | running unchanged; shutdown `CHANGED StopDisarms: 10 states (recorded 8)`, the re-arm path of F3 | same |
-| `late-set-keeps-key`, after the fix of #111: a `SET` that wins after stop does not release the key (leader.ts:130-132): `SetReply` of a stopping instance ends the tick | running unchanged; shutdown `BROKEN StopDisarms` in 8 states, the late `SET` path of F3 | same |
+| `late-set-keeps-key`, after the fix of #111: a `SET` that wins after stop does not release the key (leader.ts:133-135): `SetReply` of a stopping instance ends the tick | running unchanged; shutdown `BROKEN StopDisarms` in 8 states, the late `SET` path of F3 | same |
 | `teardown-outside-queue`, after the fix of #111: `_deactivateAll()` tears down only outside the reconcile queue (subscriptions.ts:449): `StopBus` queues nothing and `StopDeactivate` waits for no reconcile | running unchanged; shutdown `BROKEN StopDisarms` in 10 states, the re-arm path of F3 | same |
 
 Every scratch run in the table exited 1. With the edits dropped, both configurations exit 0.
