@@ -184,3 +184,45 @@ void test("a SET that wins the key while destroy() runs arms nothing before the 
   assert.equal(armed.size, 0);
   assert.equal(redis.key, undefined);
 });
+
+void test("a promotion still arming when destroy() starts is disarmed before the release", async () => {
+  armedAtRelease.length = 0;
+  internal.RegisterTriggerType.unregister(TYPE_ID);
+  /** @type {PromiseWithResolvers<void>} */
+  const arming = Promise.withResolvers();
+  /** @type {PromiseWithResolvers<void>} */
+  const gate = Promise.withResolvers();
+  internal.RegisterTriggerType.register(TYPE_ID, {
+    id: TYPE_ID,
+    name: "Nightly sweep",
+    description: "Fires once a night on the leader",
+    icon: "i-lucide-moon",
+    configSchema: { type: "object" },
+    outputSchema: { type: "object" },
+    cluster: "singleton",
+    async activate() {
+      arming.resolve();
+      await gate.promise;
+      const handle = Symbol("handle");
+      armed.add(handle);
+      return handle;
+    },
+    async deactivate(/** @type {symbol} */ handle) {
+      armed.delete(handle);
+    },
+  });
+  await automation.start();
+  await arming.promise;
+
+  const stopping = automation.destroy();
+  gate.resolve();
+  await stopping;
+
+  assert.deepEqual(
+    armedAtRelease,
+    [0],
+    "the promotion's singleton is disarmed before the release",
+  );
+  assert.equal(armed.size, 0, "destroy() leaves no singleton armed");
+  assert.equal(redis.key, undefined);
+});

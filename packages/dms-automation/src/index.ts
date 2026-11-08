@@ -30,7 +30,9 @@ import {
   stopRetention,
 } from "./runtime/retention";
 import { subscriptions } from "./runtime/subscriptions";
+import { TRIGGER_OP_TIMEOUT_MS } from "./runtime/triggerHandles";
 import { isOriginAttributionWorking } from "./runtime/typeOrigin";
+import { withTimeout } from "./runtime/withTimeout";
 import { SCHEMA_NAME } from "./types/constants";
 import { frontendModule } from "./frontend-module";
 
@@ -160,14 +162,32 @@ export async function start(): Promise<void> {
 }
 
 /**
- * Stop arming singletons, close the bus, tear the local handles down, and only
- * then release leadership, so a peer that wins the key never arms a singleton
- * this instance still runs.
+ * Stop leading before the key goes: every later reconcile reads no leadership,
+ * and one queued behind a promotion still arming disarms what it armed.
+ */
+async function stopLeading(): Promise<void> {
+  subscriptions.useLeadershipSource(() => false);
+  if (resolveClusterMode(globalConfig.cluster?.driver) !== "redis") return;
+  try {
+    await withTimeout(
+      subscriptions.onLostLeadership(),
+      TRIGGER_OP_TIMEOUT_MS,
+      "shutdown disarm",
+    );
+  } catch (err) {
+    Logging.Error("[dms-automation] destroy: disarm failed:", err);
+  }
+}
+
+/**
+ * Stop leading, close the bus, tear the local handles down, and only then
+ * release leadership, so a peer that wins the key never arms a singleton this
+ * instance still runs.
  */
 export async function destroy(): Promise<void> {
   markModuleStopped();
   stopRetention();
-  subscriptions.useLeadershipSource(() => false);
+  await stopLeading();
   await bus.close();
   await subscriptions._deactivateAll();
   await leader.stop();
