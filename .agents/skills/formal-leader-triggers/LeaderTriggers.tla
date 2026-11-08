@@ -4,10 +4,10 @@
 (* automation in redis mode (src/cluster/leader.ts, src/index.ts,         *)
 (* src/runtime/subscriptions.ts, src/runtime/reconcile.ts).               *)
 (*                                                                         *)
-(* Each instance runs the leader tick every TTL/3 (leader.ts:10, 160): it *)
+(* Each instance runs the leader tick every TTL/3 (leader.ts:10, 198): it *)
 (* renews the key `dms-automation:leader` while it believes it holds it,  *)
 (* or tries SET NX PX otherwise. Winning or losing queues a reconcile on  *)
-(* the instance's serial queue (subscriptions.ts:62-64, 218-227), and the *)
+(* the instance's serial queue (subscriptions.ts:62-66, 220-229), and the *)
 (* reconcile arms the singleton triggers only when it reads leadership    *)
 (* (reconcile.ts:246-264). destroy() stops the election, then the bus,    *)
 (* then tears the handles down (index.ts:163-168).                        *)
@@ -32,10 +32,10 @@ VARIABLES
   now,      \* Date.now(), in ticks
   owner,    \* the instance id stored at dms-automation:leader, or None
   expires,  \* the tick the key expires at
-  holds,    \* holdsLock of each instance (leader.ts:36)
-  lastHeld, \* lastHeldAt of each instance (leader.ts:50)
-  due,      \* the interval fired since the last runTick (leader.ts:160)
-  pc,       \* where each instance's in-flight tick is (leader.ts:149-169)
+  holds,    \* holdsLock of each instance (leader.ts:37)
+  lastHeld, \* lastHeldAt of each instance (leader.ts:51)
+  due,      \* the interval fired since the last runTick (leader.ts:198)
+  pc,       \* where each instance's in-flight tick is (leader.ts:150-170)
   ticket,   \* the reconcile a promotion or step-down awaits
   queued,   \* reconciles queued on each instance's serial queue
   done,     \* reconciles that finished
@@ -44,7 +44,7 @@ VARIABLES
   tdAt,     \* the queue position of destroy()'s second teardown, or 0 (subscriptions.ts:449)
   armed,    \* whether the instance's singleton trigger handle is armed
   life,     \* "running", "stopping" or "stopped"
-  spc,      \* where destroy() is (index.ts:163-168, leader.ts:169-190)
+  spc,      \* where destroy() is (index.ts:163-168, leader.ts:221-233)
   errors,
   external,
   stops
@@ -60,7 +60,7 @@ Init ==
   /\ owner = None /\ expires = 0
   /\ holds = [i \in Instances |-> FALSE]
   /\ lastHeld = [i \in Instances |-> 0]
-  /\ due = [i \in Instances |-> TRUE]                          \* leader.ts:159
+  /\ due = [i \in Instances |-> TRUE]                          \* leader.ts:197
   /\ pc = [i \in Instances |-> "idle"]
   /\ ticket = [i \in Instances |-> 0]
   /\ queued = [i \in Instances |-> 0]
@@ -94,9 +94,9 @@ Steady == UNCHANGED <<now, due, armed, life, spc, external, stops, rpc, rsnap, t
 
 (* ------------------------------ the tick -------------------------------- *)
 
-(* runTick skips while a tick is in flight (leader.ts:177-178, 150). A   *)
+(* runTick skips while a tick is in flight (leader.ts:178-179, 151). A   *)
 (* holder sends the owner-checked renew, a follower SET NX PX            *)
-(* (lines 156, 112-114, 129-130).                                         *)
+(* (lines 157, 113-115, 130-131).                                         *)
 RunTick(i) ==
   /\ life[i] = "running"
   /\ due[i]
@@ -106,13 +106,13 @@ RunTick(i) ==
   /\ UNCHANGED <<now, owner, expires, holds, lastHeld, ticket, queued, done,
                  rpc, rsnap, tdAt, armed, life, spc, errors, external, stops>>
 
-(* RENEW_LUA extends the key only while it is still ours (leader.ts:18-19). *)
-(* Renewed: lastHeldAt moves (lines 117-119). Answered 0: step down, which *)
+(* RENEW_LUA extends the key only while it is still ours (leader.ts:19-20). *)
+(* Renewed: lastHeldAt moves (lines 118-120). Answered 0: step down, which *)
 (* clears holdsLock and awaits the reconcile onLostLeadership queues      *)
-(* (lines 121-122, 158, 63-69). A Redis error steps down only once TTL    *)
-(* has passed since the last confirmed hold (lines 159-165). Once stop()  *)
+(* (lines 122-123, 159, 64-70). A Redis error steps down only once TTL    *)
+(* has passed since the last confirmed hold (lines 160-166). Once stop()  *)
 (* began, an answer or an error ends the tick and leaves the lock to stop  *)
-(* (lines 116, 161).                                                      *)
+(* (lines 117, 162).                                                      *)
 RenewReply(i) ==
   /\ pc[i] = "renew"
   /\ \/ /\ life[i] # "running"
@@ -143,9 +143,9 @@ RenewReply(i) ==
 
 (* SET NX PX answers OK on a free key: holdsLock and lastHeldAt are set,  *)
 (* then promote awaits the reconcile onBecameLeader queues (leader.ts:    *)
-(* 129-140, 157, 90-106). Once stop() began, the tick takes no hold and  *)
-(* releases the key it won (lines 133-135). A taken key ends the tick. A  *)
-(* Redis error ends it too, since the instance holds nothing (159-165).   *)
+(* 130-141, 158, 91-107). Once stop() began, the tick takes no hold and  *)
+(* releases the key it won (lines 134-136). A taken key ends the tick. A  *)
+(* Redis error ends it too, since the instance holds nothing (160-166).   *)
 SetReply(i) ==
   /\ pc[i] = "set"
   /\ \/ /\ KeyFree /\ life[i] = "running"
@@ -210,7 +210,7 @@ ReconcileApply(i) ==
                  rsnap, tdAt, life, spc, errors, external, stops>>
 
 (* A peer's edit on the bus, or a procedure edit here, queues a reconcile *)
-(* (subscriptions.ts:175-181, 228-233, 257-264).                         *)
+(* (subscriptions.ts:177-183, 230-235, 259-266).                         *)
 External(i) ==
   /\ external < MaxExternal
   /\ external' = external + 1
@@ -221,7 +221,7 @@ External(i) ==
 (* ------------------------------ destroy --------------------------------- *)
 
 (* destroy() calls leader.stop(), which clears the interval (index.ts:166,     *)
-(* leader.ts:210-214).                                                    *)
+(* leader.ts:222-226).                                                    *)
 StopBegin(i) ==
   /\ life[i] = "running"
   /\ stops < MaxStops
@@ -233,7 +233,7 @@ StopBegin(i) ==
                  rpc, rsnap, tdAt, armed, errors, external>>
 
 (* stop() awaits the in-flight tick, but at most SHUTDOWN_GRACE_MS        *)
-(* (leader.ts:215-220): a promotion or step-down may still be running    *)
+(* (leader.ts:227, 202-210): a promotion or step-down may still be running *)
 (* when it moves on. The model assumes each Redis round trip answers       *)
 (* within that grace, so the wait outlasts the tick's commands.           *)
 StopWait(i) ==
@@ -244,8 +244,8 @@ StopWait(i) ==
                  rpc, rsnap, tdAt, armed, life, errors, external, stops>>
 
 (* While it still believes it holds the lock, RELEASE_LUA deletes the key *)
-(* if it is ours, within the same grace; then holdsLock is cleared        *)
-(* (leader.ts:221-223, 21-22).                                            *)
+(* if it is ours, within a grace of its own; then holdsLock is cleared   *)
+(* (leader.ts:228-229, 22-23).                                            *)
 StopRelease(i) ==
   /\ spc[i] = "release"
   /\ IF holds[i] /\ owner = i /\ expires > now

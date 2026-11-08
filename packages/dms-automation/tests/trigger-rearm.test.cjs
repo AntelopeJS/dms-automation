@@ -203,35 +203,39 @@ void test("a reconcile that read leadership before a shutdown leaves nothing arm
   await promotion;
 });
 
-void test("a reconcile stuck on the database does not hold _deactivateAll() past its cap, and its handles are torn down at once", async (t) => {
-  const stuck = Promise.withResolvers();
-  t.after(async () => {
-    mock.timers.reset();
-    readGate = undefined;
-    stuck.resolve();
-    internal.RegisterTriggerType.unregister(TYPE_ID);
-    await subscriptions._deactivateAll();
-  });
-  const replicated = recordingType();
-  internal.RegisterTriggerType.register(TYPE_ID, replicated);
-  await subscriptions.hydrate();
-  assert.equal(replicated.armed.size, 2);
+void test(
+  "a reconcile stuck on the database does not hold _deactivateAll() past its cap, and its handles are torn down at once",
+  { timeout: 10_000 },
+  async (t) => {
+    const stuck = Promise.withResolvers();
+    t.after(async () => {
+      mock.timers.reset();
+      readGate = undefined;
+      stuck.resolve();
+      internal.RegisterTriggerType.unregister(TYPE_ID);
+      await subscriptions._deactivateAll();
+    });
+    const replicated = recordingType();
+    internal.RegisterTriggerType.register(TYPE_ID, replicated);
+    await subscriptions.hydrate();
+    assert.equal(replicated.armed.size, 2);
 
-  readGate = stuck.promise;
-  void subscriptions.onProcedureChange();
-  mock.timers.enable({ apis: ["setTimeout"] });
-  let returned = false;
-  const teardown = subscriptions._deactivateAll().then(() => {
-    returned = true;
-  });
-  await new Promise((resolve) => setImmediate(resolve));
-  mock.timers.tick(2_000);
-  await new Promise((resolve) => setImmediate(resolve));
+    readGate = stuck.promise;
+    void subscriptions.onProcedureChange();
+    mock.timers.enable({ apis: ["setTimeout"] });
+    let returned = false;
+    const teardown = subscriptions._deactivateAll().then(() => {
+      returned = true;
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    mock.timers.tick(2_000);
+    await new Promise((resolve) => setImmediate(resolve));
 
-  assert.equal(returned, true, "_deactivateAll() returned within its cap");
-  assert.equal(replicated.armed.size, 0);
-  await teardown;
-});
+    assert.equal(returned, true, "_deactivateAll() returned within its cap");
+    assert.equal(replicated.armed.size, 0);
+    await teardown;
+  },
+);
 
 void test("a reload during activation releases each definition's own handles", async (t) => {
   t.after(async () => {

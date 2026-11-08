@@ -9,8 +9,9 @@ const TTL_MS = 30_000;
 /** Tolerates two missed renews before expiry. */
 const TICK_MS = TTL_MS / 3;
 /**
- * Cap on how long stop() waits for an in-flight tick and the release before
- * tearing down anyway, so shutdown can't hang on a wedged trigger op or Redis.
+ * Cap on how long stop() waits for an in-flight tick, and then for the release,
+ * before tearing down anyway, so shutdown can't hang on a wedged trigger op or
+ * Redis.
  */
 const SHUTDOWN_GRACE_MS = 5_000;
 
@@ -197,14 +198,25 @@ export async function start(t: LeaderTransitions): Promise<void> {
   timer = setInterval(runTick, TICK_MS);
 }
 
+/** Wait for `p`, but at most SHUTDOWN_GRACE_MS. */
+async function withinGrace(p: Promise<void>): Promise<void> {
+  let graceTimer: NodeJS.Timeout | undefined;
+  const grace = new Promise<void>((resolve) => {
+    graceTimer = setTimeout(resolve, SHUTDOWN_GRACE_MS);
+    graceTimer.unref?.();
+  });
+  await Promise.race([p, grace]);
+  clearTimeout(graceTimer);
+}
+
 /**
  * Stop contending and release the lock if we hold it (graceful handoff).
  *
- * Let an in-flight tick finish so release() can't race it, but cap the wait
- * and the release together so a wedged tick or a silent Redis can't hang
- * shutdown forever; a lock left unreleased expires after TTL_MS. A tick still
- * running past the cap no longer promotes or steps down, and releases a key
- * it wins.
+ * Let an in-flight tick finish so release() can't race it, then release. Each
+ * wait has its own cap, so a wedged tick or a silent Redis can't hang shutdown
+ * forever, and a wedged tick leaves the release its full grace; a lock left
+ * unreleased expires after TTL_MS. A tick still running past the cap no
+ * longer promotes or steps down, and releases a key it wins.
  */
 export async function stop(): Promise<void> {
   if (timer) {
@@ -212,14 +224,8 @@ export async function stop(): Promise<void> {
     timer = undefined;
   }
   generation += 1;
-  let graceTimer: NodeJS.Timeout | undefined;
-  const grace = new Promise<void>((resolve) => {
-    graceTimer = setTimeout(resolve, SHUTDOWN_GRACE_MS);
-    graceTimer.unref?.();
-  });
-  if (currentTick) await Promise.race([currentTick, grace]);
-  if (holdsLock && client) await Promise.race([release(client), grace]);
-  clearTimeout(graceTimer);
+  if (currentTick) await withinGrace(currentTick);
+  if (holdsLock && client) await withinGrace(release(client));
   holdsLock = false;
   ticking = false;
   client = undefined;
