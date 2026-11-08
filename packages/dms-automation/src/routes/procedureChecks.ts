@@ -21,10 +21,18 @@ const REFUSAL_OF_ISSUE = new Map([
   ["webhookPathTaken", `${API}.webhookPathTaken`],
 ]);
 
-export function graphRefusal(issues: GraphIssue[]): HTTPResult {
+/** The toast of a graph refused by Run now, which names no enabling. */
+export const RUN_REFUSAL_OF_ISSUE = new Map([
+  ...REFUSAL_OF_ISSUE,
+  ["noTrigger", `${API}.noTriggerToRun`],
+]);
+
+export function graphRefusal(
+  issues: GraphIssue[],
+  refusals = REFUSAL_OF_ISSUE,
+): HTTPResult {
   const first = issues.find((i) => i.severity === "error");
-  const message =
-    REFUSAL_OF_ISSUE.get(first?.code ?? "") ?? `${API}.graphHasErrors`;
+  const message = refusals.get(first?.code ?? "") ?? `${API}.graphHasErrors`;
   return invalid("invalid graph", issues, message);
 }
 
