@@ -22,6 +22,7 @@ import { DEFAULT_SCHEDULE } from "../runtime/builtins/triggers/cron";
 import { parseGraphSafe, triggersOf } from "../runtime/describe";
 import { hasBlockingIssue } from "../runtime/graphIssues";
 import { changesExecution } from "../runtime/graphVersion";
+import { findTriggerNode } from "../runtime/runProcedure";
 import { nextOccurrence } from "../runtime/schedule";
 import { subscriptions } from "../runtime/subscriptions";
 import { withFreeWebhookPaths } from "../runtime/webhookRoutes";
@@ -528,8 +529,10 @@ export class ProceduresController extends Controller(
     @Parameter("id", "param") id: string,
     @Parameter("triggerNodeId", "query") triggerNodeId?: string,
   ) {
-    await loadProcedure(id);
-    return await lastPayloadOf(id, triggerNodeId);
+    const graph = parseGraphSafe((await loadProcedure(id)).graph);
+    const trigger = graph && findTriggerNode(graph, triggerNodeId);
+    if (!trigger) return { last: null, tooLarge: false };
+    return await lastPayloadOf(id, trigger.id);
   }
 
   /** The triggers of the saved graph, with the next time a schedule fires. */

@@ -16,6 +16,7 @@ const {
 const { registry } = require("../dist/runtime/registry.js");
 const { markModuleStarted } = require("../dist/runtime/readiness.js");
 const { serializeTriggerPayload } = require("../dist/runtime/boundRunLog.js");
+const { ProceduresController } = require("../dist/routes/procedures.js");
 const {
   InvokeProcedure,
   RunProcedure,
@@ -89,10 +90,28 @@ const broken = {
   _id: "reports.broken",
   graph: JSON.stringify({ nodes: [], triggerEdges: [], dataEdges: [] }),
 };
+/**
+ * A manual trigger and a webhook start it.
+ * @type {StoredProcedure}
+ */
+const intake = {
+  ...scheduled,
+  _id: "orders.intake",
+  graph: JSON.stringify({
+    nodes: [
+      node("hook", "trigger", "webhook", { path: "/intake" }),
+      node("start", "trigger", "manual"),
+      node("log", "action", "log.message", { message: "intake" }),
+    ],
+    triggerEdges: [edge("hook", "log"), edge("start", "log")],
+    dataEdges: [],
+  }),
+};
 /** @type {Map<string, StoredProcedure>} */
 const procedures = new Map([
   [scheduled._id, scheduled],
   [broken._id, broken],
+  [intake._id, intake],
 ]);
 
 /** @type {RunRow[]} */
@@ -172,6 +191,44 @@ void test("it starts from the trigger named, with its last payload by default", 
   assert.equal(run.triggerNodeId, "hook");
   assert.ok(isString(run.triggerPayload));
   assert.deepEqual(JSON.parse(run.triggerPayload), { body: { week: 41 } });
+});
+
+void test("without a trigger named, the last payload is the default trigger's", async () => {
+  runs.push(
+    {
+      _id: "manual-earlier",
+      procedureId: intake._id,
+      kind: "run",
+      status: "ok",
+      startedAt: new Date(Date.now() - 120_000),
+      triggerNodeId: "start",
+      triggerPayload: serializeTriggerPayload({ from: "manual" }),
+    },
+    {
+      _id: "hook-later",
+      procedureId: intake._id,
+      kind: "run",
+      status: "ok",
+      startedAt: new Date(Date.now() - 60_000),
+      triggerNodeId: "hook",
+      triggerPayload: serializeTriggerPayload({ from: "webhook" }),
+    },
+  );
+  const { last } = await new ProceduresController().lastPayload(
+    undefined,
+    intake._id,
+  );
+  assert.equal(last?.triggerNodeId, "start");
+  assert.deepEqual(last?.payload, { from: "manual" });
+});
+
+void test("without a trigger named, it runs from the default trigger with its last payload", async () => {
+  const outcome = await RunProcedure(intake._id);
+  const run = runs.find((r) => r._id === outcome.runId);
+  assert.ok(run);
+  assert.equal(run.triggerNodeId, "start");
+  assert.ok(isString(run.triggerPayload));
+  assert.deepEqual(JSON.parse(run.triggerPayload), { from: "manual" });
 });
 
 void test("it is refused as Run now is", async () => {
