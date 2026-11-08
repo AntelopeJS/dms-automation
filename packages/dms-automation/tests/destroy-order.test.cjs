@@ -249,6 +249,7 @@ void test("a promotion that outlasts the shutdown caps keeps the key and leaves 
   const arming = Promise.withResolvers();
   /** @type {PromiseWithResolvers<void>} */
   const gate = Promise.withResolvers();
+  t.after(() => gate.resolve());
   registerOnly(
     recordingType(TYPE_ID, "singleton", {
       beforeArm: async () => {
