@@ -102,7 +102,7 @@ export const journeys = [
         if (await tab.page.getByRole("button", { name: "Resume", exact: true }).waitFor({ state: "visible", timeout: 1500 }).then(() => true, () => false)) break;
       }
       await createProcedure(ctx, { name: "Third held", graph: manualLog("x") });
-      await tab.shows(/1 new/, { timeoutMs: 20_000 });
+      await tab.shows(/1 new · Show/, { timeoutMs: 20_000 });
       const held = await tableRows(tab);
       const heldText = flat(await innerOf(tab, "body"));
       await tab.page.getByRole("button", { name: "Show", exact: true }).click();

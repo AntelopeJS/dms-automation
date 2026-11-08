@@ -23,7 +23,7 @@ docs:
 - `row-actions-pause-resume-duplicate-run-now-and-the-links-do-what-the-docs-say`.
 - `delete-asks-first-and-an-enabled-procedure-by-typing-its-name`.
 - `new-procedure-dialog-creates-a-disabled-draft-and-opens-the-builder`, `import-json-dialog-creates-a-draft-or-says-why-not`.
-- `live-and-pause-hold-the-rows-and-count-the-changes` (FAILS: issue draft dms-automation-procedures-live-list-does-not-take-new-procedures).
+- `live-and-pause-hold-the-rows-and-count-the-changes`.
 - `an-empty-list-offers-the-first-procedure`.
 
 ## How to get to it (user POV)
