@@ -50,7 +50,7 @@ What another module gets from `@antelopejs/interface-dms-automation`: registerin
 - `unregistering-a-trigger-type-deactivates-its-handles-and-a-let-go-handle-starts-no-run`: `emit` starts runs, removing a type deactivates before the call returns, a let-go handle starts nothing, registering again re-arms, pausing deactivates.
 - `an-arming-failure-is-not-a-registration-error-and-the-next-reconcile-retries`: `activate` throwing or never settling (10 s), `deactivate` throwing or never settling (10 s) and the retry.
 - `interface-calls-wait-for-an-implementation-and-the-queue-holds-1000`: with no implementation the calls stay pending, 1,000 per function, the next rejects with `ProviderQueueFullError`.
-- `the-interface-skill-says-what-the-calls-do-without-an-implementation-as-the-readme-does`: the shipped skill must describe the same behaviour as the README. Fails on the unmodified product, see `dms-automation-interface-skill-says-calls-reject-without-implementation`.
+- `the-interface-skill-says-what-the-calls-do-without-an-implementation-as-the-readme-does`: the shipped skill must describe the same behaviour as the README.
 
 ## How to get to it (user POV)
 

@@ -12,8 +12,9 @@ Lets any AntelopeJS module declare automation node types — triggers, actions a
 nodes — that appear in the DMS automation procedure editor, without depending on the
 automation module implementation. Registration functions are consumer-side helpers
 backed by a `RegisteringProxy`: they are always safe to call, are queued until an
-implementation attaches, and are inert no-ops when none ever does. The list/invoke
-functions are real proxy crossings that reject when no implementation is present.
+implementation attaches, and are inert no-ops when none ever does. The list, invoke
+and declare functions are real proxy crossings: they queue their call until an
+implementation attaches, and with none loaded the returned promise stays pending.
 
 ## Imports
 
@@ -133,7 +134,12 @@ const declared = await DeclareProcedure({
   requires the automation module to be present; use `optionalDependencies` if it
   merely offers nodes as a bonus (registrations become no-ops when unimplemented).
 - `ListTriggerTypes` / `ListActionTypes` / `ListDataNodeTypes` / `InvokeProcedure` /
-  `RunProcedure` reject without an implementation — wrap in try/catch to branch on availability.
+  `RunProcedure` / `DeclareProcedure` queue their call until an implementation attaches.
+  With none loaded, the returned promise stays pending, so a `try/catch` never sees the
+  module missing. Each function queues at most 1,000 calls, and the next one
+  rejects with `ProviderQueueFullError`. A queued call whose calling module stopped
+  rejects with `ModuleContextInvalidatedError` when an implementation attaches. Never
+  `await` one where nothing guarantees the automation module loads.
   (`GetInterfaceInstances` from `@antelopejs/interface-core` only reports
   connections for interfaces declared in `dependencies` or wired via
   `importOverrides`; with the recommended `optionalDependencies` setup it returns
