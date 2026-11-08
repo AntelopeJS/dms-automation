@@ -13,7 +13,7 @@ import { defu } from "defu";
 import * as bus from "./cluster/bus";
 import { instanceId } from "./cluster/instance";
 import * as leader from "./cluster/leader";
-import type { ClusterDriver } from "./cluster/mode";
+import type { ClusterDriver, ClusterMode } from "./cluster/mode";
 import { resolveClusterMode } from "./cluster/mode";
 import { configureRedaction } from "./runtime/boundRunLog";
 import { setHttpRequestOptions } from "./runtime/builtins/actions/http";
@@ -67,6 +67,9 @@ let globalConfig: Config = {};
 
 /** Set from destroy() until the next start(): leadership changes queue no reconcile. */
 let stopping = false;
+
+/** The mode the last start() resolved; destroy() undoes what it started. */
+let clusterMode: ClusterMode = "memory";
 
 export async function construct(config: Config): Promise<void> {
   globalConfig = defu(config, globalConfig);
@@ -154,18 +157,18 @@ export async function start(): Promise<void> {
   await RegisterSchema(SCHEMA_NAME);
   registerBuiltins();
 
-  const mode = resolveClusterMode(globalConfig.cluster?.driver);
+  clusterMode = resolveClusterMode(globalConfig.cluster?.driver);
   subscriptions.useLeadershipSource(
-    mode === "redis" ? leader.isLeader : () => true,
+    clusterMode === "redis" ? leader.isLeader : () => true,
   );
-  if (mode === "redis") await startClusterSubscriber();
+  if (clusterMode === "redis") await startClusterSubscriber();
 
   await subscriptions.hydrate();
 
-  if (mode === "redis") await startLeaderElection();
+  if (clusterMode === "redis") await startLeaderElection();
   else Logging.Info("[dms-automation] cluster mode: standalone (memory)");
 
-  startRetention(mode === "redis" ? leader.isLeader : () => true);
+  startRetention(clusterMode === "redis" ? leader.isLeader : () => true);
   markModuleStarted();
 }
 
@@ -177,7 +180,7 @@ export async function start(): Promise<void> {
 async function stopLeading(): Promise<void> {
   stopping = true;
   subscriptions.useLeadershipSource(() => false);
-  if (resolveClusterMode(globalConfig.cluster?.driver) !== "redis") return;
+  if (clusterMode !== "redis") return;
   try {
     await withTimeout(
       subscriptions.onLostLeadership(),

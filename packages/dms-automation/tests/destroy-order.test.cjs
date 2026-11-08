@@ -11,6 +11,7 @@ const TYPE_ID = "support.nightly-sweep";
 /** @type {number[]} */
 const armedAtRelease = [];
 const armed = new Set();
+let redisProvided = true;
 
 const redis = {
   key: /** @type {string | undefined} */ (undefined),
@@ -59,7 +60,7 @@ const mocks = {
   "@antelopejs/interface-core": {
     ...interfaceCore,
     ImplementInterface() {},
-    GetInterfaceInstances: () => [{}],
+    GetInterfaceInstances: () => (redisProvided ? [{}] : []),
   },
   "./db": {},
   "./pages": {},
@@ -197,9 +198,11 @@ void test("a promotion still arming when destroy() starts is disarmed before the
   await automation.start();
   await arming.promise;
 
+  redisProvided = false;
   const stopping = automation.destroy();
   gate.resolve();
   await stopping;
+  redisProvided = true;
 
   assert.deepEqual(
     armedAtRelease,
@@ -246,4 +249,58 @@ void test("a SET that wins the key during the teardown arms no trigger after des
 
   assert.equal(armed.size, 0, "destroy() leaves no trigger armed");
   assert.equal(redis.key, undefined);
+});
+
+void test("a step-down during the teardown arms no trigger after destroy() returns", async (t) => {
+  mock.timers.enable({ apis: ["setInterval"] });
+  t.after(() => mock.timers.reset());
+  const REPLICATED_ID = "support.ticket-opened";
+  internal.RegisterTriggerType.unregister(TYPE_ID);
+  internal.RegisterTriggerType.unregister(REPLICATED_ID);
+  /** @param {string} id @param {"singleton" | "replicated"} cluster @param {(handle: symbol) => void} onDeactivate */
+  const trigger = (id, cluster, onDeactivate) => {
+    let activations = 0;
+    return {
+      id,
+      name: id,
+      description: "Records what it arms",
+      icon: "i-lucide-ticket",
+      configSchema: { type: "object" },
+      outputSchema: { type: "object" },
+      cluster,
+      async activate() {
+        if (activations++ > 0)
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        const handle = Symbol(id);
+        armed.add(handle);
+        return handle;
+      },
+      async deactivate(/** @type {symbol} */ handle) {
+        armed.delete(handle);
+        onDeactivate(handle);
+      },
+    };
+  };
+  let renewed = false;
+  internal.RegisterTriggerType.register(
+    TYPE_ID,
+    trigger(TYPE_ID, "singleton", () => {}),
+  );
+  internal.RegisterTriggerType.register(
+    REPLICATED_ID,
+    trigger(REPLICATED_ID, "replicated", () => {
+      if (renewed) return;
+      renewed = true;
+      redis.key = "peer";
+      mock.timers.tick(10_000);
+    }),
+  );
+  await automation.start();
+  await until(() => armed.size === 2, "the leader to arm both triggers");
+
+  await automation.destroy();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  assert.ok(renewed, "a renew answered 0 during the teardown");
+  assert.equal(armed.size, 0, "destroy() leaves no trigger armed");
 });
