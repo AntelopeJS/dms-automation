@@ -5,16 +5,12 @@ import type {
 } from "@antelopejs/interface-dms-automation";
 import { ProcedureRunModel } from "../db/models/procedure_run.model";
 import { readTriggerPayload } from "../runtime/boundRunLog";
-import { hasBlockingIssue } from "../runtime/graphIssues";
-import { findTriggerNode } from "../runtime/runProcedure";
+import { hasBlockingIssue, hasTrigger } from "../runtime/graphIssues";
+import { findTriggerNode, noTriggerToRun } from "../runtime/runProcedure";
 import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
 import type { ProcedureGraph } from "../types/graph";
-import {
-  graphRefusal,
-  issuesOf,
-  RUN_REFUSAL_OF_ISSUE,
-} from "./procedureChecks";
+import { graphRefusal, issuesOf } from "./procedureChecks";
 import { API_MESSAGES } from "./requests";
 
 /** How many production runs Run now looks back through for a payload it kept. */
@@ -70,7 +66,8 @@ export async function runOutcome(runId: string, warnOnFailure: boolean) {
  * manual one or the first by default), with the given payload, or the last
  * real payload of that trigger when none is given. A graph enabling would
  * refuse, such as one with no trigger or a step missing its settings, is
- * refused with its issues rather than stored as a failed production run.
+ * refused with its issues rather than stored as a failed production run. A
+ * trigger named but not in the graph gives 404 first.
  * What the run-now route and `RunProcedure` share; returns the run's id.
  */
 export async function runNow(
@@ -78,11 +75,17 @@ export async function runNow(
   graph: ProcedureGraph,
   { triggerNodeId, ...request }: RunProcedureOptions,
 ): Promise<string> {
+  const trigger = findTriggerNode(graph, triggerNodeId);
+  if (triggerNodeId && !trigger) {
+    throw noTriggerToRun(triggerNodeId, `procedure "${procedureId}"`);
+  }
   const issues = issuesOf(graph, true);
   if (hasBlockingIssue(issues)) {
-    throw graphRefusal(issues, RUN_REFUSAL_OF_ISSUE);
+    const toast = hasTrigger(graph)
+      ? undefined
+      : `${API_MESSAGES}.noTriggerToRun`;
+    throw graphRefusal(issues, toast);
   }
-  const trigger = findTriggerNode(graph, triggerNodeId);
   const payload = Object.hasOwn(request, "payload")
     ? request.payload
     : ((trigger &&

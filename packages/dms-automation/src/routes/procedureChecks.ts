@@ -21,18 +21,13 @@ const REFUSAL_OF_ISSUE = new Map([
   ["webhookPathTaken", `${API}.webhookPathTaken`],
 ]);
 
-/** The toast of a graph refused by Run now, which names no enabling. */
-export const RUN_REFUSAL_OF_ISSUE = new Map([
-  ...REFUSAL_OF_ISSUE,
-  ["noTrigger", `${API}.noTriggerToRun`],
-]);
-
+/** The 400 of a graph with blocking `issues`, its toast `message` when given. */
 export function graphRefusal(
   issues: GraphIssue[],
-  refusals = REFUSAL_OF_ISSUE,
+  message = REFUSAL_OF_ISSUE.get(
+    issues.find((i) => i.severity === "error")?.code ?? "",
+  ) ?? `${API}.graphHasErrors`,
 ): HTTPResult {
-  const first = issues.find((i) => i.severity === "error");
-  const message = refusals.get(first?.code ?? "") ?? `${API}.graphHasErrors`;
   return invalid("invalid graph", issues, message);
 }
 

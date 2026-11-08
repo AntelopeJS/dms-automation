@@ -13,6 +13,7 @@ import { MANUAL_TRIGGER_ID } from "./builtins/triggers/manual";
 import {
   executeProcedure,
   findTriggerNode,
+  noTriggerToRun,
   loadProcedure,
   parseStoredGraph,
 } from "./runProcedure";
@@ -30,25 +31,6 @@ import {
   forkUsage,
 } from "./templateUsages";
 import { handles, key, release, teardown } from "./triggerHandles";
-
-/**
- * Why a run cannot start from `triggerNodeId`: it is not in the graph, or the
- * graph has no trigger at all.
- */
-function noTriggerToRun(
-  triggerNodeId: string | undefined,
-  owner: string,
-): HTTPResult {
-  return triggerNodeId
-    ? new HTTPResult(404, {
-        error: `trigger "${triggerNodeId}" is not in ${owner}`,
-        message: "$dms_automation.api.triggerNotFound",
-      })
-    : new HTTPResult(400, {
-        error: `${owner} has no trigger to run from`,
-        message: "$dms_automation.api.noTriggerToRun",
-      });
-}
 
 /**
  * Serialize reconciles: a leadership transition, a route edit, and a bus
