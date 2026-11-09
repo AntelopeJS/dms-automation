@@ -381,7 +381,10 @@ function withEmptySources<E>(
   const sources = graph.dataEdges
     .filter((e) => e.to.node === node.id)
     .filter(
-      (e) => inputs[e.to.field] === null || inputs[e.to.field] === undefined,
+      (e) =>
+        !Object.hasOwn(inputs, e.to.field) ||
+        inputs[e.to.field] === null ||
+        inputs[e.to.field] === undefined,
     )
     .map((e) => {
       const source = nodeById.get(e.from.node);

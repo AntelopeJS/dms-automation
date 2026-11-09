@@ -52,7 +52,7 @@ export function useCanvasNodes(props: Readonly<CanvasProps>, text: CanvasText) {
   // The validator's problem on a node, in the reader's language (its English
   // message when this version has no text for the code).
   function issueOf(id: string): NodeIssue | null {
-    const issue = props.issues?.[id];
+    const issue = props.issues?.get(id);
     if (!issue) return null;
     const key = `dms_automation.editor.problems.codes.${issue.code}`;
     return issue.code && te(key)
@@ -116,7 +116,7 @@ export function useCanvasNodes(props: Readonly<CanvasProps>, text: CanvasText) {
           processI18n,
           scheduleTextOf(node),
         ),
-        run: props.runStates?.[node.id] ?? null,
+        run: props.runStates?.get(node.id) ?? null,
         issue: issueOf(node.id),
         icon,
         category,
@@ -148,7 +148,7 @@ export function useCanvasNodes(props: Readonly<CanvasProps>, text: CanvasText) {
           g.label ||
           (node.config?.name as string | undefined) ||
           t("dms_automation.nodes.role.group"),
-        run: props.runStates?.[node.id] ?? null,
+        run: props.runStates?.get(node.id) ?? null,
         issue: issueOf(node.id),
         ports: Array.isArray(g.ports) ? g.ports : [],
         templateId: g.templateId,

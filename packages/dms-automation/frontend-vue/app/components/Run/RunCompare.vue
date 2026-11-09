@@ -28,13 +28,13 @@ interface Row {
 }
 
 const rows = computed<Row[]>(() => {
-	const before = props.run.lastSuccess?.stepDurations ?? {}
+	const before = new Map(Object.entries(props.run.lastSuccess?.stepDurations ?? {}))
 	const rowsById = new Map<string, Row>()
 	for (const step of props.run.trace.steps) {
 		const row = rowsById.get(step.nodeId) ?? {
 			nodeId: step.nodeId,
 			name: stepTitle(step.name, processI18n),
-			before: before[step.nodeId] ?? null,
+			before: before.get(step.nodeId) ?? null,
 			now: null,
 			notReached: false,
 			tone: 'ok',
@@ -47,7 +47,7 @@ const rows = computed<Row[]>(() => {
 	const labels = new Map((props.run.graph?.nodes ?? []).flatMap((n) => (n.label ? [[n.id, n.label] as const] : [])))
 	// A step this run never reached reads as one row, its inner steps (a
 	// group's) added up into it.
-	for (const [flatId, ms] of Object.entries(before)) {
+	for (const [flatId, ms] of before) {
 		if (rowsById.has(flatId)) continue
 		const nodeId = flatId.split('__')[0] ?? flatId
 		const row = rowsById.get(nodeId) ?? {

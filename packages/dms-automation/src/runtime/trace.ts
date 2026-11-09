@@ -263,7 +263,10 @@ function namer(graph: ProcedureGraph | undefined, options: TraceOptions) {
     const found = graph ? stepName(graph, id) : undefined;
     return found?.kind ? found : undefined;
   };
-  const fromRun = (id: string) => options.names?.[id];
+  const fromRun = (id: string) => {
+    const { names } = options;
+    return names && Object.hasOwn(names, id) ? names[id] : undefined;
+  };
   const sources = options.outdated
     ? [fromRun, fromGraph]
     : [fromGraph, fromRun];

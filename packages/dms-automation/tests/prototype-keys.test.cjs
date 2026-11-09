@@ -8,7 +8,7 @@ const {
 const { registry } = require("../dist/runtime/registry.js");
 const { graphIssues } = require("../dist/runtime/graphIssues.js");
 const { stepNamesOf } = require("../dist/runtime/describe.js");
-const { stepDurations } = require("../dist/runtime/trace.js");
+const { stepDurations, traceOf } = require("../dist/runtime/trace.js");
 const { usageByEntry } = require("../dist/routes/library.js");
 const { queryOf } = require("../dist/runtime/builtins/triggers/webhook.js");
 const { isPropertyBag } = require("../dist/types/guards.js");
@@ -237,5 +237,103 @@ for (const name of INHERITED_NAMES) {
       type: "number",
       value: 1,
     });
+  });
+}
+
+registry.addDataNode("test.gives-nothing", {
+  id: "test.gives-nothing",
+  name: "Gives nothing",
+  evaluate: () => ({}),
+});
+registry.addDataNode("test.fails", {
+  id: "test.fails",
+  name: "Fails",
+  evaluate: () => {
+    throw new Error("failed");
+  },
+});
+
+/**
+ * The run of a manual trigger into a `log.message` node whose config is
+ * `config` and whose data edges are `dataEdges`, after the nodes `extra`.
+ * @param {import("../dist/types/dataValue.js").DataRecord} config
+ * @param {import("../dist/types/graph.js").GraphNode[]} [extra]
+ * @param {import("../dist/types/graph.js").DataEdge[]} [dataEdges]
+ */
+const runLog = (config, extra = [], dataEdges = []) =>
+  run(
+    {
+      nodes: [
+        node("t", "trigger", "manual"),
+        ...extra,
+        node("log", "action", "log.message", config),
+      ],
+      triggerEdges: [{ id: "t-log", from: { node: "t" }, to: { node: "log" } }],
+      dataEdges,
+    },
+    "t",
+    {},
+  );
+
+for (const name of INHERITED_NAMES) {
+  void test(`a step ${name} the run's kept names miss is named by its id`, () => {
+    const entry = (
+      /** @type {string} */ message,
+      /** @type {number} */ ts,
+    ) => ({
+      ts,
+      level: "info",
+      source: "executor",
+      fireId: "f",
+      nodeId: name,
+      nodeKind: "action",
+      message,
+    });
+    const trace = traceOf(
+      undefined,
+      {
+        entries: [entry("executing", 1), entry("executed", 2)],
+        fires: [{ id: "f", sourceNodeId: name }],
+      },
+      undefined,
+      { outdated: true, names: {} },
+    );
+    assert.deepEqual(trace.steps[0]?.name, { nodeId: name, kind: "action" });
+  });
+
+  void test(`a step failing with its field ${name} unfed names the source that gave nothing`, async () => {
+    const result = await runLog(
+      { message: "m" },
+      [
+        node("src", "data", "test.gives-nothing"),
+        node("d", "data", "test.fails"),
+      ],
+      [
+        {
+          id: "src-d",
+          from: { node: "src", port: "out" },
+          to: { node: "d", field: name },
+        },
+        {
+          id: "d-log",
+          from: { node: "d", port: "x" },
+          to: { node: "log", field: "value" },
+        },
+      ],
+    );
+    assert.match(
+      JSON.stringify(result.logs.entries),
+      new RegExp(
+        `failed\\. ${name} comes from test\\.gives-nothing \\(out\\), which gave no value`,
+      ),
+    );
+  });
+
+  void test(`log.message at the level ${name} runs`, async () => {
+    const result = await runLog({ message: "m", level: name });
+    assert.deepEqual(
+      result.logs.entries.filter((entry) => entry.level === "error"),
+      [],
+    );
   });
 }

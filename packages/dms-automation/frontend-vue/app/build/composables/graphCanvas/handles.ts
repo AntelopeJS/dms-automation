@@ -103,8 +103,8 @@ export function edgeClass(
   to: string,
 ): string {
   if (!runs) return "edge-trigger";
-  const target = runs[to]?.status;
-  const taken = runs[from] && target && target !== "skipped";
+  const target = runs.get(to)?.status;
+  const taken = runs.has(from) && target && target !== "skipped";
   if (taken && target === "failed") return "edge-trigger edge-failed";
   return taken ? "edge-trigger edge-taken" : "edge-trigger edge-idle";
 }

@@ -205,22 +205,20 @@ export function useDraftProblems(
   );
 
   // Code and params travel along: the inspector names a setting as its form does.
-  const issuesByNode = computed<Record<string, Omit<GraphIssue, "nodeId">>>(
-    () => {
-      const out: Record<string, Omit<GraphIssue, "nodeId">> = {};
-      for (const issue of issues.value) {
-        if (!issue.nodeId) continue;
-        if (!out[issue.nodeId] || issue.severity === "error")
-          out[issue.nodeId] = {
-            severity: issue.severity,
-            message: issueText(issue),
-            code: issue.code,
-            params: issue.params,
-          };
-      }
-      return out;
-    },
-  );
+  const issuesByNode = computed(() => {
+    const out = new Map<string, Omit<GraphIssue, "nodeId">>();
+    for (const issue of issues.value) {
+      if (!issue.nodeId) continue;
+      if (!out.has(issue.nodeId) || issue.severity === "error")
+        out.set(issue.nodeId, {
+          severity: issue.severity,
+          message: issueText(issue),
+          code: issue.code,
+          params: issue.params,
+        });
+    }
+    return out;
+  });
 
   let dockOpenedForProblems = false;
   watch(
