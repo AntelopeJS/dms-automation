@@ -296,7 +296,12 @@ void test("the live tables hold their rows while paused", () => {
     whileRowOpen: true,
     whileScrolled: true,
   });
-  assert.equal(requiredOptionsOf(PAGES.procedures.table).liveHold, true);
+});
+
+void test("the procedures list follows its changes on screen while Live and holds them while paused", () => {
+  assert.deepEqual(requiredOptionsOf(PAGES.procedures.table).liveHold, {
+    whileOnScreen: false,
+  });
 });
 
 void test("every data block of the overview and the run history follows the live topics", () => {

@@ -10,9 +10,9 @@ Journey ids are `procedures-page/<id>` unless another feature is named. Docs fil
 | 2.procedures.md:16 | Healthy: no failure in 7 days; never ran is healthy with No run yet | the-list-shows-five-columns-with-each-state-and-its-reason; live-and-pause-hold-the-rows-and-count-the-changes | rows 4 and 5; "a procedure that has not run is Healthy with No run yet" |
 | 2.procedures.md:17 | Paused: disabled after it was enabled or ran | the-list-shows-five-columns-with-each-state-and-its-reason | row 6 reads Paused |
 | 2.procedures.md:18 | Draft: no trigger, or disabled and never enabled nor run | the-list-shows-five-columns-with-each-state-and-its-reason | row 7 reads Draft, No trigger yet |
-| 2.procedures.md:21 | States move live as runs land and procedures change | live-and-pause-hold-the-rows-and-count-the-changes | a run moves its row to Failing; a new procedure appears (FAILS: dms-automation-procedures-live-list-does-not-take-new-procedures) |
+| 2.procedures.md:21 | States move live as runs land and procedures change | live-and-pause-hold-the-rows-and-count-the-changes | a run moves its row to Failing; a new procedure appears |
 | 2.procedures.md:21 | The bar says when the list was updated | the-list-shows-five-columns-with-each-state-and-its-reason; live-and-pause-hold-the-rows-and-count-the-changes | "Updated N s ago" |
-| 2.procedures.md:21 | Pause keeps the rows as they stand; N new · Show counts the changes since | live-and-pause-hold-the-rows-and-count-the-changes | Paused rows stay; "Paused · 1 new"; Show brings the row in (FAILS with the live issue) |
+| 2.procedures.md:21 | Pause keeps the rows as they stand; N new · Show counts the changes since | live-and-pause-hold-the-rows-and-count-the-changes | Paused rows stay; "Paused · 1 new" and the "1 new · Show" pill, waited for since it counts after the toolbar; Show brings the row in |
 | 2.procedures.md:23 | Test runs never count in these states | procedures/states-follow-the-runs-as-the-docs-define-them | test runs left out of the state |
 | 2.procedures.md:25 | Tabs Failing, Degraded, Healthy, Paused, Drafts filter by state | tabs-filter-by-state-and-show-their-counts | each tab lists its state; All order |
 | 2.procedures.md:25 | The tabs show their counts | tabs-filter-by-state-and-show-their-counts | tabs and counts (FAILS: dms-automation-procedures-tab-counts-never-load) |

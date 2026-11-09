@@ -9,7 +9,7 @@
     "frontend:dev": "ajs dms dev"
   },
   "dependencies": {
-    "@antelopejs/dms": ">=0.16.0 <1.0.0",
+    "@antelopejs/dms": ">=0.19.0 <1.0.0",
     "@antelopejs/interface-api": ">=0.2.0 <1.0.0",
     "@antelopejs/interface-api-util": ">=0.3.0 <1.0.0",
     "@antelopejs/interface-core": ">=0.4.0 <1.0.0",
@@ -25,7 +25,7 @@
     "rimraf": "^6.0.1",
     "typescript": "^6.0.3"
   },
-  "packageManager": "pnpm@10.2.0",
+  "packageManager": "pnpm@10.33.0",
   "antelopeJs": {
     "baseUrl": "dist",
     "paths": {
