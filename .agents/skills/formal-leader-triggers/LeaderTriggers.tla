@@ -7,7 +7,7 @@
 (* Each instance runs the leader tick every TTL/3 (leader.ts:10, 200): it *)
 (* renews the key `dms-automation:leader` while it believes it holds it,  *)
 (* or tries SET NX PX otherwise. Winning or losing queues a reconcile on  *)
-(* the instance's serial queue (subscriptions.ts:62-66, 220-229), and the *)
+(* the instance's serial queue (subscriptions.ts:44-48, 202-211), and the *)
 (* reconcile arms the singleton triggers only when it reads leadership    *)
 (* (reconcile.ts:248-270). destroy() stops the election, the bus, and     *)
 (* tears the handles down, then releases the key (index.ts:168-176).     *)
@@ -41,7 +41,7 @@ VARIABLES
   done,     \* reconciles that finished
   rpc,      \* the reconcile running now: "none", or "apply" once it read leadership
   rsnap,    \* the leadership that reconcile read (reconcile.ts:250)
-  tdAt,     \* the queue position of destroy()'s second teardown, or 0 (subscriptions.ts:449)
+  tdAt,     \* the queue position of destroy()'s second teardown, or 0 (subscriptions.ts:433)
   armed,    \* whether the instance's singleton trigger handle is armed
   life,     \* "running", "stopping" or "stopped"
   spc,      \* where destroy() is (index.ts:168-176, leader.ts:214-247)
@@ -210,7 +210,7 @@ ReconcileApply(i) ==
                  rsnap, tdAt, life, spc, errors, external, stops>>
 
 (* A peer's edit on the bus, or a procedure edit here, queues a reconcile *)
-(* (subscriptions.ts:177-183, 230-235, 259-266).                         *)
+(* (subscriptions.ts:159-165, 212-217, 241-248).                         *)
 External(i) ==
   /\ external < MaxExternal
   /\ external' = external + 1
@@ -246,7 +246,7 @@ StopWait(i) ==
 
 (* destroy() then awaits bus.close(); _deactivateAll tears every handle   *)
 (* down at once and queues a second teardown on the reconcile queue       *)
-(* (index.ts:173-174, subscriptions.ts:447-451).                          *)
+(* (index.ts:173-174, subscriptions.ts:429-433).                          *)
 StopBus(i) ==
   /\ spc[i] = "bus"
   /\ spc' = [spc EXCEPT ![i] = "deactivate"]
@@ -257,7 +257,7 @@ StopBus(i) ==
                  rpc, rsnap, life, errors, external, stops>>
 
 (* After every reconcile queued before it, the second teardown runs. The   *)
-(* wait for it is capped (subscriptions.ts:450-460); the model assumes    *)
+(* wait for it is capped (subscriptions.ts:432-442); the model assumes    *)
 (* the pending reconciles settle within that cap.                         *)
 StopDeactivate(i) ==
   /\ spc[i] = "deactivate"
