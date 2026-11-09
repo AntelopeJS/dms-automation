@@ -291,8 +291,9 @@ for (const [file, controller] of Object.entries(LIVE_PAGES)) {
   });
 }
 
-void test("the live tables hold their rows while paused", () => {
+void test("the run history takes new runs on screen while Live and holds while a run is open or scrolled down", () => {
   assert.deepEqual(requiredOptionsOf(PAGES.runs.table).liveHold, {
+    whileOnScreen: false,
     whileRowOpen: true,
     whileScrolled: true,
   });
