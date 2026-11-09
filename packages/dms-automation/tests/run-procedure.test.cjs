@@ -107,11 +107,50 @@ const intake = {
     dataEdges: [],
   }),
 };
+/** @type {StoredProcedure} */
+const unconfigured = {
+  ...scheduled,
+  _id: "reports.unconfigured",
+  enabled: false,
+  graph: JSON.stringify({
+    nodes: [
+      node("start", "trigger", "manual"),
+      node("call", "action", "http.request"),
+    ],
+    triggerEdges: [edge("start", "call")],
+    dataEdges: [],
+  }),
+};
+/** @type {StoredProcedure} */
+const untriggered = {
+  ...scheduled,
+  _id: "reports.untriggered",
+  enabled: false,
+  graph: JSON.stringify({
+    nodes: [node("log", "action", "log.message", { message: "report" })],
+    triggerEdges: [],
+    dataEdges: [],
+  }),
+};
+/** @type {StoredProcedure} */
+const bare = {
+  ...scheduled,
+  _id: "reports.bare",
+  enabled: false,
+  graph: JSON.stringify({
+    nodes: [node("call", "action", "http.request")],
+    triggerEdges: [],
+    dataEdges: [],
+  }),
+};
 /** @type {Map<string, StoredProcedure>} */
 const procedures = new Map([
   [scheduled._id, scheduled],
   [broken._id, broken],
   [intake._id, intake],
+  [unconfigured._id, unconfigured],
+  [untriggered._id, untriggered],
+  [bare._id, bare],
 ]);
 
 /** @type {RunRow[]} */
@@ -248,4 +287,51 @@ void test("it is refused as Run now is", async () => {
       return true;
     },
   );
+});
+
+/**
+ * The toast of a refusal and the codes of the blocking issues it lists.
+ * @param {unknown} body
+ * @returns {{ message: unknown, codes: unknown[] }}
+ */
+function refusal(body) {
+  assert.ok(isString(body));
+  /** @type {unknown} */
+  const parsed = JSON.parse(body);
+  assert.ok(isPropertyBag(parsed) && Array.isArray(parsed.issues));
+  const codes = parsed.issues
+    .filter((i) => isPropertyBag(i) && i.severity === "error")
+    .map((i) => isPropertyBag(i) && i.code);
+  return { message: parsed.message, codes };
+}
+
+void test("a graph with a step missing its settings or no trigger is refused with its issues", async () => {
+  const stored = runs.length;
+  /** @type {[StoredProcedure, string, string][]} */
+  const cases = [
+    [unconfigured, "missingField", "graphHasErrors"],
+    [untriggered, "noTrigger", "noTriggerToRun"],
+    [bare, "missingField", "noTriggerToRun"],
+    [bare, "noTrigger", "noTriggerToRun"],
+  ];
+  for (const [procedure, code, toast] of cases) {
+    await assert.rejects(RunProcedure(procedure._id), (err) => {
+      const { status, body } = thrown(err);
+      assert.equal(status, 400);
+      const { message, codes } = refusal(body);
+      assert.equal(message, `$dms_automation.api.${toast}`);
+      assert.ok(codes.includes(code), `${procedure._id} lists ${code}`);
+      return true;
+    });
+  }
+  for (const procedure of [untriggered, unconfigured]) {
+    await assert.rejects(
+      RunProcedure(procedure._id, { triggerNodeId: "nope" }),
+      (err) => {
+        assert.equal(thrown(err).status, 404, `${procedure._id} has no "nope"`);
+        return true;
+      },
+    );
+  }
+  assert.equal(runs.length, stored, "no run is stored");
 });

@@ -169,6 +169,25 @@ export async function executeProcedure(
   });
 }
 
+/**
+ * Why a run cannot start from `triggerNodeId`: it is not in the graph, or the
+ * graph has no trigger at all.
+ */
+export function noTriggerToRun(
+  triggerNodeId: string | undefined,
+  owner: string,
+): HTTPResult {
+  return triggerNodeId
+    ? new HTTPResult(404, {
+        error: `trigger "${triggerNodeId}" is not in ${owner}`,
+        message: "$dms_automation.api.triggerNotFound",
+      })
+    : new HTTPResult(400, {
+        error: `${owner} has no trigger to run from`,
+        message: "$dms_automation.api.noTriggerToRun",
+      });
+}
+
 /** A trigger of the graph: the one named, else the manual one, else the first. */
 export function findTriggerNode(
   graph: ProcedureGraph,

@@ -21,10 +21,13 @@ const REFUSAL_OF_ISSUE = new Map([
   ["webhookPathTaken", `${API}.webhookPathTaken`],
 ]);
 
-export function graphRefusal(issues: GraphIssue[]): HTTPResult {
-  const first = issues.find((i) => i.severity === "error");
-  const message =
-    REFUSAL_OF_ISSUE.get(first?.code ?? "") ?? `${API}.graphHasErrors`;
+/** The 400 of a graph with blocking `issues`, its toast `message` when given. */
+export function graphRefusal(
+  issues: GraphIssue[],
+  message = REFUSAL_OF_ISSUE.get(
+    issues.find((i) => i.severity === "error")?.code ?? "",
+  ) ?? `${API}.graphHasErrors`,
+): HTTPResult {
   return invalid("invalid graph", issues, message);
 }
 
