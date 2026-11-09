@@ -62,7 +62,9 @@ export const logAction: ActionType<LogInput, LogOutput> = {
       value === undefined
         ? [`${tag} ${message}`]
         : [`${tag} ${message}`, value];
-    const writeLog = channelByLevel[level] ?? channelByLevel.info;
+    const writeLog = Object.hasOwn(channelByLevel, level)
+      ? channelByLevel[level]
+      : channelByLevel.info;
     writeLog(...args);
     return { message, value };
   },
