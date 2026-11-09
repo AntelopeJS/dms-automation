@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { test } = require("node:test");
+const { mock, test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
 Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
@@ -64,9 +64,16 @@ const procedures = new Map([
   ],
 ]);
 
+/** @type {Promise<unknown> | undefined} A read of the procedures waits on it. */
+let readGate;
+
 Object.assign(ProcedureModel.prototype, {
-  listEnabled: async () =>
-    [...procedures.values()].filter((p) => p.enabled).map((p) => ({ ...p })),
+  listEnabled: async () => {
+    await readGate;
+    return [...procedures.values()]
+      .filter((p) => p.enabled)
+      .map((p) => ({ ...p }));
+  },
   update: async (
     /** @type {string} */ id,
     /** @type {Partial<StoredProcedure>} */ patch,
@@ -162,6 +169,73 @@ void test("a follower leaves a singleton trigger unarmed until it leads, and dis
   await subscriptions.onLostLeadership();
   assert.equal(singleton.armed.size, 0);
 });
+
+void test("a reconcile that read leadership before a shutdown leaves nothing armed once _deactivateAll() returns", async (t) => {
+  t.after(async () => {
+    subscriptions.useLeadershipSource(() => true);
+    internal.RegisterTriggerType.unregister(TYPE_ID);
+    await subscriptions._deactivateAll();
+  });
+  const singleton = recordingType();
+  singleton.cluster = "singleton";
+  const entered = Promise.withResolvers();
+  const resume = Promise.withResolvers();
+  const activate = singleton.activate.bind(singleton);
+  singleton.activate = async () => {
+    entered.resolve();
+    await resume.promise;
+    return activate();
+  };
+  internal.RegisterTriggerType.register(TYPE_ID, singleton);
+  let leader = false;
+  subscriptions.useLeadershipSource(() => leader);
+  await subscriptions.hydrate();
+
+  leader = true;
+  const promotion = subscriptions.onBecameLeader();
+  await entered.promise;
+  leader = false;
+  const teardown = subscriptions._deactivateAll();
+  resume.resolve();
+  await teardown;
+
+  assert.equal(singleton.armed.size, 0);
+  await promotion;
+});
+
+void test(
+  "a reconcile stuck on the database does not hold _deactivateAll() past its cap, and its handles are torn down at once",
+  { timeout: 10_000 },
+  async (t) => {
+    const stuck = Promise.withResolvers();
+    t.after(async () => {
+      mock.timers.reset();
+      readGate = undefined;
+      stuck.resolve();
+      internal.RegisterTriggerType.unregister(TYPE_ID);
+      await subscriptions._deactivateAll();
+    });
+    const replicated = recordingType();
+    internal.RegisterTriggerType.register(TYPE_ID, replicated);
+    await subscriptions.hydrate();
+    assert.equal(replicated.armed.size, 2);
+
+    readGate = stuck.promise;
+    void subscriptions.onProcedureChange();
+    mock.timers.enable({ apis: ["setTimeout"] });
+    let returned = false;
+    const teardown = subscriptions._deactivateAll().then(() => {
+      returned = true;
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    mock.timers.tick(2_000);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(returned, true, "_deactivateAll() returned within its cap");
+    assert.equal(replicated.armed.size, 0);
+    await teardown;
+  },
+);
 
 void test("a reload during activation releases each definition's own handles", async (t) => {
   t.after(async () => {

@@ -9,8 +9,9 @@ const TTL_MS = 30_000;
 /** Tolerates two missed renews before expiry. */
 const TICK_MS = TTL_MS / 3;
 /**
- * Cap on how long stop() waits for an in-flight tick before tearing down anyway,
- * so shutdown can't hang on a wedged trigger op.
+ * Cap on how long stop() waits for an in-flight tick, and then for the release,
+ * before tearing down anyway, so shutdown can't hang on a wedged trigger op or
+ * Redis.
  */
 const SHUTDOWN_GRACE_MS = 5_000;
 
@@ -48,6 +49,11 @@ let currentTick: Promise<void> | undefined;
  * to have expired (so a peer may have legitimately taken over).
  */
 let lastHeldAt = 0;
+/** Bumped by stop(): a tick started under an older one no longer runs leadership. */
+let generation = 0;
+
+/** What the tick's Redis round trip asks it to do next. */
+type Outcome = "promote" | "stepDown" | "none";
 
 /** Does this instance currently hold the leader lock? Read live by subscriptions. */
 export function isLeader(): boolean {
@@ -56,7 +62,6 @@ export function isLeader(): boolean {
 
 /** Swallow a faulty callback so it can't escape the fire-and-forget tick loop. */
 async function stepDown(): Promise<void> {
-  holdsLock = false;
   try {
     await transitions?.onLostLeadership();
   } catch (err) {
@@ -69,10 +74,9 @@ async function stepDown(): Promise<void> {
  * when a promotion's side-effects fail, so the lock doesn't linger held by an
  * instance that isn't actually running the singletons.
  */
-async function release(): Promise<void> {
-  if (!client) return;
+async function release(c: RedisClient): Promise<void> {
   try {
-    await client.eval(RELEASE_LUA, 1, LOCK_KEY, instanceId);
+    await c.eval(RELEASE_LUA, 1, LOCK_KEY, instanceId);
   } catch (err) {
     Logging.Error("[dms-automation] leader: release failed:", err);
   }
@@ -81,11 +85,14 @@ async function release(): Promise<void> {
 /**
  * Won the lock: become leader and arm singletons. On failure, release the lock
  * and step down so a fresh election — our next tick or a peer — retries cleanly,
- * instead of holding leadership with no singletons running.
+ * instead of holding leadership with no singletons running. A failure that
+ * lands after stop() leaves the lock to the generation running now.
  */
-async function promote(t: LeaderTransitions): Promise<void> {
-  holdsLock = true;
-  lastHeldAt = Date.now();
+async function promote(
+  c: RedisClient,
+  t: LeaderTransitions,
+  gen: number,
+): Promise<void> {
   try {
     await t.onBecameLeader();
   } catch (err) {
@@ -93,14 +100,47 @@ async function promote(t: LeaderTransitions): Promise<void> {
       "[dms-automation] leader: promotion failed, releasing lock:",
       err,
     );
+    if (gen !== generation) return;
     holdsLock = false;
-    await release();
+    await release(c);
   }
 }
 
 /**
  * renewed === 0 → definitive loss (key gone or owned by another instance).
- *
+ * A stop() during the round trip leaves the lock to stop(), which releases it.
+ */
+async function renew(c: RedisClient, gen: number): Promise<Outcome> {
+  const renewed = Number(
+    await c.eval(RENEW_LUA, 1, LOCK_KEY, instanceId, String(TTL_MS)),
+  );
+  if (gen !== generation) return "none";
+  if (renewed !== 0) {
+    lastHeldAt = Date.now();
+    return "none";
+  }
+  holdsLock = false;
+  return "stepDown";
+}
+
+/**
+ * A key won after stop() began is released at once, through the client the
+ * tick started with: stop() may already have returned.
+ */
+async function acquire(c: RedisClient, gen: number): Promise<Outcome> {
+  if ((await c.set(LOCK_KEY, instanceId, "PX", TTL_MS, "NX")) !== "OK") {
+    return "none";
+  }
+  if (gen !== generation) {
+    await release(c);
+    return "none";
+  }
+  holdsLock = true;
+  lastHeldAt = Date.now();
+  return "promote";
+}
+
+/**
  * Transient redis error. Do NOT step down on the first failure: the lock is
  * almost certainly still ours (its TTL has not lapsed), and a false
  * step-down would black out singleton triggers cluster-wide while this
@@ -109,23 +149,21 @@ async function promote(t: LeaderTransitions): Promise<void> {
  */
 async function tick(): Promise<void> {
   if (!client || !transitions || ticking) return;
+  const c = client;
   const t = transitions;
+  const gen = generation;
   ticking = true;
   try {
-    if (holdsLock) {
-      const renewed = Number(
-        await client.eval(RENEW_LUA, 1, LOCK_KEY, instanceId, String(TTL_MS)),
-      );
-      if (renewed === 0) await stepDown();
-      else lastHeldAt = Date.now();
-      return;
-    }
-    if ((await client.set(LOCK_KEY, instanceId, "PX", TTL_MS, "NX")) === "OK") {
-      await promote(t);
-    }
+    const outcome = await (holdsLock ? renew(c, gen) : acquire(c, gen));
+    if (outcome === "promote") await promote(c, t, gen);
+    else if (outcome === "stepDown") await stepDown();
   } catch (err) {
     Logging.Error("[dms-automation] leader: tick failed:", err);
-    if (holdsLock && Date.now() - lastHeldAt > TTL_MS) await stepDown();
+    if (gen !== generation) return;
+    if (holdsLock && Date.now() - lastHeldAt > TTL_MS) {
+      holdsLock = false;
+      await stepDown();
+    }
   } finally {
     ticking = false;
   }
@@ -160,29 +198,34 @@ export async function start(t: LeaderTransitions): Promise<void> {
   timer = setInterval(runTick, TICK_MS);
 }
 
+/** Wait for `p`, but at most SHUTDOWN_GRACE_MS. */
+async function withinGrace(p: Promise<void>): Promise<void> {
+  let graceTimer: NodeJS.Timeout | undefined;
+  const grace = new Promise<void>((resolve) => {
+    graceTimer = setTimeout(resolve, SHUTDOWN_GRACE_MS);
+    graceTimer.unref?.();
+  });
+  await Promise.race([p, grace]);
+  clearTimeout(graceTimer);
+}
+
 /**
  * Stop contending and release the lock if we hold it (graceful handoff).
  *
- * Let an in-flight tick finish so release() can't race it — but cap the wait
- * so a wedged tick can't hang shutdown forever.
+ * Let an in-flight tick finish so release() can't race it, then release. Each
+ * wait has its own cap, so a wedged tick or a silent Redis can't hang shutdown
+ * forever, and a wedged tick leaves the release its full grace; a lock left
+ * unreleased expires after TTL_MS. A tick still running past the cap no
+ * longer promotes or steps down, and releases a key it wins.
  */
 export async function stop(): Promise<void> {
   if (timer) {
     clearInterval(timer);
     timer = undefined;
   }
-  if (currentTick) {
-    let graceTimer: NodeJS.Timeout | undefined;
-    const grace = new Promise<void>((resolve) => {
-      graceTimer = setTimeout(resolve, SHUTDOWN_GRACE_MS);
-      graceTimer.unref?.();
-    });
-    await Promise.race([currentTick, grace]);
-    if (graceTimer) clearTimeout(graceTimer);
-  }
-  if (holdsLock) {
-    await release();
-  }
+  generation += 1;
+  if (currentTick) await withinGrace(currentTick);
+  if (holdsLock && client) await withinGrace(release(client));
   holdsLock = false;
   ticking = false;
   client = undefined;

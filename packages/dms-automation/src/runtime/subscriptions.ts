@@ -31,6 +31,7 @@ import {
   forkUsage,
 } from "./templateUsages";
 import { handles, key, release, teardown } from "./triggerHandles";
+import { withTimeout } from "./withTimeout";
 
 /**
  * Serialize reconciles: a leadership transition, a route edit, and a bus
@@ -44,6 +45,21 @@ const reconciles = serialQueue();
 
 function queueReconcile(): Promise<void> {
   return reconciles.run(() => reconcile());
+}
+
+/**
+ * How long shutdown waits for the pending reconciles before it returns; the
+ * queued teardown still runs once they settle.
+ */
+const PENDING_RECONCILES_WAIT_MS = 2_000;
+
+/** Tear every trigger handle down and forget its arm error. */
+async function tearDownAll(): Promise<void> {
+  for (const [k, entry] of handles) {
+    await teardown(k, entry);
+    release(k, entry);
+  }
+  activationErrors.clear();
 }
 
 /**
@@ -402,13 +418,21 @@ export const subscriptions = {
     }
     return undefined;
   },
-  /** @internal exposed for destroy() in src/index.ts */
+  /**
+   * @internal exposed for destroy() in src/index.ts. Tears every handle down
+   * at once, then again after every pending reconcile, so one that read
+   * leadership before the stop cannot leave a handle armed. The second wait is
+   * capped, so a reconcile that hangs cannot hang shutdown.
+   */
   async _deactivateAll(): Promise<void> {
-    for (const [k, entry] of handles) {
-      await teardown(k, entry);
-      release(k, entry);
-    }
-    activationErrors.clear();
     hydrated = false;
+    await tearDownAll();
+    await withTimeout(
+      reconciles.run(tearDownAll),
+      PENDING_RECONCILES_WAIT_MS,
+      "teardown after the pending reconciles",
+    ).catch((err: unknown) => {
+      Logging.Error("[dms-automation] shutdown:", err);
+    });
   },
 };
