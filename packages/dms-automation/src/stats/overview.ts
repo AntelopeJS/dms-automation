@@ -399,14 +399,15 @@ export interface TopListItem {
 export function triggerCounts(ctx: StatsContext): TopListItem[] {
   const counts = new Map<string, TopListItem>();
   for (const facts of ctx.procedures) {
-    for (const trigger of facts.triggers) {
-      const item = counts.get(trigger.typeId) ?? {
-        id: trigger.typeId,
-        title: trigger.typeName,
+    const types = new Map(facts.triggers.map((t) => [t.typeId, t.typeName]));
+    for (const [typeId, typeName] of types) {
+      const item = counts.get(typeId) ?? {
+        id: typeId,
+        title: typeName,
         value: 0,
       };
       item.value += 1;
-      counts.set(trigger.typeId, item);
+      counts.set(typeId, item);
     }
   }
   return [...counts.values()].sort((a, b) => b.value - a.value);

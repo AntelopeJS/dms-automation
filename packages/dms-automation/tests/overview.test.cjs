@@ -8,6 +8,7 @@ const {
   RECENT_RUNS,
   recentRunItems,
   runsPerDayChart,
+  triggerCounts,
 } = require("../dist/stats/overview.js");
 
 const HOUR = 3600 * 1000;
@@ -361,4 +362,18 @@ void test("a period that cannot be read is refused", () => {
   refused({ from: "garbage" });
   refused({ from: "1700-01-01T00:00:00Z" });
   refused({ from: NOW.toISOString(), to: ago(24).toISOString() });
+});
+
+void test("by trigger counts a procedure once per trigger type", () => {
+  const twoEvents = procedure("p", "Two events");
+  twoEvents.triggers = [
+    { nodeId: "a", typeId: "verify.event", typeName: "Fixture event" },
+    { nodeId: "b", typeId: "verify.event", typeName: "Fixture event" },
+    { nodeId: "c", typeId: "manual", typeName: "Manual" },
+  ];
+  const ctx = context([twoEvents, procedure("q", "Manual only")], []);
+  assert.deepEqual(triggerCounts(ctx), [
+    { id: "manual", title: "Manual", value: 2 },
+    { id: "verify.event", title: "Fixture event", value: 1 },
+  ]);
 });
