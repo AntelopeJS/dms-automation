@@ -80,13 +80,20 @@ export class DataCache {
 
   /**
    * Cache a data-node result together with the upstream versions it was
-   * computed against. Bumps the node's own version so any *downstream*
-   * data-node caches dependent on this node revalidate.
+   * computed against, the sources of each upstream data node included, so a
+   * change two data nodes up still invalidates it. Bumps the node's own
+   * version so any *downstream* data-node caches dependent on this node
+   * revalidate.
    */
   cacheData(nodeId: string, value: DataRecord, deps: Iterable<string>): void {
     this.setOutput(nodeId, value);
     const depMap = new Map<string, number>();
-    for (const depId of deps) depMap.set(depId, this.versionOf(depId));
+    for (const depId of deps) {
+      depMap.set(depId, this.versionOf(depId));
+      for (const [id, seen] of this.dataResults.get(depId)?.deps ?? []) {
+        depMap.set(id, seen);
+      }
+    }
     this.dataResults.set(nodeId, { result: value, deps: depMap });
   }
 
@@ -112,8 +119,8 @@ export function schemaDefaults(schema: JsonSchema | undefined) {
 /**
  * Builds the input record for a node by merging its type's schema defaults,
  * its static config and its data-edge wired fields, in that order. For each incoming data edge, pulls the upstream
- * output via `cache.getOutput(...)` or — when the source is a data-kind
- * node not yet evaluated — via the optional `evaluateDataNode` callback.
+ * output through the optional `evaluateDataNode` callback, which recomputes a
+ * data node whose sources changed, or else through `cache.getOutput(...)`.
  *
  * Edges whose source has no output and no evaluator hit are skipped, and
  * the target field falls back to its static config value (if any).
@@ -134,11 +141,9 @@ export function resolveInputs(
   for (const edge of dataEdges) {
     if (edge.to.node !== node.id) continue;
 
-    let upstream = cache.getOutput(edge.from.node);
-
-    if (upstream === undefined && evaluateDataNode) {
-      upstream = evaluateDataNode(edge.from.node);
-    }
+    const upstream = evaluateDataNode
+      ? evaluateDataNode(edge.from.node)
+      : cache.getOutput(edge.from.node);
 
     if (!isPropertyBag(upstream)) continue;
 
