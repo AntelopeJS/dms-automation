@@ -88,7 +88,7 @@ const router = useDmsRouter()
 // The catalog and where its entries are used, read with the page.
 const listRead = useApiData<CatalogEntry[] | NodeKindEntry[]>(`${props.apiUrl}/${ENDPOINTS[props.kind]}`)
 const usageRead = useApiData<Record<string, TypeUsage[]>>(`${props.apiUrl}/library/usage/${props.kind}`)
-const usage = computed(() => usageRead.data.value ?? {})
+const usage = computed(() => new Map(Object.entries(usageRead.data.value ?? {})))
 const loading = computed(() => listRead.pending.value || usageRead.pending.value)
 const error = computed(() => {
 	const failure = listRead.error.value ?? usageRead.error.value
@@ -219,7 +219,7 @@ function backToList() {
 	list.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-const uses = computed(() => (selected.value ? (usage.value[selected.value.id] ?? []) : []))
+const uses = computed(() => (selected.value ? (usage.value.get(selected.value.id) ?? []) : []))
 const enabledUses = computed(() => new Set(uses.value.filter((u) => u.enabled).map((u) => u.procedureId)).size)
 
 /** "Used by", one line per procedure with the nodes placing the entry under it, by state then name. */
@@ -233,7 +233,7 @@ const procedureUses = computed(() => {
 const shownProcedureUses = computed(() => (showAllUses.value ? procedureUses.value : procedureUses.value.slice(0, USES_SHOWN)))
 
 function useCount(id: string): number {
-	return new Set((usage.value[id] ?? []).map((u) => u.procedureId)).size
+	return new Set((usage.value.get(id) ?? []).map((u) => u.procedureId)).size
 }
 
 const settingsSchema = computed(() => (props.kind === 'actions' ? selected.value?.inputSchema : selected.value?.configSchema))

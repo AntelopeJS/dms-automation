@@ -99,23 +99,23 @@ export function useRunOverlay(
     },
   );
 
-  const runStates = computed<Record<string, NodeRunState> | undefined>(() => {
+  const runStates = computed<Map<string, NodeRunState> | undefined>(() => {
     const run = overlayRun.value;
     if (!run || subgraphPath.value.length > 1) return undefined;
-    const out: Record<string, NodeRunState> = {};
+    const out = new Map<string, NodeRunState>();
     for (const step of run.trace.steps) {
       const id = step.nodeId.split("__")[0]!;
-      const previous = out[id];
+      const previous = out.get(id);
       const status = step.status === "failed" ? "failed" : "ok";
       if (!previous || status === "failed") {
-        out[id] = {
+        out.set(id, {
           status,
           durationMs: (previous?.durationMs ?? 0) + (step.durationMs ?? 0),
-        };
+        });
       }
     }
     for (const skipped of run.trace.skipped)
-      out[skipped.nodeId] = { status: "skipped" };
+      out.set(skipped.nodeId, { status: "skipped" });
     return out;
   });
 

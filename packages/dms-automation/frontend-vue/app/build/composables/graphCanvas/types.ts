@@ -39,9 +39,9 @@ export interface CanvasProps {
   // move, delete, or edit. The "Apply / Cancel" buttons are hidden too.
   readOnly?: boolean;
   /** Outcome of each node in the run shown over the canvas (a test run, a debugged run). */
-  runStates?: Record<string, NodeRunState>;
+  runStates?: Map<string, NodeRunState>;
   /** The problem of each node the validator named. */
-  issues?: Record<string, NodeIssue>;
+  issues?: Map<string, NodeIssue>;
   /**
    * The node the editor has selected (inspector, dock "Select node", a
    * `?node=` link): the canvas selects it too and brings it into view.

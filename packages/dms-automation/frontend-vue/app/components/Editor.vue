@@ -298,7 +298,7 @@ const { paletteHidden, togglePalette } = palette
 					:run-step="subgraphPath.length <= 1 ? selectedRunStep : null"
 					:run-label="overlayLabel"
 					:run-trace-url="overlayRun ? `${traceUrl}?run=${overlayRun._id}` : undefined"
-					:issue="issuesByNode[selectedNode.id] ?? null"
+					:issue="issuesByNode.get(selectedNode.id) ?? null"
 					:node-name="nodeDisplayName"
 					:saved-triggers="savedTriggers"
 					@update:node="onUpdateNode"
