@@ -5,9 +5,9 @@ description: TLA+ model of the redis-mode leader election of @antelopejs/dms-aut
 
 # Formal check: leader election and singleton triggers
 
-In redis mode, every instance of `@antelopejs/dms-automation` contends for the key `dms-automation:leader` (`SET NX PX`, TTL 30 s, a tick every 10 s, an owner-checked renew and release in Lua). The instance that believes it holds the key (`holdsLock`) arms the singleton triggers, schedules and webhooks, through a reconcile on its serial queue. The other instances arm only the replicated ones. Two armed instances fire every singleton trigger twice.
+In redis mode, every instance of `@antelopejs/dms-automation` contends for the key `dms-automation:leader` (`SET NX PX`, TTL 30 s, a tick every 10 s, an owner-checked renew and release in Lua). The instance that believes it holds the key (`holdsLock`) arms the singleton triggers, schedules and webhooks, through a reconcile on its serial queue. The other instances arm only the replicated ones. `isLeader()` bounds that belief by a lease: it reads false once `TTL_MS` has passed since the send time of the command behind the last confirmed hold, and an armed singleton fires only while `isLeader()` reads true.
 
-The model treats each Redis round trip as one step, and TLC checks every order of those steps across two instances, a Redis error, a peer's edit, one `destroy()` and ticks of the clock, within the bounds below. An instance can stall: it takes no step while time passes. The promise it checks is that the singleton triggers are armed on one instance at most, and that a stopped instance leaves nothing behind.
+The model treats each Redis round trip as one step, and TLC checks every order of those steps across two instances, a Redis error, a peer's edit, one `destroy()` and ticks of the clock, within the bounds below. An instance can stall: it takes no step while time passes. The promise it checks is that a singleton trigger fires on one instance at most, that its triggers are armed on one instance at most, and that a stopped instance leaves nothing behind.
 
 - `LeaderTriggers.tla` holds the variables, the actions and the rules. Each condition carries a `file.ts:NN` comment; `leader.ts` is `packages/dms-automation/src/cluster/leader.ts`, and the other names are under `packages/dms-automation/src/`.
 - `Running.cfg` (no instance stops) and `Shutdown.cfg` (one instance runs `destroy()`) are the full configurations. Each has a `.ci.cfg` twin, the CI configuration.
@@ -26,10 +26,10 @@ Java 11 or later comes from `$JAVA`, else `java` on PATH, else the `eclipse-temu
 
 | Configuration | Last tick (10 s each) | States (running, shutdown, handoff) | Wall time |
 | --- | --- | --- | --- |
-| CI (`<config>.ci.cfg`) | 5, handoff 2 | 54,251, 458,987, 28,457 | 22.1 s |
-| Full (`<config>.cfg`) | 7 running, 6 shutdown, 2 handoff | 218,349, 941,077, 28,457 | 31.2 s |
+| CI (`<config>.ci.cfg`) | 5, handoff 2 | 878,992, 5,731,930, 68,800 | 28 s |
+| Full (`<config>.cfg`) | 7 running, 6 shutdown, 2 handoff | 8,302,275, 17,545,572, 68,800 | 1 min 15 s |
 
-Every configuration runs two instances, one Redis error and one reconcile queued by a peer's edit. `Handoff` is `Shutdown` stopped at tick 2, before any key can expire, so F1 cannot happen there and a shutdown that leaves two instances armed breaks a rule; its CI and full files are the same. The times are one run each in Docker Java 21 on a shared 32-core machine with a load average near 69; most of it is container and JVM start-up for the TLC runs.
+Every configuration runs two instances, one Redis error and one reconcile queued by a peer's edit. `Handoff` is `Shutdown` stopped at tick 2, before any key can expire, so F1 cannot happen there and a shutdown that leaves two instances armed breaks a rule; its CI and full files are the same. The send and answer times of each confirmed hold, which the lease of #113 needs, multiply the states. The times are one run each in Docker Java 21 on a shared, overloaded machine; most of it is container and JVM start-up for the TLC runs.
 
 - Exit 0 means every rule that held still holds, and each finding still breaks with its recorded counterexample length.
 - Exit 1 means a rule changed. `BROKEN` names a rule that held and now breaks. `CHANGED` names a finding whose shortest counterexample changed length. `HOLDS` names a finding that no longer breaks. The script keeps TLC's output in a temporary folder and prints its path. The run stops at the first configuration that changed, so a change in the running cluster skips the shutdown.
@@ -47,8 +47,9 @@ Run `--full` when a change touches a file in the coverage record below, or this 
 
 | Rule | Plain sentence | Harm when it breaks | Running (CI, full) | Shutdown (CI, full) | Handoff (CI, full) |
 | --- | --- | --- | --- | --- | --- |
-| `AtMostOneArmed` | At most one instance has the singleton triggers armed. | Every schedule and webhook trigger fires twice. | finding F1 (12, 12) | finding F1 (12, 12) | holds (F2 fixed) |
-| `ArmedImpliesBelief` | An armed instance believes it holds the lock. | An instance that knows it lost the lock still fires the singletons. | finding F1 (11, 11) | finding F1 (11, 11) | holds (F2 fixed) |
+| `AtMostOneFires` | At most one instance has the singleton triggers armed while `isLeader()` reads true. | Every schedule and webhook trigger fires twice. | holds | holds | holds |
+| `AtMostOneArmed` | At most one instance has the singleton triggers armed. | Two instances run the triggers' own code, such as a timer or a webhook route; `AtMostOneFires` keeps them from both starting runs. | finding F1 (12, 12) | finding F1 (12, 12) | holds (F2 fixed) |
+| `ArmedImpliesBelief` | An armed instance believes it holds the lock. | An instance that knows it lost the lock keeps the singletons armed until its reconcile; the fire gate drops what they emit. | finding F1 (11, 11) | finding F1 (11, 11) | holds (F2 fixed) |
 | `StopDisarms` | Once `destroy()` returned, the instance has nothing armed, does not believe it leads, and holds no live key. | A stopped instance blocks leadership for a TTL, or arms triggers in a module that is gone. | holds | holds (F3 fixed) | holds |
 
 `TypeOK` holds too. The numbers in brackets are the states of TLC's shortest counterexample, which `check.mjs` records per configuration. The plan's `EventuallyLeader` (with no stalls, some instance is eventually armed) is a liveness rule, which the shared runner does not check.
@@ -62,6 +63,8 @@ Each finding was replayed on `packages/dms-automation/dist/cluster/leader.js` bu
 - **F3, a stopped instance leads or re-arms (`StopDisarms`, `Shutdown`). Fixed for #111.** A tick that answers after `stop()` began does not promote or step down and releases a key it wins, and `_deactivateAll()` tears the handles down at once and again after the pending reconciles. Both shutdown waits stay capped, so the fix holds under the two timing bounds in Bounds and what is left out. `tests/leader-stop.test.cjs` and the `_deactivateAll()` test of `tests/trigger-rearm.test.cjs` replay both paths below against the built module. The finding as it stood: `stop()` waits for the in-flight tick at most `SHUTDOWN_GRACE_MS` (leader.ts:174-182). A `SET NX PX` sent before the stop and answered after it still runs `promote` (lines 123-125, 86-99). In TLC's counterexample, i1's first tick sends `SET`, destroy starts, its wait gives up, nothing is released, the `SET` answers `OK`, and destroy finishes. The replay logged `i1 stop's grace runs out`, `i1 leader.stop() returned`, `i1 set -> "OK"`, and ended with i1 `{ armed: false, isLeader: true }`, one reconcile queued that reads that leadership, and the key `i1`. A second path is two states longer and shows once the late `SET` is fixed (the `fix-late-set-after-stop` row below): `_deactivateAll` runs outside the reconcile queue (subscriptions.ts:419-426), so a reconcile that read leadership before the stop arms after the teardown. Its replay logged `i1 reconcile reads isLeader() = true`, `i1 stop's grace runs out`, `i1 release -> 1`, `i1 leader.stop() returned`, `i1 _deactivateAll tears the singleton down`, `i1 reconcile arms the singleton`, and ended with i1 `{ armed: true, isLeader: false }`.
 
 Filed as AntelopeJS/dms-automation#113 (F1), #112 (F2, fixed) and #111 (F3, fixed).
+
+The fix of #113 fences F1 at the fire gate rather than at arming. `isLeader()` is a lease on the monotonic clock (`performance.now()`, leader.ts:68-70, 78-80), so a wall-clock step cannot stretch it: `lastHeldAt` is the send time of the command behind the last confirmed hold (lines 145, 170, 188), so Redis cannot expire the key, and no peer can win it, before `lastHeldAt + TTL_MS`. A singleton's `emit` drops a fire while `isLeader()` reads false (reconcile.ts:303-311), and a renew answered after the lease ran out promotes again (leader.ts:143-147, 193), since a reconcile may have disarmed the singletons in between; after `halt()` began, the generation check ends the tick first (line 142). A Redis error steps down only once `TTL_MS` has passed since the last confirmed answer (`confirmedAt`, lines 58, 195-201), when the key has surely expired, so `stop()` never leaves a live key behind. A stalled leader cannot run code to disarm, so the triggers can stay armed on two instances, and `AtMostOneArmed` and `ArmedImpliesBelief` keep their counterexamples; `AtMostOneFires` holds. `tests/leader-lease.test.cjs` and `tests/singleton-fence.test.cjs` in `packages/dms-automation` replay the stall and the gate on the module.
 
 ## Read every result with /statechart
 
@@ -82,17 +85,18 @@ Node runs other callbacks at every `await`, so Redis answers, interval ticks and
 
 | Model action | Code |
 | --- | --- |
-| `Init` | every instance has run `start()`, whose first tick is due (leader.ts:195-201) after hydrate (index.ts:143-160) |
-| `RunTick` | the interval and `runTick` (leader.ts:180-186, 200), the `ticking` guard and the command each branch sends (lines 152-159, 115-117, 132-133) |
-| `RenewReply` | `RENEW_LUA` (lines 19-20), the answer 0 that steps down (lines 124-125, 161, 66-72), a renewed hold (lines 120-122), an error (lines 162-168), and an answer after `stop()` began that ends the tick (lines 119, 164) |
-| `SetReply`, `LateRelease` | `SET NX PX`, the hold it sets and `promote` (lines 132-143, 160, 93-109); once `stop()` began, the release of the key it won instead (lines 136-138) |
+| `Init` | every instance has run `start()`, whose first tick is due (leader.ts:228-234) after hydrate (index.ts:143-160) |
+| `RunTick` | the interval and `runTick` (leader.ts:213-219, 233), the `ticking` guard, the send time and the command each branch sends (lines 182-192, 134-142, 157-162) |
+| `RenewReply` | `RENEW_LUA` (lines 19-20), the answer 0 that steps down (lines 149-150, 194, 83-89), a renewed hold and, past the lease, the promotion again (lines 143-147, 193), an error (lines 195-201), and an answer after `halt()` began that ends the tick (lines 142, 197) |
+| `SetReply`, `LateRelease` | `SET NX PX`, the hold it sets and `promote` (lines 157-173, 193, 110-126); once `halt()` began, the release of the key it won instead (lines 165-168) |
 | `TickDone` | the tick awaits the reconcile its hook queued (subscriptions.ts:202-211, 44-48) |
-| `ReconcileRead`, `ReconcileApply` | `reconcile()`: the leader snapshot after its reads, then the diff it applies (reconcile.ts:248-270, 85-90), one pass at a time (serialQueue.ts:20-38) |
+| `ReconcileRead`, `ReconcileApply` | `reconcile()`: the `isLeader()` snapshot after its reads, then the diff it applies (reconcile.ts:254-277, 87-118), one pass at a time (serialQueue.ts:20-38) |
 | `External` | a procedure edit or a peer's bus message queues a reconcile (subscriptions.ts:159-165, 212-217, 241-248) |
-| `StopBegin`, `StopWait` | `destroy()` points the leadership source at false, so every later reconcile reads no leadership, then calls `leader.halt()`: the interval cleared, `generation` bumped, the capped wait for the tick (index.ts:171-172, leader.ts:214-232, 203-212) |
+| `StopBegin`, `StopWait` | `destroy()` points the leadership source at false, so every later reconcile reads no leadership, then calls `leader.halt()`: the interval cleared, `generation` bumped, the capped wait for the tick (index.ts:171-172, leader.ts:247-265, 236-245) |
 | `StopBus`, `StopDeactivate` | `bus.close()`, then `_deactivateAll()`: every handle torn down at once, and again on the reconcile queue after every reconcile queued before it, with a capped wait (index.ts:173-174, subscriptions.ts:429-443) |
-| `StopRelease` | `leader.stop()`: the owner-checked release with a cap of its own, `holdsLock` cleared (index.ts:175, leader.ts:240-247) |
+| `StopRelease` | `leader.stop()`: the owner-checked release with a cap of its own, `holdsLock` cleared (index.ts:175, leader.ts:273-280) |
 | `Tick` | `TICK_MS` passes (leader.ts:10) |
+| `Leads`, `AtMostOneFires` | `isLeader()`, the lease (leader.ts:68-70, 78-80), and the fire gate of a singleton's `emit` (reconcile.ts:303-311) |
 
 The sync commit is `e755b34` on AntelopeJS/dms-automation `campaign/integration`. `leader.ts` and `index.ts` last changed in `aeb6988`, `reconcile.ts` and `subscriptions.ts` in `be9f793`, so the files above are byte-identical to `3d5b6d7`, where the model was written and each finding replayed. The fix of #111 changed `leader.ts` and `_deactivateAll()` in `subscriptions.ts`; the actions that map to them and their line numbers follow that change. The fix of #112 then changed `destroy()` in `index.ts`, split `leader.stop()` into `halt()` and `stop()`, and made `_deactivateAll()` report whether its second teardown finished; the `Stop*` actions follow it, and `reconcile.ts` is unchanged.
 
@@ -112,6 +116,7 @@ The model leaves out:
 - an instance that crashes; its key expires as in a stall, and its triggers die with it.
 - a Redis error after Redis applied the command; an error here is a command Redis never applied.
 - a third instance: both configurations run two, and a third adds interleavings that no run here covers.
+- clocks: the lease and the key's expiry run on one clock, `now`. The lease reads the monotonic clock, so a wall-clock step does not reach it; `tests/leader-lease.test.cjs` covers a step back.
 - memory mode, where every instance is leader.
 - what the triggers do when they fire, and the bus itself.
 
@@ -119,7 +124,7 @@ One scratch change breaks no rule, because it only adds ways to reach F1 without
 
 ## Confirm the check can fail
 
-On a scratch copy of this folder (with `node_modules` reachable, for example a symlink beside it), apply one model edit at a time and run `check.mjs` with and without `--full`. Each edit mirrors the code change in the first column. The first five ran at the sync commit, the rest on the fix of #112.
+On a scratch copy of this folder (with `node_modules` reachable, for example a symlink beside it), apply one model edit at a time and run `check.mjs` with and without `--full`. Each edit mirrors the code change in the first column. The first five ran at the sync commit, the next ones on the fix of #112, the last on the fix of #113.
 
 | Scratch change in the code, and the model edit | CI configuration | Full configuration |
 | --- | --- | --- |
@@ -133,5 +138,6 @@ On a scratch copy of this folder (with `node_modules` reachable, for example a s
 | `release-first`, the order before #112: `leader.stop()` releases before `bus.close()` and `_deactivateAll()` (index.ts:172-175): `StopWait` goes to `StopRelease`, then `StopBus` | running unchanged; shutdown `CHANGED ArmedImpliesBelief: 8 states (recorded 11)`, F2 | same |
 | `no-halt`: `destroy()` tears down while the leader still contends (index.ts:172): `StopBegin` keeps the interval and skips `StopWait` | running unchanged; shutdown `BROKEN StopDisarms` in 8 states, a late `SET` promotes after the teardown | same |
 | `no-leadership-switch`: reconciles during `destroy()` still read leadership (index.ts:171): `ReconcileRead` snapshots `holds[i]` alone | running unchanged; shutdown `BROKEN StopDisarms` in 14 states, a peer's reconcile after the queued teardown re-arms; the last test in `tests/destroy-order.test.cjs` catches it too | same |
+| `fire-without-lease`, after the fix of #113: `isLeader()` returns `holdsLock` alone (leader.ts:78-80): `Leads(i) == holds[i]` | `BROKEN AtMostOneFires` in 12 states | same |
 
 Every scratch run in the table exited 1. With the edits dropped, both configurations exit 0.

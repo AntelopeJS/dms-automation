@@ -30,9 +30,8 @@ export interface LeaderTransitions {
 let client: RedisClient | undefined;
 let timer: NodeJS.Timeout | undefined;
 /**
- * Whether THIS instance currently holds the lock. The single source of truth
- * for leadership: subscriptions reads it live via `isLeader()` rather than
- * keeping its own copy, so the two can't drift.
+ * Whether THIS instance believes it holds the lock: set by a won SET NX,
+ * cleared by a step-down. `isLeader()` also bounds it by the lease.
  */
 let holdsLock = false;
 let transitions: LeaderTransitions | undefined;
@@ -43,12 +42,20 @@ let ticking = false;
  */
 let currentTick: Promise<void> | undefined;
 /**
- * Wall-clock (ms) of the last CONFIRMED lock hold — an acquire or a successful
- * renew. Bounds how long a leader keeps believing it leads through transient
- * errors: only once TTL has elapsed without a confirmed renew is the key sure
- * to have expired (so a peer may have legitimately taken over).
+ * Monotonic time (ms, `performance.now()`) at which the command behind the
+ * last CONFIRMED lock hold, an acquire or a successful renew, was sent. Redis
+ * starts the key's TTL no earlier, so the key cannot expire, and no peer can
+ * win it, before `lastHeldAt + TTL_MS`. Monotonic, so a wall-clock step back
+ * cannot stretch the lease.
  */
 let lastHeldAt = 0;
+/**
+ * Monotonic time (ms) at which the last CONFIRMED hold was answered. Redis
+ * set the key's TTL no later, so once `TTL_MS` has passed since, the key has
+ * surely expired: a Redis error steps down only then, so the step-down never
+ * leaves a live key that stop() would not release.
+ */
+let confirmedAt = 0;
 /** Bumped by halt(): a tick started under an older one no longer runs leadership. */
 let generation = 0;
 /** The wait of halt(), shared until stop() finishes. */
@@ -57,9 +64,19 @@ let halting: Promise<void> | undefined;
 /** What the tick's Redis round trip asks it to do next. */
 type Outcome = "promote" | "stepDown" | "none";
 
-/** Does this instance currently hold the leader lock? Read live by subscriptions. */
+/** Whether the last confirmed hold still guarantees no peer can own the key. */
+function leaseValid(): boolean {
+  return performance.now() - lastHeldAt < TTL_MS;
+}
+
+/**
+ * Does this instance hold the leader lock right now? Read live by
+ * subscriptions, and by a singleton trigger each time it fires. False once the
+ * lease runs out, even before a tick learns the key is gone, so a leader that
+ * stalls past the TTL fires nothing while a peer may lead.
+ */
 export function isLeader(): boolean {
-  return holdsLock;
+  return holdsLock && leaseValid();
 }
 
 /** Swallow a faulty callback so it can't escape the fire-and-forget tick loop. */
@@ -110,16 +127,24 @@ async function promote(
 
 /**
  * renewed === 0 → definitive loss (key gone or owned by another instance).
+ * A renew confirmed after the lease ran out promotes again: while
+ * `isLeader()` read false, a reconcile may have torn the singletons down.
  * A halt() during the round trip leaves the lock to stop(), which releases it.
  */
-async function renew(c: RedisClient, gen: number): Promise<Outcome> {
+async function renew(
+  c: RedisClient,
+  gen: number,
+  sentAt: number,
+): Promise<Outcome> {
   const renewed = Number(
     await c.eval(RENEW_LUA, 1, LOCK_KEY, instanceId, String(TTL_MS)),
   );
   if (gen !== generation) return "none";
   if (renewed !== 0) {
-    lastHeldAt = Date.now();
-    return "none";
+    const lapsed = !leaseValid();
+    lastHeldAt = sentAt;
+    confirmedAt = performance.now();
+    return lapsed ? "promote" : "none";
   }
   holdsLock = false;
   return "stepDown";
@@ -129,7 +154,11 @@ async function renew(c: RedisClient, gen: number): Promise<Outcome> {
  * A key won after halt() began is released at once, through the client the
  * tick started with: halt() may already have returned.
  */
-async function acquire(c: RedisClient, gen: number): Promise<Outcome> {
+async function acquire(
+  c: RedisClient,
+  gen: number,
+  sentAt: number,
+): Promise<Outcome> {
   if ((await c.set(LOCK_KEY, instanceId, "PX", TTL_MS, "NX")) !== "OK") {
     return "none";
   }
@@ -138,7 +167,8 @@ async function acquire(c: RedisClient, gen: number): Promise<Outcome> {
     return "none";
   }
   holdsLock = true;
-  lastHeldAt = Date.now();
+  lastHeldAt = sentAt;
+  confirmedAt = performance.now();
   return "promote";
 }
 
@@ -155,14 +185,17 @@ async function tick(): Promise<void> {
   const t = transitions;
   const gen = generation;
   ticking = true;
+  const sentAt = performance.now();
   try {
-    const outcome = await (holdsLock ? renew(c, gen) : acquire(c, gen));
+    const outcome = await (holdsLock
+      ? renew(c, gen, sentAt)
+      : acquire(c, gen, sentAt));
     if (outcome === "promote") await promote(c, t, gen);
     else if (outcome === "stepDown") await stepDown();
   } catch (err) {
     Logging.Error("[dms-automation] leader: tick failed:", err);
     if (gen !== generation) return;
-    if (holdsLock && Date.now() - lastHeldAt > TTL_MS) {
+    if (holdsLock && performance.now() - confirmedAt > TTL_MS) {
       holdsLock = false;
       await stepDown();
     }
