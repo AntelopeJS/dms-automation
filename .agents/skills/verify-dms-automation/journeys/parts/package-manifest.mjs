@@ -147,9 +147,10 @@ export const manifestJourneys = [
       const extending = read(ctx, `${MODULE}/docs/5.extending.md`);
       const installation = read(ctx, `${MODULE}/docs/2.installation.md`);
       const interfaceReadme = read(ctx, `${INTERFACE}/README.md`);
+      const minorFloor = (/** @type {string} */ version) => `>=${parts(version).major}.${parts(version).minor}.0 <1.0.0`;
       await ctx.verify("ranges quoted in the docs", [
-        same("the consumer range in Extending", /"@antelopejs\/interface-dms-automation": "([^"]+)"/.exec(extending)?.[1], `>=${interfaceVersion} <1.0.0`),
-        same("the module range in Installation", /version: "([^"]+)"/.exec(installation)?.[1], `>=${String(module.version)} <1.0.0`),
+        same("the consumer range in Extending", /"@antelopejs\/interface-dms-automation": "([^"]+)"/.exec(extending)?.[1], minorFloor(interfaceVersion)),
+        same("the module range in Installation", /version: "([^"]+)"/.exec(installation)?.[1], minorFloor(String(module.version))),
         check("the interface README says a wide range from the release up to <1.0.0", /up to `<1\.0\.0`/.test(interfaceReadme), interfaceReadme.slice(0, 0)),
         same("the interface README's peer row is its peer dependency", normalRange(interfaceRows[0]?.supported ?? ""), normalRange(String(peer["@antelopejs/interface-core"]))),
       ]);

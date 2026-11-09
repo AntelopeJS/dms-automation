@@ -17,7 +17,7 @@ import type {
   PeriodPreset,
 } from "@antelopejs/interface-dms/base/period-selector";
 import { RegisterPageTopic } from "@antelopejs/interface-dms/realtime";
-import { DEFAULT_RETENTION_DAYS, runsKeptDays } from "../runtime/retention";
+import { runsKeptDays } from "../runtime/retention";
 
 /** Base URL of the module's pages. */
 const MODULE_URL = "/modules/automation";
@@ -95,11 +95,6 @@ export function liveTopics(topics: string[]) {
  * the run history: the 24 h / 7 d / 30 d window of `scope`, with a menu of
  * what it is compared with ("vs …") beside the presets. The two pages remember one choice:
  * the period follows the user from one to the other.
- *
- * What the default retention reaches; the transform below offers what
- * the configured one does, read when the page registers: the page
- * classes are built when the module loads, before `construct()` reads
- * `runs.retentionDays`.
  */
 export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
   return {
@@ -107,9 +102,7 @@ export function toolbarPeriod(scope: string): PageToolbarPeriodOptions {
     rememberKey: "automation",
     presets: PERIOD_PRESETS,
     defaultComparison: "previous-period",
-    comparisons: offeredComparisons(DEFAULT_RETENTION_DAYS),
-    transformOptions: (options) =>
-      options && { ...options, comparisons: offeredComparisons() },
+    comparisons: offeredComparisons(),
     meta: {
       name: "$dms_automation.permissions.period.name",
       description: "$dms_automation.permissions.period.description",
