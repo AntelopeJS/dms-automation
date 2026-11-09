@@ -159,13 +159,20 @@ export async function start(): Promise<void> {
   markModuleStarted();
 }
 
-/** Release leadership first (fast handoff), then the bus, then local handles. */
+/**
+ * Stop arming singletons and contending, close the bus, tear the local handles
+ * down, and only then release leadership, so a peer that wins the key never
+ * arms a singleton this instance still runs. When the teardown could not wait
+ * out a pending reconcile, the key is left to expire instead.
+ */
 export async function destroy(): Promise<void> {
   markModuleStopped();
   stopRetention();
-  await leader.stop();
+  subscriptions.useLeadershipSource(() => false);
+  await leader.halt();
   await bus.close();
-  await subscriptions._deactivateAll();
+  const tornDown = await subscriptions._deactivateAll();
+  await leader.stop(tornDown);
 }
 
 export function stop(): void {}
