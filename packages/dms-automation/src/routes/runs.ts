@@ -330,7 +330,8 @@ export class RunsController extends Controller("/api/automation/runs") {
    * the "View runs" links): whose runs the list shows, and the way back to
    * every run. No banner without a procedure.
    *
-   * An empty `?procedure=` filters nothing, so the banner says nothing.
+   * An empty `?procedure=` filters nothing, so the banner says nothing. The
+   * API hands a query parameter with no value to the handler as `true`.
    *
    * A deleted procedure is still named by its runs.
    *
@@ -339,9 +340,10 @@ export class RunsController extends Controller("/api/automation/runs") {
   @Get("/scope/banner")
   async scopeBanner(
     @AuthRawUser() _user: User,
-    @Parameter("procedure", "query") procedureParam?: string,
+    @Parameter("procedure", "query") procedureParam?: string | true,
   ): Promise<BannerContent> {
-    const procedureId = procedureParam?.trim();
+    const procedureId =
+      procedureParam === true ? undefined : procedureParam?.trim();
     if (!procedureId) return {};
     const procedure = await GetModel(ProcedureModel, DATABASE_NAME).get(
       procedureId,
