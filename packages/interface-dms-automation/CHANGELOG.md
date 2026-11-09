@@ -1,5 +1,48 @@
 # Changelog
 
+## v0.6.2
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.6.1...v0.6.2)
+
+### 🔥 Performance
+
+- **verify:** Plan the diff against origin/main ([#170](https://github.com/AntelopeJS/dms-automation/pull/170))
+- **verify:** Open a page once its app is mounted ([#171](https://github.com/AntelopeJS/dms-automation/pull/171))
+
+### 🩹 Fixes
+
+- **stats:** Count procedures, not trigger nodes, in By trigger ([#180](https://github.com/AntelopeJS/dms-automation/pull/180))
+- **runs:** Answer an empty scope banner for a valueless ?procedure= ([#182](https://github.com/AntelopeJS/dms-automation/pull/182))
+- **run-procedure:** Default to the last payload of the trigger the run starts from ([#175](https://github.com/AntelopeJS/dms-automation/pull/175))
+- **pages:** Offer the year comparison when runs are kept long enough ([#172](https://github.com/AntelopeJS/dms-automation/pull/172))
+- **runtime:** Recompute a data node wired from a loop's value on each iteration ([#177](https://github.com/AntelopeJS/dms-automation/pull/177))
+- **dms-automation:** Refuse a run-now graph with no trigger or a missing setting ([#181](https://github.com/AntelopeJS/dms-automation/pull/181))
+- **leader:** Keep a stopped instance from leading or re-arming its singletons ([#173](https://github.com/AntelopeJS/dms-automation/pull/173))
+- **dms-automation:** Release the leader key only after the singleton triggers are torn down ([#176](https://github.com/AntelopeJS/dms-automation/pull/176))
+- **leader:** Fire singleton triggers only within the leader lease ([#174](https://github.com/AntelopeJS/dms-automation/pull/174))
+- **procedures:** Follow the list's changes on screen while Live ([#183](https://github.com/AntelopeJS/dms-automation/pull/183))
+- **runs:** Bring new runs into the Run history while Live ([#184](https://github.com/AntelopeJS/dms-automation/pull/184))
+- **frontend:** Key run states, problems, durations and usage by own ids ([#188](https://github.com/AntelopeJS/dms-automation/pull/188))
+
+### 📖 Documentation
+
+- **interface:** Say the calls wait for an implementation in the interface skill ([#178](https://github.com/AntelopeJS/dms-automation/pull/178))
+- **readme:** Open with the AntelopeJS DMS module kit ([#187](https://github.com/AntelopeJS/dms-automation/pull/187))
+
+### 📦 Build
+
+- **deps:** Bump @antelopejs packages to the 2026-11-06 releases ([#169](https://github.com/AntelopeJS/dms-automation/pull/169))
+- **deps:** Bump @antelopejs/tooling-configs to 0.4.0 ([#185](https://github.com/AntelopeJS/dms-automation/pull/185))
+- **deps:** Bump @antelopejs/dms to 0.18.2 and drop verify publish ([#186](https://github.com/AntelopeJS/dms-automation/pull/186))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/dms-automation v0.9.1 ([eddb731](https://github.com/AntelopeJS/dms-automation/commit/eddb731))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.6.1
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.6.0...v0.6.1)
