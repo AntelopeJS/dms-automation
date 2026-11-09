@@ -58,6 +58,15 @@ export function useLeadershipSource(check: () => boolean): void {
   amLeader = check;
 }
 
+/**
+ * Whether a trigger type arms and fires on the leader only. Fails closed: a
+ * type not explicitly "replicated" is singleton, so a mislabeled type can't
+ * fan out to every instance.
+ */
+function leaderOnly(triggerType: TriggerType): boolean {
+  return triggerType.cluster !== "replicated";
+}
+
 interface DesiredTrigger {
   typeId: string;
   configHash: string;
@@ -81,9 +90,7 @@ interface DesiredTriggerSet {
  * needs) from the enabled procedures. Singleton triggers run only on the leader.
  * Followers omit them from the desired map, so the diff deactivates any they were
  * holding and never activates new ones. Replicated triggers are always desired.
- * Fail closed: a registered type whose classification isn't explicitly
- * "replicated" is treated as singleton so a mislabeled type can't fan out to
- * every instance. (Unregistered types fall through and are skipped at activation.)
+ * Unregistered types fall through and are skipped at activation.
  */
 function computeDesiredTriggers(
   enabled: Procedure[],
@@ -108,8 +115,7 @@ function computeDesiredTriggers(
       const typeId = node.typeId;
       if (!typeId || isTriggerTypeDisabled(typeId)) continue;
       const triggerType = registry.getTrigger(typeId);
-      if (triggerType && triggerType.cluster !== "replicated" && !leader)
-        continue;
+      if (triggerType && leaderOnly(triggerType) && !leader) continue;
       const k = key(procedureId, node.id);
       desired.set(k, { typeId, configHash: configHashOf(node.config) });
       desiredMeta.set(k, {
@@ -281,6 +287,10 @@ export async function reconcile(): Promise<void> {
  * included. A timed-out activate counts as failed and is retried next pass
  * (trigger authors keep activate fast; see README).
  *
+ * A singleton's `emit` drops a fire unless this instance leads at that
+ * moment: between losing the lock and the reconcile that tears it down, or
+ * while a stalled leader's lease has run out, a peer may already fire it.
+ *
  * Resolves with the trigger's teardown: its own type's `deactivate`, given
  * the handle its `activate` resolved with.
  */
@@ -290,8 +300,15 @@ async function activateTrigger(
   liveKey: string,
   live: Armed,
 ): Promise<() => Promise<void>> {
+  const singleton = leaderOnly(triggerType);
   const emit = AsyncResource.bind((payload: JsonValue) => {
     if (!live.armed) return;
+    if (singleton && !amLeader()) {
+      Logging.Warn(
+        `[dms-automation] singleton trigger ${liveKey} fired on an instance that does not lead; dropped`,
+      );
+      return;
+    }
     const meta = liveMeta.get(liveKey);
     if (!meta) {
       Logging.Warn(
