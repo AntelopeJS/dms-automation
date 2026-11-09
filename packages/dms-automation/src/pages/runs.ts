@@ -88,8 +88,9 @@ export class RunsPageController extends PageController(
    * `?procedure=<id>` lists the runs of one procedure (see `scope`).
    *
    * Paused, the rows stay as they stood through a search, a sort or a page,
-   * with "N new · Show" counting the runs since; live, the list holds alone
-   * while a run is open beside it or the user scrolled down to read.
+   * with "N new · Show" counting the runs since. Live, new runs come into the
+   * list on screen too; it holds alone while a run is open beside it or the
+   * user scrolled down to read.
    *
    * A `?record=` link to a run the retention has deleted since.
    *
@@ -135,7 +136,7 @@ export class RunsPageController extends PageController(
     pagination: "pages",
     pageSize: 25,
     rowClick: "single",
-    liveHold: { whileRowOpen: true, whileScrolled: true },
+    liveHold: { whileOnScreen: false, whileRowOpen: true, whileScrolled: true },
     footer: { hint: "$dms_automation.runs.retentionHint" },
     emptyStates: {
       firstRun: {

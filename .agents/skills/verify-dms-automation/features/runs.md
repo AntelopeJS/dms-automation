@@ -31,7 +31,7 @@ The Run history at `/modules/automation/runs`: every run of every procedure grou
 - `the-list-is-grouped-by-day-with-the-documented-columns-and-tabs`: day groups and counts, column order and cells, tab counts, items, page size, page.
 - `a-run-opens-in-a-drawer-with-summary-payload-and-logs`: `?record=`, `Run n of N`, three tabs, failure and path, J and K, buttons, a record that is gone.
 - `the-row-menu-and-pause-keep-the-list-still`: Quick look in the menu, Re-run and Open trace on the row, Pause, `N new · Show`.
-- `live-brings-new-runs-into-the-list-and-the-figures`: a run stored while Live reaches the list (fails: issue draft).
+- `live-brings-new-runs-into-the-list-and-the-figures`: a run stored while Live reaches the list.
 - `the-period-and-comparison-are-shared-with-the-overview`: 24H, 7D, 30D and the choice carried to the Overview.
 - `the-run-figures-count-runs-success-rate-failed-and-p95-against-the-compared-window`: the four figures with the change, tests excluded, the page's figures.
 - `the-retention-footer-says-how-long-runs-are-kept`: the three footer sentences by `runs.retentionDays`.
