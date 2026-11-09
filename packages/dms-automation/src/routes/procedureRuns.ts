@@ -6,6 +6,7 @@ import type {
 import { ProcedureRunModel } from "../db/models/procedure_run.model";
 import { readTriggerPayload } from "../runtime/boundRunLog";
 import { hasBlockingIssue } from "../runtime/graphIssues";
+import { findTriggerNode } from "../runtime/runProcedure";
 import { subscriptions } from "../runtime/subscriptions";
 import { DATABASE_NAME } from "../types/constants";
 import type { ProcedureGraph } from "../types/graph";
@@ -21,7 +22,7 @@ const PAYLOAD_LOOKBACK = 50;
  */
 export async function lastPayloadOf(
   procedureId: string,
-  triggerNodeId?: string,
+  triggerNodeId: string,
 ) {
   const model = GetModel(ProcedureRunModel, DATABASE_NAME);
   let before = new Date();
@@ -30,7 +31,7 @@ export async function lastPayloadOf(
     const summary = await model.newest(procedureId, { tests: false, before });
     if (!summary) break;
     before = new Date(summary.startedAt);
-    if (triggerNodeId && summary.triggerNodeId !== triggerNodeId) continue;
+    if (summary.triggerNodeId !== triggerNodeId) continue;
     const run = await model.get(summary._id);
     const stored = readTriggerPayload(run?.triggerPayload);
     if (!stored.kept) {
@@ -74,9 +75,12 @@ export async function runNow(
 ): Promise<string> {
   const issues = issuesOf(graph, false);
   if (hasBlockingIssue(issues)) throw graphRefusal(issues);
+  const trigger = findTriggerNode(graph, triggerNodeId);
   const payload = Object.hasOwn(request, "payload")
     ? request.payload
-    : ((await lastPayloadOf(procedureId, triggerNodeId)).last?.payload ?? {});
+    : ((trigger &&
+        (await lastPayloadOf(procedureId, trigger.id)).last?.payload) ??
+      {});
   return await subscriptions.runNow(procedureId, payload, triggerNodeId);
 }
 
