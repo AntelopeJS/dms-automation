@@ -27,9 +27,17 @@ const mocks = {
     stopRetention() {},
   },
 };
+/**
+ * @param {unknown} value
+ * @returns {value is (this: unknown, request: string, ...rest: unknown[]) => unknown}
+ */
+function isLoader(value) {
+  return value instanceof Function;
+}
+
 /** @type {unknown} */
 const load = Module._load;
-assert.ok(load instanceof Function, "Module._load is not available");
+if (!isLoader(load)) throw new Error("Module._load is not available");
 mock.method(
   Module,
   "_load",
@@ -83,15 +91,13 @@ const database = { gone: false, readsWhileGone: 0 };
 /** @type {Promise<never>} */
 const unanswered = new Promise(() => {});
 
-Object.assign(ProcedureModel.prototype, {
-  listEnabled: async () => {
-    if (!database.gone)
-      return [procedureOn("P1", TICKET), procedureOn("P2", INVOICE)];
-    database.readsWhileGone += 1;
-    return unanswered;
-  },
-  update: async () => 1,
-});
+ProcedureModel.prototype.listEnabled = async () => {
+  if (!database.gone)
+    return [procedureOn("P1", TICKET), procedureOn("P2", INVOICE)];
+  database.readsWhileGone += 1;
+  return unanswered;
+};
+ProcedureModel.prototype.update = async () => 1;
 Object.assign(AutomationTemplateModel.prototype, { listAll: async () => [] });
 Object.assign(TypeSwitchModel.prototype, { getAll: async () => [] });
 
