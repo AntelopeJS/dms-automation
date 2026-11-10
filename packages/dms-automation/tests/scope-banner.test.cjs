@@ -15,10 +15,10 @@ const { RunsController } = require("../dist/routes/runs.js");
  */
 async function procedureArgument(search) {
   const meta = GetMetadata(RunsController, ControllerMeta);
-  /** @type {import("@antelopejs/interface-api").RequestContext} */
-  const context = /** @type {never} */ ({
+  /** @type {Pick<import("@antelopejs/interface-api").RequestContext, "url">} */
+  const context = {
     url: new URL(`http://localhost/api/automation/runs/scope/banner${search}`),
-  });
+  };
   return computeParameter(
     context,
     meta.getComputedParameter("scopeBanner", 1),
@@ -31,8 +31,8 @@ for (const search of ["?procedure=", "?procedure=%20%20", ""]) {
     const procedure = await procedureArgument(search);
     const banner = await RunsController.prototype.scopeBanner.call(
       {},
-      /** @type {never} */ ({}),
-      /** @type {never} */ (procedure),
+      {},
+      procedure,
     );
     assert.deepEqual(banner, {});
   });

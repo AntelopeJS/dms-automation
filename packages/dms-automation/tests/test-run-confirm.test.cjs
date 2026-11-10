@@ -59,20 +59,17 @@ const procedure = {
 };
 /** @type {Partial<import("../dist/db/tables/procedure_run.table.js").ProcedureRun>[]} */
 const runs = [];
-Object.assign(ProcedureModel.prototype, {
-  get: async (/** @type {string} */ id) =>
-    id === procedure._id ? procedure : undefined,
-});
-Object.assign(ProcedureRunModel.prototype, {
-  insert: async (
-    /** @type {Partial<import("../dist/db/tables/procedure_run.table.js").ProcedureRun>} */ row,
-  ) => {
-    const _id = `run-${runs.length + 1}`;
-    runs.push({ ...row, _id });
-    return [_id];
-  },
-  get: async (/** @type {string} */ id) => runs.find((r) => r._id === id),
-});
+ProcedureModel.prototype.get = async (/** @type {string} */ id) =>
+  id === procedure._id ? procedure : undefined;
+ProcedureRunModel.prototype.insert = async (
+  /** @type {Partial<import("../dist/db/tables/procedure_run.table.js").ProcedureRun>} */ row,
+) => {
+  const _id = `run-${runs.length + 1}`;
+  runs.push({ ...row, _id });
+  return [_id];
+};
+ProcedureRunModel.prototype.get = async (/** @type {string} */ id) =>
+  runs.find((r) => r._id === id);
 
 const controller = new ProceduresController();
 

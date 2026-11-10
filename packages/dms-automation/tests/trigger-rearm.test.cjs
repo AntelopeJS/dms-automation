@@ -67,21 +67,19 @@ const procedures = new Map([
 /** @type {Promise<unknown> | undefined} A read of the procedures waits on it. */
 let readGate;
 
-Object.assign(ProcedureModel.prototype, {
-  listEnabled: async () => {
-    await readGate;
-    return [...procedures.values()]
-      .filter((p) => p.enabled)
-      .map((p) => ({ ...p }));
-  },
-  update: async (
-    /** @type {string} */ id,
-    /** @type {Partial<StoredProcedure>} */ patch,
-  ) => {
-    procedures.set(id, { ...procedures.get(id), ...patch });
-    return 1;
-  },
-});
+ProcedureModel.prototype.listEnabled = async () => {
+  await readGate;
+  return [...procedures.values()]
+    .filter((p) => p.enabled)
+    .map((p) => ({ ...p }));
+};
+ProcedureModel.prototype.update = async (
+  /** @type {string} */ id,
+  /** @type {Partial<StoredProcedure>} */ patch,
+) => {
+  procedures.set(id, { ...procedures.get(id), ...patch });
+  return 1;
+};
 Object.assign(AutomationTemplateModel.prototype, { listAll: async () => [] });
 Object.assign(TypeSwitchModel.prototype, { getAll: async () => [] });
 

@@ -8,6 +8,7 @@
     "module": "commonjs",
     "moduleResolution": "bundler",
     "lib": ["esnext"],
+    "types": ["node"],
     "strict": true,
     "noImplicitAny": true,
     "noUnusedLocals": true,
@@ -18,7 +19,6 @@
     "useDefineForClassFields": true,
     "declaration": true,
     "sourceMap": true,
-    "skipLibCheck": true,
     "incremental": true
   }
 }

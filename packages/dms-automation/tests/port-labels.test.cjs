@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const Module = require("node:module");
+const { load } = require("./helpers/module-load.cjs");
 const { test } = require("node:test");
 const { component } = require("./helpers/frontend.cjs");
 
@@ -39,10 +40,6 @@ const Handle = vue.defineComponent({
   props: { id: String },
   setup: (props) => () => vue.h("i", { "data-handleid": props.id }),
 });
-/** @type {unknown} */
-const load = Module._load;
-if (!(load instanceof Function))
-  throw new Error("Module._load is not available in this Node");
 /**
  * @param {string} request
  * @param {...unknown} rest

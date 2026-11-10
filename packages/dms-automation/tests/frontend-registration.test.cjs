@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const interfaceCore = require("@antelopejs/interface-core");
 const Module = require("node:module");
+const { load } = require("./helpers/module-load.cjs");
 const path = require("node:path");
 const { mock, test } = require("node:test");
 
@@ -19,9 +20,6 @@ void test("registers Vue with the automation configuration and original priority
     "./runtime/builtins/actions/http": { setHttpRequestOptions() {} },
     "./routes/library": { setPublicUrl() {} },
   };
-  /** @type {unknown} */
-  const load = Module._load;
-  assert.ok(load instanceof Function, "Module._load is not available");
   mock.method(
     Module,
     "_load",

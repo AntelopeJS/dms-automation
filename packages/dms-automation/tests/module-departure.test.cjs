@@ -75,10 +75,8 @@ const procedure = {
 
 /** @type {Array<Partial<ProcedureRun> & { storedBy: string | undefined }>} */
 const runs = [];
-Object.assign(ProcedureModel.prototype, {
-  listEnabled: async () => [{ ...procedure }],
-  update: async () => 1,
-});
+ProcedureModel.prototype.listEnabled = async () => [{ ...procedure }];
+ProcedureModel.prototype.update = async () => 1;
 Object.assign(AutomationTemplateModel.prototype, { listAll: async () => [] });
 Object.assign(TypeSwitchModel.prototype, { getAll: async () => [] });
 Object.assign(ProcedureRunModel.prototype, {

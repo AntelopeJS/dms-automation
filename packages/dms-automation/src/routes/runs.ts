@@ -409,7 +409,8 @@ export class RunsController extends Controller("/api/automation/runs") {
       stepNames: _names,
       ...stored
     } = run;
-    return Object.assign(stored, {
+    return {
+      ...stored,
       procedureVersion: run.kind === "test" ? null : run.procedureVersion,
       logCount: logs?.entries.length ?? 0,
       logTruncated: logs?.truncated,
@@ -435,7 +436,7 @@ export class RunsController extends Controller("/api/automation/runs") {
       previous: history.previous,
       next: history.next,
       failuresInRow: history.failuresInRow,
-    });
+    };
   }
 
   /** The log of a run as it is stored: its fire tree and its entries. */

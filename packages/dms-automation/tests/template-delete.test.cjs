@@ -25,26 +25,25 @@ const templates = new Map();
 /** @type {Map<string, ProcedureFixture>} */
 const procedures = new Map();
 
-Object.assign(AutomationTemplateModel.prototype, {
-  listAll: async () => [...templates.values()].map((t) => structuredClone(t)),
-  /** @param {string} id */
-  getById: async (id) => structuredClone(templates.get(id)),
-  /**
-   * @param {string} id
-   * @param {Partial<TemplateFixture>} patch
-   */
-  updateById: async (id, patch) => {
-    templates.set(id, { ...templates.get(id), ...patch });
-    return structuredClone(templates.get(id));
-  },
-  /** @param {string} id */
-  deleteById: async (id) => {
-    templates.delete(id);
-  },
-});
-Object.assign(ProcedureModel.prototype, {
-  getAll: async () => [...procedures.values()].map((p) => ({ ...p })),
-});
+AutomationTemplateModel.prototype.listAll = async () =>
+  [...templates.values()].map((t) => structuredClone(t));
+/** @param {string} id */
+AutomationTemplateModel.prototype.getById = async (id) =>
+  structuredClone(templates.get(id));
+/**
+ * @param {string} id
+ * @param {Partial<TemplateFixture>} patch
+ */
+AutomationTemplateModel.prototype.updateById = async (id, patch) => {
+  templates.set(id, { ...templates.get(id), ...patch });
+  return structuredClone(templates.get(id));
+};
+/** @param {string} id */
+AutomationTemplateModel.prototype.deleteById = async (id) => {
+  templates.delete(id);
+};
+ProcedureModel.prototype.getAll = async () =>
+  [...procedures.values()].map((p) => ({ ...p }));
 
 /**
  * Stands in for the runtime's fork of one procedure usage (the runtime's forkUsage):

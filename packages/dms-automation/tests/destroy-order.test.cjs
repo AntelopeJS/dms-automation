@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const interfaceCore = require("@antelopejs/interface-core");
 const Module = require("node:module");
+const { load } = require("./helpers/module-load.cjs");
 const { mock, test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
@@ -16,7 +17,8 @@ const armed = new Set();
 const commands = [];
 
 const redis = {
-  key: /** @type {string | undefined} */ (undefined),
+  /** @type {string | undefined} */
+  key: undefined,
   /** @type {Promise<void>} */
   answerSet: Promise.resolve(),
   /** @type {() => Promise<void>} */
@@ -78,9 +80,6 @@ const mocks = {
     stopRetention() {},
   },
 };
-/** @type {unknown} */
-const load = Module._load;
-assert.ok(load instanceof Function, "Module._load is not available");
 mock.method(
   Module,
   "_load",
@@ -129,10 +128,9 @@ const procedureOn = (id, typeId) => ({
 
 const procedures = [procedureOn("P1", TYPE_ID)];
 
-Object.assign(ProcedureModel.prototype, {
-  listEnabled: async () => procedures.map((p) => ({ ...p })),
-  update: async () => 1,
-});
+ProcedureModel.prototype.listEnabled = async () =>
+  procedures.map((p) => ({ ...p }));
+ProcedureModel.prototype.update = async () => 1;
 Object.assign(AutomationTemplateModel.prototype, { listAll: async () => [] });
 Object.assign(TypeSwitchModel.prototype, { getAll: async () => [] });
 

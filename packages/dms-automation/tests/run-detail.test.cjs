@@ -26,13 +26,12 @@ const { RunsController } = require("../dist/routes/runs.js");
 
 /** @type {Map<string, StoredRun>} */
 const runs = new Map();
-Object.assign(ProcedureRunModel.prototype, {
-  get: async (/** @type {string} */ id) => runs.get(id),
-  newest: async () => undefined,
-  oldest: async () => undefined,
-  countHistory: async () => 0,
-  successTimings: async () => [],
-});
+ProcedureRunModel.prototype.get = async (/** @type {string} */ id) =>
+  runs.get(id);
+ProcedureRunModel.prototype.newest = async () => undefined;
+ProcedureRunModel.prototype.oldest = async () => undefined;
+ProcedureRunModel.prototype.countHistory = async () => 0;
+ProcedureRunModel.prototype.successTimings = async () => [];
 Object.assign(ProcedureModel.prototype, { get: async () => undefined });
 
 /**

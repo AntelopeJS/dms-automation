@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const interfaceCore = require("@antelopejs/interface-core");
 const dmsPage = require("@antelopejs/interface-dms/page");
 const Module = require("node:module");
+const { load } = require("./helpers/module-load.cjs");
 const path = require("node:path");
 const { mock, test } = require("node:test");
 const { isPropertyBag } = require("../dist/types/guards.js");
@@ -43,9 +44,6 @@ void test("the comparison menu follows the runs.retentionDays given to construct
     "./runtime/boundRunLog": { configureRedaction() {} },
     "./runtime/builtins/actions/http": { setHttpRequestOptions() {} },
   };
-  /** @type {unknown} */
-  const load = Module._load;
-  assert.ok(load instanceof Function, "Module._load is not available");
   mock.method(
     Module,
     "_load",
