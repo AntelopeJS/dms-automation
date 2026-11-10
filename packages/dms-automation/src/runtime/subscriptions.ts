@@ -63,8 +63,9 @@ async function tearDownAll(): Promise<void> {
 }
 
 /**
- * Whether hydrate() ran: before it, the database may not be ready and the
- * boot reconcile arms everything anyway.
+ * Whether hydrate() ran and the module has not stopped since: before it, the
+ * database may not be ready and the boot reconcile arms everything anyway;
+ * after the stop, the database may be gone and destroy() tears everything down.
  */
 let hydrated = false;
 
@@ -417,6 +418,15 @@ export const subscriptions = {
       if (k.startsWith(prefix)) return error.message;
     }
     return undefined;
+  },
+  /**
+   * @internal exposed for stop() in src/index.ts. No trigger type change
+   * requests a reconcile until the next hydrate(): the modules stopping with
+   * this one unregister their types after their database may be gone, and a
+   * reconcile queued then would hold up the teardown of destroy().
+   */
+  stopReconciling(): void {
+    hydrated = false;
   },
   /**
    * @internal exposed for destroy() in src/index.ts. Tears every handle down

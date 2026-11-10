@@ -175,4 +175,6 @@ export async function destroy(): Promise<void> {
   await leader.stop(tornDown);
 }
 
-export function stop(): void {}
+export function stop(): void {
+  subscriptions.stopReconciling();
+}
