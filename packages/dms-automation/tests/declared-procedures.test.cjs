@@ -49,15 +49,14 @@ const insertProcedure = async (doc) => {
   return [doc._id];
 };
 
-Object.assign(ProcedureModel.prototype, {
-  get: readProcedure,
-  getAll: async () => [...procedures.values()].map((p) => structuredClone(p)),
-  listEnabled: async () =>
-    [...procedures.values()]
-      .filter((p) => p.enabled)
-      .map((p) => structuredClone(p)),
-  insert: insertProcedure,
-});
+ProcedureModel.prototype.get = readProcedure;
+ProcedureModel.prototype.getAll = async () =>
+  [...procedures.values()].map((p) => structuredClone(p));
+ProcedureModel.prototype.listEnabled = async () =>
+  [...procedures.values()]
+    .filter((p) => p.enabled)
+    .map((p) => structuredClone(p));
+ProcedureModel.prototype.insert = insertProcedure;
 subscriptions.onProcedureChange = async (id) => {
   changed.push(id);
 };

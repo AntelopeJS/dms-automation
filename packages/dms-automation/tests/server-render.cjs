@@ -1,4 +1,5 @@
 const Module = require("node:module");
+const { load } = require("./helpers/module-load.cjs");
 const {
   isNumber,
   isPropertyBag,
@@ -34,10 +35,6 @@ const BROWSER_ONLY = {
     },
   },
 };
-/** @type {unknown} */
-const load = Module._load;
-if (!(load instanceof Function))
-  throw new Error("Module._load is not available in this Node");
 /**
  * @param {string} request
  * @param {...unknown} rest
@@ -134,23 +131,6 @@ Object.assign(globalThis, {
   useAutomationNodeKinds,
   useAutomationRuns,
   useApiData,
-  useAuthFetch: () => ({
-    /**
-     * @param {string} url
-     * @param {{ method?: string, query?: Record<string, unknown> }} [options]
-     */
-    async $authFetch(url, options = {}) {
-      const read = {
-        url,
-        method: (options.method ?? "GET").toUpperCase(),
-        query: options.query ?? {},
-        rawQuery: options.query,
-      };
-      reads.push(read);
-      return backend(read);
-    },
-  }),
-  useI18n: () => ({ t, te: () => false, locale: vue.ref("en") }),
   useRegionalFormat: () => ({
     /** @param {Intl.DateTimeFormatOptions} [options] */
     dateTimeFormat: (options) =>
@@ -179,6 +159,23 @@ Object.assign(globalThis, {
   describeApiError: (error) => `error ${statusOf(error) ?? ""}`.trim(),
   apiErrorStatus: statusOf,
 });
+globalThis.useAuthFetch = () => ({
+  /**
+   * @param {string} url
+   * @param {{ method?: string, query?: Record<string, unknown> }} [options]
+   */
+  async $authFetch(url, options = {}) {
+    const read = {
+      url,
+      method: (options.method ?? "GET").toUpperCase(),
+      query: options.query ?? {},
+      rawQuery: options.query,
+    };
+    reads.push(read);
+    return backend(read);
+  },
+});
+globalThis.useI18n = () => ({ t, te: () => false, locale: vue.ref("en") });
 
 /**
  * Every DMS, Nuxt UI and module component the templates use renders its

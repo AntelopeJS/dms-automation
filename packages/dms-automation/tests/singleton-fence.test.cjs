@@ -40,10 +40,11 @@ const procedureOn = (typeId) => ({
 
 /** @type {string[]} */
 const runs = [];
-Object.assign(ProcedureModel.prototype, {
-  listEnabled: async () => [procedureOn("schedule"), procedureOn("ticket")],
-  update: async () => 1,
-});
+ProcedureModel.prototype.listEnabled = async () => [
+  procedureOn("schedule"),
+  procedureOn("ticket"),
+];
+ProcedureModel.prototype.update = async () => 1;
 Object.assign(AutomationTemplateModel.prototype, { listAll: async () => [] });
 Object.assign(TypeSwitchModel.prototype, { getAll: async () => [] });
 Object.assign(ProcedureRunModel.prototype, {

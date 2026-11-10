@@ -155,33 +155,29 @@ const procedures = new Map([
 
 /** @type {RunRow[]} */
 const runs = [];
-Object.assign(ProcedureModel.prototype, {
-  /** @param {string} id */
-  get: async (id) => procedures.get(id),
-});
-Object.assign(ProcedureRunModel.prototype, {
-  /** @param {Partial<ProcedureRun>} row */
-  insert: async (row) => {
-    const _id = `run-${runs.length + 1}`;
-    runs.push({ ...row, _id, startedAt: row.startedAt });
-    return [_id];
-  },
-  /** @param {string} id */
-  get: async (id) => runs.find((r) => r._id === id),
-  /**
-   * @param {string} procedureId
-   * @param {HistoryQuery} query
-   */
-  newest: async (procedureId, { before }) =>
-    runs
-      .filter(
-        (r) =>
-          r.procedureId === procedureId &&
-          r.kind !== "test" &&
-          r.startedAt < before,
-      )
-      .sort((a, b) => b.startedAt - a.startedAt)[0],
-});
+/** @param {string} id */
+ProcedureModel.prototype.get = async (id) => procedures.get(id);
+/** @param {Partial<ProcedureRun>} row */
+ProcedureRunModel.prototype.insert = async (row) => {
+  const _id = `run-${runs.length + 1}`;
+  runs.push({ ...row, _id, startedAt: row.startedAt });
+  return [_id];
+};
+/** @param {string} id */
+ProcedureRunModel.prototype.get = async (id) => runs.find((r) => r._id === id);
+/**
+ * @param {string} procedureId
+ * @param {HistoryQuery} query
+ */
+ProcedureRunModel.prototype.newest = async (procedureId, { before }) =>
+  runs
+    .filter(
+      (r) =>
+        r.procedureId === procedureId &&
+        r.kind !== "test" &&
+        r.startedAt < before,
+    )
+    .sort((a, b) => b.startedAt - a.startedAt)[0];
 
 /**
  * @param {unknown} err
