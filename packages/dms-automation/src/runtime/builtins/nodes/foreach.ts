@@ -1,3 +1,4 @@
+import { kindOf } from "../../../types/dataValue";
 import { type NodeExecute, nodeKinds } from "../../nodeKinds";
 
 /**
@@ -12,7 +13,7 @@ const execute: NodeExecute = async (_node, inputs, ctx) => {
   if (!Array.isArray(raw)) {
     ctx.log(
       "warn",
-      `foreach "items" input is not an array; iterating zero times`,
+      `foreach "items" input is not an array (got ${kindOf(raw)}); iterating zero times`,
     );
   }
   for (let i = 0; i < items.length; i++) {
