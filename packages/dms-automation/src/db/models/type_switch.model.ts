@@ -20,8 +20,16 @@ export class TypeSwitchModel extends BasicDataModel(
     enabled: boolean,
   ): Promise<void> {
     const existing = await this.find(kind, typeId);
-    if (existing) await this.update(existing._id, { enabled });
-    else await this.insert({ kind, typeId, enabled });
+    if (existing) {
+      await this.update(existing._id, { enabled });
+      return;
+    }
+    await this.table
+      .insert(
+        { _id: `${kind}:${typeId}`, kind, typeId, enabled },
+        { conflict: "update" },
+      )
+      .run();
   }
 
   private async find(
