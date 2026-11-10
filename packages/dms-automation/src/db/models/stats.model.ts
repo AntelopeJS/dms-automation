@@ -114,6 +114,49 @@ function factsOf(procedure: Procedure): ProcedureFacts {
   return { procedure, graph, triggers: graph ? triggersOf(graph) : [] };
 }
 
+/** A read of the production runs started since `since`, newest first. */
+interface RunsRead {
+  since: Date;
+  runs: Promise<StatsRun[]>;
+}
+
+/**
+ * How long a runs read waits before it starts, for the other stats answers
+ * asked with it: an Overview asks ten at once.
+ */
+const JOIN_WINDOW_MS = 10;
+
+/**
+ * The read that has not started yet, if any. An answer joins only a read that
+ * starts after it was asked, so it never misses a run stored before.
+ */
+let pending: RunsRead | undefined;
+
+function joinRead(since: Date): RunsRead {
+  if (pending) {
+    if (since < pending.since) pending.since = since;
+    return pending;
+  }
+  const read: RunsRead = {
+    since,
+    runs: new Promise((resolve) => setTimeout(resolve, JOIN_WINDOW_MS))
+      .then(() => {
+        pending = undefined;
+        return GetModel(ProcedureRunModel, DATABASE_NAME).listForStats(
+          read.since,
+        );
+      })
+      .then((runs) => runs.filter((r) => isProductionRun(r.kind))),
+  };
+  pending = read;
+  return read;
+}
+
+/** The production runs started since `since`, newest first. */
+async function productionRunsSince(since: Date): Promise<StatsRun[]> {
+  return (await joinRead(since).runs).filter((r) => r.startedAt >= since);
+}
+
 /** Load the procedures and the production runs a stats answer needs. */
 export async function loadStatsContext(
   earliest?: Date,
@@ -126,9 +169,7 @@ export async function loadStatsContext(
   ).map(factsOf);
   const lookback = lookbackStart(now);
   const since = earliest && earliest < lookback ? earliest : lookback;
-  const runs = (
-    await GetModel(ProcedureRunModel, DATABASE_NAME).listForStats(since)
-  ).filter((r) => isProductionRun(r.kind));
+  const runs = await productionRunsSince(since);
   return {
     now,
     procedures,
