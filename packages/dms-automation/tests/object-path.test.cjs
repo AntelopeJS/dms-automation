@@ -36,7 +36,7 @@ void test("a missing path reads the whole object", () => {
   );
 });
 
-void test("a path that is a list or an object reads as String() reads it", () => {
+void test("a path that is a list reads as its items joined, an object as its JSON", () => {
   assert.equal(evaluateResult("object.get", { obj: { a: 1 }, path: ["a"] }), 1);
   assert.deepEqual(
     evaluateResult("object.set", { obj: {}, path: ["a"], value: "x" }),
@@ -44,7 +44,7 @@ void test("a path that is a list or an object reads as String() reads it", () =>
   );
   assert.equal(
     evaluateResult("object.get", {
-      obj: { "[object Object]": 1 },
+      obj: { '{"a":1}': 1 },
       path: { a: 1 },
     }),
     1,

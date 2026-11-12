@@ -66,6 +66,19 @@ export function kindOf(
   return "object";
 }
 
+/**
+ * A value as text. A string, number, boolean, `null` or `undefined` reads as
+ * `String` reads it, an array as its items joined with commas (`null` as
+ * nothing), an object as its JSON.
+ */
+export function textOf(value: DataValue): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => (item === null ? "" : textOf(item))).join(",");
+  }
+  if (isDataRecord(value)) return JSON.stringify(value);
+  return String(value);
+}
+
 /** The value a JSON text holds: whatever `JSON.parse` yields is made of the arms of `DataValue`. */
 export function parseJsonText(text: string): DataValue {
   const parsed: unknown = JSON.parse(text);
