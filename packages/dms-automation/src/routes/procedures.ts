@@ -9,6 +9,7 @@ import {
   Post,
   Put,
 } from "@antelopejs/interface-api";
+import { Logging } from "@antelopejs/interface-core/logging";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
@@ -155,6 +156,22 @@ function served(procedure: Procedure) {
   return { ...fields, graph: graphOf(procedure) };
 }
 
+/**
+ * A procedure of a list as the API serves it, or none when its stored graph
+ * cannot be read: one such row leaves the others listed.
+ */
+function readable(procedure: Procedure) {
+  const graph = parseGraphSafe(procedure.graph);
+  if (!graph) {
+    Logging.Warn(
+      `[dms-automation] procedure "${procedure._id}" has an unreadable graph; left out of the list`,
+    );
+    return [];
+  }
+  const { graph: _graph, ...fields } = procedure;
+  return [{ ...fields, graph }];
+}
+
 /** The name of a copy, kept within the length a name may have. */
 function copyNameOf(name: string): string {
   const suffix = " (copy)";
@@ -186,7 +203,7 @@ export class ProceduresController extends Controller(
   ) {
     const model = GetModel(ProcedureModel, DATABASE_NAME);
     const listed = await model.list(pageParams(page, limit));
-    return { ...listed, results: listed.results.map(served) };
+    return { ...listed, results: listed.results.flatMap(readable) };
   }
 
   /**

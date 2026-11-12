@@ -115,3 +115,31 @@ void test("stored template ports not shaped as ports read as none", async () => 
     assert.deepEqual(await templatePorts(JSON.stringify(broken)), []);
   }
 });
+
+void test("a procedure whose stored graph cannot be read is left out of the list, the others listed", async () => {
+  const { ProcedureModel } = require("../dist/db/models/procedure.model.js");
+  const { ProceduresController } = require("../dist/routes/procedures.js");
+  const rows = [
+    { _id: "ok", name: "ok", graph: JSON.stringify(GRAPH) },
+    {
+      _id: "label",
+      name: "label",
+      graph: JSON.stringify({
+        ...GRAPH,
+        nodes: [{ ...GRAPH.nodes[0], label: 5 }],
+      }),
+    },
+    { _id: "text", name: "text", graph: "{" },
+  ];
+  ProcedureModel.prototype.list = async () => ({
+    results: rows,
+    total: 3,
+    page: 0,
+    limit: 10,
+  });
+  const listed = await ProceduresController.prototype.list.call({}, {});
+  assert.deepEqual(
+    listed.results.map((p) => [p._id, p.graph]),
+    [["ok", GRAPH]],
+  );
+});
