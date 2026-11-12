@@ -80,4 +80,11 @@ void test("a path that is a date or an id object reads as its own text", () => {
     evaluateResult("object.get", { obj: { [String(at)]: 2 }, path: at }),
     2,
   );
+  assert.equal(
+    evaluateResult("object.get", {
+      obj: { '{"toString":"x"}': 3 },
+      path: { toString: "x" },
+    }),
+    3,
+  );
 });

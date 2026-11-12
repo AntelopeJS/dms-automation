@@ -2,7 +2,7 @@ import type {
   JsonObject,
   JsonValue,
 } from "@antelopejs/interface-dms-automation";
-import { isBoolean, isNumber, isString } from "./guards";
+import { isBoolean, isNumber, isObject, isString } from "./guards";
 
 /**
  * A value a node reads or writes: JSON, plus `undefined` for a field that was
@@ -71,24 +71,33 @@ interface Textual {
   toString(): string;
 }
 
-/** Whether `value` is a plain object: made by a literal or `JSON.parse`, or with no prototype. */
-function isPlainObject(value: DataRecord): boolean {
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
+/**
+ * Whether `value` gets its text from a `toString` other than `Object`'s, as a
+ * `Date` or a database id handed in by a module's action does: the first
+ * prototype up its chain that holds a `toString` is not `Object.prototype`. A
+ * key of its own named `toString`, which JSON can hold, does not count.
+ */
+function hasOwnText(value: DataRecord): boolean {
+  let owner: unknown = Object.getPrototypeOf(value);
+  while (isObject(owner) && !Object.hasOwn(owner, "toString")) {
+    owner = Object.getPrototypeOf(owner);
+  }
+  return isObject(owner) && owner !== Object.prototype;
 }
 
 /**
  * A value as text. A string, number, boolean, `null` or `undefined` reads as
- * `String` reads it, an array as its items joined with commas (`null` and
- * `undefined` as nothing), as `join` does. A plain object reads as its JSON;
- * any other object, a `Date` or a database id, as `String` reads it.
+ * `String` reads it. An array reads as its items, each read this way, joined
+ * with commas, `null` and `undefined` as nothing, as `join` does. An object
+ * with a `toString` of its own, a `Date` or a database id, reads as `String`
+ * reads it; any other object as its JSON.
  */
 export function textOf(value: DataValue): string {
   if (Array.isArray(value)) {
     return value.map((item) => textOf(item ?? "")).join(",");
   }
   if (isDataRecord(value)) {
-    if (!isPlainObject(value)) {
+    if (hasOwnText(value)) {
       const textual: Textual = value;
       return textual.toString();
     }
