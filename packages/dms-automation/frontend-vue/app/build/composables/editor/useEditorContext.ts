@@ -4,7 +4,10 @@ import {
   type RunDetail,
   useAutomationRuns,
 } from "../../../composables/useAutomationRuns";
-import type { TemplateSummary } from "../../../composables/useAutomationNodeKinds";
+import {
+  type TemplateSummary,
+  useAutomationNodeKinds,
+} from "../../../composables/useAutomationNodeKinds";
 import type {
   ActionType,
   DataNodeType,
