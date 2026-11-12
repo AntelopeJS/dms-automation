@@ -50,3 +50,34 @@ void test("a path that is a list reads as its items joined, an object as its JSO
     1,
   );
 });
+
+void test("a path holding an unset item reads it as nothing, as a joined list does", () => {
+  assert.equal(
+    evaluateResult("object.get", {
+      obj: { "a,,b": 1 },
+      path: ["a", undefined, "b"],
+    }),
+    1,
+  );
+});
+
+void test("a path that is a date or an id object reads as its own text", () => {
+  class Id {
+    /** @param {string} hex */
+    constructor(hex) {
+      this.hex = hex;
+    }
+    toString() {
+      return this.hex;
+    }
+  }
+  const at = new Date(0);
+  assert.equal(
+    evaluateResult("object.get", { obj: { "6af6": 1 }, path: new Id("6af6") }),
+    1,
+  );
+  assert.equal(
+    evaluateResult("object.get", { obj: { [String(at)]: 2 }, path: at }),
+    2,
+  );
+});

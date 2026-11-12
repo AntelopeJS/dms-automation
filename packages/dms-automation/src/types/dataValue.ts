@@ -66,16 +66,35 @@ export function kindOf(
   return "object";
 }
 
+/** A value that reads as text through its own `toString`. */
+interface Textual {
+  toString(): string;
+}
+
+/** Whether `value` is a plain object: made by a literal or `JSON.parse`, or with no prototype. */
+function isPlainObject(value: DataRecord): boolean {
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 /**
  * A value as text. A string, number, boolean, `null` or `undefined` reads as
- * `String` reads it, an array as its items joined with commas (`null` as
- * nothing), an object as its JSON.
+ * `String` reads it, an array as its items joined with commas (`null` and
+ * `undefined` as nothing), as `join` does. A plain object reads as its JSON;
+ * any other object, a `Date` or a database id, as `String` reads it.
  */
 export function textOf(value: DataValue): string {
   if (Array.isArray(value)) {
-    return value.map((item) => (item === null ? "" : textOf(item))).join(",");
+    return value.map((item) => textOf(item ?? "")).join(",");
   }
-  if (isDataRecord(value)) return JSON.stringify(value);
+  if (isDataRecord(value)) {
+    if (!isPlainObject(value)) {
+      const textual: Textual = value;
+      return textual.toString();
+    }
+    const json: string | undefined = JSON.stringify(value);
+    return json ?? "";
+  }
   return String(value);
 }
 
