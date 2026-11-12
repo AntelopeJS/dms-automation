@@ -14,6 +14,7 @@ import {
   type StatsWindow,
   windowOf,
 } from "../db/models/stats.model";
+import { QueryParameters } from "./queryParameters";
 import {
   isPeriodPreset,
   PROCEDURES_URL,
@@ -174,42 +175,37 @@ export class StatsController extends Controller("/api/automation/stats") {
   }
 
   @Get("/kpi/:metric")
-  // oxlint-disable-next-line eslint/max-params -- one decorator per query input
   async kpi(
     @AuthRawUser() _user: User,
     @Parameter("metric", "param") metric: string,
-    @Parameter("from", "query") from?: string,
-    @Parameter("to", "query") to?: string,
-    @Parameter("compareFrom", "query") compareFrom?: string,
-    @Parameter("compareTo", "query") compareTo?: string,
-    @Parameter("preset", "query") preset?: string,
-    @Parameter("comparison", "query") comparison?: string,
+    @QueryParameters(
+      "from",
+      "to",
+      "compareFrom",
+      "compareTo",
+      "preset",
+      "comparison",
+    )
+    query: PresetQuery,
   ) {
-    return kpiAnswer(metric, {
-      from,
-      to,
-      compareFrom,
-      compareTo,
-      preset,
-      comparison,
-    });
+    return kpiAnswer(metric, query);
   }
 
   /** Compared as the KPIs are: the window the scope resolved, kept runs only. */
   @Get("/runs-per-day")
-  // oxlint-disable-next-line eslint/max-params -- one decorator per query input
   async runsPerDay(
     @AuthRawUser() _user: User,
-    @Parameter("from", "query") from?: string,
-    @Parameter("to", "query") to?: string,
-    @Parameter("compareFrom", "query") compareFrom?: string,
-    @Parameter("compareTo", "query") compareTo?: string,
-    @Parameter("preset", "query") preset?: string,
-    @Parameter("comparison", "query") comparison?: string,
+    @QueryParameters(
+      "from",
+      "to",
+      "compareFrom",
+      "compareTo",
+      "preset",
+      "comparison",
+    )
+    query: PresetQuery,
   ) {
-    const window = await withKeptComparison(
-      periodWindow({ from, to, compareFrom, compareTo, preset, comparison }),
-    );
+    const window = await withKeptComparison(periodWindow(query));
     return runsPerDayChart(await loadStatsContext(earliestOf(window)), window);
   }
 

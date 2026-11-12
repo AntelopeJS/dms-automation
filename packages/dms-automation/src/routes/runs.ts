@@ -33,7 +33,8 @@ import type { DataValue } from "../types/dataValue";
 import type { ProcedureGraph } from "../types/graph";
 import type { RunLog } from "../types/runLog";
 import { refused } from "./requests";
-import { kpiAnswer } from "./stats";
+import { QueryParameters } from "./queryParameters";
+import { kpiAnswer, type PresetQuery } from "./stats";
 import { isObject } from "../types/guards";
 
 /** Time on each side of a run its usual duration is read over. */
@@ -304,25 +305,20 @@ export function rerunPlanFor(
 @AuthOwnerOnly()
 export class RunsController extends Controller("/api/automation/runs") {
   @Get("/kpi/:metric")
-  // oxlint-disable-next-line eslint/max-params -- one decorator per query input
   async kpi(
     @AuthRawUser() _user: User,
     @Parameter("metric", "param") metric: string,
-    @Parameter("from", "query") from?: string,
-    @Parameter("to", "query") to?: string,
-    @Parameter("compareFrom", "query") compareFrom?: string,
-    @Parameter("compareTo", "query") compareTo?: string,
-    @Parameter("preset", "query") preset?: string,
-    @Parameter("comparison", "query") comparison?: string,
+    @QueryParameters(
+      "from",
+      "to",
+      "compareFrom",
+      "compareTo",
+      "preset",
+      "comparison",
+    )
+    query: PresetQuery,
   ) {
-    return kpiAnswer(metric, {
-      from,
-      to,
-      compareFrom,
-      compareTo,
-      preset,
-      comparison,
-    });
+    return kpiAnswer(metric, query);
   }
 
   /**

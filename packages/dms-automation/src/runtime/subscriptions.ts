@@ -319,8 +319,7 @@ export const subscriptions = {
     return await executeProcedure(
       procedure,
       graph,
-      manualNode.id,
-      payload,
+      { triggerNodeId: manualNode.id, payload: payload },
       templates,
     );
   },
@@ -343,8 +342,7 @@ export const subscriptions = {
     return await executeProcedure(
       procedure,
       graph,
-      trigger.id,
-      payload,
+      { triggerNodeId: trigger.id, payload: payload },
       templates,
     );
   },
@@ -366,8 +364,7 @@ export const subscriptions = {
     return await executeProcedure(
       procedure,
       graph,
-      run.triggerNodeId,
-      run.triggerPayload,
+      { triggerNodeId: run.triggerNodeId, payload: run.triggerPayload },
       templates,
       { kind: "rerun", rerunOf: run._id },
     );
@@ -388,8 +385,7 @@ export const subscriptions = {
     return await executeProcedure(
       procedure,
       graph,
-      trigger.id,
-      payload,
+      { triggerNodeId: trigger.id, payload: payload },
       templates,
       { kind: "test" },
     );
