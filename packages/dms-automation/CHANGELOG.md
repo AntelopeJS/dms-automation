@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.9.3
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.9.2...v0.9.3)
+
+### 🔥 Performance
+
+- **runtime:** Queue no reconcile once the module stops ([#190](https://github.com/AntelopeJS/dms-automation/pull/190))
+- **stats:** Share one runs read between the stats answers asked together ([#191](https://github.com/AntelopeJS/dms-automation/pull/191))
+- **ci:** Key the TLC cache on the model so main replays its checked result ([#193](https://github.com/AntelopeJS/dms-automation/pull/193))
+
+### 🩹 Fixes
+
+- **release:** Regenerate the module README table when the interface bumps ([#194](https://github.com/AntelopeJS/dms-automation/pull/194))
+
+### 📦 Build
+
+- **deps:** Bump @antelopejs/tooling-configs to 0.5.0 ([#189](https://github.com/AntelopeJS/dms-automation/pull/189))
+- **deps:** Bump @antelopejs/tooling-configs to 0.5.1 ([#192](https://github.com/AntelopeJS/dms-automation/pull/192))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.9.2
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.9.1...v0.9.2)
