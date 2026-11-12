@@ -28,11 +28,7 @@ import { subscriptions } from "../runtime/subscriptions";
 import { withFreeWebhookPaths } from "../runtime/webhookRoutes";
 import { withTriggerText } from "../runtime/wording";
 import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
-import {
-  type GraphNode,
-  parseGraph,
-  type ProcedureGraph,
-} from "../types/graph";
+import { type GraphNode, type ProcedureGraph } from "../types/graph";
 import { isProductionRun } from "../types/runLog";
 import { deleteDialogOf } from "./deleteConfirm";
 import {
@@ -155,8 +151,8 @@ async function insertDraft(
 
 /** A procedure as the API serves it: its graph parsed. */
 function served(procedure: Procedure) {
-  const { graph, ...fields } = procedure;
-  return { ...fields, graph: parseGraph(graph) };
+  const { graph: _graph, ...fields } = procedure;
+  return { ...fields, graph: graphOf(procedure) };
 }
 
 /** The name of a copy, kept within the length a name may have. */

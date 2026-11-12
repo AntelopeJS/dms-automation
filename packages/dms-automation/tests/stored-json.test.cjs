@@ -42,6 +42,14 @@ void test("a stored graph that is JSON but not shaped as a graph is refused as u
       ...GRAPH,
       triggerEdges: [{ id: "e", from: { node: 1 }, to: { node: "a" } }],
     },
+    { ...GRAPH, nodes: [{ ...GRAPH.nodes[0], config: [] }] },
+    { ...GRAPH, nodes: [{ ...GRAPH.nodes[0], typeId: 3 }] },
+    {
+      ...GRAPH,
+      dataEdges: [
+        { id: "d", from: { node: "t" }, to: { node: "a", field: "f" } },
+      ],
+    },
     [],
   ]) {
     assert.throws(() => parseGraph(JSON.stringify(broken)), SyntaxError);
