@@ -2,7 +2,8 @@ import { GetModel } from "@antelopejs/interface-database-decorators";
 import { ProcedureModel } from "../db/models/procedure.model";
 import type { Procedure } from "../db/tables/procedure.table";
 import { DATABASE_NAME } from "../types/constants";
-import type { ProcedureGraph } from "../types/graph";
+import { isFields, type ProcedureGraph } from "../types/graph";
+import { isNumber, isString } from "../types/guards";
 import type { ConfigProblem } from "./validate";
 
 /**
@@ -22,12 +23,27 @@ export class TriggerArmError extends Error {
   }
 }
 
+function isArmError(value: unknown): value is ArmError {
+  if (!isFields(value)) return false;
+  const { code, params, message } = value;
+  return (
+    isString(code) &&
+    isString(message) &&
+    isFields(params) &&
+    Object.values(params).every((p) => isString(p) || isNumber(p))
+  );
+}
+
+function isArmErrors(value: unknown): value is Record<string, ArmError> {
+  return isFields(value) && Object.values(value).every(isArmError);
+}
+
 /** The arm errors stored on a procedure, by trigger node id. */
 function readArmErrors(procedure: Procedure): Record<string, ArmError> {
   if (!procedure.armErrors) return {};
   try {
-    // SAFETY: the armErrors column is written only by storeArmErrors below, as JSON.stringify of a Record<string, ArmError>, and stored rows are never schema-parsed on read.
-    return JSON.parse(procedure.armErrors) as Record<string, ArmError>;
+    const parsed: unknown = JSON.parse(procedure.armErrors);
+    return isArmErrors(parsed) ? parsed : {};
   } catch {
     return {};
   }
