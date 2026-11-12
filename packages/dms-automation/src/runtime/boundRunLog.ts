@@ -298,7 +298,7 @@ export function scrubRunLog(log: RunLog, secrets: readonly string[]): RunLog {
   if (secrets.length === 0) return log;
   const text = (t: string): string => scrubText(t, secrets);
   const textOrNull = (t: string | null): string | null =>
-    t === null ? t : text(t);
+    isString(t) ? text(t) : t;
   return {
     ...log,
     fires: log.fires.map((fire) => ({
@@ -314,8 +314,8 @@ export function scrubRunLog(log: RunLog, secrets: readonly string[]): RunLog {
         fireId: text(entry.fireId),
         message: text(entry.message),
       };
-      if (entry.nodeId !== undefined) scrubbed.nodeId = text(entry.nodeId);
-      if (entry.nodeKind !== undefined) {
+      if (isString(entry.nodeId)) scrubbed.nodeId = text(entry.nodeId);
+      if (isString(entry.nodeKind)) {
         scrubbed.nodeKind = text(entry.nodeKind);
       }
       if (entry.value !== undefined) {
@@ -423,10 +423,9 @@ export function redactedStoredRun(
   }
   return {
     triggerPayload,
-    errorMessage:
-      run.errorMessage === undefined
-        ? undefined
-        : scrubText(run.errorMessage, secrets),
-    logs: run.logs === undefined ? undefined : scrubRunLog(run.logs, secrets),
+    errorMessage: isString(run.errorMessage)
+      ? scrubText(run.errorMessage, secrets)
+      : run.errorMessage,
+    logs: isObject(run.logs) ? scrubRunLog(run.logs, secrets) : run.logs,
   };
 }

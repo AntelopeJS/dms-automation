@@ -9,6 +9,7 @@ import type { ProcedureRun } from "../db/tables/procedure_run.table";
 import { RUNS_TOPIC, notifyTopic } from "../realtime";
 import { DATABASE_NAME } from "../types/constants";
 import type { DataValue } from "../types/dataValue";
+import { isString } from "../types/guards";
 import {
   type GraphNode,
   parseGraph,
@@ -75,10 +76,9 @@ async function writeRun({
     startedAt,
     endedAt,
     status: result.status,
-    errorMessage:
-      result.errorMessage === undefined
-        ? undefined
-        : scrubText(result.errorMessage, secrets),
+    errorMessage: isString(result.errorMessage)
+      ? scrubText(result.errorMessage, secrets)
+      : result.errorMessage,
     triggerNodeId,
     triggerPayload: serializeTriggerPayload(triggerPayload),
     logs: boundRunLog(scrubRunLog(result.logs, secrets)),
