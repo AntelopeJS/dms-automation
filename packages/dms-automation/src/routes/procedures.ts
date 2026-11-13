@@ -195,15 +195,26 @@ export function savedTriggersOf(graph: ProcedureGraph, from = new Date()) {
 export class ProceduresController extends Controller(
   "/api/automation/procedures",
 ) {
+  /**
+   * A page of the readable procedures, the most recently updated first.
+   * `total` and the pages count only the rows this route can serve, so a
+   * client that reads pages until a short one reads every readable row.
+   */
   @Get("")
   async list(
     @AuthRawUser() _user: User,
     @Parameter("page", "query") page?: string,
     @Parameter("limit", "query") limit?: string,
   ) {
+    const params = pageParams(page, limit);
     const model = GetModel(ProcedureModel, DATABASE_NAME);
-    const listed = await model.list(pageParams(page, limit));
-    return { ...listed, results: listed.results.flatMap(readable) };
+    const rows = (await model.newestFirst()).flatMap(readable);
+    const start = params.page * params.limit;
+    return {
+      ...params,
+      results: rows.slice(start, start + params.limit),
+      total: rows.length,
+    };
   }
 
   /**

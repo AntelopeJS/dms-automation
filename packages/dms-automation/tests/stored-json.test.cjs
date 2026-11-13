@@ -2,7 +2,18 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
-Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
+/** @type {Array<{ _id: string, name: string, graph: string }>} */
+let storedProcedures = [];
+const procedureTable = {
+  count: () => ({ run: async () => storedProcedures.length }),
+  orderBy: () => ({
+    run: async () => storedProcedures,
+    slice: (/** @type {number} */ offset, /** @type {number} */ count) => ({
+      run: async () => storedProcedures.slice(offset, offset + count),
+    }),
+  }),
+};
+Schema.get = () => ({ instance: () => ({ table: () => procedureTable }) });
 
 const {
   AutomationTemplateModel,
@@ -116,30 +127,31 @@ void test("stored template ports not shaped as ports read as none", async () => 
   }
 });
 
-void test("a procedure whose stored graph cannot be read is left out of the list, the others listed", async () => {
-  const { ProcedureModel } = require("../dist/db/models/procedure.model.js");
+void test("a procedure whose stored graph cannot be read is left out of the list, its pages and its total", async () => {
   const { ProceduresController } = require("../dist/routes/procedures.js");
-  const rows = [
-    { _id: "ok", name: "ok", graph: JSON.stringify(GRAPH) },
-    {
-      _id: "label",
-      name: "label",
-      graph: JSON.stringify({
-        ...GRAPH,
-        nodes: [{ ...GRAPH.nodes[0], label: 5 }],
-      }),
-    },
-    { _id: "text", name: "text", graph: "{" },
-  ];
-  ProcedureModel.prototype.list = async () => ({
-    results: rows,
-    total: 3,
-    page: 0,
-    limit: 10,
+  const numericLabelGraph = JSON.stringify({
+    ...GRAPH,
+    nodes: [{ ...GRAPH.nodes[0], label: 5 }],
   });
-  const listed = await ProceduresController.prototype.list.call({}, {});
-  assert.deepEqual(
-    listed.results.map((p) => [p._id, p.graph]),
-    [["ok", GRAPH]],
-  );
+  storedProcedures = [
+    { _id: "text", name: "text", graph: "{" },
+    { _id: "first", name: "first", graph: JSON.stringify(GRAPH) },
+    { _id: "label", name: "label", graph: numericLabelGraph },
+    { _id: "second", name: "second", graph: JSON.stringify(GRAPH) },
+  ];
+  const pageOf = async (/** @type {string} */ page) => {
+    const listed = await ProceduresController.prototype.list.call(
+      {},
+      {},
+      page,
+      "1",
+    );
+    return {
+      ids: listed.results.map((p) => [p._id, p.graph]),
+      total: listed.total,
+    };
+  };
+  assert.deepEqual(await pageOf("0"), { ids: [["first", GRAPH]], total: 2 });
+  assert.deepEqual(await pageOf("1"), { ids: [["second", GRAPH]], total: 2 });
+  assert.deepEqual(await pageOf("2"), { ids: [], total: 2 });
 });
