@@ -35,6 +35,7 @@ import { builtinTriggers } from "../runtime/builtins/triggers";
 import type { StepName, TriggerSummary } from "../runtime/describe";
 import { stepText, triggerText, triggerTypeText } from "../runtime/wording";
 import { DATABASE_NAME } from "../types/constants";
+import { isString } from "../types/guards";
 import { ProceduresTableAPI } from "./procedures-table";
 
 /**
@@ -87,16 +88,26 @@ const TRIGGER_TYPE_ITEMS = builtinTriggers.map((t) => ({
 }));
 
 /**
- * The runs whose error contains `text` (the search, the "Error" filter). A run
+ * A filter's value. A request sends text. A route may pass on a boolean it
+ * wrote (interface-data-api 0.8), and no text equals or contains a boolean.
+ */
+type FilterText = string | boolean;
+
+/**
+ * The runs whose error contains `value` (the search, the "Error" filter). A run
  * stored before the project marked a name as sensitive (`runs.sensitiveNames`)
  * is left out: its error may hold a secret, which a search could guess
  * character by character.
  */
-function errorContains(row: ValueProxy<RunsTableAPI>, text: string) {
+function errorContains(
+  row: ValueProxy<RunsTableAPI>,
+  value: FilterText,
+): ValueProxy<boolean> | boolean {
+  if (!isString(value)) return false;
   return row
     .key("errorMessage")
     .default("")
-    .match(containing(text))
+    .match(containing(value))
     .and(row.key("triggerPayload").match(clearCredentialPattern()).not());
 }
 
@@ -109,22 +120,38 @@ const errorFilter: FilterFunction<RunsTableAPI, RunsTableAPI> = (
 
 /**
  * The procedure filter (the funnel, the quick filter, `?procedure=`): the
- * relation's own compare modes, except that a blank id filters nothing.
+ * relation's own compare modes, except that a blank id filters nothing. A
+ * boolean is compared as it is, as the default filter compares it.
  */
 function procedureFilter(
   id: ValueProxy<unknown>,
-  value: string,
+  value: FilterText,
   mode: string,
 ): ValueProxy<boolean> | boolean {
   if (mode === "is_empty") return id.default(null).eq(null);
   if (mode === "is_not_empty") return id.default(null).ne(null);
-  if (!value) return true;
-  return mode === "is_not" ? id.ne(value) : id.eq(value);
+  const wanted = isString(value) ? value.trim() : value;
+  if (wanted === "") return true;
+  return mode === "is_not" ? id.ne(wanted) : id.eq(wanted);
 }
 
 /** A case-insensitive pattern matching a value that contains `text`. */
 function containing(text: string): string {
   return `(?i)${escapeRegex(text.trim())}`;
+}
+
+/** A case-insensitive pattern matching a value that starts with `text`. */
+function startingWith(text: string): string {
+  return `(?i)^${escapeRegex(text.trim())}`;
+}
+
+/** Whether `field` matches `pattern` of a text value. A boolean matches no row. */
+function matchesText(
+  field: ValueProxy<unknown>,
+  value: FilterText,
+  pattern: (text: string) => string,
+): ValueProxy<boolean> | boolean {
+  return isString(value) ? field.match(pattern(value)) : false;
 }
 
 @RegisterDataController()
@@ -146,9 +173,7 @@ export class RunsTableAPI extends DataController(
    * The search finds a run by its id or the start of it.
    */
   @Searchable()
-  @Filter((_ctx, id, _key, value) =>
-    id.match(`(?i)^${escapeRegex(value.trim())}`),
-  )
+  @Filter((_ctx, id, _key, value) => matchesText(id, value, startingWith))
   @Listable()
   @Column({
     name: "$dms_automation.runs.cols.id",
@@ -199,9 +224,7 @@ export class RunsTableAPI extends DataController(
    * through the procedures controller's `select` route, and the row keeps the
    * raw id (the drawer and "View runs" links filter on it).
    */
-  @Filter((_ctx, id, _key, value, mode) =>
-    procedureFilter(id, value.trim(), mode),
-  )
+  @Filter((_ctx, id, _key, value, mode) => procedureFilter(id, value, mode))
   @Listable()
   @Exported()
   @Column({
@@ -220,7 +243,7 @@ export class RunsTableAPI extends DataController(
 
   @Searchable()
   @Filter((_ctx, summary, _key, value) =>
-    summary.key("path").default("").match(containing(value)),
+    matchesText(summary.key("path").default(""), value, containing),
   )
   @Listable()
   @Column({
@@ -273,7 +296,7 @@ export class RunsTableAPI extends DataController(
 
   @Searchable()
   @Filter((_ctx, step, _key, value) =>
-    step.key("label").default("").match(containing(value)),
+    matchesText(step.key("label").default(""), value, containing),
   )
   @Listable()
   @Column({
