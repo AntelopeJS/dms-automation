@@ -77,19 +77,23 @@ type SerializedTriggerType = Omit<TriggerType, "activate" | "deactivate"> &
 type SerializedDataNodeType = Omit<DataNodeType, "evaluate"> & TypeOrigin;
 
 export function serializeAction(a: ActionType): SerializedActionType {
-  // oxlint-disable-next-line typescript/unbound-method -- the extracted binding exists only to drop the key from `rest`; it is never called, so it cannot lose its `this`
-  const { execute: _execute, ...rest } = a;
+  const rest: Omit<ActionType, "execute"> &
+    Partial<Pick<ActionType, "execute">> = { ...a };
+  delete rest.execute;
   return { ...rest, ...actionTypeOrigin(a.id) };
 }
 
 export function serializeTrigger(t: TriggerType): SerializedTriggerType {
-  // oxlint-disable-next-line typescript/unbound-method -- the extracted binding exists only to drop the key from `rest`; it is never called, so it cannot lose its `this`
-  const { activate: _activate, deactivate: _deactivate, ...rest } = t;
+  const rest: Omit<TriggerType, "activate" | "deactivate"> &
+    Partial<Pick<TriggerType, "activate" | "deactivate">> = { ...t };
+  delete rest.activate;
+  delete rest.deactivate;
   return { ...rest, ...triggerTypeOrigin(t.id) };
 }
 
 export function serializeDataNode(d: DataNodeType): SerializedDataNodeType {
-  // oxlint-disable-next-line typescript/unbound-method -- the extracted binding exists only to drop the key from `rest`; it is never called, so it cannot lose its `this`
-  const { evaluate: _evaluate, ...rest } = d;
+  const rest: Omit<DataNodeType, "evaluate"> &
+    Partial<Pick<DataNodeType, "evaluate">> = { ...d };
+  delete rest.evaluate;
   return { ...rest, ...dataNodeTypeOrigin(d.id) };
 }

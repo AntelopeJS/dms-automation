@@ -263,33 +263,67 @@ export function secretsOf(payload: DataValue): string[] {
   return [...new Set(forms)].sort((a, b) => b.length - a.length);
 }
 
+/** `text` with every occurrence of the given secrets replaced by {@link REDACTED}. */
+export function scrubText(text: string, secrets: readonly string[]): string {
+  return secrets.reduce(
+    (scrubbed, s) => scrubbed.replaceAll(s, REDACTED),
+    text,
+  );
+}
+
+/** `value` with the given secrets scrubbed from its strings at any depth. */
+function scrubJson(value: JsonValue, secrets: readonly string[]): JsonValue {
+  if (isString(value)) return scrubText(value, secrets);
+  if (Array.isArray(value))
+    return value.map((item) => scrubJson(item, secrets));
+  if (isDataRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, item]) => [
+        k,
+        item === undefined ? item : scrubJson(item, secrets),
+      ]),
+    );
+  }
+  return value;
+}
+
 /**
- * `value` with every occurrence of the given secrets replaced by
- * {@link REDACTED}, in its strings at any depth (a step's inputs and output, a
- * log message). Returned as it is when there is no secret.
+ * `log` with every occurrence of the given secrets replaced by
+ * {@link REDACTED} in its ids, messages and logged values (a step's inputs and
+ * output). A level or a source is shorter than any secret
+ * (`MIN_SECRET_LENGTH`), so no secret occurs in it. Returned as it is when
+ * there is no secret.
  */
-export function scrubSecrets<T extends DataValue>(
-  value: T,
-  secrets: readonly string[],
-): T {
-  if (secrets.length === 0) return value;
-  const scrub = (v: JsonValue): JsonValue => {
-    if (isString(v)) {
-      return secrets.reduce((text, s) => text.replaceAll(s, REDACTED), v);
-    }
-    if (Array.isArray(v)) return v.map(scrub);
-    if (isDataRecord(v)) {
-      return Object.fromEntries(
-        Object.entries(v).map(([k, item]) => [
-          k,
-          item === undefined ? item : scrub(item),
-        ]),
-      );
-    }
-    return v;
+export function scrubRunLog(log: RunLog, secrets: readonly string[]): RunLog {
+  if (secrets.length === 0) return log;
+  const text = (t: string): string => scrubText(t, secrets);
+  const textOrNull = (t: string | null): string | null =>
+    isString(t) ? text(t) : t;
+  return {
+    ...log,
+    fires: log.fires.map((fire) => ({
+      ...fire,
+      id: text(fire.id),
+      parentFireId: textOrNull(fire.parentFireId),
+      sourceNodeId: text(fire.sourceNodeId),
+      port: textOrNull(fire.port),
+    })),
+    entries: log.entries.map((entry) => {
+      const scrubbed: LogEntry = {
+        ...entry,
+        fireId: text(entry.fireId),
+        message: text(entry.message),
+      };
+      if (isString(entry.nodeId)) scrubbed.nodeId = text(entry.nodeId);
+      if (isString(entry.nodeKind)) {
+        scrubbed.nodeKind = text(entry.nodeKind);
+      }
+      if (entry.value !== undefined) {
+        scrubbed.value = scrubJson(entry.value, secrets);
+      }
+      return scrubbed;
+    }),
   };
-  // SAFETY: scrub rewrites only the strings of a JSON-shaped value and keeps every key, array item and non-string leaf, so the result has the shape of its argument T.
-  return (value === undefined ? value : scrub(value)) as T;
 }
 
 /**
@@ -389,7 +423,9 @@ export function redactedStoredRun(
   }
   return {
     triggerPayload,
-    errorMessage: scrubSecrets(run.errorMessage, secrets),
-    logs: scrubSecrets(run.logs, secrets),
+    errorMessage: isString(run.errorMessage)
+      ? scrubText(run.errorMessage, secrets)
+      : run.errorMessage,
+    logs: isObject(run.logs) ? scrubRunLog(run.logs, secrets) : run.logs,
   };
 }

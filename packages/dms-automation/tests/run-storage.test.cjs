@@ -16,7 +16,7 @@ const {
   readTriggerPayload,
   redactStoredPayload,
   redactedStoredRun,
-  scrubSecrets,
+  scrubRunLog,
   secretsOf,
   serializeTriggerPayload,
 } = require("../dist/runtime/boundRunLog.js");
@@ -267,11 +267,11 @@ void test("a credential a step copied from the trigger is scrubbed from its log"
       }),
     ],
   };
-  const scrubbed = JSON.stringify(scrubSecrets(log, secrets));
+  const scrubbed = JSON.stringify(scrubRunLog(log, secrets));
   assert.doesNotMatch(scrubbed, /SECRET/);
   assert.match(scrubbed, /got \[redacted\]/);
   assert.ok(!secrets.includes("dark"));
-  assert.equal(scrubSecrets(log, []), log);
+  assert.equal(scrubRunLog(log, []), log);
 });
 
 void test("the project names its own credentials", () => {
@@ -367,4 +367,23 @@ void test("a run read after a name became sensitive hides it in its payload, err
     }),
     undefined,
   );
+});
+
+void test("a stored run whose unset fields came back as null is still redacted", () => {
+  const stored = {
+    triggerPayload: JSON.stringify({ headers: { "x-api-key": "OLDSECRET99" } }),
+    errorMessage: null,
+    logs: {
+      fires: [ROOT],
+      entries: [
+        { ...entry(1, "got OLDSECRET99"), nodeId: null, nodeKind: null },
+      ],
+    },
+  };
+  const rewritten = redactedStoredRun(stored);
+
+  assert.equal(rewritten.errorMessage, null);
+  assert.equal(rewritten.logs.entries[0].nodeId, null);
+  assert.equal(rewritten.logs.entries[0].nodeKind, null);
+  assert.equal(rewritten.logs.entries[0].message, "got [redacted]");
 });

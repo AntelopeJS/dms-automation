@@ -319,8 +319,7 @@ async function activateTrigger(
     void executeProcedure(
       meta.procedure,
       meta.graph,
-      meta.nodeId,
-      payload,
+      { triggerNodeId: meta.nodeId, payload },
       templates,
     ).catch((err: unknown) => {
       Logging.Error("[dms-automation] procedure execution failed:", err);

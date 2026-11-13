@@ -9,6 +9,7 @@ import type { ProcedureRun } from "../db/tables/procedure_run.table";
 import { RUNS_TOPIC, notifyTopic } from "../realtime";
 import { DATABASE_NAME } from "../types/constants";
 import type { DataValue } from "../types/dataValue";
+import { isString } from "../types/guards";
 import {
   type GraphNode,
   parseGraph,
@@ -17,7 +18,8 @@ import {
 import type { LogEntry, RunKind } from "../types/runLog";
 import {
   boundRunLog,
-  scrubSecrets,
+  scrubRunLog,
+  scrubText,
   secretsOf,
   serializeTriggerPayload,
 } from "./boundRunLog";
@@ -74,10 +76,12 @@ async function writeRun({
     startedAt,
     endedAt,
     status: result.status,
-    errorMessage: scrubSecrets(result.errorMessage, secrets),
+    errorMessage: isString(result.errorMessage)
+      ? scrubText(result.errorMessage, secrets)
+      : result.errorMessage,
     triggerNodeId,
     triggerPayload: serializeTriggerPayload(triggerPayload),
-    logs: boundRunLog(scrubSecrets(result.logs, secrets)),
+    logs: boundRunLog(scrubRunLog(result.logs, secrets)),
     kind: origin.kind,
     instanceId,
     stepNames: stepNamesOf(graph),
@@ -133,17 +137,21 @@ async function insertRun(row: Partial<ProcedureRun>): Promise<string> {
   }
 }
 
+/** Where a run starts: the trigger node it fires from and what it hands in. */
+export interface RunStart {
+  triggerNodeId: string;
+  payload: DataValue;
+}
+
 /**
  * Run a graph from one of its triggers and store the run; returns its id. What
  * the triggers, Run now, Re-run and Test run share. A test tries a draft: the
  * actions that can simulate do.
  */
-// oxlint-disable-next-line eslint/max-params -- the run's inputs come one per argument, as every caller has them
 export async function executeProcedure(
   procedure: Procedure,
   graph: ProcedureGraph,
-  triggerNodeId: string,
-  payload: DataValue,
+  { triggerNodeId, payload }: RunStart,
   templates: TemplateCache,
   origin: RunOrigin = TRIGGERED_RUN,
 ): Promise<string> {

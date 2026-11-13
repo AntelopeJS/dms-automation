@@ -37,11 +37,13 @@ import { LastRunsDisplay, ProcedureLinkDisplay } from "../displays";
 import { BUILDER_URL, TRACE_URL } from "../pages/shared";
 import { builtinTriggers } from "../runtime/builtins/triggers";
 import { subscriptions } from "../runtime/subscriptions";
+import { QueryParameters } from "../routes/queryParameters";
 import { DATABASE_NAME } from "../types/constants";
 import {
   applyQuery,
   countQueries,
   procedureOptions,
+  type ProceduresListQuery,
   sortRows,
   toInt,
 } from "./procedures-query";
@@ -107,33 +109,21 @@ const procedureSummaryRoutes = {
     method: "GET",
     args: [
       AuthOwnerOnly(),
-      Parameter("offset", "query"),
-      Parameter("limit", "query"),
-      Parameter("sortKey", "query"),
-      Parameter("sortDirection", "query"),
-      Parameter("search", "query"),
-      Parameter("filter_status", "query"),
-      Parameter("filter_triggerTypes", "query"),
+      QueryParameters(
+        "offset",
+        "limit",
+        "sortKey",
+        "sortDirection",
+        "search",
+        "filter_status",
+        "filter_triggerTypes",
+      ),
     ],
-    // oxlint-disable-next-line eslint/max-params -- each parameter is bound to a request input by its decorator, so the framework hands them in positionally
-    func: async (
-      _user: User,
-      offset?: string,
-      limit?: string,
-      sortKey?: string,
-      sortDirection?: string,
-      search?: string,
-      filterStatus?: string,
-      filterTriggerTypes?: string,
-    ) => {
-      const filtered = applyQuery(await getProceduresSummary(), {
-        search,
-        filter_status: filterStatus,
-        filter_triggerTypes: filterTriggerTypes,
-      });
-      const sorted = sortRows(filtered, sortKey, sortDirection);
-      const off = toInt(offset, 0, 0);
-      const lim = toInt(limit, DEFAULT_PAGE_SIZE, 1);
+    func: async (_user: User, query: ProceduresListQuery) => {
+      const filtered = applyQuery(await getProceduresSummary(), query);
+      const sorted = sortRows(filtered, query.sortKey, query.sortDirection);
+      const off = toInt(query.offset, 0, 0);
+      const lim = toInt(query.limit, DEFAULT_PAGE_SIZE, 1);
       return {
         results: sorted.slice(off, off + lim),
         total: filtered.length,

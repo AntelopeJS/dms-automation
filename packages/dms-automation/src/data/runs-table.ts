@@ -28,7 +28,7 @@ import { ProcedureRun } from "../db/tables/procedure_run.table";
 import {
   clearCredentialPattern,
   escapeRegex,
-  scrubSecrets,
+  scrubText,
   storedSecretsOf,
 } from "../runtime/boundRunLog";
 import { builtinTriggers } from "../runtime/builtins/triggers";
@@ -100,14 +100,11 @@ function errorContains(row: ValueProxy<RunsTableAPI>, text: string) {
     .and(row.key("triggerPayload").match(clearCredentialPattern()).not());
 }
 
-// oxlint-disable-next-line eslint/max-params -- the data API hands a filter the row sixth
 const errorFilter: FilterFunction<RunsTableAPI, RunsTableAPI> = (
-  _c,
-  _e,
-  _k,
-  value,
-  _m,
-  row,
+  _context,
+  _proxy,
+  _key,
+  ...[value, _mode, row]
 ) => errorContains(row, value);
 
 /**
@@ -380,7 +377,7 @@ export class RunsTableAPI extends DataController(
   get errorText(): string | null {
     const { errorMessage, triggerPayload } = this.table;
     if (!errorMessage) return null;
-    return scrubSecrets(errorMessage, storedSecretsOf(triggerPayload));
+    return scrubText(errorMessage, storedSecretsOf(triggerPayload));
   }
 
   @Listable()

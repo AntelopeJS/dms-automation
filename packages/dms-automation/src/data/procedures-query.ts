@@ -71,6 +71,14 @@ export interface ProceduresQuery {
   filter_triggerTypes?: QueryValue;
 }
 
+/** The query of the Procedures list: its filters, sort and page. */
+export interface ProceduresListQuery extends ProceduresQuery {
+  offset?: QueryValue;
+  limit?: QueryValue;
+  sortKey?: QueryValue;
+  sortDirection?: QueryValue;
+}
+
 /** The rows the search and the status and trigger filters keep. */
 export function applyQuery(
   rows: ProcedureSummaryRow[],
