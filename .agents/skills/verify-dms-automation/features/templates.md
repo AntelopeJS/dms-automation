@@ -6,7 +6,7 @@ covers:
   - packages/dms-automation/src/runtime/resolveSubgraph.ts
   - packages/dms-automation/src/runtime/templateUsages.ts
   - packages/dms-automation/src/runtime/flatten.ts
-  - packages/dms-automation/frontend-vue/app/components/Templates.vue
+  - packages/dms-automation/frontend-vue/app/components/LibraryTemplates.vue
   - packages/dms-automation/frontend-vue/app/build/utils/templates.ts
   - packages/dms-automation/frontend-vue/app/build/composables/editor/useSaveAsTemplate.ts
   - packages/dms-automation/frontend-vue/app/build/composables/editor/useForkToLocal.ts

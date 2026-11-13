@@ -9,7 +9,7 @@ covers:
   - packages/dms-automation/src/runtime/typeSwitches.ts
   - packages/dms-automation/src/runtime/typeOrigin.ts
   - packages/dms-automation/src/pages/library.ts
-  - packages/dms-automation/frontend-vue/app/components/Catalog.vue
+  - packages/dms-automation/frontend-vue/app/components/LibraryCatalog.vue
   - packages/dms-automation/frontend-vue/app/components/Catalog/**
   - packages/dms-automation/frontend-vue/app/components/WebhookEndpoint.vue
 docs:

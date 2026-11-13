@@ -233,7 +233,7 @@ for (const name of INHERITED_NAMES) {
       describeApiError: key,
     });
     const catalog = scope.run(() =>
-      componentSetup("Catalog.vue", {
+      componentSetup("LibraryCatalog.vue", {
         kind: "triggers",
         apiUrl: "/api/automation",
         builderUrl: "/b",

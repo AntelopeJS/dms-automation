@@ -21,7 +21,7 @@ export class BuilderPageController extends PageController(
   },
   DefaultLayout({ fullWidth: true, fillHeight: true, hideHeader: true }),
 ) {
-  static editor = CustomComponent("dms-automation-editor")
+  static editor = CustomComponent("dms-automation-graph-editor")
     .options({ apiUrl: API_URL, runsUrl: RUNS_URL, traceUrl: TRACE_URL })
     .meta({
       name: "$dms_automation.permissions.editor.name",

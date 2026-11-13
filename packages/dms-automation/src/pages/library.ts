@@ -26,7 +26,7 @@ function catalog(
   kind: CatalogKind,
   meta: { name: string; description: string },
 ) {
-  return CustomComponent("dms-automation-catalog")
+  return CustomComponent("dms-automation-library-catalog")
     .options({ kind, apiUrl: API_URL, builderUrl: BUILDER_URL })
     .meta({ ...meta, icon: CATALOG_ICONS[kind] });
 }
@@ -78,7 +78,7 @@ export class LibraryPageController extends PageController(
     .child("dataNodes", registryCatalog("dataNodes"), { slot: "dataNodes" })
     .child(
       "templates",
-      CustomComponent("dms-automation-templates")
+      CustomComponent("dms-automation-library-templates")
         .options({ apiUrl: API_URL, builderUrl: BUILDER_URL })
         .meta({
           name: "$dms_automation.permissions.templates.name",
