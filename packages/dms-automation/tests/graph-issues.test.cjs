@@ -252,6 +252,20 @@ void test("an empty required setting warns on a draft and blocks enabling", () =
   assert.deepEqual(graphIssues(wired, { enabling: true }), []);
 });
 
+void test("a setting outside its list names its value as text", () => {
+  /** @param {string | (string | null)[] | Record<string, string>} method */
+  const refused = (method) =>
+    graphIssues(
+      graphOf([
+        node("t", "trigger", "manual"),
+        node("h", "action", "http.request", { url: "https://x", method }),
+      ]),
+    ).find((issue) => issue.code === "notInEnum");
+  assert.equal(refused({ verb: "GET" }).params.value, '{"verb":"GET"}');
+  assert.equal(refused(["GET", null, "PUT"]).params.value, "GET,,PUT");
+  assert.equal(refused("FETCH").params.value, "FETCH");
+});
+
 void test("two webhooks of one graph cannot share a route", () => {
   const graph = graphOf([
     node("a", "trigger", "webhook", { path: "/webhooks/x", method: "POST" }),

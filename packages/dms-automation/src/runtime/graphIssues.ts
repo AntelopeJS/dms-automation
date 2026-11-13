@@ -24,7 +24,7 @@ import {
   type ProblemParams,
 } from "./validate";
 import { propertiesOf, type SchemaProperty } from "./schemaProperties";
-import type { DataRecord, DataValue } from "../types/dataValue";
+import { type DataRecord, type DataValue, textOf } from "../types/dataValue";
 import { isNumber, isString } from "../types/guards";
 
 /** How much a problem on the graph matters: an error blocks enabling. */
@@ -202,8 +202,7 @@ function missingSettings(
 function invalidSetting(
   field: string,
   property: SchemaProperty,
-  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- the value is whatever the node holds for a setting (a stored or posted config value); typed DataValue, the String(value) in the message moves the row to typescript/no-base-to-string, and changing the message text for objects and arrays would change what the builder shows
-  value: unknown,
+  value: DataValue,
 ): ConfigProblem | undefined {
   const { minimum, maximum } = property;
   const named = fieldParams(field, property);
@@ -224,7 +223,7 @@ function invalidSetting(
   if (property.enum && !property.enum.some((item) => item === value)) {
     return {
       code: "notInEnum",
-      params: { ...named, value: String(value) },
+      params: { ...named, value: textOf(value) },
       message: `${named.label} cannot be ${JSON.stringify(value)}`,
     };
   }

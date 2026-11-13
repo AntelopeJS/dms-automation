@@ -1,9 +1,9 @@
 {
   "rules": {
     "anti-slop/no-chained-type-assertions": 0,
-    "anti-slop/no-unknown-parameters": 1,
+    "anti-slop/no-unknown-parameters": 0,
     "eslint/max-params": 0,
-    "typescript/no-base-to-string": 3,
+    "typescript/no-base-to-string": 2,
     "typescript/unbound-method": 0
   },
   "tsExpectError": 0,

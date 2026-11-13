@@ -2,7 +2,7 @@ import type {
   JsonObject,
   JsonValue,
 } from "@antelopejs/interface-dms-automation";
-import { isBoolean, isNumber, isString } from "./guards";
+import { isBoolean, isNumber, isObject, isString } from "./guards";
 
 /**
  * A value a node reads or writes: JSON, plus `undefined` for a field that was
@@ -64,6 +64,47 @@ export function kindOf(
   if (isNumber(value)) return "number";
   if (isBoolean(value)) return "boolean";
   return "object";
+}
+
+/** A value that reads as text through its own `toString`. */
+interface Textual {
+  toString(): string;
+}
+
+/**
+ * Whether `value` gets its text from a `toString` other than `Object`'s, as a
+ * `Date` or a database id handed in by a module's action does: the first
+ * prototype up its chain that holds a `toString` is not `Object.prototype`. A
+ * key of its own named `toString`, which JSON can hold, does not count.
+ */
+function hasOwnText(value: DataRecord): boolean {
+  let owner: unknown = Object.getPrototypeOf(value);
+  while (isObject(owner) && !Object.hasOwn(owner, "toString")) {
+    owner = Object.getPrototypeOf(owner);
+  }
+  return isObject(owner) && owner !== Object.prototype;
+}
+
+/**
+ * A value as text. A string, number, boolean, `null` or `undefined` reads as
+ * `String` reads it. An array reads as its items, each read this way, joined
+ * with commas, `null` and `undefined` as nothing, as `join` does. An object
+ * with a `toString` of its own, a `Date` or a database id, reads as `String`
+ * reads it; any other object as its JSON.
+ */
+export function textOf(value: DataValue): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => textOf(item ?? "")).join(",");
+  }
+  if (isDataRecord(value)) {
+    if (hasOwnText(value)) {
+      const textual: Textual = value;
+      return textual.toString();
+    }
+    const json: string | undefined = JSON.stringify(value);
+    return json ?? "";
+  }
+  return String(value);
 }
 
 /** The value a JSON text holds: whatever `JSON.parse` yields is made of the arms of `DataValue`. */

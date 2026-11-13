@@ -36,7 +36,7 @@ void test("a missing path reads the whole object", () => {
   );
 });
 
-void test("a path that is a list or an object reads as String() reads it", () => {
+void test("a path that is a list reads as its items joined, an object as its JSON", () => {
   assert.equal(evaluateResult("object.get", { obj: { a: 1 }, path: ["a"] }), 1);
   assert.deepEqual(
     evaluateResult("object.set", { obj: {}, path: ["a"], value: "x" }),
@@ -44,9 +44,47 @@ void test("a path that is a list or an object reads as String() reads it", () =>
   );
   assert.equal(
     evaluateResult("object.get", {
-      obj: { "[object Object]": 1 },
+      obj: { '{"a":1}': 1 },
       path: { a: 1 },
     }),
     1,
+  );
+});
+
+void test("a path holding an unset item reads it as nothing, as a joined list does", () => {
+  assert.equal(
+    evaluateResult("object.get", {
+      obj: { "a,,b": 1 },
+      path: ["a", undefined, "b"],
+    }),
+    1,
+  );
+});
+
+void test("a path that is a date or an id object reads as its own text", () => {
+  class Id {
+    /** @param {string} hex */
+    constructor(hex) {
+      this.hex = hex;
+    }
+    toString() {
+      return this.hex;
+    }
+  }
+  const at = new Date(0);
+  assert.equal(
+    evaluateResult("object.get", { obj: { "6af6": 1 }, path: new Id("6af6") }),
+    1,
+  );
+  assert.equal(
+    evaluateResult("object.get", { obj: { [String(at)]: 2 }, path: at }),
+    2,
+  );
+  assert.equal(
+    evaluateResult("object.get", {
+      obj: { '{"toString":"x"}': 3 },
+      path: { toString: "x" },
+    }),
+    3,
   );
 });
