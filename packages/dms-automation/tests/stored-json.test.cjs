@@ -2,14 +2,25 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
-/** @type {Array<{ _id: string, name: string, graph: string }>} */
+/** @type {Array<{ _id: string, name: string, graph: string, updated_at: number }>} */
 let storedProcedures = [];
+/**
+ * @param {"updated_at"} key
+ * @param {"asc" | "desc"} direction
+ */
+const sortedBy = (key, direction) =>
+  storedProcedures.toSorted((a, b) =>
+    direction === "desc" ? b[key] - a[key] : a[key] - b[key],
+  );
 const procedureTable = {
   count: () => ({ run: async () => storedProcedures.length }),
-  orderBy: () => ({
-    run: async () => storedProcedures,
+  orderBy: (
+    /** @type {"updated_at"} */ key,
+    /** @type {"asc" | "desc"} */ direction,
+  ) => ({
+    run: async () => sortedBy(key, direction),
     slice: (/** @type {number} */ offset, /** @type {number} */ count) => ({
-      run: async () => storedProcedures.slice(offset, offset + count),
+      run: async () => sortedBy(key, direction).slice(offset, offset + count),
     }),
   }),
 };
@@ -133,11 +144,12 @@ void test("a procedure whose stored graph cannot be read is left out of the list
     ...GRAPH,
     nodes: [{ ...GRAPH.nodes[0], label: 5 }],
   });
+  const graph = JSON.stringify(GRAPH);
   storedProcedures = [
-    { _id: "text", name: "text", graph: "{" },
-    { _id: "first", name: "first", graph: JSON.stringify(GRAPH) },
-    { _id: "label", name: "label", graph: numericLabelGraph },
-    { _id: "second", name: "second", graph: JSON.stringify(GRAPH) },
+    { _id: "older", name: "older", graph, updated_at: 1 },
+    { _id: "label", name: "label", graph: numericLabelGraph, updated_at: 2 },
+    { _id: "newer", name: "newer", graph, updated_at: 3 },
+    { _id: "text", name: "text", graph: "{", updated_at: 4 },
   ];
   const pageOf = async (/** @type {string} */ page) => {
     const listed = await ProceduresController.prototype.list.call(
@@ -151,7 +163,7 @@ void test("a procedure whose stored graph cannot be read is left out of the list
       total: listed.total,
     };
   };
-  assert.deepEqual(await pageOf("0"), { ids: [["first", GRAPH]], total: 2 });
-  assert.deepEqual(await pageOf("1"), { ids: [["second", GRAPH]], total: 2 });
+  assert.deepEqual(await pageOf("0"), { ids: [["newer", GRAPH]], total: 2 });
+  assert.deepEqual(await pageOf("1"), { ids: [["older", GRAPH]], total: 2 });
   assert.deepEqual(await pageOf("2"), { ids: [], total: 2 });
 });
