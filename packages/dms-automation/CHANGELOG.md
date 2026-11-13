@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.10.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.9.3...v0.10.0)
+
+### 💅 Refactors
+
+- **automation:** Fix the code behind ten lint and SAFETY suppressions ([#195](https://github.com/AntelopeJS/dms-automation/pull/195))
+- **automation:** Name an object path or an enum value by its JSON text ([#196](https://github.com/AntelopeJS/dms-automation/pull/196))
+- **automation:** Check the shape of a stored graph, arm error or port on read ([#197](https://github.com/AntelopeJS/dms-automation/pull/197))
+- **automation:** Lint the Vue layer with no-undef on, reading the DMS auto-import globals ([#198](https://github.com/AntelopeJS/dms-automation/pull/198))
+- **frontend:** ⚠️  Rename Editor, Catalog and Templates to GraphEditor, LibraryCatalog and LibraryTemplates ([#199](https://github.com/AntelopeJS/dms-automation/pull/199))
+
+#### ⚠️ Breaking Changes
+
+- **frontend:** ⚠️  Rename Editor, Catalog and Templates to GraphEditor, LibraryCatalog and LibraryTemplates ([#199](https://github.com/AntelopeJS/dms-automation/pull/199))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.9.3
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.9.2...v0.9.3)
