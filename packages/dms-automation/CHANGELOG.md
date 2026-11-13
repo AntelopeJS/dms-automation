@@ -4,6 +4,20 @@
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.9.3...v0.10.0)
 
+### Upgrade notes
+
+- **Breaking:** three Vue components are served under new names ([#199](https://github.com/AntelopeJS/dms-automation/pull/199)). The module's own pages ask for the new names; anything else that asks for an old one gets no component.
+
+  | Old name | New name |
+  | --- | --- |
+  | `dms-automation-editor` (`DmsAutomationEditor`) | `dms-automation-graph-editor` (`DmsAutomationGraphEditor`) |
+  | `dms-automation-catalog` (`DmsAutomationCatalog`) | `dms-automation-library-catalog` (`DmsAutomationLibraryCatalog`) |
+  | `dms-automation-templates` (`DmsAutomationTemplates`) | `dms-automation-library-templates` (`DmsAutomationLibraryTemplates`) |
+
+- A stored graph, arm error list or template port list that is JSON but not shaped as its type is read as unreadable, like text that is not JSON ([#197](https://github.com/AntelopeJS/dms-automation/pull/197)). Such a procedure is left out of the procedures list with a warning, and `GET /api/automation/procedures/:id` refuses it with 400 `graphHasErrors` where it answered 500. A create, update, import or declaration with a node `label` that is not a string or a position that is not finite is refused with 400. No migration: every writer already stored the checked shape.
+- A path given to `object.get` or `object.set`, or a refused setting value, reads as its JSON when it is a plain object, where it read as `[object Object]` ([#196](https://github.com/AntelopeJS/dms-automation/pull/196)). A list, a `Date` or a database id reads as before.
+- The Vue layer's lint reads the DMS auto-import globals, so its devDependencies start at `@antelopejs/dms` `>=0.19.5` and `@antelopejs/dms-frontend` `>=0.10.4` ([#198](https://github.com/AntelopeJS/dms-automation/pull/198)). Its `engines` range is unchanged.
+
 ### 💅 Refactors
 
 - **automation:** Fix the code behind ten lint and SAFETY suppressions ([#195](https://github.com/AntelopeJS/dms-automation/pull/195))
