@@ -17,8 +17,8 @@
     "vue": "^3.5.18"
   },
   "devDependencies": {
-    "@antelopejs/dms": ">=0.17.0 <1.0.0",
-    "@antelopejs/dms-frontend": ">=0.10.0 <0.11.0",
+    "@antelopejs/dms": ">=0.19.5 <1.0.0",
+    "@antelopejs/dms-frontend": ">=0.10.4 <0.11.0",
     "@antelopejs/tooling-configs": ">=0.3.3 <1.0.0",
     "@eslint/js": "^9.0.0",
     "@nuxt/ui": "4.10.0",
@@ -36,11 +36,5 @@
   "engines": {
     "@antelopejs/dms-frontend": ">=0.10.0 <0.11.0"
   },
-  "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "overrides": {
-      "@antelopejs/dms-frontend": "file:../../../.tgz-deps/antelopejs-dms-frontend-36e8c25.tgz",
-      "@antelopejs/dms": "file:../../../.tgz-deps/antelopejs-dms-e674806.tgz"
-    }
-  }
+  "packageManager": "pnpm@10.33.0"
 }
