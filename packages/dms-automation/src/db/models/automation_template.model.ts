@@ -9,6 +9,7 @@ import {
 } from "../../runtime/resolveSubgraph";
 import {
   type GroupPort,
+  isGroupPort,
   isTemplateInstance,
   parseGraph,
   type ProcedureGraph,
@@ -105,8 +106,8 @@ function parseRow(row: AutomationTemplate): AutomationTemplateRow {
     dataEdges: [],
   };
   try {
-    // SAFETY: the ports column is written only by create and update in this model, as JSON.stringify of a GroupPort[], and stored rows are never schema-parsed on read.
-    ports = row.ports ? (JSON.parse(row.ports) as GroupPort[]) : [];
+    const parsed: unknown = row.ports ? JSON.parse(row.ports) : [];
+    ports = Array.isArray(parsed) && parsed.every(isGroupPort) ? parsed : [];
   } catch {
     ports = [];
   }

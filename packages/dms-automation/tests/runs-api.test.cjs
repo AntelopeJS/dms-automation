@@ -124,7 +124,15 @@ void test("a test is compared with the tests of its procedure only", async () =>
 });
 
 const GRAPH = JSON.stringify({
-  nodes: [{ id: "t", kind: "trigger", typeId: "manual" }],
+  nodes: [
+    {
+      id: "t",
+      kind: "trigger",
+      typeId: "manual",
+      config: {},
+      position: { x: 0, y: 0 },
+    },
+  ],
   triggerEdges: [],
   dataEdges: [],
 });

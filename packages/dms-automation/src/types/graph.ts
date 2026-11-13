@@ -1,4 +1,5 @@
-import type { DataRecord } from "./dataValue";
+import { type DataRecord, isDataRecord, isDataValue } from "./dataValue";
+import { isNumber, isPropertyBag, isString } from "./guards";
 
 /**
  * Node kind is a free-form string keyed off the runtime kind registry.
@@ -111,8 +112,92 @@ export function* walkNodesRecursive(
   }
 }
 
-/** A graph as `JSON.stringify` stored it in a procedure or template row. */
+/** Whether `value` is an object read by name: not `null`, not an array. */
+export function isFields(value: unknown): value is Record<string, unknown> {
+  return isPropertyBag(value) && !Array.isArray(value);
+}
+
+function isGraphNode(value: unknown): value is GraphNode {
+  if (!isFields(value)) return false;
+  const { id, kind, config, position } = value;
+  return (
+    isString(id) &&
+    isString(kind) &&
+    (!Object.hasOwn(value, "typeId") || isString(value.typeId)) &&
+    isDataValue(config) &&
+    isDataRecord(config) &&
+    isFields(position) &&
+    isNumber(position.x) &&
+    isNumber(position.y) &&
+    (!Object.hasOwn(value, "label") || isString(value.label))
+  );
+}
+
+function isTriggerEdgeEnd(value: unknown): value is TriggerEdgeEnd {
+  return (
+    isFields(value) &&
+    isString(value.node) &&
+    (!Object.hasOwn(value, "branch") || isString(value.branch))
+  );
+}
+
+function isTriggerEdge(value: unknown): value is TriggerEdge {
+  return (
+    isFields(value) &&
+    isString(value.id) &&
+    isTriggerEdgeEnd(value.from) &&
+    isTriggerEdgeEnd(value.to)
+  );
+}
+
+function isDataEdge(value: unknown): value is DataEdge {
+  if (!isFields(value)) return false;
+  const { id, from, to } = value;
+  return (
+    isString(id) &&
+    isFields(from) &&
+    isString(from.node) &&
+    isString(from.port) &&
+    isFields(to) &&
+    isString(to.node) &&
+    isString(to.field)
+  );
+}
+
+/** Whether `value` has the shape of a graph: its nodes and both edge lists. */
+export function isProcedureGraph(value: unknown): value is ProcedureGraph {
+  if (!isFields(value)) return false;
+  const { nodes, triggerEdges, dataEdges } = value;
+  return (
+    Array.isArray(nodes) &&
+    nodes.every(isGraphNode) &&
+    Array.isArray(triggerEdges) &&
+    triggerEdges.every(isTriggerEdge) &&
+    Array.isArray(dataEdges) &&
+    dataEdges.every(isDataEdge)
+  );
+}
+
+/** Whether `value` has the shape of a group port. */
+export function isGroupPort(value: unknown): value is GroupPort {
+  if (!isFields(value)) return false;
+  const { name, kind, direction } = value;
+  return (
+    isString(name) &&
+    (kind === "data" || kind === "trigger") &&
+    (direction === "in" || direction === "out") &&
+    (!Object.hasOwn(value, "schema") || isPropertyBag(value.schema))
+  );
+}
+
+/**
+ * A graph as `JSON.stringify` stored it in a procedure or template row.
+ * Throws a `SyntaxError` when the text is not JSON or not shaped as a graph.
+ */
 export function parseGraph(raw: string): ProcedureGraph {
-  // SAFETY: the graph column and a template's subgraph column are written only as JSON.stringify of a ProcedureGraph (routes/procedures.ts, runtime/declaredProcedures.ts, runtime/templateUsages.ts, the template model), and stored rows are never schema-parsed on read.
-  return JSON.parse(raw) as ProcedureGraph;
+  const parsed: unknown = JSON.parse(raw);
+  if (!isProcedureGraph(parsed)) {
+    throw new SyntaxError("not a procedure graph");
+  }
+  return parsed;
 }
