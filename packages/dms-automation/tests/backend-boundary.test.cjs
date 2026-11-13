@@ -110,7 +110,11 @@ void test("an import of the backend source fails the build, naming both files", 
     (error) => {
       assert.ok(error instanceof Error);
       assert.match(error.message, /Backend boundary/);
-      assert.ok(error.message.includes(path.join(frontend, "entry.ts")));
+      assert.ok(
+        error.message.includes(
+          vite.normalizePath(path.join(frontend, "entry.ts")),
+        ),
+      );
       assert.ok(
         error.message.includes(
           path.join(repository, "packages/dms-automation/src/backend.ts"),
