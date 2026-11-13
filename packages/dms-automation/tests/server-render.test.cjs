@@ -35,7 +35,7 @@ const keyed = {
  */
 const builder = (url, settle) =>
   serverRender(
-    component("Editor.vue"),
+    component("GraphEditor.vue"),
     { apiUrl: API },
     { url, respond, keyed, settle },
   );
@@ -102,7 +102,7 @@ void describe("builder", () => {
 void describe("library", () => {
   void test("renders a catalog and where its entries are used", async () => {
     const render = await serverRender(
-      component("Catalog.vue"),
+      component("LibraryCatalog.vue"),
       { kind: "triggers", apiUrl: API, builderUrl: "/b" },
       { url: "/modules/automation/library?tab=triggers", respond },
     );
@@ -116,7 +116,7 @@ void describe("library", () => {
 
   void test("renders the templates, the one shown filled in its form, and where it is used", async () => {
     const render = await serverRender(
-      component("Templates.vue"),
+      component("LibraryTemplates.vue"),
       { apiUrl: API, builderUrl: "/b" },
       { url: "/modules/automation/library?tab=templates", respond },
     );

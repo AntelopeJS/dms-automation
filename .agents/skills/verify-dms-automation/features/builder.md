@@ -1,6 +1,6 @@
 ---
 covers:
-  - packages/dms-automation/frontend-vue/app/components/Editor.vue
+  - packages/dms-automation/frontend-vue/app/components/GraphEditor.vue
   - packages/dms-automation/frontend-vue/app/components/Editor/**
   - packages/dms-automation/frontend-vue/app/build/**
   - packages/dms-automation/frontend-vue/app/composables/useGraphConnect.ts
