@@ -364,6 +364,18 @@ void test("a period that cannot be read is refused", () => {
   refused({ from: NOW.toISOString(), to: ago(24).toISOString() });
 });
 
+void test("a bare date parameter is refused, not read as a date", () => {
+  const { periodWindow } = require("../dist/routes/stats.js");
+  for (const name of ["from", "to"]) {
+    assert.throws(
+      () => periodWindow({ [name]: true }, NOW),
+      (e) =>
+        e.status === 400 &&
+        String(e.body).includes(`\\"${name}\\" is not a date`),
+    );
+  }
+});
+
 void test("by trigger counts a procedure once per trigger type", () => {
   const twoEvents = procedure("p", "Two events");
   twoEvents.triggers = [
