@@ -9,25 +9,25 @@ importers:
   .:
     dependencies:
       '@antelopejs/interface-api':
-        specifier: '>=0.2.0 <1.0.0'
+        specifier: '>=0.2.0 <0.3.0'
         version: 0.2.0(@antelopejs/interface-core@0.4.0)
       '@antelopejs/interface-api-util':
-        specifier: '>=0.3.0 <1.0.0'
+        specifier: '>=0.3.0 <0.4.0'
         version: 0.3.0(@antelopejs/interface-api@0.2.0(@antelopejs/interface-core@0.4.0))(@antelopejs/interface-core@0.4.0)
       '@antelopejs/interface-core':
-        specifier: '>=0.4.0 <1.0.0'
+        specifier: '>=0.4.0 <0.5.0'
         version: 0.4.0
       '@antelopejs/interface-data-api':
-        specifier: '>=0.6.0 <1.0.0'
+        specifier: '>=0.6.0 <0.7.0'
         version: 0.6.0(@antelopejs/interface-api-util@0.3.0(@antelopejs/interface-api@0.2.0(@antelopejs/interface-core@0.4.0))(@antelopejs/interface-core@0.4.0))(@antelopejs/interface-api@0.2.0(@antelopejs/interface-core@0.4.0))(@antelopejs/interface-core@0.4.0)(@antelopejs/interface-database-decorators@0.3.2(@antelopejs/interface-api@0.2.0(@antelopejs/interface-core@0.4.0))(@antelopejs/interface-core@0.4.0)(@antelopejs/interface-database@0.3.1(@antelopejs/interface-core@0.4.0)))(@antelopejs/interface-database@0.3.1(@antelopejs/interface-core@0.4.0))
       '@antelopejs/interface-database':
-        specifier: '>=0.3.1 <1.0.0'
+        specifier: '>=0.3.1 <0.4.0'
         version: 0.3.1(@antelopejs/interface-core@0.4.0)
       '@antelopejs/interface-database-decorators':
-        specifier: '>=0.3.1 <1.0.0'
+        specifier: '>=0.3.1 <0.4.0'
         version: 0.3.2(@antelopejs/interface-api@0.2.0(@antelopejs/interface-core@0.4.0))(@antelopejs/interface-core@0.4.0)(@antelopejs/interface-database@0.3.1(@antelopejs/interface-core@0.4.0))
       '@antelopejs/interface-dms':
-        specifier: '>=0.13.0 <1.0.0'
+        specifier: '>=0.13.0 <0.14.0'
         version: 0.13.0(466e5667c1b1519f3ea13e77b0dbaf76)
       '@antelopejs/interface-dms-automation':
         specifier: '>=0.6.1 <0.7.0'
@@ -43,17 +43,17 @@ importers:
         version: 3.25.76
     devDependencies:
       '@antelopejs/core':
-        specifier: 1.21.0
+        specifier: ~1.21.0
         version: 1.21.0
       '@antelopejs/dms':
-        specifier: '>=0.19.0 <1.0.0'
+        specifier: '>=0.19.0 <0.20.0'
         version: 0.19.0(@antelopejs/core@1.21.0)
       '@antelopejs/dms-frontend':
-        specifier: '>=0.10.0 <1.0.0'
+        specifier: '>=0.10.0 <0.11.0'
         version: 0.10.0(@antelopejs/core@1.21.0)
       '@antelopejs/tooling-configs':
-        specifier: '>=0.3.3 <1.0.0'
-        version: 0.3.3(knip@6.41.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2004))(playwright-core@1.56.1)
+        specifier: '>=0.7.0 <0.8.0'
+        version: 0.7.0(knip@6.41.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2004))(playwright-core@1.56.1)
       '@types/node':
         specifier: ^24.0.0
         version: 24.19.2
@@ -86,7 +86,7 @@ importers:
         version: 6.0.3
     optionalDependencies:
       '@antelopejs/interface-redis':
-        specifier: '>=0.0.9 <1.0.0'
+        specifier: '>=0.0.9 <0.1.0'
         version: 0.0.9(@antelopejs/interface-core@0.4.0)
 
 packages:
@@ -181,8 +181,8 @@ packages:
     peerDependencies:
       '@antelopejs/interface-core': '>=0.2.4 <1.0.0'
 
-  '@antelopejs/tooling-configs@0.3.3':
-    resolution: {integrity: sha512-jQ09zavCF5MMQtfyd8YOqpoxV6l6bp3m9tA5iN0z0XhQpVHM5VWr53yEuQ6Mc+1tseBW85N94ruP4TEfiGg8iQ==}
+  '@antelopejs/tooling-configs@0.7.0':
+    resolution: {integrity: sha512-FtE+vFwTpQR1hgWWSdiylEtn8SaJ6L7B4F7TTyy97cYaj/qvpX/l5QDebJw/A/RQ/Tt1FVYtgKV+lzFFbjau7w==}
     engines: {node: '>=22.18.0'}
     hasBin: true
     peerDependencies:
@@ -190,7 +190,7 @@ packages:
       eslint-plugin-perfectionist: '>=5.0.0'
       knip: '>=6.0.0'
       mongodb-memory-server: '>=10.0.0'
-      oxfmt: ^0.66.0
+      oxfmt: ^0.66.0 || ^0.77.0
       oxlint: 1.81.0
       pixelmatch: '>=7.0.0'
       playwright-core: '>=1.56.0'
@@ -1022,6 +1022,10 @@ packages:
 
   '@types/whatwg-url@13.0.0':
     resolution: {integrity: sha512-N8WXpbE6Wgri7KUSvrmQcqrMllKZ9uxkYWMt+mCSGwNc0Hsw9VQTW7ApqI4XNrx6/SaM2QQJCzMPDEXE058s+Q==}
+
+  '@typescript/typescript6@6.0.2':
+    resolution: {integrity: sha512-mbCddXd+jm7hfx7w2YU64/Av4/NqqeG3GoRZgxPcgoTxYjhrcfJRw9ULch71SS4G+Q3bOXFhRvPqjguN0Hyp5w==}
+    hasBin: true
 
   abort-controller@3.0.0:
     resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
@@ -2810,11 +2814,13 @@ snapshots:
       - supports-color
     optional: true
 
-  '@antelopejs/tooling-configs@0.3.3(knip@6.41.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2004))(playwright-core@1.56.1)':
+  '@antelopejs/tooling-configs@0.7.0(knip@6.41.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2004))(playwright-core@1.56.1)':
     dependencies:
       '@oxlint/plugins': 1.81.0
+      '@typescript/typescript6': 6.0.2
       dts-bundle-generator: 9.5.1
-      typescript: 5.9.3
+      minimatch: 10.2.6
+      semver: 7.8.5
       yaml: 2.9.1
     optionalDependencies:
       knip: 6.41.0
@@ -3378,6 +3384,10 @@ snapshots:
   '@types/whatwg-url@13.0.0':
     dependencies:
       '@types/webidl-conversions': 7.0.3
+
+  '@typescript/typescript6@6.0.2':
+    dependencies:
+      '@typescript/old': typescript@6.0.3
 
   abort-controller@3.0.0:
     dependencies:

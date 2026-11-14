@@ -56,17 +56,17 @@ RegisterActionType({
 
 <!-- antelopejs-docs-compat:start -->
 
-| Package                                     | Supported         | Tested with |
-| ------------------------------------------- | ----------------- | ----------- |
-| `@antelopejs/interface-api`                 | `>=0.2.0 <1.0.0`  | `0.2.0`     |
-| `@antelopejs/interface-api-util`            | `>=0.3.0 <1.0.0`  | `0.3.0`     |
-| `@antelopejs/interface-core`                | `>=0.4.0 <1.0.0`  | `0.4.0`     |
-| `@antelopejs/interface-data-api`            | `>=0.6.0 <1.0.0`  | `0.6.0`     |
-| `@antelopejs/interface-database`            | `>=0.3.1 <1.0.0`  | `0.3.1`     |
-| `@antelopejs/interface-database-decorators` | `>=0.3.1 <1.0.0`  | `0.3.2`     |
-| `@antelopejs/interface-dms`                 | `>=0.13.0 <1.0.0` | `0.13.0`    |
-| `@antelopejs/interface-dms-automation`      | `>=0.6.1 <0.7.0`  | `workspace` |
-| `@antelopejs/interface-redis`               | `>=0.0.9 <1.0.0`  | `0.0.9`     |
+| Package                                     | Supported          | Tested with |
+| ------------------------------------------- | ------------------ | ----------- |
+| `@antelopejs/interface-api`                 | `>=0.2.0 <0.3.0`   | `0.2.0`     |
+| `@antelopejs/interface-api-util`            | `>=0.3.0 <0.4.0`   | `0.3.0`     |
+| `@antelopejs/interface-core`                | `>=0.4.0 <0.5.0`   | `0.4.0`     |
+| `@antelopejs/interface-data-api`            | `>=0.6.0 <0.7.0`   | `0.6.0`     |
+| `@antelopejs/interface-database`            | `>=0.3.1 <0.4.0`   | `0.3.1`     |
+| `@antelopejs/interface-database-decorators` | `>=0.3.1 <0.4.0`   | `0.3.2`     |
+| `@antelopejs/interface-dms`                 | `>=0.13.0 <0.14.0` | `0.13.0`    |
+| `@antelopejs/interface-dms-automation`      | `>=0.6.1 <0.7.0`   | `0.6.2`     |
+| `@antelopejs/interface-redis`               | `>=0.0.9 <0.1.0`   | `0.0.9`     |
 
 <!-- antelopejs-docs-compat:end -->
 

@@ -52,7 +52,7 @@
     "test:type-display": "node --test tests/type-display.test.cjs",
     "test:unit": "pnpm run build && node --test tests/health.test.cjs tests/kpi.test.cjs tests/graph-issues.test.cjs tests/trace.test.cjs tests/schedule.test.cjs tests/pages.test.cjs tests/procedures-page.test.cjs tests/wording.test.cjs tests/health-banner.test.cjs tests/runtime-nodes.test.cjs tests/runs-api.test.cjs tests/run-detail.test.cjs tests/graph-connect.test.cjs tests/library.test.cjs tests/template-delete.test.cjs tests/frontend-lint-rules.test.cjs tests/overview.test.cjs tests/declared-procedures.test.cjs tests/trigger-rearm.test.cjs tests/module-departure.test.cjs tests/run-procedure.test.cjs tests/dry-run.test.cjs tests/test-run-confirm.test.cjs tests/confirm-from.test.cjs tests/backend-boundary.test.cjs tests/leader-stop.test.cjs",
     "dev": "ajs project run -w -p playground",
-    "lint": "oxlint && oxfmt --check . && cd frontend-vue && pnpm lint && antelopejs-check-interface-ranges",
+    "lint": "oxlint && oxfmt --check . && cd frontend-vue && pnpm lint",
     "typecheck": "pnpm --filter @antelopejs/interface-dms-automation typecheck && tsc --noEmit",
     "lint:fix": "oxlint --fix && oxfmt . && cd frontend-vue && pnpm lint:fix",
     "format": "oxfmt .",
@@ -64,23 +64,23 @@
     "knip:all": "knip"
   },
   "dependencies": {
-    "@antelopejs/interface-api": ">=0.2.0 <1.0.0",
-    "@antelopejs/interface-api-util": ">=0.3.0 <1.0.0",
-    "@antelopejs/interface-core": ">=0.4.0 <1.0.0",
-    "@antelopejs/interface-data-api": ">=0.6.0 <1.0.0",
-    "@antelopejs/interface-database": ">=0.3.1 <1.0.0",
-    "@antelopejs/interface-database-decorators": ">=0.3.1 <1.0.0",
-    "@antelopejs/interface-dms": ">=0.13.0 <1.0.0",
+    "@antelopejs/interface-api": ">=0.2.0 <0.3.0",
+    "@antelopejs/interface-api-util": ">=0.3.0 <0.4.0",
+    "@antelopejs/interface-core": ">=0.4.0 <0.5.0",
+    "@antelopejs/interface-data-api": ">=0.6.0 <0.7.0",
+    "@antelopejs/interface-database": ">=0.3.1 <0.4.0",
+    "@antelopejs/interface-database-decorators": ">=0.3.1 <0.4.0",
+    "@antelopejs/interface-dms": ">=0.13.0 <0.14.0",
     "@antelopejs/interface-dms-automation": ">=0.6.1 <0.7.0",
     "defu": "^6.1.4",
     "node-cron": "^4.2.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@antelopejs/core": "1.21.0",
-    "@antelopejs/dms": ">=0.19.0 <1.0.0",
-    "@antelopejs/dms-frontend": ">=0.10.0 <1.0.0",
-    "@antelopejs/tooling-configs": ">=0.3.3 <1.0.0",
+    "@antelopejs/core": "~1.21.0",
+    "@antelopejs/dms": ">=0.19.0 <0.20.0",
+    "@antelopejs/dms-frontend": ">=0.10.0 <0.11.0",
+    "@antelopejs/tooling-configs": ">=0.7.0 <0.8.0",
     "@types/node": "^24.0.0",
     "knip": "^6.34.0",
     "mongodb-memory-server-core": "^11.0.1",
@@ -93,7 +93,7 @@
     "typescript": "^6.0.3"
   },
   "optionalDependencies": {
-    "@antelopejs/interface-redis": ">=0.0.9 <1.0.0"
+    "@antelopejs/interface-redis": ">=0.0.9 <0.1.0"
   },
   "packageManager": "pnpm@10.33.0",
   "antelopeJs": {

@@ -16,14 +16,14 @@ importers:
         version: 3.5.44(typescript@5.9.3)
     devDependencies:
       '@antelopejs/dms':
-        specifier: '>=0.19.5 <1.0.0'
+        specifier: '>=0.19.5 <0.20.0'
         version: 0.19.5(@antelopejs/core@1.20.0)
       '@antelopejs/dms-frontend':
         specifier: '>=0.10.4 <0.11.0'
         version: 0.10.4(@antelopejs/core@1.20.0)
       '@antelopejs/tooling-configs':
-        specifier: '>=0.3.3 <1.0.0'
-        version: 0.3.3(playwright-core@1.56.1)
+        specifier: '>=0.7.0 <0.8.0'
+        version: 0.7.0(playwright-core@1.56.1)
       '@eslint/js':
         specifier: ^9.0.0
         version: 9.39.5
@@ -157,8 +157,8 @@ packages:
     peerDependencies:
       '@antelopejs/interface-core': '>=0.2.4 <1.0.0'
 
-  '@antelopejs/tooling-configs@0.3.3':
-    resolution: {integrity: sha512-jQ09zavCF5MMQtfyd8YOqpoxV6l6bp3m9tA5iN0z0XhQpVHM5VWr53yEuQ6Mc+1tseBW85N94ruP4TEfiGg8iQ==}
+  '@antelopejs/tooling-configs@0.7.0':
+    resolution: {integrity: sha512-FtE+vFwTpQR1hgWWSdiylEtn8SaJ6L7B4F7TTyy97cYaj/qvpX/l5QDebJw/A/RQ/Tt1FVYtgKV+lzFFbjau7w==}
     engines: {node: '>=22.18.0'}
     hasBin: true
     peerDependencies:
@@ -166,7 +166,7 @@ packages:
       eslint-plugin-perfectionist: '>=5.0.0'
       knip: '>=6.0.0'
       mongodb-memory-server: '>=10.0.0'
-      oxfmt: ^0.66.0
+      oxfmt: ^0.66.0 || ^0.77.0
       oxlint: 1.81.0
       pixelmatch: '>=7.0.0'
       playwright-core: '>=1.56.0'
@@ -1171,6 +1171,10 @@ packages:
   '@typescript-eslint/visitor-keys@8.71.2':
     resolution: {integrity: sha512-zozlN0UA32bSG2zkKAgQyRYSbEISVoyU6vvkKYo2aSny74D8Jh4e+POkJ6Lk0dlezZi5x7TtD+88Xb06IB8nhg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@typescript/typescript6@6.0.2':
+    resolution: {integrity: sha512-mbCddXd+jm7hfx7w2YU64/Av4/NqqeG3GoRZgxPcgoTxYjhrcfJRw9ULch71SS4G+Q3bOXFhRvPqjguN0Hyp5w==}
+    hasBin: true
 
   '@unhead/vue@2.1.17':
     resolution: {integrity: sha512-pnC8x9HLV3qQXdvWfylUEU25uhfCAy3ly9nmpQz84j9py818DRfU8jOsQ5wjdWtxyU1vX/fW2udfm4jtxUK8Bg==}
@@ -2971,6 +2975,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   ua-is-frozen@0.1.2:
     resolution: {integrity: sha512-RwKDW2p3iyWn4UbaxpP2+VxwqXh0jpvdxsYpZ5j/MLLiQOfbsV5shpgQiw93+KMYQPcteeMQ289MaAFzs3G9pw==}
 
@@ -3486,11 +3495,13 @@ snapshots:
       - supports-color
     optional: true
 
-  '@antelopejs/tooling-configs@0.3.3(playwright-core@1.56.1)':
+  '@antelopejs/tooling-configs@0.7.0(playwright-core@1.56.1)':
     dependencies:
       '@oxlint/plugins': 1.81.0
+      '@typescript/typescript6': 6.0.2
       dts-bundle-generator: 9.5.1
-      typescript: 5.9.3
+      minimatch: 10.2.6
+      semver: 7.8.6
       yaml: 2.9.1
     optionalDependencies:
       playwright-core: 1.56.1
@@ -4535,6 +4546,10 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.71.2
       eslint-visitor-keys: 5.0.1
+
+  '@typescript/typescript6@6.0.2':
+    dependencies:
+      '@typescript/old': typescript@6.0.3
 
   '@unhead/vue@2.1.17(vue@3.5.44(typescript@5.9.3))':
     dependencies:
@@ -6344,6 +6359,8 @@ snapshots:
       - supports-color
 
   typescript@5.9.3: {}
+
+  typescript@6.0.3: {}
 
   ua-is-frozen@0.1.2: {}
 
