@@ -109,16 +109,18 @@ void test("an import of the backend source fails the build, naming both files", 
     build('import { secret } from "../src/backend.ts";\nexport { secret };\n'),
     (error) => {
       assert.ok(error instanceof Error);
-      assert.match(error.message, /Backend boundary/);
+      assert.match(error.message, /Backend boundary: /);
       assert.ok(
         error.message.includes(
-          vite.normalizePath(path.join(frontend, "entry.ts")),
+          "/packages/dms-automation/frontend-vue/entry.ts imports ",
         ),
+        error.message,
       );
       assert.ok(
         error.message.includes(
-          path.join(repository, "packages/dms-automation/src/backend.ts"),
+          "/packages/dms-automation/src/backend.ts, which is under the src",
         ),
+        error.message,
       );
       return true;
     },

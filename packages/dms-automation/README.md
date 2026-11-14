@@ -65,7 +65,7 @@ RegisterActionType({
 | `@antelopejs/interface-database`            | `>=0.3.1 <1.0.0`  | `0.3.1`     |
 | `@antelopejs/interface-database-decorators` | `>=0.3.1 <1.0.0`  | `0.3.2`     |
 | `@antelopejs/interface-dms`                 | `>=0.13.0 <1.0.0` | `0.13.0`    |
-| `@antelopejs/interface-dms-automation`      | `>=0.6.1 <0.7.0`  | `workspace` |
+| `@antelopejs/interface-dms-automation`      | `>=0.6.1 <0.7.0`  | `0.6.2`     |
 | `@antelopejs/interface-redis`               | `>=0.0.9 <1.0.0`  | `0.0.9`     |
 
 <!-- antelopejs-docs-compat:end -->
