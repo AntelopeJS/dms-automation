@@ -133,3 +133,49 @@ void test("a confirmFrom URL filled by row tokens or interpolation is accepted",
   );
   assert.deepEqual(found, []);
 });
+
+void test("a Dms tag that names a component dms 0.20 renamed is reported, in Pascal and kebab case", async () => {
+  const found = await lint(
+    "Screen.vue",
+    vueFile(
+      [
+        "<div>",
+        "<DmsBanner />",
+        "<dms-card />",
+        "<DmsTextarea />",
+        "<DmsAutomationNoSuchPanel />",
+        "</div>",
+      ].join("\n"),
+    ),
+    "known-dms-components",
+  );
+  assert.deepEqual(
+    found.map(({ line }) => line),
+    [3, 4, 5, 6],
+  );
+});
+
+void test("a Dms tag that dms, dms-frontend, this module or an import provides is accepted", async () => {
+  const found = await lint(
+    "Screen.vue",
+    [
+      '<script setup lang="ts">',
+      'import DmsLocalThing from "./DmsLocalThing.vue";',
+      "</script>",
+      vueFile(
+        [
+          "<div>",
+          "<DmsNoticeBanner />",
+          "<dms-card-panel />",
+          "<DmsSectionBlock />",
+          "<DmsLink />",
+          "<DmsAutomationGraphEditor />",
+          "<DmsLocalThing />",
+          "</div>",
+        ].join("\n"),
+      ),
+    ].join("\n"),
+    "known-dms-components",
+  );
+  assert.deepEqual(found, []);
+});

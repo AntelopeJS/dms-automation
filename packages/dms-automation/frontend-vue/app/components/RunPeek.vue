@@ -83,11 +83,11 @@ function go(url: string) {
 			<template v-if="section === 'summary'">
 				<DmsAutomationRunFailure v-if="failed" :run="run" :trace-url="traceUrl" />
 				<div class="flex flex-col gap-2">
-					<DmsEyebrow as="h4" :label="$t('dms_automation.trace.pathTaken')" />
+					<DmsEyebrowLabel as="h4" :label="$t('dms_automation.trace.pathTaken')" />
 					<DmsAutomationRunPathTaken :run="run" :builder-url="builderUrl" />
 				</div>
 				<div class="flex flex-col gap-2">
-					<DmsEyebrow as="h4" :label="$t('dms_automation.trace.tabs.steps')" />
+					<DmsEyebrowLabel as="h4" :label="$t('dms_automation.trace.tabs.steps')" />
 					<DmsAutomationRunWaterfall :steps="run.trace.steps" :skipped="[]" :total-ms="run.durationMs" :truncated="run.trace.truncated" path-only />
 				</div>
 			</template>

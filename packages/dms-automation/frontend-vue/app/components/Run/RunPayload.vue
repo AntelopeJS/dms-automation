@@ -52,7 +52,7 @@ function describeBytes(value: number): string {
 <template>
 	<div class="flex flex-col gap-2">
 		<template v-if="preview">
-			<DmsBanner
+			<DmsNoticeBanner
 				size="sm"
 				tone="warning"
 				icon="i-ph-warning"

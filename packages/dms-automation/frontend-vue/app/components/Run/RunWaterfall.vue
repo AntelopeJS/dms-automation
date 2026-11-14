@@ -255,7 +255,7 @@ const NAME_CLASS = 'break-words @xl:truncate'
 
 <template>
 	<div class="@container flex flex-col">
-		<DmsBanner
+		<DmsNoticeBanner
 			v-if="truncated"
 			size="sm"
 			tone="warning"

@@ -47,7 +47,7 @@ const icon = defineModel<string>('icon', { required: true })
 				:label="$t('dms_automation.editor.saveTemplateModal.description')"
 				label-for="save-template-description"
 			>
-				<DmsTextarea
+				<DmsInputTextarea
 					id="save-template-description"
 					v-model="description"
 					:placeholder="$t('dms_automation.editor.saveTemplateModal.descriptionPlaceholder')"
@@ -74,7 +74,7 @@ const icon = defineModel<string>('icon', { required: true })
 					</div>
 				</div>
 			</div>
-			<DmsBanner
+			<DmsNoticeBanner
 				v-if="error"
 				size="sm"
 				tone="error"

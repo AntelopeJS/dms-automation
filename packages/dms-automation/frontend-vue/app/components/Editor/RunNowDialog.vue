@@ -113,7 +113,7 @@ async function submit() {
 					:label="$t('dms_automation.editor.runNow.trigger')"
 					label-for="run-now-trigger"
 				>
-					<DmsSelect id="run-now-trigger" v-model="triggerNodeId" :items="triggerItems" class="w-full" />
+					<DmsInputSelect id="run-now-trigger" v-model="triggerNodeId" :items="triggerItems" class="w-full" />
 				</DmsFieldRow>
 				<DmsFieldRow
 					v-bind="ROW"
@@ -134,14 +134,14 @@ async function submit() {
 						<DmsFieldError :id="fieldErrors.errorId('payload')" :message="fieldErrors.errors.payload" />
 					</div>
 				</DmsFieldRow>
-				<DmsBanner
+				<DmsNoticeBanner
 					v-if="redactedHeaders.length"
 					size="sm"
 					tone="warning"
 					icon="i-ph-key"
 					:title="$t('dms_automation.editor.runNow.redactedHeaders', { headers: redactedHeaders.join(', ') })"
 				/>
-				<DmsBanner size="sm" tone="warning" icon="i-ph-warning" :title="$t('dms_automation.editor.runNow.sideEffects')" />
+				<DmsNoticeBanner size="sm" tone="warning" icon="i-ph-warning" :title="$t('dms_automation.editor.runNow.sideEffects')" />
 			</div>
 		</template>
 		<template #footer>
