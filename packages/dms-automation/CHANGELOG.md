@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.11.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.10.0...v0.11.0)
+
+### 🩹 Fixes
+
+- **automation:** Read a run filter's value as text or boolean ([#203](https://github.com/AntelopeJS/dms-automation/pull/203))
+- **automation:** Count only the readable procedures in the list's total and pages ([#205](https://github.com/AntelopeJS/dms-automation/pull/205))
+
+### 💅 Refactors
+
+- **automation:** Read string and JSON node inputs through one null-aware String ([#201](https://github.com/AntelopeJS/dms-automation/pull/201))
+
+### 📖 Documentation
+
+- **changelog:** Upgrade notes of dms-automation 0.10.0 ([#200](https://github.com/AntelopeJS/dms-automation/pull/200))
+
+### 📦 Build
+
+- **deps:** Raise interface-database-decorators to 0.3.1 in the module and playground ([#204](https://github.com/AntelopeJS/dms-automation/pull/204))
+- **deps:** Move to tooling-configs 0.7.0 and compare the backend-boundary message with no separator rewrite ([#206](https://github.com/AntelopeJS/dms-automation/pull/206))
+- **deps:** ⚠️  Move to interface-dms 0.14 and dms 0.20 ([#207](https://github.com/AntelopeJS/dms-automation/pull/207))
+
+### 🏡 Chore
+
+- **release:** @antelopejs/interface-dms-automation v0.7.0 ([2526a5c](https://github.com/AntelopeJS/dms-automation/commit/2526a5c))
+
+### 🤖 CI
+
+- Run the checks and tests on Windows next to Linux ([#202](https://github.com/AntelopeJS/dms-automation/pull/202))
+
+#### ⚠️ Breaking Changes
+
+- **deps:** ⚠️  Move to interface-dms 0.14 and dms 0.20 ([#207](https://github.com/AntelopeJS/dms-automation/pull/207))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.10.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.9.3...v0.10.0)
