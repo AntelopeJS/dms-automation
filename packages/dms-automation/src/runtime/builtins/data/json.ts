@@ -1,6 +1,5 @@
-/* oxlint-disable typescript/no-base-to-string -- String(value) is the contract these nodes were built against; a JSON form changes the output of arrays, dates, errors and cycles. */
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
-import { parseJsonText } from "../../../types/dataValue";
+import { inputText, parseJsonText } from "../../../types/dataValue";
 
 export const jsonNodes: DataNodeType[] = [
   {
@@ -16,7 +15,7 @@ export const jsonNodes: DataNodeType[] = [
     outputSchema: { type: "object", properties: { result: {} } },
     evaluate: ({ text }: { text: unknown }) => {
       try {
-        return { result: parseJsonText(String(text ?? "")) };
+        return { result: parseJsonText(inputText(text)) };
       } catch {
         return { result: null };
       }

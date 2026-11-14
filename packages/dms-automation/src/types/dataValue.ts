@@ -107,6 +107,15 @@ export function textOf(value: DataValue): string {
   return String(value);
 }
 
+/**
+ * A node input as `String` reads it, or `absent` when it is `null` or
+ * `undefined`: what the string and JSON nodes read their inputs as.
+ */
+export function inputText(value: unknown, absent = ""): string {
+  const text = String(value);
+  return value === null || value === undefined ? absent : text;
+}
+
 /** The value a JSON text holds: whatever `JSON.parse` yields is made of the arms of `DataValue`. */
 export function parseJsonText(text: string): DataValue {
   const parsed: unknown = JSON.parse(text);

@@ -1,5 +1,5 @@
-/* oxlint-disable typescript/no-base-to-string -- String(value) is the contract these nodes were built against; a JSON form changes the output of arrays, dates, errors and cycles. */
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
+import { inputText } from "../../../types/dataValue";
 
 const strProp = { type: "string", default: "" };
 const numProp = { type: "number", default: 0 };
@@ -39,7 +39,7 @@ export const stringNodes: DataNodeType[] = [
     inputSchema: { type: "object", properties: { a: strProp, b: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
     evaluate: ({ a, b }: { a: unknown; b: unknown }) => {
-      return { result: String(a ?? "") + String(b ?? "") };
+      return { result: inputText(a) + inputText(b) };
     },
   },
   {
@@ -51,7 +51,7 @@ export const stringNodes: DataNodeType[] = [
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultNum } },
     evaluate: ({ s }: { s: unknown }) => ({
-      result: characters(String(s ?? "")).length,
+      result: characters(inputText(s)).length,
     }),
   },
   {
@@ -76,7 +76,7 @@ export const stringNodes: DataNodeType[] = [
     }) => {
       return {
         result: slice(
-          String(s ?? ""),
+          inputText(s),
           Number(start),
           end === undefined || end === null ? undefined : Number(end),
         ),
@@ -92,7 +92,7 @@ export const stringNodes: DataNodeType[] = [
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
     evaluate: ({ s }: { s: unknown }) => ({
-      result: String(s ?? "").toLowerCase(),
+      result: inputText(s).toLowerCase(),
     }),
   },
   {
@@ -104,7 +104,7 @@ export const stringNodes: DataNodeType[] = [
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
     evaluate: ({ s }: { s: unknown }) => ({
-      result: String(s ?? "").toUpperCase(),
+      result: inputText(s).toUpperCase(),
     }),
   },
   {
@@ -116,7 +116,7 @@ export const stringNodes: DataNodeType[] = [
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
     evaluate: ({ s }: { s: unknown }) => ({
-      result: String(s ?? "").trim(),
+      result: inputText(s).trim(),
     }),
   },
   {
@@ -131,7 +131,7 @@ export const stringNodes: DataNodeType[] = [
     },
     outputSchema: { type: "object", properties: { result: resultArr } },
     evaluate: ({ s, separator }: { s: unknown; separator: unknown }) => {
-      return { result: String(s ?? "").split(String(separator ?? ",")) };
+      return { result: inputText(s).split(inputText(separator, ",")) };
     },
   },
   {
@@ -155,9 +155,9 @@ export const stringNodes: DataNodeType[] = [
       replacement: unknown;
     }) => {
       return {
-        result: String(s ?? "")
-          .split(String(search ?? ""))
-          .join(String(replacement ?? "")),
+        result: inputText(s)
+          .split(inputText(search))
+          .join(inputText(replacement)),
       };
     },
   },
@@ -173,7 +173,7 @@ export const stringNodes: DataNodeType[] = [
     },
     outputSchema: { type: "object", properties: { result: resultBool } },
     evaluate: ({ s, search }: { s: unknown; search: unknown }) => {
-      return { result: String(s ?? "").includes(String(search ?? "")) };
+      return { result: inputText(s).includes(inputText(search)) };
     },
   },
 ];
