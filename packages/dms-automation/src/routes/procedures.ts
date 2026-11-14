@@ -8,6 +8,7 @@ import {
   Parameter,
   Post,
   Put,
+  type QueryValue,
 } from "@antelopejs/interface-api";
 import { Logging } from "@antelopejs/interface-core/logging";
 import { GetModel } from "@antelopejs/interface-database-decorators";
@@ -203,8 +204,8 @@ export class ProceduresController extends Controller(
   @Get("")
   async list(
     @AuthRawUser() _user: User,
-    @Parameter("page", "query") page?: string,
-    @Parameter("limit", "query") limit?: string,
+    @Parameter("page", "query") page?: QueryValue,
+    @Parameter("limit", "query") limit?: QueryValue,
   ) {
     const params = pageParams(page, limit);
     const model = GetModel(ProcedureModel, DATABASE_NAME);
@@ -551,10 +552,15 @@ export class ProceduresController extends Controller(
   async lastPayload(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
-    @Parameter("triggerNodeId", "query") triggerNodeId?: string,
+    @Parameter("triggerNodeId", "query") triggerNodeId?: QueryValue,
   ) {
     const graph = parseGraphSafe((await loadProcedure(id)).graph);
-    const trigger = graph && findTriggerNode(graph, triggerNodeId);
+    const trigger =
+      graph &&
+      findTriggerNode(
+        graph,
+        triggerNodeId === true ? undefined : triggerNodeId,
+      );
     if (!trigger) return { last: null, tooLarge: false };
     return await lastPayloadOf(id, trigger.id);
   }
@@ -573,8 +579,8 @@ export class ProceduresController extends Controller(
   async runs(
     @AuthRawUser() _user: User,
     @Parameter("id", "param") id: string,
-    @Parameter("page", "query") page?: string,
-    @Parameter("limit", "query") limit?: string,
+    @Parameter("page", "query") page?: QueryValue,
+    @Parameter("limit", "query") limit?: QueryValue,
   ) {
     const params = pageParams(page, limit);
     await loadProcedure(id);

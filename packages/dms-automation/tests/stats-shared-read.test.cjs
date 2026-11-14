@@ -2,11 +2,17 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
-Schema.get = () => ({
-  instance: () => ({
-    table: () => ({ orderBy: () => ({ run: async () => [] }) }),
-  }),
-});
+Schema.list = () =>
+  new Map([
+    [
+      "dms_automation",
+      {
+        instance: () => ({
+          table: () => ({ orderBy: () => ({ run: async () => [] }) }),
+        }),
+      },
+    ],
+  ]);
 
 const {
   ProcedureRunModel,

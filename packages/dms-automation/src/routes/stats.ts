@@ -157,11 +157,10 @@ export class StatsController extends Controller("/api/automation/stats") {
   @Get("/health")
   async health(
     @AuthRawUser() _user: User,
-    @Parameter("from", "query") from?: string,
-    @Parameter("to", "query") to?: string,
-    @Parameter("preset", "query") preset?: string,
+    @QueryParameters("from", "to", "preset") query: PresetQuery,
   ) {
-    const window = periodWindow({ from, to, preset });
+    const { preset } = query;
+    const window = periodWindow(query);
     const hero = healthHero(await loadStatsContext(earliestOf(window)), window);
     return healthBanner(hero, {
       runsUrl: RUNS_URL,
@@ -213,11 +212,9 @@ export class StatsController extends Controller("/api/automation/stats") {
   @Get("/attention")
   async attention(
     @AuthRawUser() _user: User,
-    @Parameter("from", "query") from?: string,
-    @Parameter("to", "query") to?: string,
-    @Parameter("preset", "query") preset?: string,
+    @QueryParameters("from", "to", "preset") query: PresetQuery,
   ) {
-    const window = periodWindow({ from, to, preset });
+    const window = periodWindow(query);
     return attentionRows(await loadStatsContext(window.from), window.from);
   }
 

@@ -10,7 +10,8 @@ const { Logging } = require("@antelopejs/interface-core/logging");
 const { Schema } = require("@antelopejs/interface-database");
 const automation = require("@antelopejs/interface-dms-automation");
 
-Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
+Schema.list = () =>
+  new Map([["dms_automation", { instance: () => ({ table: () => ({}) }) }]]);
 
 const { ProcedureModel } = require("../dist/db/models/procedure.model.js");
 const {

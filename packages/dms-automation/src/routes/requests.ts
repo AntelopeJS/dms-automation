@@ -1,4 +1,8 @@
-import { type HTTPBody, HTTPResult } from "@antelopejs/interface-api";
+import {
+  type HTTPBody,
+  HTTPResult,
+  type QueryValue,
+} from "@antelopejs/interface-api";
 import type { z } from "zod";
 import type { GraphIssue } from "../runtime/graphIssues";
 import type { DataValue } from "../types/dataValue";
@@ -63,13 +67,13 @@ interface PageRequest {
  * larger limit read as the largest page served. Anything else is a 400.
  */
 export function pageParams(
-  page?: string,
-  limit?: string,
+  page?: QueryValue,
+  limit?: QueryValue,
   { defaultSize, maxSize }: PageSizes = DEFAULT_SIZES,
 ): PageRequest {
   const valid =
-    (!page || NON_NEGATIVE_INT.test(page)) &&
-    (!limit || (NON_NEGATIVE_INT.test(limit) && Number(limit) >= 1));
+    (!page || NON_NEGATIVE_INT.test(String(page))) &&
+    (!limit || (NON_NEGATIVE_INT.test(String(limit)) && Number(limit) >= 1));
   if (!valid) {
     throw refused(
       400,

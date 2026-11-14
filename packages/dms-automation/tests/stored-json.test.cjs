@@ -24,7 +24,10 @@ const procedureTable = {
     }),
   }),
 };
-Schema.get = () => ({ instance: () => ({ table: () => procedureTable }) });
+Schema.list = () =>
+  new Map([
+    ["dms_automation", { instance: () => ({ table: () => procedureTable }) }],
+  ]);
 
 const {
   AutomationTemplateModel,
