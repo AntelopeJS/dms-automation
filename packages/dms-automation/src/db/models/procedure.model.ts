@@ -1,5 +1,4 @@
 import { BasicDataModel } from "@antelopejs/interface-database-decorators";
-import type { PageParams, Paginated } from "../../types/pagination";
 import { Procedure, proceduresTableName } from "../tables/procedure.table";
 
 export class ProcedureModel extends BasicDataModel(
@@ -29,22 +28,8 @@ export class ProcedureModel extends BasicDataModel(
     return updated > 0;
   }
 
-  async list(options: PageParams): Promise<Paginated<Procedure>> {
-    const totalReq = this.table.count();
-    const finalReq = this.table
-      .orderBy("updated_at", "desc")
-      .slice(options.page * options.limit, options.limit);
-
-    const [total, results] = await Promise.all([
-      totalReq.run(),
-      finalReq.run(),
-    ]);
-
-    return {
-      results,
-      total,
-      page: options.page,
-      limit: options.limit,
-    };
+  /** Every procedure, the most recently updated first. */
+  async newestFirst(): Promise<Procedure[]> {
+    return await this.table.orderBy("updated_at", "desc").run();
   }
 }
