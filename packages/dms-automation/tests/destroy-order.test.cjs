@@ -5,7 +5,8 @@ const { load } = require("./helpers/module-load.cjs");
 const { mock, test } = require("node:test");
 const { Schema } = require("@antelopejs/interface-database");
 
-Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
+Schema.list = () =>
+  new Map([["dms_automation", { instance: () => ({ table: () => ({}) }) }]]);
 
 const TYPE_ID = "support.nightly-sweep";
 

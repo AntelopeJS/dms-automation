@@ -7,6 +7,7 @@ import {
   Parameter,
   Post,
   Put,
+  type QueryValue,
 } from "@antelopejs/interface-api";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { AuthUserWithPermission } from "@antelopejs/interface-dms/guards";
@@ -224,8 +225,8 @@ export class TemplatesController extends Controller(
   @Get("")
   async list(
     @AuthRawUser() _user: User,
-    @Parameter("page", "query") page?: string,
-    @Parameter("limit", "query") limit?: string,
+    @Parameter("page", "query") page?: QueryValue,
+    @Parameter("limit", "query") limit?: QueryValue,
   ): Promise<Paginated<TemplateWithUsage>> {
     const query = pageParams(page, limit, TEMPLATE_PAGE_SIZES);
     const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
@@ -347,7 +348,7 @@ export class TemplatesController extends Controller(
   async remove(
     @AuthUserWithPermission(BuilderPageController) _user: User,
     @Parameter("id", "param") id: string,
-    @Parameter("force", "query") force?: string,
+    @Parameter("force", "query") force?: QueryValue,
   ): Promise<RemoveTemplateResult> {
     const templateModel = GetModel(AutomationTemplateModel, DATABASE_NAME);
     const existing = await templateModel.getById(id);

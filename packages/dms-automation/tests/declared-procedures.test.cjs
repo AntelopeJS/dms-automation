@@ -2,7 +2,8 @@ const assert = require("node:assert/strict");
 const { beforeEach, test } = require("node:test");
 const { DuplicateKeyError, Schema } = require("@antelopejs/interface-database");
 
-Schema.get = () => ({ instance: () => ({ table: () => ({}) }) });
+Schema.list = () =>
+  new Map([["dms_automation", { instance: () => ({ table: () => ({}) }) }]]);
 
 const {
   builtinActions,
