@@ -1,4 +1,100 @@
+import { readdirSync } from "node:fs";
+import { createRequire } from "node:module";
+import { basename, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import dmsFrontendGlobals from "@antelopejs/dms-frontend/eslint-globals";
+
 const BLANK = /^\s*$/;
+const DMS_TAG = /^(?:Dms[A-Z]|dms-[a-z])/;
+const COMPONENT_DIR = /(?:^|\/)(?:build\/)?components\//;
+const DMS_ALIASES = ["ActivityFeedBlock", "SectionBlock", "FieldRowBlock"];
+
+/** `notice-banner` or `NoticeBanner.vue` as the name Vue resolves: `NoticeBanner`. */
+function pascalCase(name) {
+  return name
+    .replace(/\.vue$/, "")
+    .split(/[./_-]+/)
+    .filter(Boolean)
+    .map((part) => `${part[0].toUpperCase()}${part.slice(1)}`)
+    .join("");
+}
+
+/** The names of the `.vue` files under `root` whose path `keep` accepts. */
+function componentFiles(root, keep = () => true) {
+  return readdirSync(root, { recursive: true })
+    .map((path) => String(path).replaceAll("\\", "/"))
+    .filter((path) => path.endsWith(".vue") && keep(path))
+    .map((path) => basename(path));
+}
+
+/**
+ * Every `Dms*` name a template can resolve: the components the installed
+ * `@antelopejs/dms` registers under its `Dms` prefix (named as its
+ * `dms.frontend.ts` names them), the ones the `@antelopejs/dms-frontend`
+ * renderer registers itself, and this module's own, registered under
+ * `DmsAutomation`.
+ */
+function registeredDmsComponents() {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const dmsRoot = dirname(
+    createRequire(import.meta.url).resolve("@antelopejs/dms/package.json"),
+  );
+  return new Set([
+    ...componentFiles(join(dmsRoot, "frontend-vue", "layers"), (path) =>
+      COMPONENT_DIR.test(path),
+    ).map((file) => `Dms${pascalCase(file)}`),
+    ...DMS_ALIASES.map((alias) => `Dms${alias}`),
+    ...Object.keys(dmsFrontendGlobals).filter((name) => DMS_TAG.test(name)),
+    ...componentFiles(join(here, "..", "app", "components")).map(
+      (file) => `DmsAutomation${pascalCase(file)}`,
+    ),
+  ]);
+}
+
+let registered;
+
+/** The names a file imports, which its template may use as tags. */
+function importedNames(program) {
+  return new Set(
+    program.body
+      .filter((node) => node.type === "ImportDeclaration")
+      .flatMap((node) => node.specifiers.map((spec) => spec.local.name)),
+  );
+}
+
+/**
+ * Vue renders a tag it cannot resolve as an unknown element, with no error:
+ * a component the DMS renamed or removed leaves its place empty on screen.
+ */
+const knownDmsComponents = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      unknown:
+        "`{{name}}` is no component the installed @antelopejs/dms, @antelopejs/dms-frontend or this module registers, and this file does not import it.",
+    },
+  },
+  create(context) {
+    const { defineTemplateBodyVisitor } = context.sourceCode.parserServices;
+    if (!defineTemplateBodyVisitor) return {};
+    registered ??= registeredDmsComponents();
+    const imported = importedNames(context.sourceCode.ast);
+    return defineTemplateBodyVisitor({
+      VElement(element) {
+        const name = element.rawName;
+        if (!DMS_TAG.test(name)) return;
+        const pascal = pascalCase(name);
+        if (registered.has(pascal) || imported.has(name)) return;
+        context.report({
+          loc: element.startTag.loc,
+          messageId: "unknown",
+          data: { name },
+        });
+      },
+    });
+  },
+};
 const ROW_TOKEN = /\{\{[^}]*\}\}/g;
 const BARE_BRACES = /\{[^}]*\}/;
 
@@ -99,5 +195,6 @@ export default {
   rules: {
     "no-comment-before-else": noCommentBeforeElse,
     "confirm-from-row-tokens": confirmFromRowTokens,
+    "known-dms-components": knownDmsComponents,
   },
 };

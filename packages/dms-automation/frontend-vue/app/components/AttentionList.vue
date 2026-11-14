@@ -163,7 +163,7 @@ function dismiss(row: AttentionRow) {
 </script>
 
 <template>
-	<DmsCard :title="$t('dms_automation.attention.title')" :count="total || undefined" :padded="false" class="h-full">
+	<DmsCardPanel :title="$t('dms_automation.attention.title')" :count="total || undefined" :padded="false" class="h-full">
 		<template #actions>
 			<UButton size="xs" variant="ghost" color="neutral" trailing-icon="i-ph-arrow-right" :to="proceduresUrl">
 				{{ $t('dms_automation.attention.allProcedures') }}
@@ -281,5 +281,5 @@ function dismiss(row: AttentionRow) {
 				</UButton>
 			</div>
 		</template>
-	</DmsCard>
+	</DmsCardPanel>
 </template>

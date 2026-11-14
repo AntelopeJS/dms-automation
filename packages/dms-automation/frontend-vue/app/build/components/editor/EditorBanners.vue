@@ -36,7 +36,7 @@ const emit = defineEmits<{
 
 <template>
 <div class="flex flex-col gap-2 empty:hidden" :class="loadError || saveBlocked || pausedBanner || overlayRun || testing || isCurrentGraphReadOnly ? 'border-b border-default p-2' : ''">
-	<DmsBanner
+	<DmsNoticeBanner
 		v-if="loadError"
 		size="sm"
 		tone="error"
@@ -47,8 +47,8 @@ const emit = defineEmits<{
 		<template v-if="templateNotFound" #actions>
 			<UButton size="xs" color="error" variant="soft" icon="i-ph-arrow-left" :to="libraryBackUrl">{{ $t('dms_automation.editor.backToTemplates') }}</UButton>
 		</template>
-	</DmsBanner>
-	<DmsBanner
+	</DmsNoticeBanner>
+	<DmsNoticeBanner
 		v-if="saveBlocked && blockingIssues.length"
 		size="sm"
 		tone="error"
@@ -60,15 +60,15 @@ const emit = defineEmits<{
 			<UButton size="xs" color="error" variant="soft" @click="emit('go-to-first-problem')">{{ $t('dms_automation.editor.problems.first') }}</UButton>
 			<UButton size="xs" color="neutral" variant="outline" :loading="saving" @click="emit('save-as-draft')">{{ $t('dms_automation.editor.problems.saveDraft') }}</UButton>
 		</template>
-	</DmsBanner>
-	<DmsBanner v-if="pausedBanner && !saveBlocked" size="sm" tone="warning" icon="i-ph-pause-circle" :title="pausedBanner.title" :description="pausedBanner.description">
+	</DmsNoticeBanner>
+	<DmsNoticeBanner v-if="pausedBanner && !saveBlocked" size="sm" tone="warning" icon="i-ph-pause-circle" :title="pausedBanner.title" :description="pausedBanner.description">
 		<template #actions>
 			<UButton size="xs" color="warning" variant="soft" :loading="saving" :disabled="blockingIssues.length > 0" @click="emit('enable-now')">
 				{{ $t('dms_automation.editor.paused.enable') }}
 			</UButton>
 		</template>
-	</DmsBanner>
-	<DmsBanner
+	</DmsNoticeBanner>
+	<DmsNoticeBanner
 		v-if="testing"
 		size="sm"
 		tone="info"
@@ -76,7 +76,7 @@ const emit = defineEmits<{
 		:title="$t('dms_automation.editor.debug.testing')"
 		:description="$t('dms_automation.editor.debug.testingHint')"
 	/>
-	<DmsBanner
+	<DmsNoticeBanner
 		v-if="overlayRun && !testing"
 		size="sm"
 		:tone="overlayLook.tone"
@@ -101,8 +101,8 @@ const emit = defineEmits<{
 				<UKbd value="Esc" size="sm" class="ml-1" />
 			</UButton>
 		</template>
-	</DmsBanner>
-	<DmsBanner
+	</DmsNoticeBanner>
+	<DmsNoticeBanner
 		v-if="isCurrentGraphReadOnly"
 		size="sm"
 		tone="info"
@@ -115,6 +115,6 @@ const emit = defineEmits<{
 				{{ $t('dms_automation.editor.forkToEdit') }}
 			</UButton>
 		</template>
-	</DmsBanner>
+	</DmsNoticeBanner>
 </div>
 </template>

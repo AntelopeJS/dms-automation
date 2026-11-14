@@ -66,7 +66,7 @@ async function render(state) {
   /** @param {unknown} key */
   app.config.globalProperties.$t = (key) => key;
   app.config.warnHandler = () => {};
-  for (const name of ["DmsCard", "UButton", "UTooltip", "DmsStatusPill"])
+  for (const name of ["DmsCardPanel", "UButton", "UTooltip", "DmsStatusPill"])
     app.component(name, SlotStub);
   app.component("USkeleton", Skeleton);
   app.component("DmsEmptyState", EmptyState);

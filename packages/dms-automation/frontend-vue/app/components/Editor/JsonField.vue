@@ -53,7 +53,7 @@ function onBlur() {
 </script>
 
 <template>
-	<DmsTextarea
+	<DmsInputTextarea
 		v-model="text"
 		:rows="4"
 		:placeholder="$t('dms_automation.editor.inspector.jsonPlaceholder')"

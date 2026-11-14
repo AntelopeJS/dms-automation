@@ -359,7 +359,7 @@ function open(use: TypeUsage) {
 				>
 					{{ $t('dms_automation.library.backToList') }}
 				</UButton>
-				<DmsCard>
+				<DmsCardPanel>
 					<div class="flex flex-wrap items-start gap-4">
 						<DmsIconWell :icon="selected.icon || 'i-ph-cube'" tone="primary" size="xl" />
 						<div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -386,9 +386,9 @@ function open(use: TypeUsage) {
 						</div>
 					</div>
 					<p v-if="kind === 'flow'" class="mt-3 text-xs text-muted">{{ $t('dms_automation.library.flowAlwaysOn') }}</p>
-				</DmsCard>
+				</DmsCardPanel>
 
-				<DmsCard :title="$t('dms_automation.library.usedBy')" :count="procedureUses.length">
+				<DmsCardPanel :title="$t('dms_automation.library.usedBy')" :count="procedureUses.length">
 					<p v-if="configurable && enabledUses > 0" class="mb-3 text-xs text-muted">
 						{{ $t('dms_automation.library.disableImpact', { count: enabledUses }) }}
 					</p>
@@ -431,22 +431,22 @@ function open(use: TypeUsage) {
 					>
 						{{ showAllUses ? $t('dms_automation.library.showLess') : $t('dms_automation.library.showAll', { count: procedureUses.length }) }}
 					</UButton>
-				</DmsCard>
+				</DmsCardPanel>
 
-				<DmsCard v-if="settingsSchema" :title="kind === 'actions' ? $t('dms_automation.library.inputs') : $t('dms_automation.library.settings')">
+				<DmsCardPanel v-if="settingsSchema" :title="kind === 'actions' ? $t('dms_automation.library.inputs') : $t('dms_automation.library.settings')">
 					<p class="mb-3 text-xs text-muted">{{ $t('dms_automation.library.settingsHint') }}</p>
 					<DmsAutomationSchemaTable :schema="settingsSchema" />
-				</DmsCard>
+				</DmsCardPanel>
 
-				<DmsCard v-if="inputSchema" :title="$t('dms_automation.library.inputs')">
+				<DmsCardPanel v-if="inputSchema" :title="$t('dms_automation.library.inputs')">
 					<DmsAutomationSchemaTable :schema="inputSchema" />
-				</DmsCard>
+				</DmsCardPanel>
 
-				<DmsCard :title="$t('dms_automation.library.outputs')">
+				<DmsCardPanel :title="$t('dms_automation.library.outputs')">
 					<DmsAutomationSchemaTable :schema="selected.outputSchema" />
-				</DmsCard>
+				</DmsCardPanel>
 
-				<DmsBanner
+				<DmsNoticeBanner
 					v-if="selected.cluster"
 					size="sm"
 					tone="info"

@@ -38,6 +38,9 @@ export default ts.config(
   {
     files: ["app/**/*.vue"],
     plugins: { automation },
-    rules: { "automation/no-comment-before-else": "error" },
+    rules: {
+      "automation/no-comment-before-else": "error",
+      "automation/known-dms-components": "error",
+    },
   },
 );

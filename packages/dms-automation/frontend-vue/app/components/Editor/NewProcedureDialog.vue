@@ -93,7 +93,7 @@ async function submit() {
 					<DmsChoiceCards v-model="trigger" :items="starterItems" />
 				</DmsFieldRow>
 				<DmsFieldRow v-bind="ROW" :label="$t('dms_automation.newProcedure.description')" label-for="new-procedure-description">
-					<DmsTextarea id="new-procedure-description" v-model="description" :rows="2" class="w-full" />
+					<DmsInputTextarea id="new-procedure-description" v-model="description" :rows="2" class="w-full" />
 				</DmsFieldRow>
 				<DmsFormRequiredLegend />
 			</form>

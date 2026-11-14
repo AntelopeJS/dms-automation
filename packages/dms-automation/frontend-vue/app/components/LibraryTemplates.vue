@@ -302,7 +302,7 @@ function ownersOf(found: TemplateUsages): string {
 				<UButton class="self-start @5xl:hidden" size="sm" variant="ghost" color="neutral" icon="i-ph-arrow-up" @click="backToList">
 					{{ $t('dms_automation.library.backToList') }}
 				</UButton>
-				<DmsCard>
+				<DmsCardPanel>
 					<div class="flex flex-wrap items-start gap-4">
 						<DmsIconWell :icon="formIcon || DEFAULT_ICON" tone="primary" size="xl" />
 						<div class="flex min-w-0 flex-1 flex-col gap-1">
@@ -313,10 +313,10 @@ function ownersOf(found: TemplateUsages): string {
 							{{ $t('dms_automation.templates.editGraph') }}
 						</UButton>
 					</div>
-				</DmsCard>
+				</DmsCardPanel>
 
 				<div ref="form">
-					<DmsCard :title="$t('dms_automation.templates.details')">
+					<DmsCardPanel :title="$t('dms_automation.templates.details')">
 						<div>
 							<DmsFieldRow layout="form" :label="$t('dms_automation.templates.form.name')" :label-for="NAME_ID" required>
 								<div class="grid gap-1.5">
@@ -325,7 +325,7 @@ function ownersOf(found: TemplateUsages): string {
 								</div>
 							</DmsFieldRow>
 							<DmsFieldRow layout="form" :label="$t('dms_automation.templates.form.description')" label-for="template-description">
-								<DmsTextarea id="template-description" v-model="formDescription" class="w-full" :rows="2" :maxlength="DESCRIPTION_MAX" />
+								<DmsInputTextarea id="template-description" v-model="formDescription" class="w-full" :rows="2" :maxlength="DESCRIPTION_MAX" />
 							</DmsFieldRow>
 							<DmsFieldRow layout="form" :label="$t('dms_automation.templates.form.icon')">
 								<DmsAutomationIconPicker v-model="formIcon" />
@@ -339,10 +339,10 @@ function ownersOf(found: TemplateUsages): string {
 								</UButton>
 							</div>
 						</template>
-					</DmsCard>
+					</DmsCardPanel>
 				</div>
 
-				<DmsCard :title="$t('dms_automation.templates.ports.title')" :count="selected.ports?.length ?? 0">
+				<DmsCardPanel :title="$t('dms_automation.templates.ports.title')" :count="selected.ports?.length ?? 0">
 					<p class="mb-3 text-xs text-muted">{{ $t('dms_automation.templates.ports.editHint') }}</p>
 					<p v-if="(selected.ports ?? []).length === 0" class="text-xs text-dimmed">{{ $t('dms_automation.templates.ports.empty') }}</p>
 					<div v-else class="overflow-hidden rounded-md border border-default">
@@ -369,9 +369,9 @@ function ownersOf(found: TemplateUsages): string {
 							</tbody>
 						</table>
 					</div>
-				</DmsCard>
+				</DmsCardPanel>
 
-				<DmsCard :title="$t('dms_automation.templates.usedIn')" :count="usageRows.length">
+				<DmsCardPanel :title="$t('dms_automation.templates.usedIn')" :count="usageRows.length">
 					<p v-if="usageRows.length" class="mb-3 text-xs text-muted">{{ $t('dms_automation.templates.usedInHint') }}</p>
 					<div v-if="usagesLoading" class="flex flex-col gap-2">
 						<USkeleton v-for="i in 2" :key="i" class="h-8 w-full" />
@@ -412,7 +412,7 @@ function ownersOf(found: TemplateUsages): string {
 							</UButton>
 						</li>
 					</ul>
-				</DmsCard>
+				</DmsCardPanel>
 
 				<div class="flex flex-wrap items-center justify-between gap-3">
 					<p class="text-xs text-muted">{{ $t('dms_automation.templates.deleteHint') }}</p>

@@ -368,7 +368,7 @@ function openRun(id: string) {
 				<p v-if="builderHint" class="basis-full text-xs text-muted">{{ builderHint }}</p>
 			</DmsAutomationRunFailure>
 
-			<DmsBanner
+			<DmsNoticeBanner
 				v-if="run.graphOutdated"
 				size="sm"
 				tone="warning"
@@ -376,7 +376,7 @@ function openRun(id: string) {
 				:title="outdatedTitle"
 				:description="$t('dms_automation.trace.graphNotKeptHint', { current: run.procedure?.version })"
 			/>
-			<DmsBanner
+			<DmsNoticeBanner
 				v-else-if="olderVersion"
 				size="sm"
 				tone="info"
@@ -384,7 +384,7 @@ function openRun(id: string) {
 				:title="$t('dms_automation.trace.olderVersion', { version: run.procedureVersion })"
 				:description="$t('dms_automation.trace.olderVersionHint', { current: run.procedure?.version })"
 			/>
-			<DmsBanner
+			<DmsNoticeBanner
 				v-if="run.rerunOf"
 				size="sm"
 				tone="info"
@@ -396,12 +396,12 @@ function openRun(id: string) {
 						{{ $t('dms_automation.trace.openOriginal') }}
 					</UButton>
 				</template>
-			</DmsBanner>
+			</DmsNoticeBanner>
 
 			<DmsStatGroup :items="stats" layout="joined" :columns="4" />
 
 			<div class="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-				<DmsCard :padded="false">
+				<DmsCardPanel :padded="false">
 					<div class="flex flex-wrap items-center justify-between gap-2 border-b border-default px-3 pt-2">
 						<UTabs v-model="tab" :items="tabs" variant="link" :content="false" size="sm" />
 						<USwitch
@@ -424,12 +424,12 @@ function openRun(id: string) {
 						<DmsAutomationRunPayload :raw="run.triggerPayload" :kept="run.payloadKept" />
 					</div>
 					<DmsAutomationRunLogList v-else :api-url="apiUrl" :run-id="run._id" :log="run.logs" :names="names" />
-				</DmsCard>
+				</DmsCardPanel>
 
 				<div class="flex flex-col gap-4">
-					<DmsCard>
+					<DmsCardPanel>
 						<template #header>
-							<DmsEyebrow as="h2" tone="muted" truncate :label="$t('dms_automation.trace.pathTaken')" />
+							<DmsEyebrowLabel as="h2" tone="muted" truncate :label="$t('dms_automation.trace.pathTaken')" />
 						</template>
 						<template v-if="opensInBuilder(run) && !run.graphOutdated" #actions>
 							<UButton size="xs" variant="ghost" color="neutral" trailing-icon="i-ph-arrow-up-right" @click="debugInBuilder()">
@@ -437,13 +437,13 @@ function openRun(id: string) {
 							</UButton>
 						</template>
 						<DmsAutomationRunPathTaken :run="run" :builder-url="builderUrl" />
-					</DmsCard>
-					<DmsCard>
+					</DmsCardPanel>
+					<DmsCardPanel>
 						<template #header>
-							<DmsEyebrow as="h2" tone="muted" truncate :label="$t('dms_automation.trace.compared')" />
+							<DmsEyebrowLabel as="h2" tone="muted" truncate :label="$t('dms_automation.trace.compared')" />
 						</template>
 						<DmsAutomationRunCompare :run="run" :trace-url="traceUrl" />
-					</DmsCard>
+					</DmsCardPanel>
 				</div>
 			</div>
 		</template>

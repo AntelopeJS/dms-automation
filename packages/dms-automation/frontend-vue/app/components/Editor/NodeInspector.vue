@@ -472,7 +472,7 @@ function onUnwire(field: string) {
 					:source-label="nodeName ? nodeName(findIncoming(f.name)!.from.node) : findIncoming(f.name)!.from.node"
 					@unwire="onUnwire(f.name)"
 				/>
-				<DmsSelect
+				<DmsInputSelect
 					v-else-if="Array.isArray(f.prop.enum) && f.prop.enum.length > 0"
 					:id="`inspector-${f.name}`"
 					:items="(f.prop.enum as unknown[]).map((v) => String(v))"
@@ -494,12 +494,12 @@ function onUnwire(field: string) {
 					class="w-full"
 					@update:model-value="(v: number | null | undefined) => emitUpdated(f.name, asNumber(v))"
 				/>
-				<DmsSwitch
+				<DmsInputSwitch
 					v-else-if="isBoolish(f.prop)"
 					:model-value="asBool(getValue(f.name) ?? f.prop.default)"
 					@update:model-value="(v: boolean) => emitUpdated(f.name, v)"
 				/>
-				<DmsTextarea
+				<DmsInputTextarea
 					v-else-if="f.prop.type === 'array'"
 					:id="`inspector-${f.name}`"
 					:rows="3"

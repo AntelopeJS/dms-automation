@@ -21,7 +21,7 @@ const open = defineModel<boolean>('open', { required: true })
 			<p class="text-sm text-toned">
 				{{ $t('dms_automation.editor.forkModal.body') }}
 			</p>
-			<DmsBanner
+			<DmsNoticeBanner
 				v-if="error"
 				size="sm"
 				:tone="error.severity"

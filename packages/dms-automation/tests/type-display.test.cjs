@@ -68,7 +68,7 @@ const HOST_COMPONENTS = [
   "DmsAutomationSchemaTable",
   "DmsAutomationWiredField",
   "DmsAutomationGroupPortEditor",
-  "DmsCard",
+  "DmsCardPanel",
   "UCard",
   "UBadge",
   "UButton",

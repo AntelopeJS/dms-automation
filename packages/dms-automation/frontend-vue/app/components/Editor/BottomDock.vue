@@ -145,7 +145,7 @@ function runLine(run: DockRun): string {
 			<div v-else-if="tab === 'payload'" class="flex h-full flex-col gap-2 p-3">
 				<div v-if="(triggers?.length ?? 0) > 1" class="flex items-center gap-2 text-xs">
 					<label for="dock-test-trigger" class="shrink-0 text-muted">{{ $t('dms_automation.editor.dock.fromTrigger') }}</label>
-					<DmsSelect id="dock-test-trigger" v-model="trigger" :items="triggers" size="xs" class="min-w-48" />
+					<DmsInputSelect id="dock-test-trigger" v-model="trigger" :items="triggers" size="xs" class="min-w-48" />
 				</div>
 				<div class="flex items-center justify-between gap-2 text-xs">
 					<span class="text-muted">

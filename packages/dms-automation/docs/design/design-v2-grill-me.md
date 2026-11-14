@@ -74,9 +74,9 @@ defined` before it.
 
 **Q6. Which DMS components can the layer still use?**
 Only the public ones (`app/components`, not `app/build/components`):
-`DmsCard`, `DmsStatusPill`, `DmsEmptyState`, `DmsKpiCard`, `DmsFlowCanvas`,
-`DmsStatGroup`, `DmsSegmented`, `DmsKeyValueList`, `DmsMeter`,
-`DmsSectionHeader`, `DmsBanner`, `DmsActivityItem`, `DmsCopyButton`… plus the
+`DmsCardPanel`, `DmsStatusPill`, `DmsEmptyState`, `DmsKpiCard`, `DmsFlowCanvas`,
+`DmsStatGroup`, `DmsSegmentedControl`, `DmsKeyValueList`, `DmsMeterBar`,
+`DmsSectionHeader`, `DmsNoticeBanner`, `DmsActivityItem`, `DmsCopyButton`… plus the
 framework's `DmsLink` and `DmsClientOnly`. *Why:* build/ components are private
 in 0.4 and may change without notice.
 
