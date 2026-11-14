@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.11.1
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.0...v0.11.1)
+
+### 🩹 Fixes
+
+- **frontend:** Name the dms 0.20 components the editor, library and trace render ([#208](https://github.com/AntelopeJS/dms-automation/pull/208))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.11.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.10.0...v0.11.0)
