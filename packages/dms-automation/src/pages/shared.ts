@@ -40,9 +40,7 @@ const PERIOD_PRESETS: PeriodPreset[] = [
 ];
 
 /** One of the windows the pages offer. */
-export function isPeriodPreset(
-  value: string | undefined,
-): value is PeriodPreset {
+export function isPeriodPreset(value: unknown): value is PeriodPreset {
   return PERIOD_PRESETS.some((preset) => preset === value);
 }
 

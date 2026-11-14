@@ -14,6 +14,7 @@ import {
   type StatsWindow,
   windowOf,
 } from "../db/models/stats.model";
+import type { QueryValue } from "../data/procedures-query";
 import { QueryParameters } from "./queryParameters";
 import {
   isPeriodPreset,
@@ -34,6 +35,7 @@ import {
   triggerCounts,
 } from "../stats/overview";
 import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
+import { isString } from "../types/guards";
 
 /**
  * The longest window a stats route reads: a year. Its cost grows with the
@@ -41,11 +43,16 @@ import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
  */
 const MAX_WINDOW_MS = 366 * MS_PER_DAY;
 
-/** A date of the query, or a 400 when it is there but not a date. */
-function checkedDate(name: string, raw: string | undefined): void {
-  if (raw !== undefined && Number.isNaN(new Date(raw).getTime())) {
+/**
+ * A date of the query, or a 400 when it is there but not a date, a bare
+ * `?from` included.
+ */
+function checkedDate(name: string, raw: QueryValue): string | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === true || Number.isNaN(new Date(raw).getTime())) {
     throw new HTTPResult(400, { error: `"${name}" is not a date` });
   }
+  return raw;
 }
 
 function checkedSpan(from: Date, to: Date, what: string): void {
@@ -62,10 +69,9 @@ function checkedSpan(from: Date, to: Date, what: string): void {
  * A period query, with the preset and the comparison the DMS period scope
  * names them by.
  */
-export interface PresetQuery extends PeriodQuery {
-  preset?: string;
-  comparison?: string;
-}
+export type PresetQuery = {
+  [Name in keyof PeriodQuery | "preset" | "comparison"]?: QueryValue;
+};
 
 /**
  * The presets that end now: the page computes their range once a minute, so
@@ -100,14 +106,19 @@ export function periodWindow(
     delete query.compareFrom;
     delete query.compareTo;
   }
-  for (const [name, raw] of Object.entries(query)) checkedDate(name, raw);
-  let window = windowOf(query, now);
+  const dates: PeriodQuery = {
+    from: checkedDate("from", query.from),
+    to: checkedDate("to", query.to),
+    compareFrom: checkedDate("compareFrom", query.compareFrom),
+    compareTo: checkedDate("compareTo", query.compareTo),
+  };
+  let window = windowOf(dates, now);
   checkedSpan(window.from, window.to, "the period");
   if (window.compareFrom && window.compareTo) {
     checkedSpan(window.compareFrom, window.compareTo, "the compared period");
   }
   const late = now.getTime() - window.to.getTime();
-  if (preset && SLIDING_PRESETS.has(preset) && late > 0) {
+  if (isString(preset) && SLIDING_PRESETS.has(preset) && late > 0) {
     window = shifted(window, late);
   }
   return window;
