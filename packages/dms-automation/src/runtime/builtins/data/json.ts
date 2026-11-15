@@ -1,5 +1,9 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
-import { inputText, parseJsonText } from "../../../types/dataValue";
+import {
+  type DataValue,
+  inputText,
+  parseJsonText,
+} from "../../../types/dataValue";
 
 export const jsonNodes: DataNodeType[] = [
   {
@@ -13,7 +17,7 @@ export const jsonNodes: DataNodeType[] = [
       properties: { text: { type: "string", default: "" } },
     },
     outputSchema: { type: "object", properties: { result: {} } },
-    evaluate: ({ text }: { text: unknown }) => {
+    evaluate: ({ text }: { text: DataValue }) => {
       try {
         return { result: parseJsonText(inputText(text)) };
       } catch {
@@ -35,7 +39,7 @@ export const jsonNodes: DataNodeType[] = [
       type: "object",
       properties: { result: { type: "string" } },
     },
-    evaluate: ({ value, pretty }: { value: unknown; pretty: unknown }) => {
+    evaluate: ({ value, pretty }: { value: DataValue; pretty: DataValue }) => {
       return { result: JSON.stringify(value, null, pretty ? 2 : 0) };
     },
   },

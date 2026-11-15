@@ -1,5 +1,5 @@
 import type { DataNodeType } from "@antelopejs/interface-dms-automation";
-import { inputText } from "../../../types/dataValue";
+import { type DataValue, inputText } from "../../../types/dataValue";
 
 const strProp = { type: "string", default: "" };
 const numProp = { type: "number", default: 0 };
@@ -38,7 +38,7 @@ export const stringNodes: DataNodeType[] = [
     icon: "i-ph-text-aa",
     inputSchema: { type: "object", properties: { a: strProp, b: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
-    evaluate: ({ a, b }: { a: unknown; b: unknown }) => {
+    evaluate: ({ a, b }: { a: DataValue; b: DataValue }) => {
       return { result: inputText(a) + inputText(b) };
     },
   },
@@ -50,7 +50,7 @@ export const stringNodes: DataNodeType[] = [
     icon: "i-ph-ruler",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultNum } },
-    evaluate: ({ s }: { s: unknown }) => ({
+    evaluate: ({ s }: { s: DataValue }) => ({
       result: characters(inputText(s)).length,
     }),
   },
@@ -70,8 +70,8 @@ export const stringNodes: DataNodeType[] = [
       start,
       end,
     }: {
-      s: unknown;
-      start: unknown;
+      s: DataValue;
+      start: DataValue;
       end?: unknown;
     }) => {
       return {
@@ -91,7 +91,7 @@ export const stringNodes: DataNodeType[] = [
     icon: "i-ph-text-aa",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
-    evaluate: ({ s }: { s: unknown }) => ({
+    evaluate: ({ s }: { s: DataValue }) => ({
       result: inputText(s).toLowerCase(),
     }),
   },
@@ -103,7 +103,7 @@ export const stringNodes: DataNodeType[] = [
     icon: "i-ph-text-aa",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
-    evaluate: ({ s }: { s: unknown }) => ({
+    evaluate: ({ s }: { s: DataValue }) => ({
       result: inputText(s).toUpperCase(),
     }),
   },
@@ -115,7 +115,7 @@ export const stringNodes: DataNodeType[] = [
     icon: "i-ph-broom",
     inputSchema: { type: "object", properties: { s: strProp } },
     outputSchema: { type: "object", properties: { result: resultStr } },
-    evaluate: ({ s }: { s: unknown }) => ({
+    evaluate: ({ s }: { s: DataValue }) => ({
       result: inputText(s).trim(),
     }),
   },
@@ -130,7 +130,7 @@ export const stringNodes: DataNodeType[] = [
       properties: { s: strProp, separator: { type: "string", default: "," } },
     },
     outputSchema: { type: "object", properties: { result: resultArr } },
-    evaluate: ({ s, separator }: { s: unknown; separator: unknown }) => {
+    evaluate: ({ s, separator }: { s: DataValue; separator: DataValue }) => {
       return { result: inputText(s).split(inputText(separator, ",")) };
     },
   },
@@ -150,9 +150,9 @@ export const stringNodes: DataNodeType[] = [
       search,
       replacement,
     }: {
-      s: unknown;
-      search: unknown;
-      replacement: unknown;
+      s: DataValue;
+      search: DataValue;
+      replacement: DataValue;
     }) => {
       return {
         result: inputText(s)
@@ -172,7 +172,7 @@ export const stringNodes: DataNodeType[] = [
       properties: { s: strProp, search: strProp },
     },
     outputSchema: { type: "object", properties: { result: resultBool } },
-    evaluate: ({ s, search }: { s: unknown; search: unknown }) => {
+    evaluate: ({ s, search }: { s: DataValue; search: DataValue }) => {
       return { result: inputText(s).includes(inputText(search)) };
     },
   },

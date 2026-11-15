@@ -1,68 +1,51 @@
-name: Release DMS automation module
+name: Release
 
 on:
+  push:
+    branches: [next]
   workflow_dispatch:
     inputs:
       release-version:
-        description: Exact version to release
+        description: Stable version to release, set by the release train
         required: false
         type: string
-      channel:
-        description: npm distribution channel
-        required: true
-        default: latest
-        type: choice
-        options: [latest, next]
+      release-commit:
+        description: Commit SHA to release, set by the release train
+        required: false
+        type: string
+      dependency-ranges:
+        description: JSON object of stable ranges that replace preview pins, set by the release train
+        required: false
+        default: "{}"
+        type: string
+      package-directory:
+        description: Directory of the package to release, set by the release train
+        required: false
+        type: string
 
 permissions:
   contents: write
   id-token: write
 
-concurrency:
-  group: npm-release-module-${{ github.repository }}
-  cancel-in-progress: false
-
 jobs:
-  validate:
-    name: Validate module release metadata
-    runs-on: ubuntu-latest
-    steps:
-      - name: Validate release source and channel
-        env:
-          CHANNEL: ${{ inputs.channel }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          case "$CHANNEL" in
-            latest) release_branch=$DEFAULT_BRANCH ;;
-            next) release_branch=next ;;
-            *) echo "Unsupported npm channel: $CHANNEL. Pick latest or next." >&2; exit 1 ;;
-          esac
-          test "$GITHUB_REF" = "refs/heads/$release_branch" || {
-            echo "The $CHANNEL channel must be released from the $release_branch branch, not $GITHUB_REF." >&2
-            exit 1
-          }
-      - name: Validate release credential
-        env:
-          RELEASE_GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
-        run: |
-          test -n "$RELEASE_GITHUB_TOKEN" || {
-            echo "RELEASE_GITHUB_TOKEN is not configured: the release cannot push the tag and the GitHub release." >&2
-            exit 1
-          }
-      - uses: actions/checkout@v4
-      - name: Validate package metadata
-        run: node .github/scripts/validate-release-metadata.mjs packages/dms-automation
-      # The module depends on its interface through a range floored at the
-      # interface version in the tree, so the interface has to be on npmjs
-      # already or the published module is uninstallable.
-      - name: Verify the interface is published
-        run: node packages/dms-automation/scripts/verify-interface-package.cjs
-  release:
-    needs: validate
-    uses: AntelopeJS/.github/.github/workflows/release-npm-public.yml@acb5bdb5475a3897d46fe0020967053ac0be1de1
+  release-packages-dms-automation:
+    if: github.event_name == 'push' || inputs.package-directory == 'packages/dms-automation'
+    uses: AntelopeJS/.github/.github/workflows/release-npm-public.yml@v2
     with:
-      channel: ${{ inputs.channel }}
       release-version: ${{ inputs.release-version }}
+      release-commit: ${{ inputs.release-commit }}
+      dependency-ranges: ${{ inputs.dependency-ranges }}
       package-directory: packages/dms-automation
+    secrets:
+      RELEASE_GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
+
+  release-packages-interface-dms-automation:
+    if: github.event_name == 'push' || inputs.package-directory == 'packages/interface-dms-automation'
+    uses: AntelopeJS/.github/.github/workflows/release-npm-public.yml@v2
+    with:
+      release-version: ${{ inputs.release-version }}
+      release-commit: ${{ inputs.release-commit }}
+      dependency-ranges: ${{ inputs.dependency-ranges }}
+      package-directory: packages/interface-dms-automation
     secrets:
       RELEASE_GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}

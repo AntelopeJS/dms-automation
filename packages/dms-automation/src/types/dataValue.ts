@@ -111,7 +111,10 @@ export function textOf(value: DataValue): string {
  * A node input as `String` reads it, or `absent` when it is `null` or
  * `undefined`: what the string and JSON nodes read their inputs as.
  */
-export function inputText(value: unknown, absent = ""): string {
+export function inputText(
+  value: Textual | null | undefined,
+  absent = "",
+): string {
   const text = String(value);
   return value === null || value === undefined ? absent : text;
 }
