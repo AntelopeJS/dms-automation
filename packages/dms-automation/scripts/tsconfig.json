@@ -11,7 +11,6 @@
     "declaration": false
   },
   "include": [
-    "./*.mjs",
     "./*.cjs",
     "../package.json",
     "../../interface-dms-automation/package.json"
