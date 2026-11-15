@@ -99,7 +99,7 @@ const config: VerifyConfig = {
       why: "webhooks answer without a session, every other route is the platform owner's alone, and the stored run copies of requests carry credentials unless redacted",
     },
     publish: {
-      globs: [`${MODULE}/package.json`, `${INTERFACE}/package.json`, `${MODULE}/.release-it.json`, `${MODULE}/changelogen.config.json`, ".github/workflows/release.yml", ".github/workflows/release-interface.yml"],
+      globs: [`${MODULE}/package.json`, `${INTERFACE}/package.json`, `${MODULE}/.release-it.json`, `${MODULE}/changelogen.config.json`, ".github/workflows/release.yml"],
       funnels: [],
       why: "the package names, their files and the release workflows claim @antelopejs/dms-automation and @antelopejs/interface-dms-automation in the npm registry",
     },

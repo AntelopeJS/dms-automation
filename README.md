@@ -102,7 +102,7 @@ pnpm run checks                                   # typecheck, lint, format, kni
 <summary>Repository notes</summary>
 
 - A module that only declares nodes depends on the interface package alone, never on the implementation. The module implements the interface, so it depends on the interface through `>=<interface version> <0.<minor + 1>.0`. A breaking interface minor never reaches a module that does not implement it. During development, pnpm resolves that range to the workspace sibling.
-- Each package has its own manually dispatched release workflow. Run **Release DMS automation interface** first, then **Release DMS automation module**. The module workflow refuses to start until npm has the interface version that the module's dependency range is floored at.
+- One `release.yml` holds a release job per package. A push to `next` publishes a preview of each package under the npm dist-tag `next`, and the release train dispatches each stable release with its package directory. Release the interface before the module: the module's dependency range is floored at the interface version in the tree.
 - The module registers `frontend-vue` through `AddFrontendModule` with the `vue` renderer. `dms.frontend.ts` declares the `DmsAutomation` component prefix and registers the Automation components. It also registers a universal plugin that adds the `automation:last-runs` and `automation:procedure-link` cell displays of the procedures table. `dms.frontend.build.ts` auto-imports `app/composables` and `app/utils`.
 - To build or typecheck the frontend module directly, set `DMS_FRONTEND_WORKSPACE` to the absolute path of a generated Inertia workspace. Then run `pnpm --dir packages/dms-automation/frontend-vue build` or `typecheck`. `pnpm --dir packages/dms-automation test:frontend-registration` checks the backend registration and configuration without starting database services or triggers.
 
@@ -116,8 +116,7 @@ This module installs into [AntelopeJS DMS](https://github.com/AntelopeJS/dms), t
 
 | Module                                                           | What it adds                                                                             |
 | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [`dms-builder`](https://github.com/AntelopeJS/dms-builder)       | Edit pages, tables and data sources by clicking, as TypeScript that compiles             |
-| [`dms-ai`](https://github.com/AntelopeJS/dms-ai)                 | An assistant chat in the dashboard, on your own Claude Code or Codex                     |
+| [`dms-assistant`](https://github.com/AntelopeJS/dms-assistant)   | An assistant chat in the dashboard and its onboarding, on your own Claude Code or Codex  |
 | [`dms-database`](https://github.com/AntelopeJS/dms-database)     | Schemas, relation diagrams, a data browser and a query console                           |
 | [`dms-api`](https://github.com/AntelopeJS/dms-api)               | API health, request logs, per-route statistics and a request tester                      |
 | [`dms-automation`](https://github.com/AntelopeJS/dms-automation) | Node-graph automations on schedules, webhooks and DMS events, with a trace for every run |
