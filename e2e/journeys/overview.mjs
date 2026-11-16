@@ -6,5 +6,6 @@ import { listJourneys } from "./parts/overview-lists.mjs";
 import { periodJourneys } from "./parts/overview-period.mjs";
 import { routeJourneys } from "./parts/overview-routes.mjs";
 import { recipeJourneys } from "./parts/overview-recipes.mjs";
+import { equivalenceJourneys } from "./parts/stats-equivalence.mjs";
 
-export const journeys = guarded([...recipeJourneys, ...bannerJourneys, ...figureJourneys, ...periodJourneys, ...attentionJourneys, ...listJourneys, ...routeJourneys]);
+export const journeys = guarded([...recipeJourneys, ...bannerJourneys, ...figureJourneys, ...periodJourneys, ...attentionJourneys, ...listJourneys, ...routeJourneys, ...equivalenceJourneys]);
