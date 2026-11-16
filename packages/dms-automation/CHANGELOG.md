@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.11.2
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.1...v0.11.2)
+
+### 🔥 Performance
+
+- **automation:** Count a procedure's production runs in the query for the delete dialog ([#219](https://github.com/AntelopeJS/dms-automation/pull/219))
+- **stats:** Count, group and page the runs in the database query ([#221](https://github.com/AntelopeJS/dms-automation/pull/221))
+
+### 🩹 Fixes
+
+- **stats:** Refuse a bare date query parameter with a 400 ([#209](https://github.com/AntelopeJS/dms-automation/pull/209))
+- **runtime:** Reconcile nothing once the project announces it is stopping ([#220](https://github.com/AntelopeJS/dms-automation/pull/220))
+- **deps:** Depend on the stable @antelopejs/tooling-configs
+
+### 💅 Refactors
+
+- **frontend:** Check dms component names with the shared assertDmsComponents ([#210](https://github.com/AntelopeJS/dms-automation/pull/210))
+
+### 📖 Documentation
+
+- Quote the ranges of the released interface and module versions ([#215](https://github.com/AntelopeJS/dms-automation/pull/215))
+
+### 📦 Build
+
+- **deps:** Move to the batch cursor drivers and the 15 November releases ([#211](https://github.com/AntelopeJS/dms-automation/pull/211))
+- Move to @antelopejs/tooling-configs 0.8 and the three-tier CI ([#212](https://github.com/AntelopeJS/dms-automation/pull/212))
+- **release:** Publish @antelopejs/dms-automation through the shared release hook ([#214](https://github.com/AntelopeJS/dms-automation/pull/214))
+
+### ✅ Tests
+
+- **automation:** Check procedure list paging over any mix of unreadable graphs ([#216](https://github.com/AntelopeJS/dms-automation/pull/216))
+- **e2e:** Run the verify skill's journeys as a Playwright suite in CI ([#217](https://github.com/AntelopeJS/dms-automation/pull/217))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.11.1
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.0...v0.11.1)

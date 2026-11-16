@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/dms-automation",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "Visual automation builder for the AntelopeJS DMS: procedures as node graphs started by schedules, webhooks, manual runs or DMS events, with a trace for every run.",
   "keywords": [
     "antelopejs",
@@ -80,7 +80,7 @@
     "@antelopejs/core": "~1.24.0",
     "@antelopejs/dms": ">=0.20.2 <0.21.0",
     "@antelopejs/dms-frontend": ">=0.11.4 <0.12.0",
-    "@antelopejs/tooling-configs": "0.8.1-next.372.g1d7ef26",
+    "@antelopejs/tooling-configs": ">=0.8.1 <0.9.0",
     "@types/node": "^24.0.0",
     "fast-check": "^4.10.2",
     "knip": "^6.34.0",
