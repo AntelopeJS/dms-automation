@@ -416,10 +416,12 @@ export const subscriptions = {
     return undefined;
   },
   /**
-   * @internal exposed for stop() in src/index.ts. No trigger type change
-   * requests a reconcile until the next hydrate(): the modules stopping with
-   * this one unregister their types after their database may be gone, and a
-   * reconcile queued then would hold up the teardown of destroy().
+   * @internal exposed for the `ModulesStopping` event and stop() in
+   * src/index.ts. No trigger type change requests a reconcile until the next
+   * hydrate(): the modules stopping with this one unregister their types
+   * after their database may be gone, and a reconcile queued then fails on
+   * the closed client or holds up the teardown of destroy(). The event fires
+   * before the first module's stop(), which can run before ours.
    */
   stopReconciling(): void {
     hydrated = false;
