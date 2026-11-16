@@ -108,12 +108,12 @@ export async function lastPayload(ctx) {
   await ctx.verify("last payload", [
     same("never called: no last payload, not too large", [none.status, none.body], [200, { last: null, tooLarge: false }]),
     same("Run now with no payload and no earlier call runs with an empty payload", payloadOf(neverRun), {}),
-    same("the last real call is the newest production run", [pick(last.body, "last", "payload"), pick(last.body, "last", "triggerNodeId")], [{ who: "b" }, "b"]),
+    same("with no trigger named, the last payload is the first trigger's last real call, not a newer call of another trigger", [pick(last.body, "last", "payload"), pick(last.body, "last", "triggerNodeId")], [{ who: "a", text: "é 日本" }, "a"]),
     same("the last payload carries the run id and start time", [isText(pick(last.body, "last", "runId")), isText(pick(last.body, "last", "startedAt")), pick(last.body, "tooLarge")], [true, true, false]),
-    same("a test run never becomes the default payload", [test.status, pick(last.body, "last", "payload")], [200, { who: "b" }]),
+    same("a test run never becomes the default payload", [test.status, pick(last.body, "last", "payload")], [200, { who: "a", text: "é 日本" }]),
     same("per trigger: the last call of trigger a", [pick(lastA.body, "last", "payload"), pick(lastA.body, "last", "triggerNodeId")], [{ who: "a", text: "é 日本" }, "a"]),
     same("a trigger that never fired has none", lastOther.body, { last: null, tooLarge: false }),
-    same("Run now with no payload sends the last real payload", payloadOf(defaultedRun), { who: "b" }),
+    same("Run now with no payload sends the first trigger's last real payload", payloadOf(defaultedRun), { who: "a", text: "é 日本" }),
     same("an explicit empty payload is used as given", payloadOf(explicitRun), {}),
     ...notFound(missing, "unknown procedure", "nope"),
   ]);

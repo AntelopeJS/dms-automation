@@ -11,6 +11,7 @@ import { ifChecks, ifRun, switchChecks, switchRun, switchWiredAndEmpty } from ".
 export const journeys = guarded([
   {
     id: "if-follows-then-when-the-condition-is-true-and-else-otherwise",
+    tag: "@smoke",
     title: "If follows then when its condition is true and else otherwise; the texts false, 0 and empty text read as false, like false, 0 and null",
     entryPoint: "POST /procedures/import, POST /procedures/:id/run-now, GET /runs/:id, GET /runs/:id/logs",
     async run(/** @type {Ctx} */ ctx) {

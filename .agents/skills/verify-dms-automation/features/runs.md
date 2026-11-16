@@ -4,6 +4,7 @@ covers:
   - packages/dms-automation/src/data/runs-table.ts
   - packages/dms-automation/src/routes/runs.ts
   - packages/dms-automation/src/routes/stats.ts
+  - packages/dms-automation/src/routes/queryParameters.ts
   - packages/dms-automation/src/stats/kpi.ts
   - packages/dms-automation/src/stats/health.ts
   - packages/dms-automation/src/runtime/retention.ts

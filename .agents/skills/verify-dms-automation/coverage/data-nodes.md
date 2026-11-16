@@ -1,6 +1,6 @@
 # Coverage of `data-nodes`
 
-One row per documented behaviour of the data nodes: the introduction's list, the interface contract of a module data node, the engine's rules for a step's inputs, and the description the Library shows for each built-in node. The journeys are in `journeys/data-nodes.mjs`. The per-node rows name the first cases of the journey's table (`journeys/parts/data-cases-a.mjs`, `data-cases-b.mjs`); the check name of a case is its label.
+One row per documented behaviour of the data nodes: the introduction's list, the interface contract of a module data node, the engine's rules for a step's inputs, and the description the Library shows for each built-in node. The journeys are in `e2e/journeys/data-nodes.mjs`. The per-node rows name the first cases of the journey's table (`e2e/journeys/parts/data-cases-a.mjs`, `data-cases-b.mjs`); the check name of a case is its label.
 
 | Source | Documented behaviour | Catching journey and check |
 |---|---|---|

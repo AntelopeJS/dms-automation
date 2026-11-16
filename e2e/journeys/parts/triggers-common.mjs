@@ -10,7 +10,7 @@ import { auto, fixture, isFunction, isRow, isText, list, num, parseJson, pick, r
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** @type {(id: string) => unknown} */
-const moduleRequire = createRequire(join(resolve(here, "../../../../../packages/dms-automation"), "package.json"));
+const moduleRequire = createRequire(join(resolve(here, "../../../packages/dms-automation"), "package.json"));
 
 /**
  * @typedef {{ insertOne: (document: Row) => Promise<unknown> }} ProceduresCollection

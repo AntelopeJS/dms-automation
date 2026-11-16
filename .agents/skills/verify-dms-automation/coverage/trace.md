@@ -1,6 +1,6 @@
 # Coverage: trace
 
-Docs: `packages/dms-automation/docs/4.usage/4.runs.md` (Re-run a run, Run trace), `docs/6.faq.md`. Journeys are in `journeys/trace.mjs` (+ `journeys/parts/trace-rerun.mjs`, `trace-seed.mjs`).
+Docs: `packages/dms-automation/docs/4.usage/4.runs.md` (Re-run a run, Run trace), `docs/6.faq.md`. Journeys are in `e2e/journeys/trace.mjs` (+ `e2e/journeys/parts/trace-rerun.mjs`, `trace-seed.mjs`).
 
 | Source | Documented behaviour | Journey | Check |
 | --- | --- | --- | --- |

@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { auto, check, fixture, list, same, text } from "../../auto.mjs";
+import { auto, backendLog, check, fixture, list, same, text } from "../../auto.mjs";
 import { action, chain, createProcedure, dedge, graph, runNow, tedge, trigger } from "../../procs.mjs";
 import { endedAs, inputValue, outputValue, runGraph, stepsOfNode, userLogs } from "./runtime-kit.mjs";
 
@@ -46,7 +45,7 @@ export async function logChecks(ctx) {
   checks.push(same("a later step logs the wired message and value", [entryOf("echo")?.message, entryOf("echo")?.value], [LOG_VALUES[0].label, LOG_VALUES[0].value]));
   const fireId = text(stepsOfNode(ran, "info")[0], "fireId");
   const engineRun = fireId.slice(0, fireId.lastIndexOf("-f"));
-  const backend = readFileSync(join(text(ctx.state, "logs"), "backend.log"), "utf8");
+  const backend = readFileSync(backendLog(ctx), "utf8");
   checks.push(check("the backend log has the message of a warn, tagged with the run and the node", backend.split("\n").some((line) => line.includes("[WARN]") && line.includes(`[run=${engineRun} node=v1]`) && line.includes("a list")), engineRun));
   checks.push(check("the backend log has the message of an error", backend.split("\n").some((line) => line.includes("[ERROR]") && line.includes(`[run=${engineRun} node=error] a error message`)), engineRun));
   checks.push(check("the backend log has the message of an info", backend.split("\n").some((line) => line.includes("[INFO]") && line.includes(`[run=${engineRun} node=info] a info message é日🚀`)), engineRun));

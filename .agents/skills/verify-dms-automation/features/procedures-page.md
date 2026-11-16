@@ -38,6 +38,6 @@ dms-control journey "$RUN" procedures-page
 
 ## Gotchas
 
-- Pages hydrate after load: helpers in `journeys/parts/procedures-page-ui.mjs` click again until the menu or dialog shows.
+- Pages hydrate after load: helpers in `e2e/journeys/parts/procedures-page-ui.mjs` click again until the menu or dialog shows.
 - `seedStates` in `procedures-page-seed.mjs` builds one procedure per state.
 - Dialog texts end with "ESC to cancel"; the delete button is not disabled, a wrong typed name simply deletes nothing.

@@ -1,6 +1,6 @@
 # Coverage: redaction-and-retention
 
-Docs: `packages/dms-automation/docs/3.configuration.md` (Credentials in runs, `runs.*`), `docs/6.faq.md`, `docs/4.usage/4.runs.md`, `skills/dms-automation/SKILL.md`. Journeys are in `journeys/redaction-and-retention.mjs` (+ `journeys/parts/redaction-*.mjs`, `retention.mjs`).
+Docs: `packages/dms-automation/docs/3.configuration.md` (Credentials in runs, `runs.*`), `docs/6.faq.md`, `docs/4.usage/4.runs.md`, `skills/dms-automation/SKILL.md`. Journeys are in `e2e/journeys/redaction-and-retention.mjs` (+ `e2e/journeys/parts/redaction-*.mjs`, `retention.mjs`).
 
 | Source | Documented behaviour | Journey | Check |
 | --- | --- | --- | --- |

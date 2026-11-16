@@ -1,6 +1,6 @@
 # Coverage: test-runs
 
-One row per documented behaviour. `Journey` is the journey id under `journeys/test-runs.mjs`, `Check` the step label (and check name) that fails when the behaviour breaks. Paths are relative to `packages/dms-automation` unless they start with `packages/`.
+One row per documented behaviour. `Journey` is the journey id under `e2e/journeys/test-runs.mjs`, `Check` the step label (and check name) that fails when the behaviour breaks. Paths are relative to `packages/dms-automation` unless they start with `packages/`.
 
 | Source | Documented behaviour | Journey | Check |
 | --- | --- | --- | --- |

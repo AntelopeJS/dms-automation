@@ -145,7 +145,7 @@ export const pageJourneys = [
       const menu = await textWhen(tab, /Quick look/);
       await ctx.verify("the row menu", [
         check("Quick look is offered", /Quick look/.test(menu), menu.slice(-200)),
-        same("the menu holds Quick look", (await tab.page.getByRole("menu").first().evaluate((element) => element.innerText)).trim(), "Quick look"),
+        same("the menu holds Quick look", (await tab.page.getByRole("menu").first().evaluate((/** @type {HTMLElement} */ element) => element.innerText)).trim(), "Quick look"),
         await tab.visible({ role: "button", name: "Re-run" }),
         await tab.visible({ role: "button", name: "Open trace" }),
       ]);

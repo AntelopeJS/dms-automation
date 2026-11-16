@@ -17,7 +17,7 @@ export const flat = (value) => value.replace(/\s+/g, " ").trim();
  * @returns {Promise<string>} The text, as the browser lays it out
  */
 export async function innerOf(tab, selector) {
-  return tab.page.locator(selector).evaluate((element) => element.innerText);
+  return tab.page.locator(selector).evaluate((/** @type {HTMLElement} */ element) => element.innerText);
 }
 
 /**
@@ -91,7 +91,7 @@ export async function dialogText(tab) {
   const dialog = tab.page.getByRole("dialog").last();
   await dialog.waitFor({ state: "visible", timeout: 15_000 });
   await tab.page.waitForTimeout(600);
-  return flat(await dialog.evaluate((element) => element.innerText));
+  return flat(await dialog.evaluate((/** @type {HTMLElement} */ element) => element.innerText));
 }
 
 /**

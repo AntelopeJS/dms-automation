@@ -47,7 +47,7 @@ dms-control journey "$RUN" library
 ```
 
 - Fixtures: `verify.*` types of the playground give a module group (`app`), a singleton trigger and data nodes with settings.
-- `journeys/parts/library-kit.mjs` builds a procedure with a local group and a template instance (`procedureWithGroups`) to prove the `in group` and `via template` lines.
+- `e2e/journeys/parts/library-kit.mjs` builds a procedure with a local group and a template instance (`procedureWithGroups`) to prove the `in group` and `via template` lines.
 - `withConfig` with `VERIFY_AUTO_API_BASE_URL` (`empty`, a URL) shows the webhook base.
 
 ## Gotchas

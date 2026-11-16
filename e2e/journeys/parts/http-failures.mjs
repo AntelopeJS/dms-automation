@@ -111,8 +111,10 @@ export async function networkChecks(ctx) {
  */
 export async function urlChecks(ctx) {
   const checks = [];
+  const blank = await createProcedure(ctx, { graph: chain([trigger("t"), action("h", "http.request", { url: "   " })]) });
+  const refused = (await runNow(ctx, blank)).answer;
+  checks.push(same("blank URL: Run now refuses the graph and names the field", [refused.status, list(refused.body, "issues").map((issue) => [issue.code, issue.message, issue.nodeId])], [400, [["missingField", "URL is empty", "h"]]]));
   const cases = [
-    { label: "blank URL", url: "   ", message: "The URL is empty." },
     { label: "text that is not a URL", url: "not a url", message: '"not a url" is not a valid URL.' },
     { label: "an accented text", url: "caf\u00e9 \u65e5\u672c", message: '"caf\u00e9 \u65e5\u672c" is not a valid URL.' },
     { label: "ftp", url: "ftp://example.com/file", message: "Only http:// and https:// URLs are supported (got ftp://)." },
