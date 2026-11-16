@@ -296,6 +296,17 @@ void test("too few compared runs: the line, but no change to read", async () => 
   assert.equal(chart.comparisonSeries.length, 1);
 });
 
+void test("a streak longer than the newest runs counts the failure ordered before the run it ties with", async () => {
+  const tied = [run("p", "failed", 30), run("p", "ok", 30)];
+  const later = Array.from({ length: 13 }, (_, i) =>
+    run("p", "failed", 20 - i),
+  );
+  const ctx = await context([procedure("p", "Export")], [...tied, ...later]);
+  const [row] = (await attentionRows(ctx)).items;
+  assert.equal(row?.streak, 14);
+  assert.equal(row?.since, ago(30).toISOString());
+});
+
 void test("needs attention reads degraded over the period it is given", async () => {
   const ctx = await context(
     [procedure("p", "Export")],

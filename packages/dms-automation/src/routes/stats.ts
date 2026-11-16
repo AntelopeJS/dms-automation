@@ -10,6 +10,7 @@ import type { User } from "@antelopejs/interface-dms/auth/db";
 import { ProcedureRunModel } from "../db/models/procedure_run.model";
 import {
   loadStatsContext,
+  loadStatsScope,
   type PeriodQuery,
   type StatsWindow,
   windowOf,
@@ -242,7 +243,7 @@ export class StatsController extends Controller("/api/automation/stats") {
   @Get("/recent-runs")
   async recentRuns(@AuthRawUser() _user: User) {
     return {
-      items: await recentRunItems(await loadStatsContext(), TRACE_URL),
+      items: await recentRunItems(await loadStatsScope(), TRACE_URL),
     };
   }
 
@@ -255,6 +256,6 @@ export class StatsController extends Controller("/api/automation/stats") {
 
   @Get("/triggers")
   async triggers(@AuthRawUser() _user: User) {
-    return { items: triggerCounts(await loadStatsContext()) };
+    return { items: triggerCounts(await loadStatsScope()) };
   }
 }

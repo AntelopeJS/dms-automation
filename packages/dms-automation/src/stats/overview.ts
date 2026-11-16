@@ -6,6 +6,7 @@ import {
   newestRuns,
   procedureNameOf,
   type StatsContext,
+  type StatsScope,
   type StatsWindow,
 } from "../db/models/stats.model";
 import {
@@ -64,7 +65,7 @@ export interface HealthHero {
   lastFailure: FailureRef | null;
 }
 
-function failureRef(ctx: StatsContext, run: StatsRun): FailureRef {
+function failureRef(ctx: StatsScope, run: StatsRun): FailureRef {
   return {
     runId: run._id,
     procedureId: run.procedureId,
@@ -300,7 +301,7 @@ type FeedParams = {
  * A deleted procedure keeps the name its runs were stored with.
  */
 export async function recentRunItems(
-  ctx: StatsContext,
+  ctx: StatsScope,
   traceUrl: string,
 ): Promise<FeedItem[]> {
   return (await newestRuns(ctx, RECENT_RUNS)).map((run) => {
@@ -410,7 +411,9 @@ export interface TopListItem {
 }
 
 /** How many procedures each trigger type starts, most used first. */
-export function triggerCounts(ctx: StatsContext): TopListItem[] {
+export function triggerCounts(
+  ctx: Pick<StatsScope, "procedures">,
+): TopListItem[] {
   const counts = new Map<string, TopListItem>();
   for (const facts of ctx.procedures) {
     const types = new Map(facts.triggers.map((t) => [t.typeId, t.typeName]));

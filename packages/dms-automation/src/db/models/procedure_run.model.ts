@@ -140,11 +140,13 @@ export class ProcedureRunModel extends BasicDataModel(
     });
   }
 
-  /** The newest production runs the query selects, newest first. */
-  async newestForStats(query: StatsQuery, count: number): Promise<StatsRun[]> {
-    return await this.production(query)
-      .orderBy("startedAt", "desc")
-      .slice(0, count)
+  /**
+   * The newest production runs the query selects, newest first, at most
+   * `count` when given.
+   */
+  async newestForStats(query: StatsQuery, count?: number): Promise<StatsRun[]> {
+    const newest = this.production(query).orderBy("startedAt", "desc");
+    return await (count === undefined ? newest : newest.slice(0, count))
       .pluck(...STATS_FIELDS)
       .run();
   }
