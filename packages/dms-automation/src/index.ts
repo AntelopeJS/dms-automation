@@ -1,6 +1,6 @@
 import "./db";
 import "./routes";
-import { ImplementInterface } from "@antelopejs/interface-core";
+import { Events, ImplementInterface } from "@antelopejs/interface-core";
 import { Logging } from "@antelopejs/interface-core/logging";
 import { RegisterSchema } from "@antelopejs/interface-database-decorators";
 import { AddFrontendModule } from "@antelopejs/interface-dms/page";
@@ -69,6 +69,8 @@ export async function construct(config: Config): Promise<void> {
   configureRedaction(globalConfig.runs?.sensitiveNames);
   setHttpRequestOptions(globalConfig.httpRequest ?? {});
   await import("./pages");
+
+  Events.ModulesStopping.register(() => subscriptions.stopReconciling());
 
   ImplementInterface(
     await import("@antelopejs/interface-dms-automation"),
