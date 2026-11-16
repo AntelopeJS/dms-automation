@@ -79,7 +79,6 @@ export const manifestJourneys = [
         ...obj(module.dependencies),
       };
       const interfaceVersion = String(iface.version);
-      const narrow = `^${interfaceVersion}`;
       await ctx.verify("names and the publish contract", [
         same("names", [module.name, iface.name], ["@antelopejs/dms-automation", "@antelopejs/interface-dms-automation"]),
         same("licences", [module.license, iface.license], ["Apache-2.0", "Apache-2.0"]),
@@ -116,13 +115,13 @@ export const manifestJourneys = [
       const interfaceRow = moduleRows.find((row) => row.name === "@antelopejs/interface-dms-automation");
       await ctx.verify("the module's range on the interface", [
         same("package.json names the sibling interface with workspace:^, which pnpm pack writes as ^<interface version>", normalRange(String(moduleDeps["@antelopejs/interface-dms-automation"])), "workspace:^"),
-        same("the README says the same, supported", normalRange(interfaceRow?.supported ?? ""), narrow),
+        same("the README says the same, supported", normalRange(interfaceRow?.supported ?? ""), "workspace:^"),
         same("the README tested-with is the interface version", interfaceRow?.tested, interfaceVersion),
       ]);
       /** @type {Check[]} */
       const rowChecks = [];
       for (const row of moduleRows) {
-        const declared = String(moduleDeps[row.name]).replace(/^workspace:\^$/, narrow);
+        const declared = String(moduleDeps[row.name]);
         rowChecks.push(same(`module README row ${row.name}: supported is the declared range`, row.supported, declared));
       }
       const peer = obj(iface.peerDependencies);
