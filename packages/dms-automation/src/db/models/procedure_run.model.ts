@@ -110,6 +110,26 @@ export class ProcedureRunModel extends BasicDataModel(
       .run();
   }
 
+  /**
+   * How many production runs (`isProductionRun`) of a procedure started at or
+   * after `since`, counted in the database.
+   */
+  async countProductionSince(
+    procedureId: string,
+    since: Date,
+  ): Promise<number> {
+    return await this.table
+      .filter((row) =>
+        row
+          .key("procedureId")
+          .eq(procedureId)
+          .and(row.key("kind").ne("test"))
+          .and(row.key("startedAt").ge(since)),
+      )
+      .count()
+      .run();
+  }
+
   /** Write a procedure's current name on its runs. */
   async renameProcedure(procedureId: string, name: string): Promise<number> {
     return await this.table
