@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.7.1
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.7.0...interface-v0.7.1)
+
+### 🩹 Fixes
+
+- **deps:** Depend on the stable @antelopejs/tooling-configs
+
+### 📦 Build
+
+- Move to @antelopejs/tooling-configs 0.8 and the three-tier CI ([#212](https://github.com/AntelopeJS/dms-automation/pull/212))
+
+### ✅ Tests
+
+- **e2e:** Run the verify skill's journeys as a Playwright suite in CI ([#217](https://github.com/AntelopeJS/dms-automation/pull/217))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.7.0
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.6.2...v0.7.0)
