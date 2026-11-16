@@ -1,6 +1,7 @@
 /**
- * The health of procedures, computed from their runs. Pure functions over
- * plain rows, so the rules are tested without a database.
+ * The health of procedures, computed from what the database counted of their
+ * runs. Pure functions over plain rows, so the rules are tested without a
+ * database.
  */
 
 import type { ArmError } from "../runtime/armErrors";
@@ -72,23 +73,42 @@ export interface ProcedureHealth {
   recentRuns: HealthRun[];
 }
 
-const RECENT_RUNS = 12;
+/** How many of a procedure's newest runs its health reads. */
+export const RECENT_RUNS = 12;
+
+/** Failed runs in a row, ending with the newest run. */
+export interface FailureStreak {
+  length: number;
+  /** When the first of them started. */
+  since?: Date;
+}
+
+/** How many runs of a procedure started in a window, and how long they took. */
+export interface WindowCounts {
+  runs: number;
+  ok: number;
+  failed: number;
+  avgDurationMs: number | null;
+}
+
+/** What the health rules read of a procedure's production runs. */
+export interface RunsDigest {
+  /** Its newest runs, newest first, at most `RECENT_RUNS`. */
+  recent: HealthRun[];
+  streak: FailureStreak;
+  /** Its runs started in the window. */
+  inWindow: WindowCounts;
+}
 
 export function timeOf(value: Date | string): number {
   return new Date(value).getTime();
 }
 
-export function durationOf(run: HealthRun): number | null {
+/** When a run started and ended, and how. */
+export type TimedRun = Pick<HealthRun, "startedAt" | "endedAt" | "status">;
+
+export function durationOf(run: TimedRun): number | null {
   return run.endedAt ? timeOf(run.endedAt) - timeOf(run.startedAt) : null;
-}
-
-function newestFirst(runs: readonly HealthRun[]): HealthRun[] {
-  return [...runs].sort((a, b) => timeOf(b.startedAt) - timeOf(a.startedAt));
-}
-
-function average(values: readonly number[]): number | null {
-  if (values.length === 0) return null;
-  return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
 }
 
 /** p-th percentile (0–1) of a list of numbers, nearest rank. */
@@ -102,13 +122,20 @@ export function percentile(
   return Math.round(sorted[Math.max(0, rank)] ?? 0);
 }
 
-function streakOf(runs: readonly HealthRun[]): HealthRun[] {
-  const streak: HealthRun[] = [];
-  for (const run of runs) {
-    if (run.status !== "failed") break;
-    streak.push(run);
-  }
-  return streak;
+/**
+ * The failure streak a procedure's newest runs show, newest first; `undefined`
+ * when all of `RECENT_RUNS` runs failed, as the streak may reach further back.
+ */
+export function streakIn(
+  recent: readonly HealthRun[],
+): FailureStreak | undefined {
+  const end = recent.findIndex((run) => run.status !== "failed");
+  if (end === -1 && recent.length >= RECENT_RUNS) return undefined;
+  const streak = end === -1 ? recent : recent.slice(0, end);
+  const first = streak.at(-1);
+  return first
+    ? { length: streak.length, since: new Date(first.startedAt) }
+    : { length: 0 };
 }
 
 /** Never enabled (just created or imported, nothing ran): still a draft. */
@@ -126,93 +153,39 @@ function stateOf(
 }
 
 /**
- * Health of one procedure. `runs` are its production runs, any order, over a
- * span at least as long as the window: the last run and the failure streak are
- * read from all of them, the counts from those started at or after `since`.
+ * Health of one procedure: the last run and the failure streak whatever the
+ * window, the counts over the window.
  */
 export function procedureHealth(
   procedure: HealthProcedure,
-  runs: readonly HealthRun[],
-  since: Date,
+  { recent, streak, inWindow }: RunsDigest,
 ): ProcedureHealth {
-  const sorted = newestFirst(runs);
-  const inWindow = sorted.filter((r) => timeOf(r.startedAt) >= since.getTime());
-  const ok = inWindow.filter((r) => r.status === "ok").length;
-  const failed = inWindow.filter((r) => r.status === "failed").length;
-  const durations = inWindow
-    .map(durationOf)
-    .filter((d): d is number => d !== null);
-  const lastRun = sorted[0];
-  const streak = streakOf(sorted);
+  const { runs, ok, failed, avgDurationMs } = inWindow;
+  const lastRun = recent[0];
   const health: ProcedureHealth = {
     state: stateOf(procedure, lastRun, failed),
-    runs: inWindow.length,
+    runs,
     ok,
     failed,
     successRate: ok + failed > 0 ? ok / (ok + failed) : null,
-    avgDurationMs: average(durations),
+    avgDurationMs,
     failureStreak: streak.length,
-    recentRuns: sorted.slice(0, RECENT_RUNS).reverse(),
+    recentRuns: recent.slice(0, RECENT_RUNS).reverse(),
   };
   if (lastRun) health.lastRun = lastRun;
   if (procedure.armError) {
     health.armError = procedure.armError;
     health.triggerError = procedure.armError.message;
   }
-  const firstOfStreak = streak.at(-1);
-  if (firstOfStreak) health.failingSince = new Date(firstOfStreak.startedAt);
+  if (streak.since) health.failingSince = streak.since;
   return health;
 }
 
-/** Figures of a set of runs over a window. */
-export interface RunFigures {
+/** How many runs of a set ended each way. */
+export interface RunCounts {
   total: number;
   ok: number;
   failed: number;
-  successRate: number | null;
-  avgDurationMs: number | null;
-  p95DurationMs: number | null;
-}
-
-export function runFigures(runs: readonly HealthRun[]): RunFigures {
-  const ok = runs.filter((r) => r.status === "ok").length;
-  const failed = runs.filter((r) => r.status === "failed").length;
-  const durations = runs.map(durationOf).filter((d): d is number => d !== null);
-  return {
-    total: runs.length,
-    ok,
-    failed,
-    successRate: ok + failed > 0 ? ok / (ok + failed) : null,
-    avgDurationMs: average(durations),
-    p95DurationMs: percentile(durations, 0.95),
-  };
-}
-
-/** Runs started in `[from, to]`. */
-export function runsBetween<R extends HealthRun>(
-  runs: readonly R[],
-  from: Date,
-  to: Date,
-): R[] {
-  const start = from.getTime();
-  const end = to.getTime();
-  return runs.filter((r) => {
-    const t = timeOf(r.startedAt);
-    return t >= start && t <= end;
-  });
-}
-
-/** Group runs by procedure id. */
-export function byProcedure<R extends HealthRun>(
-  runs: readonly R[],
-): Map<string, R[]> {
-  const out = new Map<string, R[]>();
-  for (const run of runs) {
-    const list = out.get(run.procedureId) ?? [];
-    list.push(run);
-    out.set(run.procedureId, list);
-  }
-  return out;
 }
 
 /** Change from `previous` to `current` in percent, one decimal. */

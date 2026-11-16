@@ -1,11 +1,19 @@
 import {
   failedStepOf,
   healthByProcedure,
+  lastFailedOfProcedure,
+  newestFailedRun,
+  newestRuns,
   procedureNameOf,
   type StatsContext,
   type StatsWindow,
-  windowRuns,
 } from "../db/models/stats.model";
+import {
+  comparedBucketCounts,
+  comparedTally,
+  countsBetween,
+  windowTally,
+} from "../db/models/window_tally.model";
 import type { StatsRun } from "../db/models/procedure_run.model";
 import type { ArmError } from "../runtime/armErrors";
 import { type StepName, stepTitle } from "../runtime/describe";
@@ -13,12 +21,11 @@ import {
   durationOf,
   type ProcedureHealth,
   type ProcedureState,
-  runFigures,
-  type RunFigures,
+  type RunCounts,
   stateRank,
   timeOf,
 } from "./health";
-import { bucketStarts, kpiPayload, runsPerBucket } from "./kpi";
+import { bucketStarts, kpiPayload, type Tally } from "./kpi";
 import { isNumber } from "../types/guards";
 
 /** The last failure, as the overview links to it. */
@@ -53,7 +60,7 @@ export interface HealthHero {
   failing: FailingProcedure[];
   degraded: number;
   paused: number;
-  figures: RunFigures;
+  figures: RunCounts;
   lastFailure: FailureRef | null;
 }
 
@@ -71,7 +78,7 @@ function failureRef(ctx: StatsContext, run: StatsRun): FailureRef {
 function overallState(
   procedures: number,
   states: ProcedureState[],
-  figures: RunFigures,
+  figures: RunCounts,
 ): OverallState {
   if (procedures === 0) return "empty";
   if (states.includes("failing")) return "failing";
@@ -108,10 +115,15 @@ function byUrgency(a: Urgency, b: Urgency): number {
  * While a procedure is failing, its failure is the one to inspect (none
  * when it fails because a trigger did not arm).
  */
-export function healthHero(ctx: StatsContext, window: StatsWindow): HealthHero {
-  const health = healthByProcedure(ctx, window.from);
+export async function healthHero(
+  ctx: StatsContext,
+  window: StatsWindow,
+): Promise<HealthHero> {
+  const [health, figures] = await Promise.all([
+    healthByProcedure(ctx, window.from),
+    countsBetween(window.from, window.to),
+  ]);
   const states = [...health.values()].map((h) => h.state);
-  const figures = runFigures(windowRuns(ctx, window));
   const urgency = (id: string): Urgency => {
     const h = health.get(id)!;
     return { state: h.state, streak: h.failureStreak, failed: h.failed };
@@ -133,9 +145,12 @@ export function healthHero(ctx: StatsContext, window: StatsWindow): HealthHero {
       };
     });
   const first = failing[0];
+  const firstLastRun = first && ctx.runsOf.get(first.procedureId)?.recent[0];
   const lastFailed = first
-    ? ctx.runs.find((r) => r._id === first.lastRunId && r.status === "failed")
-    : ctx.runs.find((r) => r.status === "failed");
+    ? firstLastRun?.status === "failed"
+      ? firstLastRun
+      : undefined
+    : await newestFailedRun(ctx);
   return {
     state: overallState(ctx.procedures.length, states, figures),
     updatedAt: ctx.now.toISOString(),
@@ -193,9 +208,7 @@ function attentionRow(
 ): AttentionRow {
   const facts = ctx.byId.get(procedureId)!;
   const procedure = facts.procedure;
-  const lastFailed = ctx.runs.find(
-    (r) => r.procedureId === procedureId && r.status === "failed",
-  );
+  const lastFailed = lastFailedOfProcedure(ctx, procedureId);
   return {
     procedureId,
     name: procedure.name,
@@ -228,16 +241,17 @@ export interface AttentionList {
  * `since`, the start of the overview's period, as its health line does; the
  * state window of the procedure list without one.
  */
-export function attentionRows(ctx: StatsContext, since?: Date): AttentionList {
-  const health = healthByProcedure(ctx, since);
+export async function attentionRows(
+  ctx: StatsContext,
+  since?: Date,
+): Promise<AttentionList> {
+  const health = await healthByProcedure(ctx, since);
   const rows: AttentionRow[] = [];
   for (const facts of ctx.procedures) {
     const id = facts.procedure._id;
     const h = health.get(id);
     if (!h || !ATTENTION_STATES.has(h.state)) continue;
-    const lastFailed = ctx.runs.find(
-      (r) => r.procedureId === id && r.status === "failed",
-    );
+    const lastFailed = lastFailedOfProcedure(ctx, id);
     const dismissed =
       h.state === "degraded" &&
       isDismissed(facts.procedure.attentionDismissedAt, lastFailed);
@@ -285,11 +299,11 @@ type FeedParams = {
  *
  * A deleted procedure keeps the name its runs were stored with.
  */
-export function recentRunItems(
+export async function recentRunItems(
   ctx: StatsContext,
   traceUrl: string,
-): FeedItem[] {
-  return ctx.runs.slice(0, RECENT_RUNS).map((run) => {
+): Promise<FeedItem[]> {
+  return (await newestRuns(ctx, RECENT_RUNS)).map((run) => {
     const failed = run.status === "failed";
     const step = failedStepOf(ctx, run);
     const params: FeedParams = {
@@ -358,11 +372,11 @@ const COUNT_TONE: Partial<Record<ProcedureState, KeyValueItem["tone"]>> = {
  * The overview's procedure counts: the total, then one line per state in the
  * order of the list's tabs, adding up to the total, each linking to its tab.
  */
-export function procedureCounts(
+export async function procedureCounts(
   ctx: StatsContext,
   proceduresUrl: string,
-): KeyValueItem[] {
-  const health = [...healthByProcedure(ctx).values()];
+): Promise<KeyValueItem[]> {
+  const health = [...(await healthByProcedure(ctx)).values()];
   const total: KeyValueItem = {
     id: "total",
     label: "$dms_automation.overview.counts.total",
@@ -446,21 +460,15 @@ export interface ChartPayload {
  * A line over the stacked bars, dashed by the chart as a comparison.
  */
 function comparedRunsSeries(
-  ctx: StatsContext,
-  window: StatsWindow,
+  buckets: number[],
   starts: Date[],
-): ChartSeriesPayload | undefined {
-  if (!window.compareFrom || !window.compareTo) return undefined;
-  const buckets = runsPerBucket(ctx.runs, {
-    from: window.compareFrom,
-    to: window.compareTo,
-  });
+): ChartSeriesPayload {
   return {
     name: "$dms_automation.overview.comparedRuns",
     type: "line",
     data: starts.map((start, i) => ({
       x: start.toISOString(),
-      y: buckets[i]?.length ?? null,
+      y: buckets[i] ?? null,
     })),
   };
 }
@@ -470,35 +478,37 @@ function comparedRunsSeries(
  * the period compares, the runs of the compared window bucket by bucket with
  * the change of the total, measured as the Runs KPI measures it.
  */
-export function runsPerDayChart(
-  ctx: StatsContext,
+export async function runsPerDayChart(
   window: StatsWindow,
-): ChartPayload {
-  const runs = windowRuns(ctx, window);
-  const buckets = runsPerBucket(runs, window);
+): Promise<ChartPayload> {
+  const [current, comparedBuckets, compared] = await Promise.all([
+    windowTally(window, false),
+    comparedBucketCounts(window),
+    comparedTally(window, false),
+  ]);
   const starts = bucketStarts(window);
-  const point = (status: string) => (bucket: StatsRun[], i: number) => ({
-    x: starts[i]!.toISOString(),
-    y: bucket.filter((r) => r.status === status).length,
-  });
+  const point =
+    (count: (bucket: Tally) => number) => (bucket: Tally, i: number) => ({
+      x: starts[i]!.toISOString(),
+      y: count(bucket),
+    });
   const chart: ChartPayload = {
-    value: runs.length,
+    value: current.total.total,
     series: [
       {
         name: "$dms_automation.overview.succeeded",
-        data: buckets.map(point("ok")),
+        data: current.buckets.map(point((b) => b.ok)),
       },
       {
         name: "$dms_automation.overview.failedRuns",
-        data: buckets.map(point("failed")),
+        data: current.buckets.map(point((b) => b.failed)),
       },
     ],
   };
-  const compared = comparedRunsSeries(ctx, window, starts);
-  if (!compared) return chart;
-  const { previousValue, delta } = kpiPayload("runs", ctx.runs, window);
+  if (!comparedBuckets) return chart;
+  const { previousValue, delta } = kpiPayload("runs", current, compared);
   if (previousValue !== undefined) chart.previousValue = previousValue;
   if (isNumber(delta)) chart.delta = delta;
-  chart.comparisonSeries = [compared];
+  chart.comparisonSeries = [comparedRunsSeries(comparedBuckets, starts)];
   return chart;
 }

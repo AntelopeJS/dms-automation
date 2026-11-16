@@ -1,10 +1,10 @@
 import { MS_PER_DAY, MS_PER_HOUR } from "../types/constants";
 import {
   deltaPercent,
-  type HealthRun,
-  runFigures,
-  type RunFigures,
-  runsBetween,
+  durationOf,
+  percentile,
+  type RunCounts,
+  type TimedRun,
   timeOf,
 } from "./health";
 
@@ -50,20 +50,40 @@ function roundOne(value: number): number {
   return Math.round(value * ONE_DECIMAL) / ONE_DECIMAL;
 }
 
-const METRIC_VALUE: Record<KpiMetric, (f: RunFigures) => number | null> = {
-  runs: (f) => f.total,
-  failed: (f) => f.failed,
-  "success-rate": (f) =>
-    f.successRate === null ? null : roundOne(f.successRate * PERCENT),
-  "duration-p95": (f) => f.p95DurationMs,
+/**
+ * What a KPI reads of a set of runs. The database counts them; the 95th
+ * percentile of their durations is read from their timings, as no query
+ * computes a percentile.
+ */
+export interface Tally extends RunCounts {
+  p95DurationMs: number | null;
+}
+
+/** The tally of a window, and of each of its buckets, oldest first. */
+export interface WindowTally {
+  total: Tally;
+  buckets: Tally[];
+}
+
+const METRIC_VALUE: Record<KpiMetric, (t: Tally) => number | null> = {
+  runs: (t) => t.total,
+  failed: (t) => t.failed,
+  "success-rate": (t) =>
+    t.ok + t.failed > 0 ? roundOne((t.ok / (t.ok + t.failed)) * PERCENT) : null,
+  "duration-p95": (t) => t.p95DurationMs,
 };
 
-/** Value of a metric over a set of runs. */
-function metricValue(
-  metric: KpiMetric,
-  runs: readonly HealthRun[],
-): number | null {
-  return METRIC_VALUE[metric](runFigures(runs));
+const P95 = 0.95;
+
+/** The tally of a set of runs read one by one. */
+export function tallyOf(runs: readonly TimedRun[]): Tally {
+  const durations = runs.map(durationOf).filter((d): d is number => d !== null);
+  return {
+    total: runs.length,
+    ok: runs.filter((r) => r.status === "ok").length,
+    failed: runs.filter((r) => r.status === "failed").length,
+    p95DurationMs: percentile(durations, P95),
+  };
 }
 
 /**
@@ -86,7 +106,7 @@ function kpiDelta(
  * Bucket width of a sparkline: hours for a window up to two days, days
  * beyond.
  */
-function bucketMs(window: KpiWindow): number {
+export function bucketMs(window: KpiWindow): number {
   const span = window.to.getTime() - window.from.getTime();
   return span <= 2 * MS_PER_DAY ? MS_PER_HOUR : MS_PER_DAY;
 }
@@ -114,7 +134,7 @@ export function bucketStarts(window: KpiWindow): Date[] {
  * The runs of each bucket of a window, oldest bucket first, in one pass over
  * the runs. Runs outside the window are left out.
  */
-export function runsPerBucket<R extends HealthRun>(
+export function runsPerBucket<R extends TimedRun>(
   runs: readonly R[],
   window: KpiWindow,
 ): R[][] {
@@ -139,8 +159,8 @@ export function runsPerBucket<R extends HealthRun>(
  * of dropping to 0 (and starts on the first one known). No value at all, no
  * line.
  */
-function sparklineOf(metric: KpiMetric, buckets: HealthRun[][]): number[] {
-  const values = buckets.map((bucket) => metricValue(metric, bucket));
+function sparklineOf(metric: KpiMetric, buckets: readonly Tally[]): number[] {
+  const values = buckets.map(METRIC_VALUE[metric]);
   const firstKnown = values.find((v): v is number => v !== null);
   if (firstKnown === undefined) return [];
   let last = firstKnown;
@@ -150,25 +170,26 @@ function sparklineOf(metric: KpiMetric, buckets: HealthRun[][]): number[] {
   });
 }
 
-/** A KPI card's payload: the value, the comparison and a sparkline. */
+/**
+ * A KPI card's payload: the value, the comparison and a sparkline. `compared`
+ * is the tally of the compared window, when the period compares.
+ */
 export function kpiPayload(
   metric: KpiMetric,
-  runs: readonly HealthRun[],
-  window: KpiWindow,
+  current: WindowTally,
+  compared?: Tally,
 ): KpiPayload {
-  const current = runsBetween(runs, window.from, window.to);
-  const value = metricValue(metric, current);
+  const value = METRIC_VALUE[metric](current.total);
   const payload: KpiPayload = {
-    sparkline: sparklineOf(metric, runsPerBucket(current, window)),
+    sparkline: sparklineOf(metric, current.buckets),
   };
   if (value !== null) payload.value = value;
-  if (window.compareFrom && window.compareTo) {
-    const compared = runsBetween(runs, window.compareFrom, window.compareTo);
-    const previous = metricValue(metric, compared);
+  if (compared) {
+    const previous = METRIC_VALUE[metric](compared);
     if (previous !== null) payload.previousValue = previous;
     payload.delta =
       value !== null && previous !== null
-        ? kpiDelta(value, previous, compared.length)
+        ? kpiDelta(value, previous, compared.total)
         : null;
   }
   return payload;

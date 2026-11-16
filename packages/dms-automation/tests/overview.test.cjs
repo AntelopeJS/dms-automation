@@ -10,6 +10,8 @@ const {
   runsPerDayChart,
   triggerCounts,
 } = require("../dist/stats/overview.js");
+const { store } = require("./helpers/stats-database.cjs");
+const { loadStatsContext } = require("../dist/db/models/stats.model.js");
 
 const HOUR = 3600 * 1000;
 const NOW = new Date("2026-10-07T12:00:00Z");
@@ -17,8 +19,17 @@ const NOW = new Date("2026-10-07T12:00:00Z");
 const ago = (hours) => new Date(NOW.getTime() - hours * HOUR);
 
 const GRAPH = {
-  nodes: [{ id: "t", kind: "trigger", typeId: "manual", config: {} }],
-  edges: [],
+  nodes: [
+    {
+      id: "t",
+      kind: "trigger",
+      typeId: "manual",
+      config: {},
+      position: { x: 0, y: 0 },
+    },
+  ],
+  triggerEdges: [],
+  dataEdges: [],
 };
 
 /**
@@ -75,32 +86,33 @@ const run = (procedureId, status, hoursAgo, extra = {}) => ({
 });
 
 /**
+ * The stats context of a database holding these procedures and runs, every
+ * run read whatever its age.
  * @param {FixtureProcedure[]} procedures
  * @param {FixtureRun[]} runs
  */
 function context(procedures, runs) {
-  return {
-    now: NOW,
-    procedures,
-    byId: new Map(procedures.map((p) => [p.procedure._id, p])),
-    runs: [...runs].sort((a, b) => b.startedAt - a.startedAt),
-  };
+  store(
+    procedures.map((p) => p.procedure),
+    runs,
+  );
+  return loadStatsContext(new Date(0), NOW);
 }
 
 const day = { from: ago(24), to: NOW };
 const week = { from: ago(7 * 24), to: NOW };
 
-void test("the health line's degraded state follows the window", () => {
-  const ctx = context(
+void test("the health line's degraded state follows the window", async () => {
+  const ctx = await context(
     [procedure("p", "Export")],
     [run("p", "failed", 72), run("p", "ok", 2)],
   );
-  assert.equal(healthHero(ctx, week).state, "degraded");
-  assert.equal(healthHero(ctx, day).state, "healthy");
+  assert.equal((await healthHero(ctx, week)).state, "degraded");
+  assert.equal((await healthHero(ctx, day)).state, "healthy");
 });
 
-void test("the health line names failing procedures in the attention order", () => {
-  const ctx = context(
+void test("the health line names failing procedures in the attention order", async () => {
+  const ctx = await context(
     [procedure("a", "Once"), procedure("b", "Thrice")],
     [
       run("a", "failed", 1),
@@ -109,33 +121,33 @@ void test("the health line names failing procedures in the attention order", () 
       run("b", "failed", 1),
     ],
   );
-  const hero = healthHero(ctx, day);
+  const hero = await healthHero(ctx, day);
   assert.deepEqual(
     hero.failing.map((f) => f.name),
     ["Thrice", "Once"],
   );
   assert.deepEqual(
-    attentionRows(ctx).items.map((r) => r.name),
+    (await attentionRows(ctx)).items.map((r) => r.name),
     ["Thrice", "Once"],
   );
   assert.equal(hero.lastFailure.procedureId, "b");
 });
 
-void test("needs attention shows five rows and counts them all", () => {
+void test("needs attention shows five rows and counts them all", async () => {
   const procedures = Array.from({ length: 7 }, (_, i) =>
     procedure(`p${i}`, `Job ${i}`),
   );
-  const ctx = context(
+  const ctx = await context(
     procedures,
     procedures.map((p) => run(p.procedure._id, "failed", 1)),
   );
-  const list = attentionRows(ctx);
+  const list = await attentionRows(ctx);
   assert.equal(list.items.length, 5);
   assert.equal(list.total, 7);
 });
 
-void test("the procedure counts add up to the total, one line per state", () => {
-  const ctx = context(
+void test("the procedure counts add up to the total, one line per state", async () => {
+  const ctx = await context(
     [
       procedure("f", "Failing"),
       procedure("d", "Degraded"),
@@ -149,7 +161,7 @@ void test("the procedure counts add up to the total, one line per state", () => 
       run("h", "ok", 1),
     ],
   );
-  const counts = procedureCounts(ctx, "/procedures");
+  const counts = await procedureCounts(ctx, "/procedures");
   assert.deepEqual(
     counts.map((c) => `${c.id}=${c.value}`),
     ["total=4", "failing=1", "degraded=1", "healthy=1", "paused=0", "draft=1"],
@@ -162,34 +174,34 @@ void test("the procedure counts add up to the total, one line per state", () => 
   assert.equal(counts[2].to, "/procedures?tab=degraded");
 });
 
-void test("the overview's lists send as many lines as their skeletons draw", () => {
+void test("the overview's lists send as many lines as their skeletons draw", async () => {
   assert.equal(
-    procedureCounts(context([], []), "/procedures").length,
+    (await procedureCounts(await context([], []), "/procedures")).length,
     PROCEDURE_COUNT_LINES,
   );
   const runs = Array.from({ length: RECENT_RUNS + 3 }, (_, i) =>
     run("p", "ok", i + 1),
   );
-  const ctx = context([procedure("p", "Sync")], runs);
-  assert.equal(recentRunItems(ctx, "/trace").length, RECENT_RUNS);
+  const ctx = await context([procedure("p", "Sync")], runs);
+  assert.equal((await recentRunItems(ctx, "/trace")).length, RECENT_RUNS);
 });
 
-void test("a run of a deleted procedure keeps its name", () => {
-  const ctx = context(
+void test("a run of a deleted procedure keeps its name", async () => {
+  const ctx = await context(
     [],
     [run("gone", "ok", 1, { procedureName: "Old sync" })],
   );
-  const [item] = recentRunItems(ctx, "/trace");
+  const [item] = await recentRunItems(ctx, "/trace");
   assert.equal(item.title, "$dms_automation.feed.deletedProcedureNamed");
   assert.equal(item.params.name, "Old sync");
 });
 
-void test("the runs chart buckets on the hour, without a comparison", () => {
-  const ctx = context(
+void test("the runs chart buckets on the hour, without a comparison", async () => {
+  await context(
     [procedure("p", "Sync")],
     [run("p", "ok", 1), run("p", "failed", 1), run("p", "ok", 30)],
   );
-  const chart = runsPerDayChart(ctx, {
+  const chart = await runsPerDayChart({
     from: new Date(ago(24).getTime() + 7 * 60 * 1000),
     to: NOW,
   });
@@ -200,15 +212,15 @@ void test("the runs chart buckets on the hour, without a comparison", () => {
   assert.equal("previousValue" in chart, false);
 });
 
-void test("the runs chart draws the period before, bucket by bucket", () => {
+void test("the runs chart draws the period before, bucket by bucket", async () => {
   const before = [
     ...Array.from({ length: 12 }, () => run("p", "ok", 30)),
     run("p", "failed", 26),
     run("p", "ok", 26),
   ];
   const now = Array.from({ length: 9 }, () => run("p", "ok", 1));
-  const ctx = context([procedure("p", "Sync")], [...before, ...now]);
-  const chart = runsPerDayChart(ctx, {
+  await context([procedure("p", "Sync")], [...before, ...now]);
+  const chart = await runsPerDayChart({
     from: ago(24),
     to: NOW,
     compareFrom: ago(48),
@@ -234,7 +246,7 @@ void test("the runs chart draws the period before, bucket by bucket", () => {
   );
 });
 
-void test("the runs chart compares with the same window a year earlier", () => {
+void test("the runs chart compares with the same window a year earlier", async () => {
   const YEAR = 365 * 24 * HOUR;
   /**
    * @param {string} status
@@ -249,11 +261,8 @@ void test("the runs chart compares with the same window a year earlier", () => {
   const lastYear = Array.from({ length: 20 }, () => yearAgo("ok", 3));
   const dayBefore = Array.from({ length: 5 }, () => run("p", "ok", 30));
   const now = Array.from({ length: 10 }, () => run("p", "failed", 3));
-  const ctx = context(
-    [procedure("p", "Sync")],
-    [...lastYear, ...dayBefore, ...now],
-  );
-  const chart = runsPerDayChart(ctx, {
+  await context([procedure("p", "Sync")], [...lastYear, ...dayBefore, ...now]);
+  const chart = await runsPerDayChart({
     from: ago(24),
     to: NOW,
     compareFrom: new Date(ago(24).getTime() - YEAR),
@@ -271,12 +280,12 @@ void test("the runs chart compares with the same window a year earlier", () => {
   );
 });
 
-void test("too few compared runs: the line, but no change to read", () => {
-  const ctx = context(
+void test("too few compared runs: the line, but no change to read", async () => {
+  await context(
     [procedure("p", "Sync")],
     [run("p", "ok", 30), run("p", "ok", 1), run("p", "ok", 2)],
   );
-  const chart = runsPerDayChart(ctx, {
+  const chart = await runsPerDayChart({
     from: ago(24),
     to: NOW,
     compareFrom: ago(48),
@@ -287,13 +296,13 @@ void test("too few compared runs: the line, but no change to read", () => {
   assert.equal(chart.comparisonSeries.length, 1);
 });
 
-void test("needs attention reads degraded over the period it is given", () => {
-  const ctx = context(
+void test("needs attention reads degraded over the period it is given", async () => {
+  const ctx = await context(
     [procedure("p", "Export")],
     [run("p", "failed", 72), run("p", "ok", 2)],
   );
-  assert.equal(attentionRows(ctx).total, 1);
-  assert.equal(attentionRows(ctx, ago(24)).total, 0);
+  assert.equal((await attentionRows(ctx)).total, 1);
+  assert.equal((await attentionRows(ctx, ago(24))).total, 0);
 });
 
 void test("a sliding period ends at the request, its comparison with it", () => {
@@ -383,8 +392,8 @@ void test("by trigger counts a procedure once per trigger type", () => {
     { nodeId: "b", typeId: "verify.event", typeName: "Fixture event" },
     { nodeId: "c", typeId: "manual", typeName: "Manual" },
   ];
-  const ctx = context([twoEvents, procedure("q", "Manual only")], []);
-  assert.deepEqual(triggerCounts(ctx), [
+  const procedures = [twoEvents, procedure("q", "Manual only")];
+  assert.deepEqual(triggerCounts({ procedures }), [
     { id: "manual", title: "Manual", value: 2 },
     { id: "verify.event", title: "Fixture event", value: 1 },
   ]);

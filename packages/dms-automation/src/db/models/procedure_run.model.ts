@@ -1,5 +1,6 @@
 import { BasicDataModel } from "@antelopejs/interface-database-decorators";
 import type { ProcedureRunStatus } from "@antelopejs/interface-dms-automation";
+import { MS_PER_SECOND } from "../../types/constants";
 import {
   ProcedureRun,
   procedureRunsTableName,
@@ -31,6 +32,26 @@ const STATS_FIELDS = [
   "failedNodeId",
   "triggerNodeId",
 ] as const;
+
+/** The production runs a stats figure is read from. */
+export interface StatsQuery {
+  /** Started at or after. */
+  from: Date;
+  /** Started at or before. */
+  to?: Date;
+  /** Started strictly after. */
+  after?: Date;
+  procedureId?: string;
+  status?: ProcedureRunStatus;
+  /** Of any status but this one. */
+  exceptStatus?: ProcedureRunStatus;
+}
+
+/** When a run started and ended, for the durations of a percentile. */
+export type StatsTiming = Pick<
+  ProcedureRun,
+  "startedAt" | "endedAt" | "status"
+>;
 
 /**
  * List-view shape of a run: everything except the trigger payload and the
@@ -98,35 +119,114 @@ export class ProcedureRunModel extends BasicDataModel(
   ProcedureRun,
   procedureRunsTableName,
 ) {
-  /**
-   * Reads the complete window without payloads or execution logs, test runs
-   * included: callers keep the production runs (`isProductionRun`).
-   */
-  async listForStats(since: Date): Promise<StatsRun[]> {
-    return this.table
-      .filter((row) => row.key("startedAt").ge(since))
+  /** The production runs a stats query selects, test runs left out. */
+  private production({
+    procedureId,
+    status,
+    exceptStatus,
+    from,
+    to,
+    after,
+  }: StatsQuery) {
+    return this.table.filter((row) => {
+      let match = row.key("kind").ne("test").and(row.key("startedAt").ge(from));
+      if (to) match = match.and(row.key("startedAt").le(to));
+      if (after) match = match.and(row.key("startedAt").gt(after));
+      if (procedureId)
+        match = match.and(row.key("procedureId").eq(procedureId));
+      if (status) match = match.and(row.key("status").eq(status));
+      if (exceptStatus) match = match.and(row.key("status").ne(exceptStatus));
+      return match;
+    });
+  }
+
+  /** The newest production runs the query selects, newest first. */
+  async newestForStats(query: StatsQuery, count: number): Promise<StatsRun[]> {
+    return await this.production(query)
       .orderBy("startedAt", "desc")
+      .slice(0, count)
       .pluck(...STATS_FIELDS)
       .run();
   }
 
+  /** The oldest production run the query selects. */
+  async oldestForStats(query: StatsQuery): Promise<StatsRun | undefined> {
+    const [run] = await this.production(query)
+      .orderBy("startedAt", "asc")
+      .slice(0, 1)
+      .pluck(...STATS_FIELDS)
+      .run();
+    return run;
+  }
+
+  /** How many production runs the query selects. */
+  async countForStats(query: StatsQuery): Promise<number> {
+    return await this.production(query).count().run();
+  }
+
+  /** How many production runs the query selects, per status. */
+  async countPerStatus(query: StatsQuery): Promise<Map<string, number>> {
+    const groups = await this.production(query)
+      .group("status", (runs, status) => ({ status, runs: runs.count() }))
+      .run();
+    return new Map(groups.map((g) => [String(g.status), g.runs]));
+  }
+
   /**
-   * How many production runs (`isProductionRun`) of a procedure started at or
-   * after `since`, counted in the database.
+   * How many production runs the query selects, and their mean duration,
+   * per procedure.
    */
-  async countProductionSince(
-    procedureId: string,
-    since: Date,
-  ): Promise<number> {
-    return await this.table
-      .filter((row) =>
-        row
-          .key("procedureId")
-          .eq(procedureId)
-          .and(row.key("kind").ne("test"))
-          .and(row.key("startedAt").ge(since)),
-      )
-      .count()
+  async countPerProcedure(
+    query: StatsQuery,
+  ): Promise<Map<string, { runs: number; avgDurationMs: number | null }>> {
+    const groups = await this.production(query)
+      .group("procedureId", (runs, procedureId) => ({
+        procedureId,
+        runs: runs.count(),
+        avgDurationMs: runs.avg("durationMs"),
+      }))
+      .run();
+    return new Map(
+      groups.map((g) => [
+        String(g.procedureId),
+        { runs: g.runs, avgDurationMs: g.avgDurationMs ?? null },
+      ]),
+    );
+  }
+
+  /**
+   * How many production runs the query selects per bucket of `stepMs`
+   * starting at `first`, keyed by the bucket's index.
+   */
+  async countPerBucket(
+    query: StatsQuery,
+    first: Date,
+    stepMs: number,
+  ): Promise<Map<number, number>> {
+    const firstSeconds = first.getTime() / MS_PER_SECOND;
+    const groups = await this.production(query)
+      .map((row) => ({
+        bucket: row
+          .key("startedAt")
+          .epoch()
+          .sub(firstSeconds)
+          .mul(MS_PER_SECOND)
+          .round()
+          .div(stepMs)
+          .floor(),
+      }))
+      .group("bucket", (runs, bucket) => ({ bucket, runs: runs.count() }))
+      .run();
+    return new Map(groups.map((g) => [Number(g.bucket), g.runs]));
+  }
+
+  /**
+   * The start, end and status of every production run the query selects:
+   * the one read of rows left, for a percentile of their durations.
+   */
+  async timingsForStats(query: StatsQuery): Promise<StatsTiming[]> {
+    return await this.production(query)
+      .pluck("startedAt", "endedAt", "status")
       .run();
   }
 

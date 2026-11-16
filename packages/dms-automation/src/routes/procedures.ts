@@ -476,11 +476,10 @@ export class ProceduresController extends Controller(
     @Parameter("id", "param") id: string,
   ) {
     const procedure = await loadProcedure(id);
-    const since = new Date(Date.now() - 7 * MS_PER_DAY);
-    const runs = await GetModel(
-      ProcedureRunModel,
-      DATABASE_NAME,
-    ).countProductionSince(id, since);
+    const from = new Date(Date.now() - 7 * MS_PER_DAY);
+    const runs = await GetModel(ProcedureRunModel, DATABASE_NAME).countForStats(
+      { from, procedureId: id },
+    );
     return serializeConfirmDialog(deleteDialogOf(procedure, runs));
   }
 

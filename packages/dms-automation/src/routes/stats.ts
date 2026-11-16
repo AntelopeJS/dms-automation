@@ -14,6 +14,7 @@ import {
   type StatsWindow,
   windowOf,
 } from "../db/models/stats.model";
+import { comparedTally, windowTally } from "../db/models/window_tally.model";
 import type { QueryValue } from "../data/procedures-query";
 import { QueryParameters } from "./queryParameters";
 import {
@@ -154,8 +155,12 @@ export async function kpiAnswer(metric: string, query: PresetQuery) {
     throw new HTTPResult(404, { error: `unknown metric "${metric}"` });
   }
   const window = await withKeptComparison(periodWindow(query));
-  const ctx = await loadStatsContext(earliestOf(window));
-  return kpiPayload(metric, ctx.runs, window);
+  const durations = metric === "duration-p95";
+  const [current, compared] = await Promise.all([
+    windowTally(window, durations),
+    comparedTally(window, durations),
+  ]);
+  return kpiPayload(metric, current, compared);
 }
 
 /**
@@ -172,7 +177,10 @@ export class StatsController extends Controller("/api/automation/stats") {
   ) {
     const { preset } = query;
     const window = periodWindow(query);
-    const hero = healthHero(await loadStatsContext(earliestOf(window)), window);
+    const hero = await healthHero(
+      await loadStatsContext(earliestOf(window)),
+      window,
+    );
     return healthBanner(hero, {
       runsUrl: RUNS_URL,
       runsPeriod: isPeriodPreset(preset)
@@ -215,8 +223,7 @@ export class StatsController extends Controller("/api/automation/stats") {
     )
     query: PresetQuery,
   ) {
-    const window = await withKeptComparison(periodWindow(query));
-    return runsPerDayChart(await loadStatsContext(earliestOf(window)), window);
+    return runsPerDayChart(await withKeptComparison(periodWindow(query)));
   }
 
   /** Failing and paused whatever the period; degraded over the period. */
@@ -226,17 +233,24 @@ export class StatsController extends Controller("/api/automation/stats") {
     @QueryParameters("from", "to", "preset") query: PresetQuery,
   ) {
     const window = periodWindow(query);
-    return attentionRows(await loadStatsContext(window.from), window.from);
+    return await attentionRows(
+      await loadStatsContext(window.from),
+      window.from,
+    );
   }
 
   @Get("/recent-runs")
   async recentRuns(@AuthRawUser() _user: User) {
-    return { items: recentRunItems(await loadStatsContext(), TRACE_URL) };
+    return {
+      items: await recentRunItems(await loadStatsContext(), TRACE_URL),
+    };
   }
 
   @Get("/procedures")
   async procedures(@AuthRawUser() _user: User) {
-    return { items: procedureCounts(await loadStatsContext(), PROCEDURES_URL) };
+    return {
+      items: await procedureCounts(await loadStatsContext(), PROCEDURES_URL),
+    };
   }
 
   @Get("/triggers")

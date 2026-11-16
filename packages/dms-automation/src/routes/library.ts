@@ -195,7 +195,7 @@ export class LibraryController extends Controller("/api/automation/library") {
     return usageByEntry(
       ctx.procedures,
       new Map(templates.map((t) => [t._id, t])),
-      healthByProcedure(ctx),
+      await healthByProcedure(ctx),
       entryOf,
     );
   }
