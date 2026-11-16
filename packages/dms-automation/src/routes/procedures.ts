@@ -31,7 +31,6 @@ import { withFreeWebhookPaths } from "../runtime/webhookRoutes";
 import { withTriggerText } from "../runtime/wording";
 import { DATABASE_NAME, MS_PER_DAY } from "../types/constants";
 import { type GraphNode, type ProcedureGraph } from "../types/graph";
-import { isProductionRun } from "../types/runLog";
 import { deleteDialogOf } from "./deleteConfirm";
 import {
   checkSavable,
@@ -477,11 +476,11 @@ export class ProceduresController extends Controller(
     @Parameter("id", "param") id: string,
   ) {
     const procedure = await loadProcedure(id);
-    const since = new Date(Date.now() - 7 * MS_PER_DAY);
-    const runs = (
-      await GetModel(ProcedureRunModel, DATABASE_NAME).listForStats(since)
-    ).filter((r) => r.procedureId === id && isProductionRun(r.kind));
-    return serializeConfirmDialog(deleteDialogOf(procedure, runs.length));
+    const from = new Date(Date.now() - 7 * MS_PER_DAY);
+    const runs = await GetModel(ProcedureRunModel, DATABASE_NAME).countForStats(
+      { from, procedureId: id },
+    );
+    return serializeConfirmDialog(deleteDialogOf(procedure, runs));
   }
 
   /**

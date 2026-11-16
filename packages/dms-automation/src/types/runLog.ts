@@ -72,8 +72,3 @@ export type RunLog = {
  * never count in the health figures.
  */
 export type RunKind = "run" | "rerun" | "test";
-
-/** Whether a run of this kind counts in health figures, KPIs and procedure states. */
-export function isProductionRun(kind: RunKind): boolean {
-  return kind !== "test";
-}

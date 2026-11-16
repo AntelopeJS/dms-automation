@@ -43,6 +43,8 @@ export interface VerifyConfig {
   notUserFacing: string[];
   smoke: string;
   smokeJourney: string;
+  /** The folder of the journeys modules, relative to the repository root. */
+  journeys: string;
   doors: Record<DoorKind, DoorRule | null>;
   formal: FormalCheck[];
 }
@@ -56,7 +58,6 @@ const config: VerifyConfig = {
   prepare: [
     ["pnpm", "install", "--frozen-lockfile", "--prefer-offline", "--ignore-scripts"],
     ["pnpm", "run", "build"],
-    ["npm", "install", "--no-save", "--no-package-lock", "--no-audit", "--no-fund", "--prefix", SKILL, "playwright-core@1.56.1"],
     ["ln", "-sfn", `../../../../${MODULE}/node_modules`, `${SKILL}/playground/node_modules`],
     [`${MODULE}/node_modules/.bin/tsc`, "-p", `${SKILL}/playground/tsconfig.build.json`],
   ],
@@ -64,6 +65,7 @@ const config: VerifyConfig = {
   notUserFacing: [`${MODULE}/frontend-vue/tests/**`, `${MODULE}/frontend-vue/.*`, `${MODULE}/frontend-vue/eslint.config.mjs`, `${MODULE}/frontend-vue/eslint-rules/**`, `${MODULE}/frontend-vue/pnpm-lock.yaml`],
   smoke: "smoke",
   smokeJourney: "onboard, create a procedure with a Manual trigger and a Log action, run it, read its trace and its place in the run history",
+  journeys: "e2e/journeys",
   doors: {
     data: {
       globs: [

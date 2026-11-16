@@ -1,6 +1,6 @@
 # Coverage: runs
 
-Docs: `packages/dms-automation/docs/4.usage/4.runs.md` (Run history), `docs/3.configuration.md`, `docs/6.faq.md`, `skills/dms-automation/SKILL.md`. Journeys are in `journeys/runs.mjs` (+ `journeys/parts/runs-list.mjs`, `runs-page.mjs`).
+Docs: `packages/dms-automation/docs/4.usage/4.runs.md` (Run history), `docs/3.configuration.md`, `docs/6.faq.md`, `skills/dms-automation/SKILL.md`. Journeys are in `e2e/journeys/runs.mjs` (+ `e2e/journeys/parts/runs-list.mjs`, `runs-page.mjs`).
 
 | Source | Documented behaviour | Journey | Check |
 | --- | --- | --- | --- |

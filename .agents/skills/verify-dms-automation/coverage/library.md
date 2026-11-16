@@ -1,6 +1,6 @@
 # Coverage: library
 
-Every sentence of the docs that states a behaviour of the Library, with the journey (`journeys/library.mjs`) and the check that catches a break of it.
+Every sentence of the docs that states a behaviour of the Library, with the journey (`e2e/journeys/library.mjs`) and the check that catches a break of it.
 
 | Doc | Documented behaviour | Journey | Check |
 | --- | --- | --- | --- |

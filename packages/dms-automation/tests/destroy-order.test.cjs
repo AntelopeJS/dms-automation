@@ -3,6 +3,7 @@ const interfaceCore = require("@antelopejs/interface-core");
 const Module = require("node:module");
 const { load } = require("./helpers/module-load.cjs");
 const { mock, test } = require("node:test");
+const { Logging } = require("@antelopejs/interface-core/logging");
 const { Schema } = require("@antelopejs/interface-database");
 
 Schema.list = () =>
@@ -309,4 +310,24 @@ void test("a procedure edit while destroy() releases the key arms no singleton",
 
   assert.deepEqual(armedAtRelease, [0], "no singleton is armed at the release");
   assert.equal(armed.size, 0);
+});
+
+void test("a trigger type unregistered once the modules are stopping reconciles nothing", async (t) => {
+  const errors = t.mock.method(Logging, "Error", () => {});
+  registerOnly(recordingType(TYPE_ID, "singleton"));
+  await automation.start();
+  t.after(() => automation.destroy());
+  await until(() => armed.size === 1, "the leader to arm its singleton");
+
+  const reads = t.mock.method(ProcedureModel.prototype, "listEnabled", () =>
+    Promise.reject(new Error("MongoClientClosedError")),
+  );
+
+  interfaceCore.Events.ModulesStopping.emit();
+  await subscriptions.onTriggerTypeUnregistered(TYPE_ID);
+  for (let i = 0; i < 20; i++)
+    await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(reads.mock.callCount(), 0, "no reconcile read the procedures");
+  assert.deepEqual(errors.mock.calls, []);
 });

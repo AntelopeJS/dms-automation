@@ -44,6 +44,7 @@ The Overview page (`/modules/automation/overview`): the health banner and its fo
 - `by-trigger-counts-a-procedure-once-per-trigger-type`: By trigger shows how many procedures each trigger type starts: a procedure that places two triggers of one type is one procedure of that type.
 - `the-overview-follows-new-runs-live-until-paused-and-resume-catches-up`: The page follows new runs live: each stored run and each changed procedure makes it read the figures, the chart and the lists again, at most once every 10 seconds; Pause keeps the figures still, the switch counts what came in, and Resume catches up at once.
 - `the-stats-routes-refuse-a-bad-period-and-an-unknown-figure`: The Overview's routes answer 400 with the reason for a date that is not one, a period that ends before it starts or spans more than a year, a 404 for a figure that is not one of the four cards, and no route accepts a write.
+- `every-stats-answer-equals-the-run-by-run-reference-on-a-fixture`: On a fixture of 17 procedures (enabled, paused, failing, degraded, healthy, drafts, one that cannot arm) and 285 stored runs, 8 of them test runs and some of a deleted procedure, every stats answer equals, field by field and in order, what the run-by-run algorithm of commit 285f4b8 gives on the same rows: test runs ignored, runs of one start read as sets in the recent runs and in the strip of last runs, nothing else loosened.
 
 ## How to get to it (user POV)
 
@@ -57,9 +58,10 @@ The Overview page (`/modules/automation/overview`): the health banner and its fo
 dms-control journey "$RUN" overview
 ```
 
-- Run histories are made with the fixture's `verify.fail` and `verify.flaky` actions through Run now; `journeys/parts/overview-kit.mjs` moves stored runs in time with the MongoDB driver (`backdate`, `seedRuns`) to fill the 24 hour window or older ones, since the windows are measured from the current time.
+- Run histories are made with the fixture's `verify.fail` and `verify.flaky` actions through Run now; `e2e/journeys/parts/overview-kit.mjs` moves stored runs in time with the MongoDB driver (`backdate`, `seedRuns`) to fill the 24 hour window or older ones, since the windows are measured from the current time.
 - Windows are asked with explicit `from`/`to` (see `windowQuery`) so hour buckets do not depend on when a journey runs.
 - `withConfig` with `VERIFY_AUTO_RETENTION_DAYS` changes the comparison menu.
+- `e2e/journeys/parts/stats-fixture.mjs` seeds the equivalence journey: procedures through the API, runs written with `runDocument` at fixed offsets from the current hour; `stats-reference*.mjs` hold the reference, a copy of the algorithm before it moved into database queries, which reads the stored documents and never an answer of the module. No answer carries the time of the request, so none is skipped. The journey throws when the fixture ties a failed and an ok run of one procedure at one start, ties the newest runs of a procedure or the cut of the feed or a strip, or puts a run within a minute of the 7 day state window or the 30 day lookback.
 
 ## Gotchas
 

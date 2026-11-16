@@ -13,7 +13,7 @@ docs:
 
 # Data nodes
 
-Data nodes compute values that data edges wire into the fields of other steps: Constants, Math, Comparison, Logic, Text, Objects and JSON, plus the data nodes a module registers. Every journey evaluates the nodes in a procedure (one Log step per case receives the node's output as its `value`) and compares the received value, and its type tag, with the documented one. The cases are tables in `journeys/parts/data-cases-a.mjs` and `data-cases-b.mjs`; the name of a check is the label of its case.
+Data nodes compute values that data edges wire into the fields of other steps: Constants, Math, Comparison, Logic, Text, Objects and JSON, plus the data nodes a module registers. Every journey evaluates the nodes in a procedure (one Log step per case receives the node's output as its `value`) and compares the received value, and its type tag, with the documented one. The cases are tables in `e2e/journeys/parts/data-cases-a.mjs` and `data-cases-b.mjs`; the name of a check is the label of its case.
 
 ## Sub-features
 

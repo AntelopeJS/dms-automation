@@ -10,7 +10,7 @@
   },
   "hooks": {
     "before:init": ["pnpm lint"],
-    "after:bump": ["git add CHANGELOG.md", "node scripts/publish.mjs"]
+    "after:bump": ["git add CHANGELOG.md"]
   },
   "plugins": {
     "release-it-changelogen": {
@@ -18,7 +18,6 @@
     }
   },
   "npm": {
-    "publish": false,
     "skipChecks": true
   }
 }
