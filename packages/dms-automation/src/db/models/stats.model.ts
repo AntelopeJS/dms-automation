@@ -21,19 +21,24 @@ import {
   triggerTypeText,
 } from "../../runtime/wording";
 import {
-  byProcedure,
+  type FailureStreak,
   type HealthProcedure,
   type ProcedureHealth,
   type ProcedureState,
   procedureHealth,
-  runsBetween,
+  RECENT_RUNS,
+  streakIn,
+  type WindowCounts,
 } from "../../stats/health";
 import { DATABASE_NAME, MS_PER_DAY } from "../../types/constants";
 import type { ProcedureGraph } from "../../types/graph";
-import { isProductionRun } from "../../types/runLog";
 import type { Procedure } from "../tables/procedure.table";
 import { ProcedureModel } from "./procedure.model";
-import { type StatsRun, ProcedureRunModel } from "./procedure_run.model";
+import {
+  type StatsQuery,
+  type StatsRun,
+  ProcedureRunModel,
+} from "./procedure_run.model";
 
 /**
  * How far back the last run and the failure streak of a procedure are read,
@@ -100,13 +105,28 @@ interface ProcedureFacts {
   triggers: TriggerSummary[];
 }
 
-/** Everything a stats answer is computed from. */
-export interface StatsContext {
+/** What the stats answers read of one procedure's production runs. */
+interface ProcedureRuns {
+  /** Its newest runs, newest first, at most `RECENT_RUNS`. */
+  recent: StatsRun[];
+  streak: FailureStreak;
+  /** Its newest failed run. */
+  lastFailed: StatsRun | undefined;
+}
+
+/** The procedures a stats answer is about, and how far back it reads runs. */
+export interface StatsScope {
   now: Date;
+  /** Runs are read from here on: the lookback, or an older window's start. */
+  since: Date;
   procedures: ProcedureFacts[];
   byId: Map<string, ProcedureFacts>;
-  /** Production runs since the lookback, newest first. */
-  runs: StatsRun[];
+}
+
+/** Everything a stats answer about the procedures' health is computed from. */
+export interface StatsContext extends StatsScope {
+  /** The production runs of each procedure that ran since `since`, by id. */
+  runsOf: Map<string, ProcedureRuns>;
 }
 
 function factsOf(procedure: Procedure): ProcedureFacts {
@@ -114,76 +134,178 @@ function factsOf(procedure: Procedure): ProcedureFacts {
   return { procedure, graph, triggers: graph ? triggersOf(graph) : [] };
 }
 
-/** A read of the production runs started since `since`, newest first. */
-interface RunsRead {
-  since: Date;
-  runs: Promise<StatsRun[]>;
+function runModel(): ProcedureRunModel {
+  return GetModel(ProcedureRunModel, DATABASE_NAME);
 }
 
 /**
- * How long a runs read waits before it starts, for the other stats answers
- * asked with it: an Overview asks ten at once.
+ * The streak of a procedure whose newest runs all failed: the failed runs
+ * started after its newest other run, and those started on the same
+ * millisecond that the newest-first order puts before it.
  */
-const JOIN_WINDOW_MS = 10;
-
-/**
- * The read that has not started yet, if any. An answer joins only a read that
- * starts after it was asked, so it never misses a run stored before.
- */
-let pending: RunsRead | undefined;
-
-function joinRead(since: Date): RunsRead {
-  if (pending) {
-    if (since < pending.since) pending.since = since;
-    return pending;
-  }
-  const read: RunsRead = {
-    since,
-    runs: new Promise((resolve) => setTimeout(resolve, JOIN_WINDOW_MS))
-      .then(() => {
-        pending = undefined;
-        return GetModel(ProcedureRunModel, DATABASE_NAME).listForStats(
-          read.since,
-        );
-      })
-      .then((runs) => runs.filter((r) => isProductionRun(r.kind))),
+async function longStreak(
+  procedureId: string,
+  from: Date,
+): Promise<FailureStreak> {
+  const runs = runModel();
+  const [other] = await runs.newestForStats(
+    { from, procedureId, exceptStatus: "failed" },
+    1,
+  );
+  const failed: StatsQuery = {
+    from,
+    procedureId,
+    status: "failed",
+    after: other?.startedAt,
   };
-  pending = read;
-  return read;
+  const [after, first, tied] = await Promise.all([
+    runs.countForStats(failed),
+    runs.oldestForStats(failed),
+    other
+      ? runs.newestForStats({
+          from: other.startedAt,
+          to: other.startedAt,
+          procedureId,
+        })
+      : [],
+  ]);
+  const ahead = tied.findIndex((run) => run.status !== "failed");
+  if (other && ahead > 0) {
+    return { length: after + ahead, since: new Date(other.startedAt) };
+  }
+  return first
+    ? { length: after, since: new Date(first.startedAt) }
+    : { length: after };
 }
 
-/** The production runs started since `since`, newest first. */
-async function productionRunsSince(since: Date): Promise<StatsRun[]> {
-  return (await joinRead(since).runs).filter((r) => r.startedAt >= since);
+async function lastFailedOf(
+  procedureId: string,
+  from: Date,
+  recent: StatsRun[],
+): Promise<StatsRun | undefined> {
+  const inRecent = recent.find((r) => r.status === "failed");
+  if (inRecent || recent.length < RECENT_RUNS) return inRecent;
+  const [run] = await runModel().newestForStats(
+    { from, procedureId, status: "failed" },
+    1,
+  );
+  return run;
 }
 
-/** Load the procedures and the production runs a stats answer needs. */
+async function procedureRuns(
+  procedureId: string,
+  from: Date,
+): Promise<ProcedureRuns> {
+  const recent = await runModel().newestForStats(
+    { from, procedureId },
+    RECENT_RUNS,
+  );
+  const [streak, lastFailed] = await Promise.all([
+    streakIn(recent) ?? longStreak(procedureId, from),
+    lastFailedOf(procedureId, from, recent),
+  ]);
+  return { recent, streak, lastFailed };
+}
+
+/**
+ * Load the procedures, or the one `procedureId` names, and how far back a
+ * stats answer reads their runs: the lookback, or `earliest` when that is
+ * older.
+ */
+export async function loadStatsScope(
+  earliest?: Date,
+  now: Date = new Date(),
+  procedureId?: string,
+): Promise<StatsScope> {
+  const stored = await GetModel(ProcedureModel, DATABASE_NAME)
+    .table.orderBy("updated_at", "desc")
+    .run();
+  const procedures = (
+    procedureId ? stored.filter((p) => p._id === procedureId) : stored
+  ).map(factsOf);
+  const lookback = lookbackStart(now);
+  return {
+    now,
+    since: earliest && earliest < lookback ? earliest : lookback,
+    procedures,
+    byId: new Map(procedures.map((p) => [p.procedure._id, p])),
+  };
+}
+
+/**
+ * The stats scope with what a stats answer reads of each procedure's
+ * production runs, read for the procedures that ran since its start.
+ */
 export async function loadStatsContext(
   earliest?: Date,
   now: Date = new Date(),
+  procedureId?: string,
 ): Promise<StatsContext> {
-  const procedures = (
-    await GetModel(ProcedureModel, DATABASE_NAME)
-      .table.orderBy("updated_at", "desc")
-      .run()
-  ).map(factsOf);
-  const lookback = lookbackStart(now);
-  const since = earliest && earliest < lookback ? earliest : lookback;
-  const runs = await productionRunsSince(since);
-  return {
-    now,
-    procedures,
-    byId: new Map(procedures.map((p) => [p.procedure._id, p])),
-    runs,
-  };
+  const scope = await loadStatsScope(earliest, now, procedureId);
+  const ran = await runModel().countPerProcedure({
+    from: scope.since,
+    procedureId,
+  });
+  const runsOf = new Map(
+    await Promise.all(
+      scope.procedures
+        .filter(({ procedure }) => ran.has(procedure._id))
+        .map(
+          async ({ procedure }) =>
+            [
+              procedure._id,
+              await procedureRuns(procedure._id, scope.since),
+            ] as const,
+        ),
+    ),
+  );
+  return { ...scope, runsOf };
 }
 
-/** Health of every procedure over the state window, keyed by id. */
-export function healthByProcedure(
+/**
+ * How many production runs of each procedure started at or after `from`,
+ * one procedure's alone when given.
+ */
+async function countsSince(
+  from: Date,
+  procedureId?: string,
+): Promise<Map<string, WindowCounts>> {
+  const runs = runModel();
+  const [all, ok, failed] = await Promise.all([
+    runs.countPerProcedure({ from, procedureId }),
+    runs.countPerProcedure({ from, procedureId, status: "ok" }),
+    runs.countPerProcedure({ from, procedureId, status: "failed" }),
+  ]);
+  const counts = new Map<string, WindowCounts>();
+  for (const [id, { runs: total, avgDurationMs }] of all) {
+    counts.set(id, {
+      runs: total,
+      ok: ok.get(id)?.runs ?? 0,
+      failed: failed.get(id)?.runs ?? 0,
+      avgDurationMs: avgDurationMs === null ? null : Math.round(avgDurationMs),
+    });
+  }
+  return counts;
+}
+
+const NO_RUNS: WindowCounts = {
+  runs: 0,
+  ok: 0,
+  failed: 0,
+  avgDurationMs: null,
+};
+
+/** Health of every procedure of the context over the window, keyed by id. */
+export async function healthByProcedure(
   ctx: StatsContext,
   since: Date = new Date(ctx.now.getTime() - STATE_WINDOW_MS),
-): Map<string, ProcedureHealth> {
-  const runsOf = byProcedure(ctx.runs);
+): Promise<Map<string, ProcedureHealth>> {
+  const from = since > ctx.since ? since : ctx.since;
+  const [only, ...others] = ctx.procedures;
+  const counts = await countsSince(
+    from,
+    only && others.length === 0 ? only.procedure._id : undefined,
+  );
   const out = new Map<string, ProcedureHealth>();
   for (const facts of ctx.procedures) {
     const { procedure, graph } = facts;
@@ -195,17 +317,49 @@ export function healthByProcedure(
     if (procedure.pausedAt) subject.pausedAt = procedure.pausedAt;
     const armError = armErrorOf(procedure);
     if (armError) subject.armError = armError;
+    const runs = ctx.runsOf.get(procedure._id);
     out.set(
       procedure._id,
-      procedureHealth(subject, runsOf.get(procedure._id) ?? [], since),
+      procedureHealth(subject, {
+        recent: runs?.recent ?? [],
+        streak: runs?.streak ?? { length: 0 },
+        inWindow: counts.get(procedure._id) ?? NO_RUNS,
+      }),
     );
   }
   return out;
 }
 
+/** The newest failed run of a procedure since the context's start. */
+export function lastFailedOfProcedure(
+  ctx: StatsContext,
+  procedureId: string,
+): StatsRun | undefined {
+  return ctx.runsOf.get(procedureId)?.lastFailed;
+}
+
+/** The newest production runs since the context's start, newest first. */
+export async function newestRuns(
+  ctx: StatsScope,
+  count: number,
+): Promise<StatsRun[]> {
+  return await runModel().newestForStats({ from: ctx.since }, count);
+}
+
+/** The newest failed production run since the context's start. */
+export async function newestFailedRun(
+  ctx: StatsScope,
+): Promise<StatsRun | undefined> {
+  const [run] = await runModel().newestForStats(
+    { from: ctx.since, status: "failed" },
+    1,
+  );
+  return run;
+}
+
 /** The step a failed run stopped at, named from the procedure's graph. */
 export function failedStepOf(
-  ctx: StatsContext,
+  ctx: StatsScope,
   run: Pick<StatsRun, "procedureId" | "failedNodeId">,
 ): StepName | undefined {
   if (!run.failedNodeId) return undefined;
@@ -217,15 +371,10 @@ export function failedStepOf(
 
 /** Name of a procedure, or `undefined` once it was deleted. */
 export function procedureNameOf(
-  ctx: StatsContext,
+  ctx: StatsScope,
   procedureId: string,
 ): string | undefined {
   return ctx.byId.get(procedureId)?.procedure.name;
-}
-
-/** Production runs inside a window. */
-export function windowRuns(ctx: StatsContext, window: StatsWindow): StatsRun[] {
-  return runsBetween(ctx.runs, window.from, window.to);
 }
 
 /** A bar of the strip of last runs, linking to its trace. */
@@ -378,9 +527,7 @@ function summaryRow(
   health: ProcedureHealth,
 ): ProcedureSummaryRow {
   const { procedure, triggers } = facts;
-  const lastFailed = ctx.runs.find(
-    (r) => r.procedureId === procedure._id && r.status === "failed",
-  );
+  const lastFailed = lastFailedOfProcedure(ctx, procedure._id);
   const failedStep =
     health.state === "failing" && health.lastRun?.status === "failed"
       ? (failedStepOf(ctx, health.lastRun) ?? null)
@@ -428,7 +575,7 @@ export async function getProceduresSummary(
   now: Date = new Date(),
 ): Promise<ProcedureSummaryRow[]> {
   const ctx = await loadStatsContext(undefined, now);
-  const health = healthByProcedure(ctx);
+  const health = await healthByProcedure(ctx);
   return ctx.procedures.map((facts) =>
     summaryRow(ctx, facts, health.get(facts.procedure._id)!),
   );
@@ -439,13 +586,9 @@ export async function getProcedureSummary(
   procedureId: string,
   now: Date = new Date(),
 ): Promise<ProcedureSummaryRow | undefined> {
-  const ctx = await loadStatsContext(undefined, now);
+  const ctx = await loadStatsContext(undefined, now, procedureId);
   const facts = ctx.byId.get(procedureId);
   if (!facts) return undefined;
-  const health = healthByProcedure({
-    ...ctx,
-    procedures: [facts],
-    runs: ctx.runs.filter((r) => r.procedureId === procedureId),
-  });
+  const health = await healthByProcedure(ctx);
   return summaryRow(ctx, facts, health.get(procedureId)!);
 }

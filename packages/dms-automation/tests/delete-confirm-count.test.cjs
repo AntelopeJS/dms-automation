@@ -38,7 +38,6 @@ const database = {
 const {
   ProcedureRunModel,
 } = require("../dist/db/models/procedure_run.model.js");
-const { isProductionRun } = require("../dist/types/runLog.js");
 
 const SINCE = new Date("2026-11-09T12:00:00Z");
 const at = (/** @type {string} */ iso) => new Date(iso);
@@ -46,8 +45,7 @@ const at = (/** @type {string} */ iso) => new Date(iso);
 /** The count the delete dialog gave before: read the window, keep in JS. */
 async function oldCount(/** @type {string} */ id) {
   const window = stored.filter((r) => r.startedAt >= SINCE);
-  return window.filter((r) => r.procedureId === id && isProductionRun(r.kind))
-    .length;
+  return window.filter((r) => r.procedureId === id && r.kind !== "test").length;
 }
 
 void test("the delete dialog counts one procedure's production runs in the query, as the JS count did", async () => {
@@ -62,10 +60,13 @@ void test("the delete dialog counts one procedure's production runs in the query
   const model = new ProcedureRunModel(database);
   for (const id of ["P1", "P2", "P3"]) {
     assert.equal(
-      await model.countProductionSince(id, SINCE),
+      await model.countForStats({ from: SINCE, procedureId: id }),
       await oldCount(id),
       id,
     );
   }
-  assert.equal(await model.countProductionSince("P1", SINCE), 2);
+  assert.equal(
+    await model.countForStats({ from: SINCE, procedureId: "P1" }),
+    2,
+  );
 });

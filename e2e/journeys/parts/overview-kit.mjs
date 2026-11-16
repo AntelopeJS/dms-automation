@@ -9,7 +9,7 @@ import { action, chain, createEnabled, createProcedure, manualLog, runNow, trigg
 /** @typedef {import("../../auto.mjs").Check} Check */
 /** @typedef {import("../../auto.mjs").Row} Row */
 /**
- * @typedef {{ updateOne: (filter: Row, update: Row) => Promise<unknown> }} Collection
+ * @typedef {{ updateOne: (filter: Row, update: Row) => Promise<unknown>, find: (filter: Row) => { toArray: () => Promise<Row[]> } }} Collection
  * @typedef {{ collection: (name: string) => Collection }} Database
  * @typedef {{ connect: () => Promise<unknown>, close: () => Promise<unknown>, db: (name: string) => Database }} MongoConnection
  * @typedef {{ MongoClient: new (url: string) => MongoConnection }} MongoDriver
