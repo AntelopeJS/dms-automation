@@ -1,6 +1,6 @@
 # Coverage of `flow`
 
-One row per documented behaviour of the flow nodes. The journeys are in `journeys/flow.mjs`. `Not driven` rows say why.
+One row per documented behaviour of the flow nodes. The journeys are in `e2e/journeys/flow.mjs`. `Not driven` rows say why.
 
 | Source | Documented behaviour | Catching journey and check |
 |---|---|---|

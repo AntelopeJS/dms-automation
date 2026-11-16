@@ -10,6 +10,7 @@ A pnpm workspace with two published packages. The root holds the tool configs an
 | `packages/dms-automation`                 | `@antelopejs/dms-automation`, the module that implements it                                 |
 | `packages/dms-automation/frontend-vue`    | The Vue layer. oxlint skips it and ESLint lints it. oxfmt gates everything but `.vue`; its own `format` runs Prettier over all of it, so run the root `pnpm run format` after it |
 | `packages/dms-automation/playground`      | A standalone project with its own lockfile, outside the workspace install                  |
+| `e2e`                                     | The verify skill's journeys as a Playwright suite, on the adapter of `@antelopejs/dms/e2e`   |
 
 Run a package script from its own directory: `pnpm --dir packages/dms-automation <script>`.
 
@@ -23,6 +24,7 @@ Run a package script from its own directory: `pnpm --dir packages/dms-automation
 - The docs check runs in CI only (`docs-files` in `.github/workflows/ci.yml`), as does `pnpm --dir packages/interface-dms-automation check:exports`, which needs the built `dist`.
 - The frontend build and typecheck need a generated Inertia workspace: set `DMS_FRONTEND_WORKSPACE` to its absolute path, then run `pnpm --dir packages/dms-automation/frontend-vue build` or `typecheck`.
 - The playground needs MongoDB, then `pnpm --dir packages/dms-automation/playground install --ignore-workspace`, a root `pnpm run build`, and in `packages/dms-automation/playground`: `pnpm run build` and `pnpm exec ajs project modules install`. `.agents/playground` runs that sequence, and the `dms-auto-play-back` orb service runs it before `pnpm dev`.
+- The `e2e/` suite runs in CI on the full and nightly tiers only. Locally, `pnpm e2e --grep @smoke` prepares and starts a run, drives the 6 smoke journeys and stops it; `pnpm e2e -g <feature or journey id>` narrows it.
 - `pnpm --dir packages/dms-automation knip:all` also reports unused files and exports.
 
 <!-- antelopejs-guardrails:start -->

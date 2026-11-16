@@ -1,6 +1,5 @@
 import { readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
-import { auto, check, fixture, list, same, text } from "../../auto.mjs";
+import { auto, backendLog, check, fixture, list, same, text } from "../../auto.mjs";
 import { ledger, runsOfProcedure, until, withConfig } from "../../procs.mjs";
 import { chainGraph, actionNode, declareProcedure, triggerNode } from "./interface-calls.mjs";
 import { MODULE, read } from "./package-files.mjs";
@@ -12,10 +11,10 @@ const REDIS_WITHOUT_INTERFACE = "[dms-automation] cluster.driver=redis but @ante
 
 /**
  * @param {Ctx} ctx The journey
- * @returns {string} The backend log's path
+ * @returns {string} The log of the backend serving the journey
  */
 function logPath(ctx) {
-  return join(String(ctx.state.logs), "backend.log");
+  return backendLog(ctx);
 }
 
 /**
@@ -238,7 +237,7 @@ export const clusterJourneys = [
       await ctx.verify("the leadership numbers", [
         same("the docs' TTL", Number(/(\d+)-second TTL/.exec(config)?.[1]), ttl / 1000),
         same("the docs' renew interval", Number(/renews every (\d+) seconds/.exec(config)?.[1]), ttl / divisor / 1000),
-        same("the docs' warning repeats both", [/up to the 30-second lock TTL/.test(config), /up to one renew interval/.test(config)], [true, true]),
+        same("the docs' warning repeats the TTL and bounds a run by it", [config.includes(`up to the ${ttl / 1000}-second lock TTL`), config.includes(`within ${ttl / 1000} seconds of its last confirmed hold on the lock`)], [true, true]),
         same("the purge runs every hour, as the docs say", [/PURGE_INTERVAL_MS = MS_PER_HOUR/.test(retention), /every hour after/.test(config), /deletes older runs every hour/.test(faq)], [true, true, true]),
       ]);
     },

@@ -10,6 +10,7 @@ const MESSAGE = "Hello from my first procedure";
 export const journeys = guarded([
   {
     id: "a-manual-trigger-and-a-log-action-run-and-are-traced",
+    tag: "@smoke",
     title: "a Manual trigger joined to a Log action runs with {} as its payload, the message is in the run's Logs and trace, and the run is in the history and the procedure's runs",
     entryPoint: "POST /procedures/import, PUT /procedures/:id/enabled, POST /procedures/:id/run-now, GET /runs/:id, /modules/automation/trace",
     async run(/** @type {Ctx} */ ctx) {

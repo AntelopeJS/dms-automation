@@ -6,6 +6,8 @@ import { insertRuns, openPage, runDocument, textWhen, twoStepProcedure } from ".
 /** @typedef {import("../../auto.mjs").Tab} Tab */
 
 const DRAG_PX = 200;
+const DRAG_ATTEMPTS = 10;
+const DRAG_RETRY_MS = 1500;
 
 /**
  * @param {Tab} tab The tab on the Run history with a run open
@@ -13,6 +15,33 @@ const DRAG_PX = 200;
  */
 async function drawerWidth(tab) {
   return tab.page.getByRole("dialog").first().evaluate((element) => Math.round(element.getBoundingClientRect().width));
+}
+
+/**
+ * Drags the drawer's separator `DRAG_PX` to the left, again until the width changes: the separator only listens once
+ * the dashboard has hydrated, which can come after the drawer's text has rendered.
+ *
+ * @param {Tab} tab The tab on the Run history with a run open
+ * @param {number} before The drawer's width before the drag
+ * @returns {Promise<number>} The drawer's width after the last drag
+ */
+async function dragUntilResized(tab, before) {
+  const grip = tab.page.getByRole("separator", { name: "Resize the drawer" });
+  let width = before;
+  for (let attempt = 0; attempt < DRAG_ATTEMPTS && width === before; attempt += 1) {
+    const at = await boundingBox(grip);
+    if (!at) throw new Error("NOT VERIFIED: the drawer has no resize separator");
+    const x = at.x + at.width / 2;
+    const y = at.y + at.height / 2;
+    await tab.page.mouse.move(x, y);
+    await tab.page.mouse.down();
+    await tab.page.mouse.move(x - DRAG_PX, y, { steps: 12 });
+    await tab.page.mouse.up();
+    await tab.page.waitForTimeout(600);
+    width = await drawerWidth(tab);
+    if (width === before) await tab.page.waitForTimeout(DRAG_RETRY_MS);
+  }
+  return width;
 }
 
 export const drawerWidthJourneys = [
@@ -30,17 +59,7 @@ export const drawerWidthJourneys = [
       await textWhen(tab, /Run 1 of 2/, 40_000);
       await textWhen(tab, /Open trace\s+Debug in builder/, 60_000);
       const before = await drawerWidth(tab);
-      const grip = tab.page.getByRole("separator", { name: "Resize the drawer" });
-      const at = await boundingBox(grip);
-      if (!at) throw new Error("NOT VERIFIED: the drawer has no resize separator");
-      const x = at.x + at.width / 2;
-      const y = at.y + at.height / 2;
-      await tab.page.mouse.move(x, y);
-      await tab.page.mouse.down();
-      await tab.page.mouse.move(x - DRAG_PX, y, { steps: 12 });
-      await tab.page.mouse.up();
-      await tab.page.waitForTimeout(600);
-      const dragged = await drawerWidth(tab);
+      const dragged = await dragUntilResized(tab, before);
       await ctx.verify("dragging the edge widens the drawer", [check(`the drawer is about ${DRAG_PX} px wider`, dragged - before >= DRAG_PX - 40 && dragged - before <= DRAG_PX + 40, `${before} px, then ${dragged} px`)]);
       await tab.page.keyboard.press("Escape");
       await tab.page.waitForTimeout(800);

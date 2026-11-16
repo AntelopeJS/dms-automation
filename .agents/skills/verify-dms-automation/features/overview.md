@@ -57,7 +57,7 @@ The Overview page (`/modules/automation/overview`): the health banner and its fo
 dms-control journey "$RUN" overview
 ```
 
-- Run histories are made with the fixture's `verify.fail` and `verify.flaky` actions through Run now; `journeys/parts/overview-kit.mjs` moves stored runs in time with the MongoDB driver (`backdate`, `seedRuns`) to fill the 24 hour window or older ones, since the windows are measured from the current time.
+- Run histories are made with the fixture's `verify.fail` and `verify.flaky` actions through Run now; `e2e/journeys/parts/overview-kit.mjs` moves stored runs in time with the MongoDB driver (`backdate`, `seedRuns`) to fill the 24 hour window or older ones, since the windows are measured from the current time.
 - Windows are asked with explicit `from`/`to` (see `windowQuery`) so hour buckets do not depend on when a journey runs.
 - `withConfig` with `VERIFY_AUTO_RETENTION_DAYS` changes the comparison menu.
 

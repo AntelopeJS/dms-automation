@@ -3,8 +3,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * @typedef {import("../../../packages/dms-automation/frontend-vue/node_modules/@antelopejs/dms/bin/control/journey.mjs").JourneyContext} Ctx
- * @typedef {import("../../../packages/dms-automation/frontend-vue/node_modules/@antelopejs/dms/bin/control/tab.mjs").Tab} Tab
+ * @typedef {import("@antelopejs/dms/e2e").Ctx} Ctx
+ * @typedef {import("@antelopejs/dms/e2e").Tab} Tab
  * @typedef {{ status: number | null, body: unknown, error: string | null, folder?: string }} Answer
  * @typedef {{ folder: string, status: number | null, headers: Record<string, string>, bytes: Buffer, text: string, json: unknown }} Raw
  * @typedef {Record<string, unknown>} Row
@@ -16,6 +16,19 @@ export const AUTOMATION = "/api/automation";
 
 /** The verification playground's trusted backend calls (`playground/src/fixture.ts`). */
 export const FIXTURE = "/verify-auto";
+
+/**
+ * The log of the backend serving the journey: each journey's fresh database has a backend of its own, which logs to a file of its own.
+ *
+ * @param {Ctx} ctx The journey
+ * @returns {string} The log's path
+ * @throws When the run has no backend
+ */
+export function backendLog(ctx) {
+  const backend = ctx.state.processes.find((entry) => entry.name === "backend");
+  if (!backend) throw new Error("the run has no backend");
+  return backend.log;
+}
 
 /**
  * @param {unknown} value Anything a JSON answer holds

@@ -5,16 +5,14 @@ description: "Drive the AntelopeJS dms-automation module (procedures as node gra
 
 # Verify dms-automation
 
-Every deterministic step is a `dms-control` command. You choose which journeys to run and judge what they show; you never write a multi-step shell recipe. When a journey you need does not exist, add it to `journeys/<feature>.mjs`, describe it in its feature file, and run it.
+Every deterministic step is a `dms-control` command. You choose which journeys to run and judge what they show; you never write a multi-step shell recipe. When a journey you need does not exist, add it to `e2e/journeys/<feature>.mjs`, describe it in its feature file, and run it.
 
-`dms-control` is the bin of `@antelopejs/dms`, a devDependency of `packages/dms-automation`. Run it with Node 24 after `pnpm install`, through that package:
+`dms-control` is the bin of `@antelopejs/dms`, a devDependency of the repository root, which also runs the `e2e/` suite. Run it from the root with Node 24 after `pnpm install`. The run serves the DMS that `packages/dms-automation` installs, whose `node_modules` the playground links:
 
 ```bash
-C="pnpm --dir packages/dms-automation exec dms-control"
+C="pnpm exec dms-control"
 $C                       # lists every command
 ```
-
-Give `doors` and `--skill` absolute paths: the command runs in `packages/dms-automation`.
 
 ## Launch
 
@@ -24,7 +22,7 @@ RUN=$($C up --prepare --base origin/main)   # installs, builds, starts; prints t
 
 `--base` is the branch the pull request merges into, `origin/main` unless it targets another one. `formal` and `verdict` read it from the run; give it to `plan` and `doors` as well, which otherwise diff against `origin/main`. Each reads the diff from the merge base with that branch, so a stale base pulls in every feature another pull request touched.
 
-`--prepare` runs the `prepare` commands of `verify.config.ts`: the frozen install, the build of the interface and the module, `playwright-core` into this folder, the link of the playground's `node_modules` to `packages/dms-automation/node_modules` and the TypeScript build of the playground's fixture module. Without it `up` uses the builds already there, and `doctor` fails on a stale one. `up` starts an isolated DMS from `playground/`:
+`--prepare` runs the `prepare` commands of `verify.config.ts`: the frozen install, the build of the interface and the module, the link of the playground's `node_modules` to `packages/dms-automation/node_modules` and the TypeScript build of the playground's fixture module. Without it `up` uses the builds already there, and `doctor` fails on a stale one. `up` starts an isolated DMS from `playground/`:
 
 - the checkout is laid out again under `$RUN/root`, every sibling linked, and the playground copied without `node_modules`, so the run's build, `.antelope/` and data are its own;
 - the API, the dashboard and the mail sink get free ports from the kernel, and `HOME` is `$RUN/home`;
@@ -49,7 +47,9 @@ $C journey "$RUN" smoke
 $C journey "$RUN" runs [journey-id...]
 ```
 
-- Each feature file in [features/](features/README.md) lists its source globs (`covers:`), its docs pages (`docs:`) and its journeys; the journeys are in `journeys/<feature>.mjs` and `journeys/parts/`, with the helpers they share in `auto.mjs` (requests, checks, `raw` for any HTTP method), `procs.mjs` (graph builders, procedures, runs, `withConfig`, `declareFile`, the ledger) and `guard.mjs` (environment loss). [coverage/](coverage) holds one table per feature: every documented behaviour, its catching journey and check, or `Not driven` with the reason.
+- Each feature file in [features/](features/README.md) lists its source globs (`covers:`), its docs pages (`docs:`) and its journeys; the journeys are in `e2e/journeys/<feature>.mjs` and `e2e/journeys/parts/` (the `journeys` folder of `verify.config.ts`), with the helpers they share in `e2e/auto.mjs` (requests, checks, `raw` for any HTTP method), `e2e/procs.mjs` (graph builders, procedures, runs, `withConfig`, `declareFile`, the ledger) and `e2e/guard.mjs` (environment loss). [coverage/](coverage) holds one table per feature: every documented behaviour, its catching journey and check, or `Not driven` with the reason.
+- A journey may set `tag` (Playwright tags such as `"@smoke"`, the set the full CI tier runs), `knownFailures`, which maps the name of each check that fails today to the finding that makes it fail, and `last: true` when it changes the run's playground for every later backend. A listed check that fails is `known` and does not fail the journey. A listed check that passes is `fixed` and fails the journey until the entry is removed. `result.json` records each check's verdict (`pass`, `fail`, `known`, `fixed`).
+- The same journeys run as the Playwright suite of `e2e/`, which CI runs (`@smoke` on a ready pull request to `main` and on a push to `next`, every journey nightly): `pnpm e2e` prepares and starts a run, runs every journey on it and stops it; `pnpm e2e -g <feature or journey id>` or `--grep @smoke` narrows it. `DMS_E2E_PREBUILT=1` skips the prepare commands, and `DMS_E2E_RUN=$RUN` drives a run you started with `up`, which it leaves running. Failed journeys keep their evidence under the run, and the report attaches each failed step's screenshot and ARIA snapshot and the backend log.
 - A journey starts on an empty database with the administrator onboarded and the backend restarted on it, so run-time registrations and configuration switches are gone. It reads every mutation back through a second view: the API, a reload, the run's trace and logs, the fixture's ledger, the stored database or a backend restart.
 - `withConfig(ctx, { VERIFY_AUTO_*: … }, body)` restarts the backend with module options set (`RETENTION_DAYS`, `SENSITIVE_NAMES`, `BLOCK_PRIVATE`, `CLUSTER_DRIVER`, `API_BASE_URL`, `DECLARE`; see `playground/antelope.config.ts`) and restarts it again without them.
 - To look at the product yourself: `$C onboard "$RUN"`, `$C browser "$RUN" login`, `goto --path`, `snapshot`, `click --role --name`, `fill`, `press`, `screenshot`, `$C api "$RUN" <method> <path> [--as anon] [--body <json>]`, `$C reset "$RUN"`. Each writes its evidence under `$RUN/evidence/`.
@@ -70,11 +70,12 @@ $C down "$RUN"
    - `.nvmrc`, `.npmrc` and `pnpm-workspace.yaml`, and `package.json`, `pnpm-lock.yaml` and `tsconfig.json` at the root and in each `packages/*/`;
    - `package.json`, `pnpm-lock.yaml` and `.npmrc` of `packages/dms-automation/frontend-vue/`;
    - `packages/interface-dms-automation/src/**`;
-   - everything in this skill's folder except `SKILL.md`, `features/`, `coverage/` and `journeys/`: the config, the playground and its fixture module, and the helpers every journey imports.
+   - everything in this skill's folder except `SKILL.md`, `features/` and `coverage/`: the config, the playground and its fixture module;
+   - the helpers every journey imports: `e2e/auto.mjs`, `e2e/procs.mjs` and `e2e/guard.mjs`.
 
-   A change to `journeys/<feature>.mjs` runs that feature, and a change to a file under `journeys/parts/` runs every feature that imports it.
+   A change to `e2e/journeys/<feature>.mjs` runs that feature, and a change to a file under `e2e/journeys/parts/` runs every feature that imports it.
 2. **Unmapped surface fails the verdict.** User-facing code is `packages/dms-automation/src/**`, `frontend-vue/**`, `skills/**`, `package.json`, and `packages/interface-dms-automation/src/**`, `skills/**` and `package.json`, tests and tool configs excluded (`verify.config.ts`). `map` checks the whole tree.
-3. **Every registered journey of a feature in `run` must have run and passed.** Known findings stay as failing journeys (see Gotchas): they fail a verdict only when the diff touches their feature.
+3. **Every registered journey of a feature in `run` must have run and passed.** A known finding is listed in its journey's `knownFailures`: its check reads `known` and does not fail the journey. Name each one in the reply as a note.
 4. **Docs.** Judge every `docs:` page of each touched feature against what the journeys showed.
 5. **Formal checks.** `formal-leader-triggers` covers the leader election of the Redis mode: `$C formal "$RUN"` runs it when the diff touches its files.
 6. **One-way doors.** The section comes right after the result line and is mandatory. `$C doors --base origin/main` prints the `One-way-door:` line for the diff.
@@ -87,10 +88,10 @@ Write `$RUN/evidence/judgement.json` (`doors`, `docs`, `notVerified`, `attention
 - Every dashboard page renders on the server and hydrates after `load`; a click that lands first does nothing. The journeys click again until what the click opens shows, and `tab.signIn` waits for the sign-in form to hydrate.
 - A journey that needs old or hand-made runs writes them through the MongoDB driver that `mongodb-memory-server-core` brings (`dms-control` resolves it the same way), then reads them back through the API and the pages.
 - `mongod` comes from `DMS_CONTROL_MONGOD`, `PATH`, or the mongodb-memory-server cache (`~/.cache/mongodb-binaries`).
-- A step whose check fails because the backend or the dashboard stopped answering ends the journey with a `NOT VERIFIED` error and no failing check (`guard.mjs`).
-- The Overview feature has 25 journeys and takes about 25 minutes on one run; the rule that every journey of a touched feature must run is met by splitting its journey ids over two runs (`$C up` twice, `$C journey "$RUN" overview <ids...>`) rather than by skipping some.
+- A step whose check fails because the backend or the dashboard stopped answering ends the journey with a `NOT VERIFIED` error and no failing check (`e2e/guard.mjs`).
+- Every journey takes about 26 minutes on one run, the Overview's 25 about 4 and the Builder's about 4.
 - Some journeys take 30 to 45 s on purpose (a trigger that never arms waits for the module's 10 s timeouts; the HTTP request action's default timeout is 30 s).
-- Known findings at the integration head are failing journeys, each with an issue draft; the list is in the pull request's Attention section.
+- Known findings are the `knownFailures` entries of the journeys, each naming its finding.
 
 ## Not driven
 

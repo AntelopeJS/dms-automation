@@ -47,6 +47,7 @@ async function sweep(ctx, id, who) {
 export const journeys = guarded([
   {
     id: "every-automation-route-answers-401-without-a-session",
+    tag: "@smoke",
     title: "the module's API answers 401 to a caller with no session, on every route and method, and a refused delete or pause changes nothing",
     entryPoint: "every /api/automation route as nobody",
     async run(/** @type {Ctx} */ ctx) {

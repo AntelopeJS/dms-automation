@@ -8,6 +8,7 @@ import { callWebhook, enabledProcedure, payloadRow, runDetail, runsUntil, saveGr
 export const callJourneys = [
   {
     id: "a-called-webhook-starts-a-run-with-its-method-headers-query-body-and-params",
+    tag: "@smoke",
     title: "a webhook call answers {\"ok\":true}, starts a run whose payload holds the method, the headers, the query (a repeated key as a list), the body (JSON, form, or text) and the :param values, and the payload is the trigger's output, the run's stored payload and the procedure's last payload",
     entryPoint: "POST /webhooks/..., GET /runs/:id, GET /procedures/:id/last-payload",
     async run(/** @type {Ctx} */ ctx) {

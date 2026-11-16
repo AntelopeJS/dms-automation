@@ -48,6 +48,6 @@ dms-control journey "$RUN" templates
 
 ## Gotchas
 
-- Journeys build templates from `journeys/parts/templates-kit.mjs` (the Greeter: Log of its `text` input, echoed on `echo`).
+- Journeys build templates from `e2e/journeys/parts/templates-kit.mjs` (the Greeter: Log of its `text` input, echoed on `echo`).
 - The Templates tab only writes `?template=` after a template is picked; the first one is shown without it.
 - Do not rely on `networkidle` in the dashboard: it keeps a live connection.

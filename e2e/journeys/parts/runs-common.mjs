@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
-import { readdirSync } from "node:fs";
 import { auto, isFunction, isRow, list, num, pick, text } from "../../auto.mjs";
 import { action, chain, createEnabled, runNow, trigger } from "../../procs.mjs";
 
@@ -59,10 +58,8 @@ export function size(value, ...path) {
  * @returns {Promise<T>} What `body` returns
  */
 export async function withRuns(ctx, body) {
-  const base = `${String(ctx.state.runPlayground)}/.antelope/cache/@antelopejs/mongodb/node_modules/.pnpm`;
-  const directory = readdirSync(base).find((entry) => entry.startsWith("mongodb@")) ?? "";
   /** @type {(id: string) => unknown} */
-  const load = createRequire(`${base}/${directory}/node_modules/mongodb/package.json`);
+  const load = createRequire(`${String(ctx.state.playground)}/package.json`);
   const mongo = load("mongodb");
   if (!isMongo(mongo)) throw new Error("the MongoDB driver did not load");
   const client = new mongo.MongoClient(String(ctx.state.mongoUrl));
@@ -285,7 +282,7 @@ export async function runMany(ctx, id, count) {
  * @returns {Promise<string>} The visible text
  */
 export async function bodyText(tab) {
-  return await tab.page.locator("body").evaluate((element) => element.innerText);
+  return await tab.page.locator("body").evaluate((/** @type {HTMLElement} */ element) => element.innerText);
 }
 
 /**
@@ -295,7 +292,7 @@ export async function bodyText(tab) {
  * @returns {Promise<string>} The visible text of the first dialog
  */
 export async function dialogText(tab) {
-  return await tab.page.getByRole("dialog").first().evaluate((element) => element.innerText);
+  return await tab.page.getByRole("dialog").first().evaluate((/** @type {HTMLElement} */ element) => element.innerText);
 }
 
 /**

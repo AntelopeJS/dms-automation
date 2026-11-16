@@ -12,6 +12,7 @@ const flat = (/** @type {string} */ value) => value.replace(/\s+/g, " ").trim();
 export const journeys = guarded([
   {
     id: "the-trace-header-and-figures-describe-a-succeeded-run",
+    tag: "@smoke",
     title: "the trace of /modules/automation/trace?run=<id> names the procedure, the run id and how the run started, offers Previous run and Next run with the outcome, and shows the Status, Duration, Trigger and Procedure version figures",
     entryPoint: "GET /runs/:id, /modules/automation/trace?run=",
     async run(/** @type {Ctx} */ ctx) {

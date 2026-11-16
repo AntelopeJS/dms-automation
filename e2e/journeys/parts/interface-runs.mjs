@@ -54,7 +54,7 @@ export const runJourneys = [
   },
   {
     id: "run-procedure-payload-defaults-to-the-newest-real-run-among-the-last-50",
-    title: "RunProcedure without payload replays the payload of the newest stored run that kept one, test runs excluded, among the procedure's last 50 runs; with triggerNodeId only that trigger's runs count; else {}",
+    title: "RunProcedure without payload replays the last payload the trigger it starts from received (triggerNodeId, else the manual one, else the first), test runs excluded, among the procedure's last 50 runs; else {}",
     entryPoint: "RunProcedure(id, options), POST /procedures/:id/test, GET /procedures/:id/last-payload",
     async run(/** @type {Ctx} */ ctx) {
       const id = await createProcedure(ctx, { graph: twoTriggerGraph() });
@@ -73,8 +73,8 @@ export const runJourneys = [
       const t1 = await ranWith(ctx, id, { triggerNodeId: "t1" });
       const t2 = await ranWith(ctx, id, { triggerNodeId: "t2" });
       await ctx.verify("the trigger filter", [
-        same("without triggerNodeId the newest run of any trigger counts, and the manual trigger starts", [anyTrigger.payload, anyTrigger.trigger], [{ viaT2: "ü" }, "t1"]),
-        same("t1 replays its own newest payload", [t1.payload, t1.trigger], [{ viaT2: "ü" }, "t1"]),
+        same("without triggerNodeId the manual trigger starts with its own last payload, not a newer one of another trigger", [anyTrigger.payload, anyTrigger.trigger], [{ second: 2 }, "t1"]),
+        same("t1 replays its own newest payload", [t1.payload, t1.trigger], [{ second: 2 }, "t1"]),
         same("t2 replays its own newest payload", [t2.payload, t2.trigger], [{ viaT2: "ü" }, "t2"]),
       ]);
       const falsy = await ranWith(ctx, id, { payload: null });

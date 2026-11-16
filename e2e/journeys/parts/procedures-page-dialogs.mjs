@@ -53,7 +53,7 @@ export const journeys = [
         await dialog.getByRole("button", { name: "Import and open the builder" }).click();
         await tab.page.waitForTimeout(1800);
         if (!(await dialog.isVisible())) return `(dialog closed) ${tab.page.url()}`;
-        return flat(await dialog.evaluate((element) => element.innerText));
+        return flat(await dialog.evaluate((/** @type {HTMLElement} */ element) => element.innerText));
       };
       const node = { id: "a", kind: "wat", config: {}, position: { x: 0, y: 0 } };
       const notJson = await attempt("{nope");

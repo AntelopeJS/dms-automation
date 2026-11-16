@@ -1,6 +1,6 @@
 # Coverage of `actions`
 
-One row per documented behaviour of the Log and HTTP request actions, of actions registered by a module, and of `blockPrivateNetwork`. The journeys are in `journeys/actions.mjs`.
+One row per documented behaviour of the Log and HTTP request actions, of actions registered by a module, and of `blockPrivateNetwork`. The journeys are in `e2e/journeys/actions.mjs`.
 
 | Source | Documented behaviour | Catching journey and check |
 |---|---|---|
@@ -38,7 +38,7 @@ One row per documented behaviour of the Log and HTTP request actions, of actions
 | same file, 500 and 4000 character limits | A response is quoted to 500 characters and logged to 4000, cut with an ellipsis | same journey, `a 500-character response is quoted whole`, `a 501-character ... cut at 500`, `a 4000-character ... logged whole`, `a 4001-character ... cut at 4000` |
 | same file `failureReason` | Network failures are said in words: closed port, unknown host, port refused by fetch, cut connection | `http-request-says-in-words-why-it-got-no-answer`, `a closed port`, `an unknown host`, `a port fetch forbids`, `a connection closed by the server` |
 | i18n `types.httpFields.timeoutMs` | A step past its timeout fails: `no response after N s. Raise the timeout (timeoutMs) if the server is slow.` | same journey, `a timeout`, `a timeout in seconds with a decimal`, `an answer within the timeout` |
-| same file | URL errors: blank, not a URL, scheme other than http and https | `http-request-refuses-urls-and-headers-it-cannot-use`, 6 URLs; `headers as a list/a text`; `a header name that is not valid`; `a step with no URL blocks enabling and names the field` |
+| same file | URL errors: blank, not a URL, scheme other than http and https | `http-request-refuses-urls-and-headers-it-cannot-use`, 5 URLs; `blank URL: Run now refuses the graph and names the field`; `headers as a list/a text`; `a header name that is not valid`; `a step with no URL blocks enabling and names the field` |
 | docs/3.configuration.md:51 | timeoutMs is 30 seconds by default | `http-request-waits-30-seconds-by-default`, `an answer after 28 s arrives`, `no answer within 30 s: the step fails after the default` |
 | docs/3.configuration.md:51 | ... at most 5 minutes; a larger value is capped and the run log says so | `http-request-caps-the-timeout-at-5-minutes-and-the-response-at-2-mb`, `a timeout above 5 minutes is capped and the log says so`, `exactly 5 minutes is not capped`, `5 minutes and 1 ms is capped`, `a typed timeout above 5 minutes is refused` |
 | docs/3.configuration.md:51 | The action refuses a response larger than 2 MB | same journey, `big/chunked: 2 MB exactly is accepted`, `big/chunked: one byte more is refused` (with and without content-length) |

@@ -1,6 +1,6 @@
 # Coverage: overview
 
-Every sentence of the docs that states a behaviour of the Overview, with the journey (`journeys/overview.mjs`) and the check that catches a break of it. Journey ids are abbreviated by their first words; the full ids are in `features/overview.md`.
+Every sentence of the docs that states a behaviour of the Overview, with the journey (`e2e/journeys/overview.mjs`) and the check that catches a break of it. Journey ids are abbreviated by their first words; the full ids are in `features/overview.md`.
 
 | Doc | Documented behaviour | Journey | Check |
 | --- | --- | --- | --- |
