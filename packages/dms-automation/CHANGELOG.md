@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.11.4
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.3...v0.11.4)
+
+### 🩹 Fixes
+
+- Move the dms dev pins to the released 0.21 line ([#227](https://github.com/AntelopeJS/dms-automation/pull/227))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.11.3
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.2...v0.11.3)
