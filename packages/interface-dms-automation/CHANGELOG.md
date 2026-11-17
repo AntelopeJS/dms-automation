@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.7.2
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.7.1...interface-v0.7.2)
+
+### 🩹 Fixes
+
+- **docs:** List the packed interface range in the README compat table ([#223](https://github.com/AntelopeJS/dms-automation/pull/223))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.7.1
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.7.0...interface-v0.7.1)
