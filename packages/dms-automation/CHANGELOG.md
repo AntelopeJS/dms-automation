@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.11.3
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.2...v0.11.3)
+
+### 🩹 Fixes
+
+- **deps:** Name the sibling interface with workspace:^ ([#222](https://github.com/AntelopeJS/dms-automation/pull/222))
+- **docs:** List the packed interface range in the README compat table ([#223](https://github.com/AntelopeJS/dms-automation/pull/223))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.11.2
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.1...v0.11.2)
