@@ -128,43 +128,14 @@ check(
  * 0.0.x version (`^0.0.1` means `>=0.0.1 <0.0.2`) stops satisfying the
  * canonical installed version on the first patch release and the host refuses
  * to boot with "Incompatible interface package resolution". Every DMS package
- * is therefore referenced by an explicit `>=<floor> <1.0.0` range (capped below
- * the next minor for the interface the module implements, see below); pnpm
+ * is therefore referenced by an explicit `>=<floor> <1.0.0` range, except the
+ * sibling interface, which `workspace:^` has pnpm pack write as `^<version>`; pnpm
  * links the sibling inside the workspace through `link-workspace-packages`.
  */
 const DMS_PACKAGE =
   /^@antelopejs\/(dms|dms-.+|interface-dms|interface-dms-.+)$/;
 const DMS_RANGE = /^>=\d+\.\d+\.\d+ <\d+\.\d+\.\d+$/;
 
-/**
- * @param {string} a
- * @param {string} b
- */
-function compareVersions(a, b) {
-  /** @param {string} version */
-  const parts = (version) => version.split("-")[0].split(".").map(Number);
-  const [x, y] = [parts(a), parts(b)];
-  return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
-}
-
-/**
- * The module implements the interface, so it caps it below the next minor
- * (`>=<floor> <0.<minor+1>.0`): a breaking interface minor must never reach a
- * module that does not implement it.
- */
-/**
- * @param {unknown} version
- * @param {unknown} range
- */
-function satisfiesImplementedRange(version, range) {
-  if (!isString(version) || !isString(range)) return false;
-  const match = /^>=(0\.(\d+)\.\d+) <(0\.(\d+)\.0)$/.exec(range);
-  if (!match || Number(match[4]) !== Number(match[2]) + 1) return false;
-  return (
-    compareVersions(version, match[1]) >= 0 &&
-    compareVersions(version, match[3]) < 0
-  );
-}
 for (const field of [
   "dependencies",
   "devDependencies",
@@ -175,6 +146,7 @@ for (const field of [
   if (!isRecord(group)) continue;
   for (const [dependency, range] of Object.entries(group)) {
     if (!DMS_PACKAGE.test(dependency)) continue;
+    if (dependency === INTERFACE_PACKAGE && range === "workspace:^") continue;
     check(
       isString(range) && DMS_RANGE.test(range),
       `${field}["${dependency}"] is ${JSON.stringify(range)}: DMS packages are referenced by a ">=<floor> <1.0.0" range, a caret range on 0.0.x breaks interface resolution at startup.`,
@@ -183,27 +155,12 @@ for (const field of [
 }
 
 if (expected.role === "runtime") {
-  /**
-   * The interface sitting next to the module only has to SATISFY the range the
-   * module publishes. A floor that lags it widens what consumers may install
-   * without ever pulling a second copy, so an interface release must not block
-   * the module's release.
-   */
-  const interfaceVersion = valueAt(
-    JSON.parse(
-      fs.readFileSync(
-        path.join("packages", "interface-dms-automation", "package.json"),
-        "utf8",
-      ),
-    ),
-    "version",
-  );
   const interfaceRange = valueAt(pkg, "dependencies", INTERFACE_PACKAGE);
   const release = valueAt(pkg, "scripts", "release");
   const releaseScript = isString(release) ? release : "";
   check(
-    satisfiesImplementedRange(interfaceVersion, interfaceRange),
-    `dependencies["${INTERFACE_PACKAGE}"] is ${JSON.stringify(interfaceRange)}: the module implements it, so it must be a ">=<floor> <0.<minor+1>.0" range satisfied by the interface in this tree (${String(interfaceVersion)}).`,
+    interfaceRange === "workspace:^",
+    `dependencies["${INTERFACE_PACKAGE}"] is ${JSON.stringify(interfaceRange)}: the module implements it, so it must name the sibling with "workspace:^", which pnpm pack writes as ^<interface version>.`,
   );
   check(
     !/\bnpm publish\b|\bpnpm publish\b/.test(releaseScript),
