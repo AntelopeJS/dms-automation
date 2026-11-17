@@ -24,7 +24,7 @@ What a project installs from the registry and what an agent reads: the module's 
 ## Sub-features
 
 - `npm-pack-holds-what-package-json-files-lists-for-both-packages`: each tarball holds its build, skills, docs or dashboard layer and every entry point the manifest names, and none of the sources, tests, playground or scripts.
-- `the-manifests-declare-skills-entry-points-and-ranges-that-agree`: names, licences, publish settings, `antelopeJs` keys, the interface range from its version to the next minor, the README compatibility tables, the ranges the docs quote, the renderer range and the renamed CMS-era names.
+- `the-manifests-declare-skills-entry-points-and-ranges-that-agree`: names, licences, publish settings, `antelopeJs` keys, the sibling interface spec, the README compatibility tables, the ranges the docs quote, the renderer range and the renamed CMS-era names.
 - `the-shipped-skills-have-valid-front-matter-and-cases`: skill names, descriptions, icons, categories, tags and the cases whose expectations name shipped skills and phrases the skill contains.
 - `the-module-skill-statements-name-things-that-exist`: the module skill's config keys and defaults, routes, page paths, reserved webhook prefixes and states are the docs' and the source's.
 - `the-module-skill-api-walk-works-as-written`: import, enable, run-now, test-effects and the 409 of a test, as the skill writes them.
