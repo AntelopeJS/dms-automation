@@ -115,7 +115,7 @@ export const manifestJourneys = [
       const interfaceRow = moduleRows.find((row) => row.name === "@antelopejs/interface-dms-automation");
       await ctx.verify("the module's range on the interface", [
         same("package.json names the sibling interface with workspace:^, which pnpm pack writes as ^<interface version>", normalRange(String(moduleDeps["@antelopejs/interface-dms-automation"])), "workspace:^"),
-        same("the README says the same, supported", normalRange(interfaceRow?.supported ?? ""), "workspace:^"),
+        same("the README says the same, supported", normalRange(interfaceRow?.supported ?? ""), `^${interfaceVersion}`),
         same("the README tested-with is the interface version", interfaceRow?.tested, interfaceVersion),
       ]);
       /** @type {Check[]} */

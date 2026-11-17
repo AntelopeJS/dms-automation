@@ -16,8 +16,8 @@ Run a package script from its own directory: `pnpm --dir packages/dms-automation
 
 ## Versioning
 
-- The module implements the interface, so it depends on it through `>=<interface version> <0.<minor + 1>.0`. A breaking interface minor never reaches a module that does not implement it. Any other module depends on the interface alone, with a wide range.
-- Release the interface before the module: the module's range is floored at the interface version in the tree. Both release jobs live in `release.yml`.
+- The module implements the interface, so it depends on it through `workspace:^`, which `pnpm pack` writes as `^<interface version>`. Any other module depends on the interface alone, with a wide range.
+- Release the interface before the module: the packed range is floored at the interface version in the tree. Both release jobs live in `release.yml`.
 
 ## What `pnpm run checks` does not run
 
