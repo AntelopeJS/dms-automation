@@ -22,7 +22,6 @@ export const templatesJourneys5 = [
     id: "edit-graph-opens-the-template-in-the-builder-and-its-save-changes-every-procedure-placing-it",
     title: "Edit graph in the Library opens the template in the builder under its name; a step setting changed there and saved is stored on the template, and every procedure placing it runs the changed step",
     entryPoint: "/modules/automation/library?tab=templates, Edit graph, /modules/automation/builder?template=<id>, Save",
-    knownFailures: { "the Level options read info, warn and error": "issue draft dms-automation-inspector-enum-options-blank: NodeInspector passes an enum field's values to DmsInputSelect as plain strings, and the DMS 0.21.3 InputSelect renders only item.label, so every option of Level (and of any enum setting) is a blank row" },
     async run(/** @type {Ctx} */ ctx) {
       const templateId = await createTemplate(ctx, "Partagé ☕");
       const procedures = [await createProcedure(ctx, { name: "Place un", graph: runGroup(instance("g1", templateId), "un") }), await createProcedure(ctx, { name: "Place deux", graph: runGroup(instance("g1", templateId), "deux") })];
