@@ -60,7 +60,6 @@ export const journeys = [
   },
   {
     id: "a-failure-six-days-old-degrades-and-one-eight-days-old-does-not",
-    integration: true,
     title: "an enabled procedure whose last run succeeded is Degraded when a run failed in the last 7 days (1 of 2 failed in 7 days, Success 50%, counted in Procedures · last 7 days) and Healthy when its only failure is 8 days old",
     entryPoint: "GET /procedures/summary, GET /stats/procedures, Procedures page, Overview",
     async run(/** @type {Ctx} */ ctx) {

@@ -85,7 +85,6 @@ const all = guarded([
   },
   {
     id: "the-run-figures-count-runs-success-rate-failed-and-p95-against-the-compared-window",
-    integration: true,
     title: "the Runs, Success rate, Failed and p95 figures count production runs of every procedure in the window and give the change against the compared window; test runs never count",
     entryPoint: "GET /runs/kpi/:metric, /modules/automation/runs",
     async run(/** @type {Ctx} */ ctx) {
