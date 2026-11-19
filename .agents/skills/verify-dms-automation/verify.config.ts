@@ -49,12 +49,11 @@ export interface VerifyConfig {
   formal: FormalCheck[];
 }
 
-const SKILL = ".agents/skills/verify-dms-automation";
 const MODULE = "packages/dms-automation";
 const INTERFACE = "packages/interface-dms-automation";
 
 const config: VerifyConfig = {
-  playground: `${SKILL}/playground`,
+  playground: "e2e/playground",
   prepare: [
     ["pnpm", "install", "--frozen-lockfile", "--prefer-offline", "--ignore-scripts"],
     ["pnpm", "run", "e2e:build"],

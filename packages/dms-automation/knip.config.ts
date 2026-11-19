@@ -14,7 +14,7 @@ const FRONTEND_PACKAGES = [
 ];
 
 /**
- * Packages the verification skill's runs load: `dms-control` reaches the
+ * Packages the e2e runs load: the `@antelopejs/dms` e2e kit reaches the
  * MongoDB driver through `mongodb-memory-server-core`.
  */
 const VERIFICATION_PACKAGES = ["mongodb-memory-server-core"];
