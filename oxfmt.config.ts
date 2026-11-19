@@ -1,6 +1,6 @@
 import { antelopeFmtPreset } from "@antelopejs/tooling-configs/oxc/fmt";
 
-/** The journeys, their helpers and the playground keep the layout they had in the verify skill. */
+/** The journeys, their helpers and the playground keep their own layout. */
 export default antelopeFmtPreset({
   ignorePatterns: [
     "**/nuxt-layer/**",
