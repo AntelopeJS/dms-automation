@@ -1,237 +1,67 @@
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
-import { apiRequest, onboard, startRun } from "@antelopejs/dms/e2e/run";
-import {
-  freshDatabase,
-  restartBackend,
-} from "../../node_modules/@antelopejs/dms/e2e/backend.mjs";
+import { runJourney, startRun } from "@antelopejs/dms/e2e/run";
 
 /**
- * @typedef {import("@antelopejs/dms/e2e/run").RunState} RunState
- * @typedef {{ name: string, pass: boolean, detail: string }} Check
- * @typedef {{ id: string, title: string, knownFailures?: Record<string, string>, onboard?: boolean, database?: string, backend?: string, standby?: boolean, run: (ctx: IntegrationContext) => Promise<void> }} Journey
+ * @typedef {import("@antelopejs/dms/e2e/run").Journey} Journey
+ * @typedef {import("@antelopejs/dms/e2e/run").FeatureResult} FeatureResult
  */
 
 const TEST_TIMEOUT_MS = 10 * 60_000;
-const UNIQUE_BYTES = 3;
-const PASSWORD_BYTES = 12;
-/** The journey fields the kit honours and this runner does not: a fresh database, a production backend from the standby and an onboarded administrator are all it gives. */
-const UNSUPPORTED = ["onboard", "database", "backend", "standby"];
 
 /** @type {Awaited<ReturnType<typeof startRun>> | undefined} */
 let started;
-let count = 0;
 before(async () => {
   started = await startRun();
 });
 after(() => started?.stop());
 
-/** A critical step failed: the journey ends there. */
-class Abort extends Error {}
-
 /**
- * @param {string} text A label
- * @returns {string} The label as a folder name
+ * @param {FeatureResult} result A judged journey
+ * @returns {string[]} One line per check that fails it, a known failure that now passes included, and the error that ended it
  */
-function slug(text) {
-  return (
-    text
-      .replace(/[^A-Za-z0-9_-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 80) || "step"
+function failuresOf(result) {
+  const checks = result.steps.flatMap((step) =>
+    step.checks
+      .filter((check) => check.verdict === "fail" || check.verdict === "fixed")
+      .map((check) =>
+        check.verdict === "fixed"
+          ? `${step.name}: ${check.name} passes: remove it from knownFailures (${check.finding ?? ""})`
+          : `${step.name}: ${check.name}: ${check.detail}`,
+      ),
   );
-}
-
-/** What a journey drives a run through, on the run's database of the moment: the API as an account, backend restarts, and checks recorded per step. */
-export class IntegrationContext {
-  /**
-   * @param {RunState} state The run, moved onto the journey's fresh database
-   * @param {string} folder Where the journey's evidence goes
-   */
-  constructor(state, folder) {
-    this.state = state;
-    this.folder = folder;
-    this.generation = count;
-    this.index = 0;
-    /** @type {{ step: string, checks: Check[] }[]} */
-    this.steps = [];
-  }
-
-  /** @throws When a later test has moved the run onto its own database, as after this journey's timeout */
-  live() {
-    if (this.generation !== count)
-      throw new Error(
-        `${this.folder} ended: the run belongs to a later test now`,
-      );
-  }
-
-  /**
-   * @param {string} label What the step does
-   * @returns {string} A new numbered step folder
-   */
-  step(label) {
-    this.index += 1;
-    const folder = join(
-      this.folder,
-      `${String(this.index).padStart(2, "0")}-${slug(label)}`,
-    );
-    mkdirSync(folder, { recursive: true });
-    return folder;
-  }
-
-  /**
-   * @param {string} folder The step folder
-   * @param {Check[]} checks The step's checks
-   * @param {{ critical?: boolean }} [options] Whether a failure ends the journey
-   * @returns {boolean} Whether every check passed
-   */
-  record(folder, checks, options = {}) {
-    this.live();
-    this.steps.push({ step: folder.slice(this.folder.length + 1), checks });
-    writeFileSync(
-      join(folder, "checks.json"),
-      `${JSON.stringify(checks, null, 2)}\n`,
-    );
-    const passed = checks.every((check) => check.pass);
-    if (!passed && options.critical) throw new Abort(folder);
-    return passed;
-  }
-
-  /**
-   * @param {string} label What the step verifies
-   * @param {(Check | Promise<Check>)[]} checks The checks
-   * @param {{ critical?: boolean }} [options] Whether a failure ends the journey
-   * @returns {Promise<boolean>} Whether every check passed
-   */
-  async verify(label, checks, options = {}) {
-    return this.record(
-      this.step(label),
-      await Promise.all(checks.map((check) => Promise.resolve(check))),
-      options,
-    );
-  }
-
-  /**
-   * @param {string} label What the call does
-   * @param {{ method: string, path: string, body?: unknown, as?: string, token?: string }} request What to send, as `admin` by default
-   * @throws With `token`, which the kit sends as is and this runner does not
-   */
-  api(label, request) {
-    this.live();
-    if (request.token !== undefined)
-      throw new Error(
-        "an integration test calls the API as an account: an explicit token belongs in the Playwright suite",
-      );
-    return apiRequest(this.state, {
-      ...request,
-      as: request.as ?? "admin",
-      folder: () => this.step(`api ${label}`),
-    });
-  }
-
-  /**
-   * @param {string} name The account name
-   * @param {RunState["accounts"][string]} credentials Its credentials
-   */
-  addAccount(name, credentials) {
-    this.state.accounts = { ...this.state.accounts, [name]: credentials };
-  }
-
-  /** @param {string} prefix @returns {string} A string unique to this journey */
-  unique(prefix) {
-    return `${prefix} ${randomBytes(UNIQUE_BYTES).toString("hex")}`;
-  }
-
-  /** @returns {string} A password the DMS policy accepts */
-  password() {
-    return `Vr1!${randomBytes(PASSWORD_BYTES).toString("base64url").replace(/[-_]/g, "x")}`;
-  }
-
-  /** Restarts the backend on the same database with `state.extraEnv`. */
-  async restartBackend() {
-    this.live();
-    await restartBackend(this.state);
-  }
-
-  /** @returns {never} */
-  tab() {
-    throw new Error(
-      "an integration test opens no browser tab: this journey belongs in the Playwright suite",
-    );
-  }
-}
-
-/**
- * The checks that fail the test: failing ones the journey does not know
- * about, and known failures that now pass.
- *
- * @param {IntegrationContext} ctx The driven journey
- * @param {Record<string, string>} known The journey's known failures and their findings
- * @returns {string[]} One line per failed check
- */
-function verdict(ctx, known) {
-  return ctx.steps.flatMap(({ step, checks }) =>
-    checks.flatMap((check) => {
-      if (!Object.hasOwn(known, check.name))
-        return check.pass ? [] : [`${step}: ${check.name}: ${check.detail}`];
-      return check.pass
-        ? [
-            `${step}: ${check.name} passes: remove it from knownFailures (${known[check.name]})`,
-          ]
-        : [];
-    }),
-  );
+  return result.error ? [...checks, result.error] : checks;
 }
 
 /**
  * Registers each journey as a `node:test` test of the calling file. The
  * process starts one run with `startRun()`, which every file of a
- * `--test-isolation=none` run shares; each test moves it onto a fresh
- * database with a backend of its own and an onboarded administrator, drives
- * the journey through the API, then fails on any failing check that is not a
- * known failure. Evidence goes to `<run>/evidence/<feature>/<journey>/`.
+ * `--test-isolation=none` run shares; each test drives its journey with the
+ * kit's browserless `runJourney`, on a fresh database with an onboarded
+ * administrator unless the journey's fields say otherwise, and fails on any
+ * failing check that is not a known failure. Evidence goes to
+ * `<run>/evidence/<feature>/<journey>/`.
  *
  * @param {string} feature The feature the journeys belong to
  * @param {Journey[]} journeys The journeys
- * @throws When a journey sets a field this runner does not honour
  */
 export function journeyTests(feature, journeys) {
   for (const journey of journeys) {
-    const unsupported = UNSUPPORTED.filter(
-      (field) => journey[field] !== undefined,
-    );
-    if (unsupported.length > 0)
-      throw new Error(
-        `${feature} › ${journey.id} sets ${unsupported.join(", ")}: it belongs in the Playwright suite`,
-      );
     void test(journey.id, { timeout: TEST_TIMEOUT_MS }, async (t) => {
       assert.ok(started, "the run started");
-      const { run } = started;
-      count += 1;
-      await freshDatabase(run, `j${String(count).padStart(3, "0")}`);
-      const onboarded = await onboard(run, {});
-      assert.equal(
-        onboarded.login?.status,
-        200,
-        `the administrator is onboarded and signed in (register ${onboarded.register.status})`,
+      const result = await runJourney(started.run, feature, journey);
+      for (const step of result.steps)
+        for (const check of step.checks)
+          if (check.verdict === "known")
+            t.diagnostic(
+              `known failure: ${check.name}: ${check.finding ?? ""}`,
+            );
+      assert.deepEqual(
+        failuresOf(result),
+        [],
+        `${journey.title}\nevidence: ${join(started.run.evidence, result.folder)}`,
       );
-      const ctx = new IntegrationContext(
-        run,
-        join(run.evidence, feature, journey.id),
-      );
-      const known = journey.knownFailures ?? {};
-      try {
-        await journey.run(ctx);
-      } catch (failure) {
-        if (!(failure instanceof Abort)) throw failure;
-      }
-      for (const [name, finding] of Object.entries(known))
-        t.diagnostic(`known failure: ${name}: ${finding}`);
-      const failed = verdict(ctx, known);
-      assert.deepEqual(failed, [], `${journey.title}\nevidence: ${ctx.folder}`);
     });
   }
 }

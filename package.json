@@ -23,7 +23,7 @@
     "test:journeys": "node --test --test-isolation=none e2e/integration/*.journeys.test.mjs"
   },
   "devDependencies": {
-    "@antelopejs/dms": "0.21.4-next.939.g641c7fa",
+    "@antelopejs/dms": "0.21.4-next.941.gfbafd9a",
     "@antelopejs/tooling-configs": ">=0.8.9 <0.9.0",
     "@playwright/test": "~1.65.0",
     "@types/node": "^24.0.0",
