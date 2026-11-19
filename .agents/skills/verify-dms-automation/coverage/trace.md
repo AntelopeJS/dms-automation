@@ -4,7 +4,7 @@ Docs: `packages/dms-automation/docs/4.usage/4.runs.md` (Re-run a run, Run trace)
 
 | Source | Documented behaviour | Journey | Check |
 | --- | --- | --- | --- |
-| 4.runs.md:29 | Re-run runs the current saved graph with the original trigger and stored payload | a-re-run-runs-the-current-saved-graph-with-the-stored-payload | the current graph ran: both effect steps, the first with the original payload |
+| 4.runs.md:29 | Re-run runs the current saved graph with the original trigger and stored payload | a-re-run-runs-the-current-saved-graph-with-the-stored-payload; re-run-with-this-payload-in-the-trace-runs-the-saved-procedure-and-opens-the-new-run | the current graph ran: both effect steps, the first with the original payload; from the trace page: "Re-run in the trace" › the current saved graph ran, the new run is a re-run of this one with its payload |
 | 4.runs.md:29 | It does not run a historical copy of the graph | a-re-run-runs-the-current-saved-graph-with-the-stored-payload | stored as a re-run of the original, version 2; the original is untouched: one effect step, version 1 |
 | 4.runs.md:29 | A re-run of a test runs the draft again and is stored as a test | a-re-run-of-a-test-runs-the-draft-again-and-is-stored-as-a-test | the draft ran again, not the saved graph; stored as a test, not rerun, without a version |
 | 4.runs.md:31 | Confirmation titled "Re-run with the same payload?" | the-re-run-confirmation-warns-in-the-words-of-the-run | the dialog: title and description |
@@ -20,7 +20,7 @@ Docs: `packages/dms-automation/docs/4.usage/4.runs.md` (Re-run a run, Run trace)
 | 4.runs.md:41 | A re-run sends `[redacted]` in place of credentials and its confirmation says so | the-re-run-confirmation-warns-in-the-words-of-the-run | redacted line names the headers; see also redaction-and-retention |
 | 4.runs.md:46 | The trace is at `/modules/automation/trace?run=<runId>` and can be linked | the-trace-header-and-figures-describe-a-succeeded-run | the header |
 | 4.runs.md:50 | The header names the procedure, the run id and when and how the run started | the-trace-header-and-figures-describe-a-succeeded-run | procedure, outcome, run id, start, trigger, instance; Started <date> · Manual |
-| 4.runs.md:50 | Previous run, Next run, Re-run with this payload and Debug in builder sit beside it | the-trace-header-and-figures-describe-a-succeeded-run | Previous run and Next run, each with its outcome; Previous run opens the run before |
+| 4.runs.md:50 | Previous run, Next run, Re-run with this payload and Debug in builder sit beside it | the-trace-header-and-figures-describe-a-succeeded-run; re-run-with-this-payload-in-the-trace-runs-the-saved-procedure-and-opens-the-new-run | Previous run and Next run, each with its outcome; Previous run opens the run before; Re-run with this payload asks, Cancel runs nothing, Re-run opens the new run's trace bannered as a re-run |
 | 4.runs.md:50 | Debug in builder opens the builder on the procedure and the run | a-failed-run-names-the-step-how-long-how-often-the-error-and-the-last-success | Debug in builder opens the procedure on the run |
 | 4.runs.md:51 | The failure card names the step that failed | a-failed-run-names-the-step-how-long-how-often-the-error-and-the-last-success | the card names step, time, streak, error |
 | 4.runs.md:51 | After how long, how many times in a row, and its error | a-failed-run-names-the-step-how-long-how-often-the-error-and-the-last-success | failures in a row since the last success; the card names step, time, streak, error |

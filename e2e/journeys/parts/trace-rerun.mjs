@@ -4,7 +4,7 @@ import { openPage, saveGraph, storedRun, textWhen, withRuns, runTable } from "./
 
 /** @typedef {import("../../auto.mjs").Ctx} Ctx */
 
-const flat = (/** @type {string} */ value) => value.replace(/\s+/g, " ").trim();
+export const flat = (/** @type {string} */ value) => value.replace(/\s+/g, " ").trim();
 
 /**
  * A procedure whose effect step logs the `who` of its payload in the fixture's ledger.
@@ -13,7 +13,7 @@ const flat = (/** @type {string} */ value) => value.replace(/\s+/g, " ").trim();
  * @param {string} name The name
  * @returns {Promise<string>} Its id
  */
-async function effectProcedure(ctx, name) {
+export async function effectProcedure(ctx, name) {
   const { id } = await createEnabled(ctx, { name, graph: graph([trigger("t"), action("eff1", "verify.effect")], [tedge("t", "eff1")], [dedge("t", "who", "eff1", "label")]) });
   return id;
 }
@@ -27,7 +27,7 @@ async function confirmOf(ctx, runId) {
   return (await auto(ctx, "rerun confirmation", "GET", `/runs/${runId}/rerun-confirm`)).body;
 }
 
-const executed = (/** @type {Record<string, unknown>[]} */ entries) => entries.filter((e) => e.kind === "execute").map((e) => [e.type, e.label]);
+export const executed = (/** @type {Record<string, unknown>[]} */ entries) => entries.filter((e) => e.kind === "execute").map((e) => [e.type, e.label]);
 
 export const rerunJourneys = [
   {

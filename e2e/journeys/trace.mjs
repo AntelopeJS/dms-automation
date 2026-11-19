@@ -2,6 +2,7 @@ import { guarded } from "../guard.mjs";
 import { auto, check, list, pick, same, text } from "../auto.mjs";
 import { chain, action, createEnabled, runNow, trigger } from "../procs.mjs";
 import { bodyText, graphWithMessage, openPage, saveGraph, size, storedRun, textWhen, twoStepProcedure, withRuns } from "./parts/runs-common.mjs";
+import { headerRerunJourneys } from "./parts/trace-rerun-header.mjs";
 import { rerunJourneys } from "./parts/trace-rerun.mjs";
 import { seededFailures } from "./parts/trace-seed.mjs";
 
@@ -203,6 +204,7 @@ export const journeys = guarded([
     },
   },
   ...rerunJourneys,
+  ...headerRerunJourneys,
 ]);
 
 /**

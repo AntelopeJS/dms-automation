@@ -23,16 +23,21 @@ What a project installs from the registry and what an agent reads: the module's 
 
 ## Sub-features
 
-- `npm-pack-holds-what-package-json-files-lists-for-both-packages`: each tarball holds its build, skills, docs or dashboard layer and every entry point the manifest names, and none of the sources, tests, playground or scripts.
-- `the-manifests-declare-skills-entry-points-and-ranges-that-agree`: names, licences, publish settings, `antelopeJs` keys, the sibling interface spec, the README compatibility tables, the ranges the docs quote, the renderer range and the renamed CMS-era names.
-- `the-shipped-skills-have-valid-front-matter-and-cases`: skill names, descriptions, icons, categories, tags and the cases whose expectations name shipped skills and phrases the skill contains.
-- `the-module-skill-statements-name-things-that-exist`: the module skill's config keys and defaults, routes, page paths, reserved webhook prefixes and states are the docs' and the source's.
+Journeys, driven in a running DMS:
+
 - `the-module-skill-api-walk-works-as-written`: import, enable, run-now, test-effects and the 409 of a test, as the skill writes them.
 - `the-module-skill-webhook-prefixes-are-refused`: each reserved prefix is refused, a path that only begins with the same letters is not.
 - `the-module-skill-pages-open-for-the-owner`: the pages the skill names open in the browser.
-- `the-interface-skill-and-docs-name-what-the-interface-exports`: the skill's imports are exported, there is one entry point, and the docs' TypeScript blocks compile against the interface.
-- `docs-pages-have-front-matter-and-a-navigation-order`: front matter, numbering, navigation groups.
-- `docs-and-readme-links-and-anchors-resolve`: every link, anchor and image of the docs, READMEs and skills that points into this repository resolves.
+
+Node tests in `packages/dms-automation/tests/`, which read files and run `npm pack --dry-run`, `node` and `tsc` and need no running DMS. CI runs them on every pull request.
+
+- `package-tarball.test.cjs`, test `<package> tarball`: each tarball holds its build, skills, docs or dashboard layer and every entry point the manifest names, and none of the sources, tests, playground or scripts.
+- `package-manifest.test.cjs`: names, licences, publish settings (`names and the publish contract`), `antelopeJs` keys (`what each package declares to AntelopeJS`), the sibling interface spec and the README compatibility tables (`the README compatibility tables`), the ranges the docs quote (`ranges quoted in the docs`), the renderer range (`the renderer range`), the documentation badges (`the documentation badges`) and the renamed CMS-era names (`the CMS-era names are gone`).
+- `package-skills.test.cjs`, test `shipped skills`: skill names, descriptions, icons, categories, tags and the cases whose expectations name shipped skills and phrases the skill contains.
+- `package-skills.test.cjs`, test `module skill statements`: the module skill's config keys and defaults, routes, page paths, reserved webhook prefixes and states are the docs' and the source's.
+- `package-interface.test.cjs`: the skill's imports are exported (`interface skill imports`), there is one entry point (`single entry point`), and the docs' TypeScript blocks compile against the interface (`docs code blocks`).
+- `package-docs.test.cjs`, test `docs front matter and navigation`: front matter, numbering, navigation groups.
+- `package-docs.test.cjs`, test `docs and README links`: every link, anchor and image of the docs, READMEs and skills that points into this repository resolves.
 
 ## How to get to it (user POV)
 
@@ -44,8 +49,10 @@ What a project installs from the registry and what an agent reads: the module's 
 dms-control journey "$RUN" package
 ```
 
+The node tests run with `pnpm --dir packages/dms-automation run test`, or one file at a time after a build: `node --test tests/package-docs.test.cjs`.
+
 ## Gotchas
 
-- The journeys run `npm pack --dry-run --json --ignore-scripts` in each package and read the file list; nothing is packed to disk or published, and the `dist` that exists in the checkout is what is judged.
-- The docs' code blocks are compiled with the checkout's `tsc` into the journey's evidence folder, with a path mapping to the interface's `dist/index.d.ts`.
+- The tarball test runs `npm pack --dry-run --json --ignore-scripts` in each package and reads the file list; nothing is packed to disk or published, and the `dist` that exists in the checkout is what is judged, so build before running it.
+- The docs' code blocks are compiled with the checkout's `tsc` in a temporary folder, with a path mapping to the interface's `dist/index.d.ts`.
 - Links to other modules' docs (`/docs/modules/database/...`, `/docs/modules/api/...`) and to external sites are not followed. `/docs/modules/automation/reference` is the interface's `docs/1.index.md`.

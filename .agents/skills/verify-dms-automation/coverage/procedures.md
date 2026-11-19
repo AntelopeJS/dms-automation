@@ -38,7 +38,7 @@ Journey ids are `procedures/<id>`. Docs are 4.usage/2.procedures.md unless anoth
 | TSDoc procedures.ts runs | Runs of a procedure newest first, one extra row to tell a next page, bad page 400, unknown 404 | the-runs-of-a-procedure-list-newest-first-and-page | order, extra row, page 1, bad queries |
 | (router) | Other methods are not routes | routes-the-module-does-not-serve-answer-404-and-change-nothing | 17 wrong method/path pairs plus HEAD, ids |
 | TSDoc procedures.ts | Test and test-effects routes | Not driven here: covered by the test-runs feature | |
-| 2.procedures.md:35 | Event trigger wording (User registered) | Not driven: needs the DMS event trigger; triggers feature | |
+| 2.procedures.md:35 | Event trigger wording (User registered) | triggers/the-starts-when-column-names-the-trigger-and-counts-the-others | "the summary" (the DMS event triggers are registered in the playground) |
 | 2.procedures.md:39 | Avg is the average run duration, not the newest or the slowest | `avg-is-the-average-run-duration-not-the-newest` | check `avgDurationMs is the mean, 300` over runs of 100, 200 and 600 ms |
 | 2.procedures.md:62 | The delete confirmation counts the runs of this week only: 6 days ago counts, 8 days ago does not | `the-delete-confirmation-counts-only-the-runs-of-this-week` | check `two runs this week` |
 | 2.procedures.md:15-16 | Degraded is an enabled procedure whose last run succeeded but runs failed in the last 7 days; a failure older than 7 days no longer degrades | `a-failure-six-days-old-degrades-and-one-eight-days-old-does-not` | checks `six days ago: degraded`, `eight days ago: healthy`, `six days: Degraded, 1 of 2 failed in 7 days, Success 50%`, `eight days: Healthy, Success 100%`, `the card counts one degraded and one healthy` |

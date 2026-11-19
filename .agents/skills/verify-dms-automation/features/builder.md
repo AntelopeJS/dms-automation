@@ -31,6 +31,8 @@ The graph editor: bar, palette, canvas, inspector and dock, with test runs, Run 
 - `a-draft-says-nothing-fires-until-it-is-enabled-and-offers-to-enable-it`: draft/paused banner, empty and missing procedure notices.
 - `wires-are-drawn-between-matching-ports-replaced-and-unwired`: port colours, mismatch, replace, Unwire, loop refusal.
 - `wrap-in-retry-puts-a-step-inside-a-retry`: Wrap in Retry.
+- `a-two-step-procedure-is-built-from-the-palette-tested-saved-and-run`: the docs' first procedure in the UI: Manual and Log clicked in from the palette on an empty procedure, Message filled, `{}` test payload, Test run of the unsaved draft, Save, Open trace with the message in Logs, Run now.
+- `more-actions-view-all-runs-opens-its-runs-and-delete-procedure-asks-first`: More actions > View all runs lands on the scoped Run history; Delete procedure's confirmation for an enabled procedure (runs this week, Pause, name to type), Cancel, delete, runs kept.
 
 ## How to get to it (user POV)
 
