@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [next]
+  merge_group:
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
@@ -46,10 +47,31 @@ jobs:
     timeout-minutes: 5
     outputs:
       tier: ${{ steps.tier.outputs.tier }}
+      e2e: ${{ steps.e2e.outputs.suite }}
+      shards: ${{ steps.e2e.outputs.shards }}
     steps:
       - name: Pick the tier from the event, the target branch and the draft flag
         id: tier
         uses: AntelopeJS/.github/.github/actions/ci-tier@v2
+      # A pull request runs the @smoke journeys, or every journey with the
+      # ci:full label; the merge queue, the nightly run and a dispatch run
+      # every journey over two shards.
+      - name: Pick the journeys the e2e job runs
+        id: e2e
+        env:
+          TIER: ${{ steps.tier.outputs.tier }}
+          EVENT: ${{ github.event_name }}
+          FULL_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full') }}
+        run: |
+          case "$TIER/$EVENT/$FULL_LABEL" in
+            none/* | draft/*) suite=none ;;
+            */pull_request/true) suite=full ;;
+            */pull_request/* | */push/*) suite=smoke ;;
+            *) suite=full ;;
+          esac
+          if [[ "$suite" == full ]]; then shards='[1, 2]'; else shards='[1]'; fi
+          echo "suite=${suite}" >> "$GITHUB_OUTPUT"
+          echo "shards=${shards}" >> "$GITHUB_OUTPUT"
 
   formal-leader-triggers:
     needs: select
@@ -76,19 +98,19 @@ jobs:
           restore-keys: formal-
       - run: node .agents/skills/formal-leader-triggers/check.mjs
 
-  # The journeys of e2e/ as a Playwright suite: the @smoke ones on the full
-  # tier, every journey over the shards of the matrix on the nightly tier.
+  # The journeys of e2e/ as a Playwright suite, the set `select` picks:
+  # the @smoke ones, or every journey over the shards of the matrix.
   e2e:
     needs: select
-    if: needs.select.outputs.tier == 'full' || needs.select.outputs.tier == 'nightly'
+    if: needs.select.outputs.e2e != 'none'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        shard: ${{ fromJSON(needs.select.outputs.tier == 'nightly' && '[1, 2]' || '[1]') }}
+        shard: ${{ fromJSON(needs.select.outputs.shards) }}
     env:
-      TIER: ${{ needs.select.outputs.tier }}
+      SUITE: ${{ needs.select.outputs.e2e }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -118,15 +140,15 @@ jobs:
           fi
           echo "::warning::Chromium's system packages did not install: installing the browser alone"
           pnpm exec playwright install --only-shell chromium
-      - if: env.TIER == 'full'
+      - if: env.SUITE == 'smoke'
         run: pnpm e2e --grep @smoke
-      - if: env.TIER == 'nightly'
+      - if: env.SUITE == 'full'
         run: pnpm e2e --shard=${{ matrix.shard }}/${{ strategy.job-total }} --reporter=blob
         env:
           PLAYWRIGHT_BLOB_OUTPUT_DIR: e2e/blob-report
       - if: success() || failure()
         run: pnpm exec tsc --noEmit -p e2e
-      - if: always() && env.TIER == 'nightly'
+      - if: always() && env.SUITE == 'full'
         uses: actions/upload-artifact@v4
         with:
           name: blob-report-${{ matrix.shard }}
@@ -143,10 +165,10 @@ jobs:
             ${{ runner.temp }}/dms-runs/*/logs
           retention-days: 7
 
-  # One HTML and JSON report of the nightly shards.
+  # One HTML and JSON report of the shards of a full run.
   e2e-report:
     needs: [select, e2e]
-    if: always() && needs.select.outputs.tier == 'nightly'
+    if: always() && needs.select.outputs.e2e == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -184,7 +206,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - if: >-
-          needs.select.result != 'success' || contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || needs.ci.result == 'skipped' || ((needs.select.outputs.tier == 'full' || needs.select.outputs.tier == 'nightly') && needs.e2e.result == 'skipped')
+          needs.select.result != 'success' || contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || needs.ci.result == 'skipped' || (needs.select.outputs.e2e != 'none' && needs.e2e.result == 'skipped')
         run: exit 1
       - if: needs.select.outputs.tier == 'draft'
         run: |
