@@ -124,6 +124,8 @@ jobs:
           node-version-file: .nvmrc
       - run: corepack enable
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run e2e:build
+      - run: echo "DMS_E2E_PREBUILT=1" >> "$GITHUB_ENV"
       - uses: actions/cache@v4
         with:
           path: |
@@ -168,6 +170,51 @@ jobs:
             ${{ runner.temp }}/dms-runs/*/logs
           retention-days: 7
 
+  # The journeys that only call the API or run commands, as node:test
+  # integration tests on the kit's startRun(), wherever every journey runs.
+  journeys:
+    needs: select
+    if: needs.select.outputs.e2e == 'full'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: echo "DMS_CONTROL_RUNS=${RUNNER_TEMP}/dms-runs" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run e2e:build
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/mongodb-binaries
+            .agents/skills/verify-dms-automation/playground/.antelope/cache
+          key: journeys-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'packages/*/pnpm-lock.yaml', '.agents/skills/verify-dms-automation/playground/antelope.config.ts') }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/dms-control/frontend
+          key: dms-control-frontend-${{ github.sha }}
+          restore-keys: dms-control-frontend-
+      - run: node --test --test-isolation=none --test-shard=${{ matrix.shard }}/${{ strategy.job-total }} e2e/integration/*.journeys.test.mjs
+        env:
+          DMS_E2E_PREBUILT: "1"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: journeys-evidence-${{ matrix.shard }}
+          path: |
+            ${{ runner.temp }}/dms-runs/*/evidence
+            ${{ runner.temp }}/dms-runs/*/logs
+          retention-days: 7
+
   # One HTML and JSON report of the shards of a full run.
   e2e-report:
     needs: [select, e2e]
@@ -204,12 +251,12 @@ jobs:
   # merge-when-green cannot merge on the draft run.
   ubuntu:
     if: always()
-    needs: [select, ci, formal-leader-triggers, e2e]
+    needs: [select, ci, formal-leader-triggers, e2e, journeys]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - if: >-
-          needs.select.result != 'success' || contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || needs.ci.result == 'skipped' || (needs.select.outputs.e2e != 'none' && needs.e2e.result == 'skipped')
+          needs.select.result != 'success' || contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || needs.ci.result == 'skipped' || (needs.select.outputs.e2e != 'none' && needs.e2e.result == 'skipped') || (needs.select.outputs.e2e == 'full' && needs.journeys.result == 'skipped')
         run: exit 1
       - if: needs.select.outputs.tier == 'draft'
         run: |
