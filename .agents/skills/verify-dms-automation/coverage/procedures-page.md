@@ -22,7 +22,7 @@ Journey ids are `procedures-page/<id>` unless another feature is named. Docs fil
 | 2.procedures.md:34 | Status is the state with its reason under it | the-list-shows-five-columns-with-each-state-and-its-reason | rows 1-4 |
 | 2.procedures.md:35 | Starts when describes the trigger in words (Every hour..., Weekdays at 08:00 (UTC), POST /hooks/stripe) | the-list-shows-five-columns-with-each-state-and-its-reason | rows 4 and 6 |
 | 2.procedures.md:35 | Under a webhook or schedule the cell names the trigger type; more triggers say how many more | the-list-shows-five-columns-with-each-state-and-its-reason | "Webhook", "Schedule (cron) · +1 more" |
-| 2.procedures.md:35 | User registered style event wording | Not driven: needs the DMS event trigger types; wording is the triggers feature's `describe` path | |
+| 2.procedures.md:35 | User registered style event wording | triggers/the-starts-when-column-names-the-trigger-and-counts-the-others | "the Procedures page" (the DMS event triggers are registered in the playground) |
 | 2.procedures.md:36 | Last runs draws the last 12 runs, green or red, with time of the last; each mark opens the trace | the-list-shows-five-columns-with-each-state-and-its-reason; procedures/last-runs-draws-twelve-runs-and-success-is-the-share-of-successes | marks open /trace?run=; the strip draws 12 |
 | 2.procedures.md:37 | Success is the share of successful runs over 7 days | the-list-shows-five-columns-with-each-state-and-its-reason | 0%, 50%, 100% |
 | 2.procedures.md:39 | The column picker adds Description, Last error, Enabled, Trigger type, Avg | the-column-picker-adds-description-last-error-enabled-trigger-type-and-avg | each column added shows its values |

@@ -6,6 +6,7 @@ import { alphabetical, storedRun } from "./parts/runs-common.mjs";
 import { retentionJourneys } from "./parts/retention.mjs";
 import { scrubJourneys } from "./parts/redaction-scrub.mjs";
 import { logCapJourneys } from "./parts/retention-logcap.mjs";
+import { webhookRedactionJourneys } from "./parts/redaction-webhook.mjs";
 
 /** @typedef {import("../auto.mjs").Ctx} Ctx */
 
@@ -136,6 +137,7 @@ export const journeys = guarded([
       });
     },
   },
+  ...webhookRedactionJourneys,
   ...scrubJourneys,
   ...retentionJourneys,
   ...logCapJourneys,

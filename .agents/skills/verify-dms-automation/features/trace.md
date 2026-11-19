@@ -28,6 +28,7 @@ The trace of one run at `/modules/automation/trace?run=<id>`, and Re-run with th
 - `a-re-run-is-refused-for-a-deleted-procedure-a-missing-trigger-a-large-payload-and-a-lost-draft`: the four refusals by API and dialog.
 - `the-re-run-confirmation-warns-in-the-words-of-the-run`: dialog text, Cancel, Confirm, drawer re-run opens the trace.
 - `a-re-run-of-a-test-runs-the-draft-again-and-is-stored-as-a-test`: draft re-run, test confirmation.
+- `re-run-with-this-payload-in-the-trace-runs-the-saved-procedure-and-opens-the-new-run`: the header's Re-run with this payload: confirmation, Cancel, the current saved graph with the stored payload, the new run's trace bannered as a re-run.
 
 ## How to get to it (user POV)
 

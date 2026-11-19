@@ -5,6 +5,7 @@ import { enabledProcedure, issueLines, issuesOf, saveGraph, webhookGraph } from 
 import { overlapJourneys } from "./parts/webhooks-overlap.mjs";
 import { callJourneys } from "./parts/webhooks-calls.mjs";
 import { pageJourneys } from "./parts/webhooks-pages.mjs";
+import { builderJourneys } from "./parts/webhooks-builder.mjs";
 
 /** @typedef {import("../auto.mjs").Ctx} Ctx */
 /** @typedef {import("../auto.mjs").Check} Check */
@@ -178,4 +179,5 @@ export const journeys = guarded([
   ...overlapJourneys,
   ...callJourneys,
   ...pageJourneys,
+  ...builderJourneys,
 ]);

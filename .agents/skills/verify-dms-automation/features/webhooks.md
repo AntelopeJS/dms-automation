@@ -29,6 +29,7 @@ The API server serves each webhook under the path set on its trigger. The module
 - `a-webhook-the-server-cannot-arm-makes-its-procedure-failing-with-the-reason`: a stored enabled procedure with an invalid path, a reserved path or a served route is Failing, with its reason on the Procedures page, the Overview banner and Needs attention.
 - `the-webhook-url-is-built-on-the-api-base-url`: a public `apiBaseUrl`, one with slashes, an empty one and the default, in the API, the Builder's inspector (URL, curl example, hint) and the Library's Used by.
 - `a-loopback-api-base-url-is-shown-as-it-is-with-a-hint`: `localhost`, `[::1]` and `127.x` are unconfigured, other hosts configured.
+- `a-webhook-set-up-in-the-builder-answers-once-it-is-saved-enabled`: Path typed in the inspector with the URL shown, 404 until saved, Enabled switch and Save, a call runs with the request as payload, Recent runs lists it.
 - `the-webhook-recipe-places-a-path-from-the-procedure-name`: New procedure with a webhook places `POST /webhooks/<name>` in lower case with dashes.
 
 ## How to get to it (user POV)

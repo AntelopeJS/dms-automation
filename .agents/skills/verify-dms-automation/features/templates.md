@@ -34,6 +34,7 @@ Templates are groups of steps saved from the builder and placed by many procedur
 - `a-procedure-placing-a-missing-template-cannot-be-enabled`: unknownTemplate problem.
 - `the-library-templates-tab-lists-searches-and-edits-templates`: Templates tab rows, search, Details, Ports, Used in, Save, name-taken message.
 - `deleting-a-template-from-the-library-says-how-many-places-it-forks`: confirmation text with counts, forking.
+- `edit-graph-opens-the-template-in-the-builder-and-its-save-changes-every-procedure-placing-it`: Edit graph, the template builder's bar, a Level changed in the inspector and saved, both placing procedures log at the new level (the blank Level options are known: issue draft dms-automation-inspector-enum-options-blank).
 - Builder side (Save as template, Linked instance, Fork, Edit template, palette Templates group) is in `builder/a-group-saved-as-a-template-is-linked-read-only-and-forkable`.
 
 ## How to get to it (user POV)

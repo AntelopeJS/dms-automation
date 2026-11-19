@@ -19,6 +19,7 @@ docs:
 
 - `every-built-in-credential-name-is-stored-redacted-whatever-its-case`: 34 credential names and 19 near misses through headers and query, stored payload, API, trace, last payload, the ledger.
 - `a-trigger-event-keeps-its-headers-and-query-redacted-like-run-now`: the same through the fixture event trigger.
+- `a-webhook-call-is-stored-with-its-credentials-redacted`: the same through a real webhook call: stored payload, last payload, the full value in the run, the trace's Payload tab.
 - `runs-sensitive-names-add-to-the-built-in-credential-names`: `runs.sensitiveNames`, case-insensitive containing match, older runs read redacted, re-run confirmation names.
 - `a-credential-a-step-copied-into-its-log-is-not-stored`: the whole value, the token after the scheme, cookie values, the 6-character minimum.
 - `runs-older-than-the-retention-are-deleted-when-the-module-starts`: default 30 days, 7, 0, around the boundary.
