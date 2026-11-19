@@ -7,6 +7,7 @@ import { withProcedures } from "./triggers-common.mjs";
 export const storedJourneys = [
   {
     id: "an-unparseable-stored-graph-is-refused-with-400-by-invoke-and-run",
+    integration: true,
     title: "InvokeProcedure and RunProcedure reject with 400 for a stored graph that cannot be parsed, as does the Run now route, and store no run",
     entryPoint: "InvokeProcedure, RunProcedure, POST /procedures/:id/run-now",
     async run(/** @type {Ctx} */ ctx) {

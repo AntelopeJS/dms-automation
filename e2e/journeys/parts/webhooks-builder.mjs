@@ -9,6 +9,7 @@ const PATH = "/webhooks/commande-recue";
 export const webhookBuilderJourneys = [
   {
     id: "a-webhook-set-up-in-the-builder-answers-once-it-is-saved-enabled",
+    tag: "@smoke",
     title: "a procedure created with A webhook is called gets its Path in the builder's inspector, which shows the URL to call; the path answers nothing until the procedure is saved with the Enabled switch on, then a call starts a run with the request as payload, listed under Recent runs",
     entryPoint: "POST /procedures/new, /modules/automation/builder, inspector Path, Enabled, Save, POST /webhooks/...",
     async run(/** @type {Ctx} */ ctx) {

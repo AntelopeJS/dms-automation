@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { auto, check, fixture, isRow, list, num, parseJson, pick, same, text } from "../auto.mjs";
 import { action, clearLedger, createEnabled, data, dedge, graph, ledger, runNow, runsOfProcedure, tedge, trigger, until, withConfig } from "../procs.mjs";
 import { CREDENTIAL_NAMES, PLAIN_NAMES } from "./parts/redaction-names.mjs";
@@ -42,9 +42,10 @@ function groups(names, sensitive) {
   return { sent, stored };
 }
 
-export const journeys = guarded([
+const all = guarded([
   {
     id: "every-built-in-credential-name-is-stored-redacted-whatever-its-case",
+    integration: true,
     title: "a run keeps the headers and query parameters of its trigger except the value of a credential: the exact names, the names containing token, secret, signature, hmac, password, passwd, session, apikey, api-key, api_key, accesskey, access-key or access_key, the names starting x-auth or ending -key or _key, compared case-insensitively, are stored, shown and replayed as [redacted] and every other name keeps its value",
     entryPoint: "POST /procedures/:id/run-now, GET /runs/:id, GET /procedures/:id/last-payload",
     async run(/** @type {Ctx} */ ctx) {
@@ -76,6 +77,7 @@ export const journeys = guarded([
   },
   {
     id: "a-trigger-event-keeps-its-headers-and-query-redacted-like-run-now",
+    integration: true,
     title: "a payload that comes from a trigger event with headers and a query is stored with the credentials redacted while the run receives them in full",
     entryPoint: "POST /verify-auto/emit, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -98,6 +100,7 @@ export const journeys = guarded([
   },
   {
     id: "runs-sensitive-names-add-to-the-built-in-credential-names",
+    integration: true,
     title: "runs.sensitiveNames adds names: a header or query parameter whose name contains one of the strings, compared case-insensitively, is redacted too, the built-in names still apply, and a run stored before the name was added reads redacted with its payload, error and log scrubbed",
     entryPoint: "runs.sensitiveNames, GET /runs/:id, GET /runs/:id/logs, GET /runs/:id/rerun-confirm",
     async run(/** @type {Ctx} */ ctx) {
@@ -142,3 +145,5 @@ export const journeys = guarded([
   ...retentionJourneys,
   ...logCapJourneys,
 ]);
+
+export const { journeys, integration } = byRunner(all);

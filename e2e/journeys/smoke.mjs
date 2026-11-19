@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { auto, check, flag, list, pick, same, text } from "../auto.mjs";
 import { createProcedure, logsOf, manualLog, messages, runNow, runOf, stepsOf, statusIs } from "../procs.mjs";
 
@@ -7,7 +7,7 @@ import { createProcedure, logsOf, manualLog, messages, runNow, runOf, stepsOf, s
 const MESSAGE = "Hello from my first procedure";
 
 /** The fixed journey every verdict runs: the Builder page's "A two-step procedure". */
-export const journeys = guarded([
+const all = guarded([
   {
     id: "a-manual-trigger-and-a-log-action-run-and-are-traced",
     tag: "@smoke",
@@ -47,3 +47,5 @@ export const journeys = guarded([
     },
   },
 ]);
+
+export const { journeys, integration } = byRunner(all);

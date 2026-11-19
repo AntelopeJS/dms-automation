@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { COMPARE_CASES, COMPARE_FAILURES, CONSTANT_CASES, LOGIC_CASES, MATH_CASES, MATH_FAILURES } from "./parts/data-cases-a.mjs";
 import { JSON_CASES, OBJECT_CASES, TEXT_CASES } from "./parts/data-cases-b.mjs";
 import { cycleChecks, customDataChecks, typeListChecks, wiringChecks } from "./parts/data-wiring.mjs";
@@ -23,9 +23,10 @@ async function drive(ctx, cases, failures = []) {
 
 const ENTRY = "POST /procedures/import, POST /procedures/:id/run-now, GET /runs/:id";
 
-export const journeys = guarded([
+const all = guarded([
   {
     id: "constants-emit-their-typed-value-or-the-default-of-their-type",
+    integration: true,
     title: "Text, Number, True or false and JSON constants emit the value typed into them, and the default of their type when saved without one: empty text, 0, false, null",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -34,6 +35,7 @@ export const journeys = guarded([
   },
   {
     id: "math-nodes-compute-and-fail-by-name",
+    integration: true,
     title: "Math nodes add, subtract, multiply, divide, take remainders, powers, min, max, sign, rounding and roots of numbers, written as text too; division by 0 gives an empty value, anything else that is not a number fails the step by name",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -42,6 +44,7 @@ export const journeys = guarded([
   },
   {
     id: "comparison-nodes-compare-numbers-text-and-kinds",
+    integration: true,
     title: "Comparison nodes compare numbers written as text as numbers (5 equals 5, 10 is greater than 9), text alphabetically, and an empty value or a boolean only equals itself; number mode fails on a value that is not a number",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -50,6 +53,7 @@ export const journeys = guarded([
   },
   {
     id: "logic-nodes-read-false-0-and-empty-text-as-false",
+    integration: true,
     title: "And, Or, Exactly one and Not read the texts false, 0 and empty text, whatever their case and spaces, as false",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -58,6 +62,7 @@ export const journeys = guarded([
   },
   {
     id: "text-nodes-count-characters-as-a-reader-does",
+    integration: true,
     title: "Text nodes join, measure, cut, change the case of, trim, split, replace in and search text, counting an emoji or an accented letter as one character",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -66,6 +71,7 @@ export const journeys = guarded([
   },
   {
     id: "object-nodes-read-and-write-fields-by-path",
+    integration: true,
     title: "Object nodes read a field by a path like customer.email (an empty value when missing), set one on a copy, list field names and values, and merge two objects where b wins",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -74,6 +80,7 @@ export const journeys = guarded([
   },
   {
     id: "json-nodes-read-and-write-json-text",
+    integration: true,
     title: "Read JSON turns JSON text into a value and gives an empty value when it is not valid; Write JSON turns a value into JSON text, pretty adding line breaks",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -82,6 +89,7 @@ export const journeys = guarded([
   },
   {
     id: "data-edges-feed-fields-over-their-settings-and-defaults",
+    integration: true,
     title: "A field takes its schema default, then its setting, then the value wired from a data node, an action or the trigger payload; data nodes chain, and one read twice is computed once",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -90,6 +98,7 @@ export const journeys = guarded([
   },
   {
     id: "a-cycle-of-data-nodes-is-refused-naming-the-nodes",
+    integration: true,
     title: "Data nodes wired in a cycle are refused, the problem naming the nodes",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -98,6 +107,7 @@ export const journeys = guarded([
   },
   {
     id: "the-library-lists-every-built-in-data-node-with-its-ports",
+    integration: true,
     title: "The data node types are Constants, Math, Comparison, Logic, Text, Objects and JSON, each with the ports and settings the docs name",
     entryPoint: "GET /data-node-types",
     async run(/** @type {Ctx} */ ctx) {
@@ -106,6 +116,7 @@ export const journeys = guarded([
   },
   {
     id: "a-module-data-node-applies-defaults-merges-settings-and-must-return-an-object",
+    integration: true,
     title: "A data node from a module gets the default of its schema under its configured values, merges its settings into the evaluation, and fails the step that reads it when it throws or does not return an object",
     entryPoint: ENTRY + ", POST /verify-auto/types/unregister",
     async run(/** @type {Ctx} */ ctx) {
@@ -122,3 +133,5 @@ export const journeys = guarded([
     },
   },
 ]);
+
+export const { journeys, integration } = byRunner(all);

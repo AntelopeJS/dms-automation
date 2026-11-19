@@ -18,10 +18,12 @@
     "test": "pnpm --dir packages/dms-automation test",
     "suppressions": "antelopejs-suppressions",
     "suppressions:update": "antelopejs-suppressions --update",
-    "e2e": "playwright test -c e2e"
+    "e2e": "playwright test -c e2e",
+    "e2e:build": "pnpm run build && ln -sfn ../../../../packages/dms-automation/node_modules .agents/skills/verify-dms-automation/playground/node_modules && packages/dms-automation/node_modules/.bin/tsc -p .agents/skills/verify-dms-automation/playground/tsconfig.build.json",
+    "test:journeys": "node --test --test-isolation=none e2e/integration/*.journeys.test.mjs"
   },
   "devDependencies": {
-    "@antelopejs/dms": ">=0.21.0 <0.22.0",
+    "@antelopejs/dms": "0.21.4-next.941.gfbafd9a",
     "@antelopejs/tooling-configs": ">=0.8.9 <0.9.0",
     "@playwright/test": "~1.65.0",
     "@types/node": "^24.0.0",

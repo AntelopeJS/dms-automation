@@ -8,6 +8,7 @@ import { actionNode, chainGraph, defineType, invokeProcedure, runProcedure, step
 export const contractJourneys = [
   {
     id: "run-now-triggers-invoke-and-run-always-call-execute",
+    integration: true,
     title: "Run now, a trigger's emit, InvokeProcedure and RunProcedure always call execute, never dryRun, and ctx.dryRun is false",
     entryPoint: "POST /procedures/:id/run-now, InvokeProcedure, RunProcedure, emit",
     async run(/** @type {Ctx} */ ctx) {
@@ -59,6 +60,7 @@ export const contractJourneys = [
   },
   {
     id: "a-test-run-follows-the-sideeffects-and-dryrun-declarations",
+    integration: true,
     title: "a test run calls dryRun instead of execute, runs sideEffects:false actions as is (even with a dryRun), executes the rest for real after the user confirmed, and ctx.dryRun is true throughout",
     entryPoint: "POST /procedures/:id/test-effects, POST /procedures/:id/test, ctx.dryRun",
     async run(/** @type {Ctx} */ ctx) {

@@ -11,6 +11,7 @@ import { pause, readTemplate, nestingSubgraph, nestedGroups } from "./templates-
 export const templatesJourneys2 = [
   {
     id: "a-template-with-broken-ports-or-graph-is-refused-whole",
+    integration: true,
     title: "duplicate ports, a nameless port, an unknown node kind, a data field with two sources, a trigger loop and groups nested more than 20 deep are refused with 400 and the documented text; 20 levels are accepted; nothing is stored by a refusal",
     entryPoint: "POST /templates, PUT /templates/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -61,6 +62,7 @@ export const templatesJourneys2 = [
   },
   {
     id: "the-list-pages-newest-edit-first-and-counts-each-owner-once",
+    integration: true,
     title: "GET /templates lists templates by last edit, newest first, in pages of up to 1000; usageCount counts each procedure or template placing one once however many times; bad page values answer 400",
     entryPoint: "GET /templates?page&limit",
     async run(/** @type {Ctx} */ ctx) {
@@ -115,6 +117,7 @@ export const templatesJourneys2 = [
   },
   {
     id: "a-template-reference-cycle-is-refused",
+    integration: true,
     title: "a template that would place itself, directly or through other templates, is refused with 400 template reference cycle and the path of template ids; the stored templates stay as they were",
     entryPoint: "PUT /templates/:id",
     async run(/** @type {Ctx} */ ctx) {

@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { armingJourneys } from "./parts/interface-contract-arming.mjs";
 import { contractJourneys } from "./parts/interface-contract.mjs";
 import { moreContractJourneys } from "./parts/interface-contract-more.mjs";
@@ -12,4 +12,6 @@ import { runJourneys } from "./parts/interface-runs.mjs";
 import { moreTypeJourneys } from "./parts/interface-types-more.mjs";
 import { typeJourneys } from "./parts/interface-types.mjs";
 
-export const journeys = guarded([...typeJourneys, ...moreTypeJourneys, ...runJourneys, ...moreRunJourneys, ...declareJourneys, ...keepJourneys, ...startJourneys, ...contractJourneys, ...moreContractJourneys, ...armingJourneys, ...queueJourneys, ...storedJourneys]);
+const all = guarded([...typeJourneys, ...moreTypeJourneys, ...runJourneys, ...moreRunJourneys, ...declareJourneys, ...keepJourneys, ...startJourneys, ...contractJourneys, ...moreContractJourneys, ...armingJourneys, ...queueJourneys, ...storedJourneys]);
+
+export const { journeys, integration } = byRunner(all);

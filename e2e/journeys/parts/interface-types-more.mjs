@@ -115,6 +115,7 @@ async function checkDataNodeDefaults(ctx) {
 export const moreTypeJourneys = [
   {
     id: "a-type-unregistered-during-a-run-fails-its-step",
+    integration: true,
     title: "a step fails, and the run with it, when its type is unregistered after the run started",
     entryPoint: "UnregisterActionType during RunProcedure, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -151,6 +152,7 @@ export const moreTypeJourneys = [
   },
   {
     id: "schema-defaults-apply-under-configured-values",
+    integration: true,
     title: "the runtime applies each property's `default` under the node's configured values, for actions and data nodes, falsy defaults included",
     entryPoint: "RegisterActionType inputSchema default, RegisterDataNodeType default, POST /procedures/:id/run-now, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -202,6 +204,7 @@ export const moreTypeJourneys = [
   },
   {
     id: "json-values-reach-the-run-unchanged",
+    integration: true,
     title: "a trigger payload, an action output, a data node output and a ctx.log value are JSON: accents, CJK, emoji, nested arrays, null and false arrive unchanged",
     entryPoint: "InvokeProcedure(id, payload), RunProcedure(id, { payload }), ctx.log(level, message, value), GET /runs/:id, GET /runs/:id/logs",
     async run(/** @type {Ctx} */ ctx) {

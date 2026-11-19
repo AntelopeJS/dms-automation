@@ -9,6 +9,7 @@ import { byId, times } from "./interface-types-shared.mjs";
 export const typeJourneys = [
   {
     id: "registered-types-are-listed-with-their-definition",
+    integration: true,
     title: "ListTriggerTypes, ListActionTypes and ListDataNodeTypes return what modules registered, the library shows each with its module, name, description, icon and schemas, and the built-ins are there",
     entryPoint: "RegisterTriggerType, RegisterActionType, RegisterDataNodeType, List*Types, GET /trigger-types, /action-types, /data-node-types",
     async run(/** @type {Ctx} */ ctx) {
@@ -111,6 +112,7 @@ export const typeJourneys = [
   },
   {
     id: "a-colliding-id-replaces-the-definition",
+    integration: true,
     title: "registering an id twice keeps one node, the second definition, for triggers, actions and data nodes",
     entryPoint: "RegisterActionType, RegisterDataNodeType, RegisterTriggerType, GET /action-types, /data-node-types, /trigger-types",
     async run(/** @type {Ctx} */ ctx) {
@@ -190,6 +192,7 @@ export const typeJourneys = [
   },
   {
     id: "a-removed-type-leaves-saved-graphs-and-run-history",
+    integration: true,
     title: "the unregister functions remove the declaration only: the saved graph and the run history stay, and a run of that graph is refused or fails until the type is registered again",
     entryPoint: "UnregisterActionType, UnregisterDataNodeType, RunProcedure, InvokeProcedure, GET /procedures/:id, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {

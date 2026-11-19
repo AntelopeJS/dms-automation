@@ -12,6 +12,7 @@ import { byText } from "./overview-page.mjs";
 export const templatesJourneys1 = [
   {
     id: "a-saved-template-reads-back-exactly-in-every-view",
+    integration: true,
     title: "a template saved with a name, description, icon, ports and a subgraph (unicode included) reads back identical from the create answer, GET one and the list, with usageCount 0; an edit keeps created_at and moves updated_at",
     entryPoint: "POST /templates, GET /templates/:id, GET /templates, PUT /templates/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -75,6 +76,7 @@ export const templatesJourneys1 = [
   },
   {
     id: "template-names-are-unique-whatever-their-case",
+    integration: true,
     title: "a second template with the same name in any case, trimmed, or with accents in another case is refused with 409 name-taken; a template may be saved under its own name; a deleted template frees its name",
     entryPoint: "POST /templates, PUT /templates/:id, DELETE /templates/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -115,6 +117,7 @@ export const templatesJourneys1 = [
   },
   {
     id: "template-fields-have-limits-and-defaults",
+    integration: true,
     title: "a template name is 1-200 characters after trimming, a description at most 2000, an icon is empty or i-<set>-<name> in lower case; each refusal is a 400 invalid body that names the field",
     entryPoint: "POST /templates",
     async run(/** @type {Ctx} */ ctx) {

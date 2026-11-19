@@ -12,6 +12,7 @@ import { byText } from "./overview-page.mjs";
 export const templatesJourneys3 = [
   {
     id: "usages-name-every-procedure-and-template-placing-a-template",
+    integration: true,
     title: "GET /templates/:id/usages lists each placement with its procedure or template id, node id and the ids of the local groups around it, outermost first; it follows renames, nesting and deletions",
     entryPoint: "GET /templates/:id/usages",
     async run(/** @type {Ctx} */ ctx) {
@@ -74,6 +75,7 @@ export const templatesJourneys3 = [
   },
   {
     id: "editing-a-template-changes-every-procedure-placing-it",
+    integration: true,
     title: "an edit of a template changes what each procedure placing it runs, moves their version on, marks their earlier runs as older, and leaves procedures that do not place it alone",
     entryPoint: "PUT /templates/:id, POST /procedures/:id/run-now, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -121,6 +123,7 @@ export const templatesJourneys3 = [
   },
   {
     id: "deleting-a-used-template-needs-force-and-forks-every-usage",
+    integration: true,
     title: "DELETE of a template placed somewhere answers 409 in-use with the placements; only force=1 or force=true forks every usage into a local group holding a copy of the template and keeping its own name or taking the template's, then deletes it and answers how many were forked",
     entryPoint: "DELETE /templates/:id[?force], GET /procedures/:id, GET /templates/:id",
     async run(/** @type {Ctx} */ ctx) {

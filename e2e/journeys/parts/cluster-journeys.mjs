@@ -92,6 +92,7 @@ async function standaloneBoot(ctx, lines, label) {
 export const clusterJourneys = [
   {
     id: "cluster-driver-auto-runs-standalone-without-redis",
+    integration: true,
     title: "by default, and with cluster.driver auto, the module runs standalone when no module provides @antelopejs/interface-redis: it logs `cluster mode: standalone (memory)` and this instance owns every trigger, singleton ones included",
     entryPoint: "backend log at start, cluster.driver unset and auto, verify.leader-event",
     async run(/** @type {Ctx} */ ctx) {
@@ -119,6 +120,7 @@ export const clusterJourneys = [
   },
   {
     id: "cluster-driver-memory-runs-standalone-and-says-nothing-more",
+    integration: true,
     title: "cluster.driver memory is standalone: it logs `cluster mode: standalone (memory)` and no warning",
     entryPoint: "backend log at start, cluster.driver memory",
     async run(/** @type {Ctx} */ ctx) {
@@ -143,6 +145,7 @@ export const clusterJourneys = [
   },
   {
     id: "cluster-driver-redis-without-the-interface-warns-and-runs-standalone",
+    integration: true,
     title: "cluster.driver redis with no module providing @antelopejs/interface-redis logs a warning and runs standalone",
     entryPoint: "backend log at start, cluster.driver redis",
     async run(/** @type {Ctx} */ ctx) {
@@ -225,6 +228,7 @@ export const clusterJourneys = [
   },
   {
     id: "the-leadership-numbers-in-the-docs-are-the-ones-of-the-code",
+    integration: true,
     title: "the 30-second lock TTL, the 10-second renew interval and the hourly purge the cluster docs and the FAQ state are what the leader and the retention code use",
     entryPoint: "docs/3.configuration.md Clustering, docs/6.faq.md against src/cluster/leader.ts and src/runtime/retention.ts",
     async run(/** @type {Ctx} */ ctx) {

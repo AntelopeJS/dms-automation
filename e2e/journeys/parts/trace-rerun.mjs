@@ -32,6 +32,7 @@ export const executed = (/** @type {Record<string, unknown>[]} */ entries) => en
 export const rerunJourneys = [
   {
     id: "a-re-run-runs-the-current-saved-graph-with-the-stored-payload",
+    integration: true,
     title: "Re-run runs the procedure's current saved graph, not a historical copy, from the same trigger with the original payload, and is stored as a Re-run of that run; a second re-run of the same run within moments is refused",
     entryPoint: "POST /runs/:id/rerun",
     async run(/** @type {Ctx} */ ctx) {
@@ -63,6 +64,7 @@ export const rerunJourneys = [
   },
   {
     id: "a-re-run-of-a-paused-procedure-runs-once-and-a-failed-one-warns",
+    integration: true,
     title: "a paused procedure still runs once on Re-run and stays paused, the confirmation says so, and a re-run that fails answers with a warning",
     entryPoint: "GET /runs/:id/rerun-confirm, POST /runs/:id/rerun",
     async run(/** @type {Ctx} */ ctx) {
@@ -205,6 +207,7 @@ export const rerunJourneys = [
   },
   {
     id: "a-re-run-of-a-test-runs-the-draft-again-and-is-stored-as-a-test",
+    integration: true,
     title: "Re-run of a test runs again the draft that test ran, not the saved graph, stores it as a test, and its confirmation (Run this test again?) names the steps that act for real",
     entryPoint: "GET /runs/:id/rerun-confirm, POST /runs/:id/rerun",
     async run(/** @type {Ctx} */ ctx) {

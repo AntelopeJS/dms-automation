@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { ACTION_ENTRIES, openLibrary, showEntries } from "./parts/runtime-library-wording.mjs";
 import { contextChecks, logChecks, outputChecks, throwChecks, typeStateChecks } from "./parts/actions-core.mjs";
 
@@ -13,9 +13,10 @@ import { defaultTimeoutChecks, excerptChecks, limitChecks, networkChecks, status
 const ENTRY = "POST /procedures/import, POST /procedures/:id/run-now, GET /runs/:id, GET /runs/:id/logs";
 const HTTP_ENTRY = "POST /procedures/import, POST /procedures/:id/run-now, GET /runs/:id, GET /verify-auto/sink";
 
-export const journeys = guarded([
+const all = guarded([
   {
     id: "log-writes-its-message-and-value-to-the-run-and-the-server-log",
+    integration: true,
     title: "Log writes its message and an optional structured value at info, warn or error (info by default) to the run's Logs and to the backend log, and hands both on as its output",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -24,6 +25,7 @@ export const journeys = guarded([
   },
   {
     id: "an-action-sees-its-ids-and-logs-through-ctx",
+    integration: true,
     title: "An action receives procedureId, runId, nodeId and dryRun in its execution context, and ctx.log records the level, message and JSON value against its node",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -32,6 +34,7 @@ export const journeys = guarded([
   },
   {
     id: "an-action-resolves-with-an-object-or-nothing",
+    integration: true,
     title: "An action that resolves with an object makes its fields available downstream, one that resolves with nothing leaves the step without output, anything else (an array, a text) fails the step",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -40,6 +43,7 @@ export const journeys = guarded([
   },
   {
     id: "a-throw-fails-the-step-whatever-was-thrown",
+    integration: true,
     title: "An action that throws fails its step and the run with the error's message; a thrown text, number, object, null, undefined, empty text or list reads as its text",
     entryPoint: ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -48,6 +52,7 @@ export const journeys = guarded([
   },
   {
     id: "a-step-of-a-disabled-or-unregistered-action-type-fails",
+    integration: true,
     title: "A step whose action type is disabled in the library fails with \"action type is disabled in the library\"; one whose type is not registered is refused with the node and the type named",
     entryPoint: "PUT /action-types/:id/config, " + ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -65,6 +70,7 @@ export const journeys = guarded([
   },
   {
     id: "http-request-sends-the-method-headers-and-body-it-is-given",
+    integration: true,
     title: "HTTP request sends GET, POST, PUT, DELETE or PATCH (GET by default) with its headers; an object body goes as JSON, a text body as it is, and GET ignores a body with a warning",
     entryPoint: HTTP_ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -73,6 +79,7 @@ export const journeys = guarded([
   },
   {
     id: "http-request-hands-on-status-headers-body-and-parsed-json",
+    integration: true,
     title: "HTTP request outputs the status, the headers, the body as text and the body parsed when the server says it is JSON; credentials in headers are masked in the run",
     entryPoint: HTTP_ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -81,6 +88,7 @@ export const journeys = guarded([
   },
   {
     id: "http-request-publishes-its-fields-and-defaults",
+    integration: true,
     title: "HTTP request has the URL as its only required field, GET as default method, a 30000 ms timeout between 1 and 300000, fail on status on by default",
     entryPoint: "GET /action-types",
     async run(/** @type {Ctx} */ ctx) {
@@ -89,6 +97,7 @@ export const journeys = guarded([
   },
   {
     id: "http-request-fails-outside-200-299-and-says-what-to-check",
+    integration: true,
     title: "HTTP request fails the step on a status outside 200-299 with the request, the status, a hint and the start of the response; failOnStatus off hands the status over instead",
     entryPoint: HTTP_ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -98,6 +107,7 @@ export const journeys = guarded([
   },
   {
     id: "http-request-says-in-words-why-it-got-no-answer",
+    integration: true,
     title: "HTTP request says in words when a port is closed, a host is unknown, a connection is cut or the timeout passed",
     entryPoint: HTTP_ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -106,6 +116,7 @@ export const journeys = guarded([
   },
   {
     id: "http-request-refuses-urls-and-headers-it-cannot-use",
+    integration: true,
     title: "HTTP request refuses an empty or invalid URL, a scheme other than http and https, and headers that are not an object of names and values",
     entryPoint: HTTP_ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -114,6 +125,7 @@ export const journeys = guarded([
   },
   {
     id: "http-request-caps-the-timeout-at-5-minutes-and-the-response-at-2-mb",
+    integration: true,
     title: "A response of 2 MB is accepted and one byte more is refused, a timeout above 5 minutes is capped and the run log says so",
     entryPoint: HTTP_ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -122,6 +134,7 @@ export const journeys = guarded([
   },
   {
     id: "http-request-waits-30-seconds-by-default",
+    integration: true,
     title: "A request with no timeoutMs waits 30 seconds for the answer",
     entryPoint: HTTP_ENTRY,
     async run(/** @type {Ctx} */ ctx) {
@@ -130,6 +143,7 @@ export const journeys = guarded([
   },
   {
     id: "block-private-network-refuses-every-internal-address-range",
+    integration: true,
     title: "With httpRequest.blockPrivateNetwork on, a request to loopback, unspecified, private, carrier-grade NAT, link-local, multicast, reserved or NAT64-embedded addresses fails naming the host and the address, and addresses next to those ranges are let through",
     entryPoint: "VERIFY_AUTO_BLOCK_PRIVATE=1, POST /procedures/:id/run-now, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -142,3 +156,5 @@ export const journeys = guarded([
     },
   },
 ]);
+
+export const { journeys, integration } = byRunner(all);

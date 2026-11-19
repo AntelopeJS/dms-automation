@@ -11,6 +11,7 @@ import { dialogText, flat, innerOf, openDialog, openPage, rowsWhen, tableRows } 
 export const journeys = [
   {
     id: "new-procedure-dialog-creates-a-disabled-draft-and-opens-the-builder",
+    tag: "@smoke",
     title: "New procedure asks for a name, what starts it (A webhook is called, On a schedule, I run it) and a description, and Create and open the builder makes a disabled draft with the trigger in place",
     entryPoint: "/modules/automation/procedures, New procedure",
     async run(/** @type {Ctx} */ ctx) {

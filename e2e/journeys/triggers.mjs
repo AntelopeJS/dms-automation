@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { auto, check, fixture, list, pick, same, text } from "../auto.mjs";
 import { clearLedger, createProcedure, ledger, manualLog, runsOfProcedure, statusIs } from "../procs.mjs";
 import { emit, enabledProcedure, ofKind, payloadOf, runDetail, runsUntil, saveGraph, summaryOf, summaryUntil, triggerGraph, eventGraph } from "./parts/triggers-common.mjs";
@@ -6,9 +6,10 @@ import { lifecycleJourneys } from "./parts/triggers-lifecycle.mjs";
 
 /** @typedef {import("../auto.mjs").Ctx} Ctx */
 
-export const journeys = guarded([
+const all = guarded([
   {
     id: "a-replicated-trigger-starts-a-run-with-the-payload-it-emits",
+    integration: true,
     title: "a replicated trigger (the module's Webhook and Manual are replicated; a module's own type is declared so) is armed with its settings, and each emit starts one run per armed procedure with the emitted JSON as payload, the trigger's output and the run's stored payload",
     entryPoint: "RegisterTriggerType (verify.event), POST /verify-auto/emit, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -199,3 +200,5 @@ export const journeys = guarded([
   },
   ...lifecycleJourneys,
 ]);
+
+export const { journeys, integration } = byRunner(all);

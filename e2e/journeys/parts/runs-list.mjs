@@ -23,6 +23,7 @@ async function failingProcedure(ctx, name, label) {
 export const listJourneys = [
   {
     id: "the-run-list-serves-pages-of-25-newest-first",
+    integration: true,
     title: "the Run history lists every run of every procedure, newest first, 25 to a page, with the total",
     entryPoint: "GET /tables/runs/list, GET /tables/runs/count",
     async run(/** @type {Ctx} */ ctx) {
@@ -49,6 +50,7 @@ export const listJourneys = [
   },
   {
     id: "the-tabs-and-filters-narrow-the-list-by-outcome-kind-and-procedure",
+    integration: true,
     title: "the tabs Failed, Succeeded and Tests, the Kind and Procedure filters and the Outcome filter narrow the list to exactly the matching runs",
     entryPoint: "GET /tables/runs/list?filter_status=..., filter_kind=..., filter_procedureId=...",
     async run(/** @type {Ctx} */ ctx) {
@@ -89,6 +91,7 @@ export const listJourneys = [
   },
   {
     id: "search-finds-procedures-errors-steps-paths-and-run-ids",
+    integration: true,
     title: "the search of the Run history matches the procedure name, the error, the failed step's name, the trigger path and the run id or the start of it, case-insensitively",
     entryPoint: "GET /tables/runs/list?search=...",
     async run(/** @type {Ctx} */ ctx) {
@@ -114,6 +117,7 @@ export const listJourneys = [
   },
   {
     id: "view-runs-opens-the-list-on-one-procedure-with-a-banner",
+    integration: true,
     title: "?procedure=<id> names the procedure in a banner with Show all runs, says the figures count every procedure, still names a deleted procedure, and says nothing for an empty or unknown id",
     entryPoint: "GET /runs/scope/banner, /modules/automation/runs?procedure=",
     async run(/** @type {Ctx} */ ctx) {
@@ -139,6 +143,7 @@ export const listJourneys = [
   },
   {
     id: "runs-are-stored-with-the-columns-the-list-draws",
+    integration: true,
     title: "each run carries its start, outcome, procedure, trigger words, failed step, duration, kind, trigger type, end time, re-run origin and version; a version older than the saved one reads v1 · now v2",
     entryPoint: "GET /tables/runs/list, PUT /procedures/:id",
     async run(/** @type {Ctx} */ ctx) {

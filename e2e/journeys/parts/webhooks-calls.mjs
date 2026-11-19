@@ -8,7 +8,7 @@ import { callWebhook, enabledProcedure, payloadRow, runDetail, runsUntil, saveGr
 export const callJourneys = [
   {
     id: "a-called-webhook-starts-a-run-with-its-method-headers-query-body-and-params",
-    tag: "@smoke",
+    integration: true,
     title: "a webhook call answers {\"ok\":true}, starts a run whose payload holds the method, the headers, the query (a repeated key as a list), the body (JSON, form, or text) and the :param values, and the payload is the trigger's output, the run's stored payload and the procedure's last payload",
     entryPoint: "POST /webhooks/..., GET /runs/:id, GET /procedures/:id/last-payload",
     async run(/** @type {Ctx} */ ctx) {
@@ -90,6 +90,7 @@ export const callJourneys = [
   },
   {
     id: "each-webhook-method-answers-and-the-method-is-in-the-payload",
+    integration: true,
     title: "a webhook answers the method set on its trigger (POST by default) and the run's payload carries it; a text body wired to a step reaches it exactly",
     entryPoint: "POST|GET|PUT|DELETE|PATCH /webhooks/..., GET /runs/:id/logs",
     async run(/** @type {Ctx} */ ctx) {
@@ -143,6 +144,7 @@ export const callJourneys = [
   },
   {
     id: "a-webhook-answers-only-while-its-procedure-is-enabled-and-follows-its-edits",
+    integration: true,
     title: "a webhook answers 200 while its procedure is enabled and nothing once it is paused, deleted or edited away from that path or method; an enabled webhook still answers after the backend restarts and a paused one does not",
     entryPoint: "PUT /procedures/:id/enabled, PUT /procedures/:id, DELETE /procedures/:id, POST /webhooks/...",
     async run(/** @type {Ctx} */ ctx) {

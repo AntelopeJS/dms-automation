@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { auto, list, pick, same, text } from "../auto.mjs";
 import { action, createProcedure, graph, statusIs, tedge, trigger } from "../procs.mjs";
 import { enabledProcedure, issueLines, issuesOf, saveGraph, webhookGraph } from "./parts/triggers-common.mjs";
@@ -17,9 +17,10 @@ const VALID_PATHS = ["/a", "/", "/webhooks/x", "/a-b.c_d~e:f/g", "/a/b/", " /a "
 const INVALID_PATHS = ["a", "webhooks/x", "/a b", "/a//b", "//a", "/a/./b", "/./a", "/a/.", "/a/..", "/..", "/.", "/a/../b", "/é", "/日本", "/a?b=1", "/a#b", "/a%20b", "/a\\b", "/a*b", "/a@b", "/a😀", "/a,b", "/a;b", "/a(b)", "/a+b", "/a=b", "/a&b", "/a'b", "/a\"b", "/a\tb"];
 const RESERVED_PATHS = ["/api", "/api/x", "/api/", "/auth", "/auth/login", "/dms", "/dms/x", "/modules", "/modules/automation/overview", "/settings", "/settings/a/b", "/API/x"];
 
-export const journeys = guarded([
+const all = guarded([
   {
     id: "webhook-paths-follow-the-documented-rules",
+    integration: true,
     title: "a webhook path must start with / and use only letters, digits and - . _ ~ : /, hold no empty, . or .. segment and not be /api, /auth, /dms, /modules or /settings or sit under one; an invalid path is refused when enabling with the documented message",
     entryPoint: "POST /procedures/validate, POST /procedures/import, PUT /procedures/:id/enabled",
     async run(/** @type {Ctx} */ ctx) {
@@ -66,6 +67,7 @@ export const journeys = guarded([
   },
   {
     id: "a-webhook-on-the-same-route-as-an-enabled-procedure-is-refused",
+    integration: true,
     title: "a webhook is refused when another enabled procedure has a webhook with the same method on the same path (a trailing slash makes no difference), a paused procedure frees its path, and a duplicate moves its webhooks to free paths",
     entryPoint: "POST /procedures/validate, PUT /procedures/:id/enabled, POST /procedures/:id/duplicate",
     async run(/** @type {Ctx} */ ctx) {
@@ -144,6 +146,7 @@ export const journeys = guarded([
   },
   {
     id: "a-webhook-on-a-route-the-server-already-serves-is-refused",
+    integration: true,
     title: "a webhook is refused when a route the server already serves answers the same method on the same path, with a :param segment standing for any segment",
     entryPoint: "POST /procedures/validate, PUT /procedures/:id/enabled",
     async run(/** @type {Ctx} */ ctx) {
@@ -181,3 +184,5 @@ export const journeys = guarded([
   ...pageJourneys,
   ...webhookBuilderJourneys,
 ]);
+
+export const { journeys, integration } = byRunner(all);

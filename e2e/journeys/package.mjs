@@ -1,4 +1,6 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { runJourneys } from "./parts/package-run.mjs";
 
-export const journeys = guarded(runJourneys);
+const all = guarded(runJourneys);
+
+export const { journeys, integration } = byRunner(all);

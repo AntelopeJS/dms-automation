@@ -98,6 +98,7 @@ async function checkFailedDeactivates(ctx) {
 export const armingJourneys = [
   {
     id: "unregistering-a-trigger-type-deactivates-its-handles-and-a-let-go-handle-starts-no-run",
+    integration: true,
     title: "removing a trigger type calls deactivate on its active handles before the unregister call returns; a handle let go starts no run even if its trigger still emits; registering the type again re-arms",
     entryPoint: "UnregisterTriggerType, POST /verify-auto/emit, GET /procedures",
     async run(/** @type {Ctx} */ ctx) {
@@ -204,6 +205,7 @@ export const armingJourneys = [
   },
   {
     id: "an-arming-failure-is-not-a-registration-error-and-the-next-reconcile-retries",
+    integration: true,
     title: "a trigger whose activate throws or never settles is an arming failure (the procedure shows the reason, the declaration succeeds), activate gets 10 seconds, the next reconcile retries, and a failed deactivate keeps the handle for a later retry",
     entryPoint: "TriggerType.activate throwing or hanging, TriggerType.deactivate throwing, GET /procedures",
     async run(/** @type {Ctx} */ ctx) {

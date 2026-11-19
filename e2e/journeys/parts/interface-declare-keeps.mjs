@@ -108,6 +108,7 @@ async function declareBeforeTypesExist(ctx) {
 export const keepJourneys = [
   {
     id: "declare-procedure-creates-once-and-keeps-what-users-did",
+    integration: true,
     title: 'DeclareProcedure stores a procedure once under its id (version 1, the declared graph, name and description) and answers "kept" afterwards, whatever the declaration says; a user\'s edit, pause and deletion decide',
     entryPoint: "DeclareProcedure(declaration), GET /procedures/:id, PUT /procedures/:id, PUT /procedures/:id/enabled, DELETE /procedures/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -184,6 +185,7 @@ export const keepJourneys = [
   },
   {
     id: "declare-procedure-warns-about-a-duplicate-name-without-blocking",
+    integration: true,
     title: "another procedure with the same name adds a warning to issues and does not block the declaration",
     entryPoint: "DeclareProcedure({ name }), issues",
     async run(/** @type {Ctx} */ ctx) {
@@ -213,6 +215,7 @@ export const keepJourneys = [
   },
   {
     id: "an-enabled-declaration-arms-its-triggers-and-an-unknown-type-never-blocks",
+    integration: true,
     title: "an enabled declaration arms its eligible triggers at once; a trigger, action or data node type that is not registered yet never blocks it, and its trigger arms as soon as the type registers",
     entryPoint: "DeclareProcedure({ enabled: true }), RegisterTriggerType after the declaration, POST /verify-auto/emit",
     async run(/** @type {Ctx} */ ctx) {

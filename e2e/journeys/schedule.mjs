@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { auto, check, isRow, list, pick, same, text } from "../auto.mjs";
 import { action, chain, clearLedger, createProcedure, ledger, runsOfProcedure, statusIs, trigger, withConfig } from "../procs.mjs";
 import { nextFire } from "./parts/cron-reference.mjs";
@@ -12,9 +12,10 @@ const INVALID = (/** @type {string} */ cron) => `error cronInvalid invalid cron 
 const VALID = ["* * * * *", "0 9 * * 1", "*/5 * * * *", "0 0 * * 0", "0 0 * * 7", "0 9 * * mon-fri", "0 9 * * MON", "0 0 1 jan *", "*/15 9-17 * * 1-5", "0,30 * * * *", "* * * * * *", "*/10 * * * * *", "0 0 0 * * *", " 0 9 * * 1 ", "  0   9   *   *   1  ", "0-59 * * * *", "1-5/2 * * * *", "0 12 31 * *", "0 9 * JAN-MAR *", "0 0 29 2 *"];
 const BAD = ["nope", "* * * *", "* * * * * * *", "61 * * * *", "60 * * * * *", "99 * * * * *", "0 24 * * *", "0 0 32 * *", "0 0 0 * *", "0 0 * 13 *", "0 0 * 0 *", "0 9 * * 8", "-1 * * * *", "1.5 * * * *", "a b c d e", "*/0 * * * *", "1/0 * * * *", "? * * * *", "L * * * *", "0 0 30 2 *", "@weekly-ish", "0 9 * * 1\n", "0 9\t* * 1"];
 
-export const journeys = guarded([
+const all = guarded([
   {
     id: "a-schedule-must-be-a-valid-cron-expression",
+    integration: true,
     title: "a schedule trigger accepts the standard cron syntax (five fields, or six with seconds first, lists, ranges, steps, names) and refuses anything else with invalid cron expression: \"<value>\"; an invalid schedule cannot be enabled but a draft can hold it",
     entryPoint: "POST /procedures/validate, POST /procedures/import, PUT /procedures/:id/enabled",
     async run(/** @type {Ctx} */ ctx) {
@@ -164,6 +165,7 @@ export const journeys = guarded([
   },
   {
     id: "an-enabled-schedule-fires-runs-and-stops-when-paused-or-edited",
+    integration: true,
     title: "an enabled schedule starts a run on each occurrence with {firedAt} as its payload; pausing, deleting or editing it stops the old schedule",
     entryPoint: "PUT /procedures/:id/enabled, PUT /procedures/:id, GET /procedures/:id/runs, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -212,3 +214,5 @@ export const journeys = guarded([
   },
   ...wordingJourneys,
 ]);
+
+export const { journeys, integration } = byRunner(all);

@@ -19,6 +19,7 @@ async function summaryRow(ctx, id) {
 export const journeys = [
   {
     id: "avg-is-the-average-run-duration-not-the-newest",
+    integration: true,
     title: "the Avg column is the average duration of the procedure's runs: runs of 100, 200 and 600 ms (the newest the slowest) average 300 ms",
     entryPoint: "GET /procedures/summary, Procedures page Avg column",
     async run(/** @type {Ctx} */ ctx) {
@@ -40,6 +41,7 @@ export const journeys = [
   },
   {
     id: "the-delete-confirmation-counts-only-the-runs-of-this-week",
+    integration: true,
     title: "the delete confirmation of an enabled procedure says how often it ran this week: runs 6 days ago and an hour ago count, a run 8 days ago does not",
     entryPoint: "GET /procedures/:id/delete-confirm",
     async run(/** @type {Ctx} */ ctx) {

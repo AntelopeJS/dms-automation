@@ -9,6 +9,7 @@ import { declaration, refusal, stored } from "./interface-declare-shared.mjs";
 export const declareJourneys = [
   {
     id: "declare-procedure-accepts-the-documented-id-charset-and-length",
+    integration: true,
     title: "DeclareProcedure ids: letters, digits, '.', '_' and '-', starting with a letter or a digit, at most 120 characters; the id becomes the procedure's id",
     entryPoint: "DeclareProcedure({ id }), GET /procedures/:id, InvokeProcedure(id), RunProcedure(id)",
     async run(/** @type {Ctx} */ ctx) {
@@ -51,6 +52,7 @@ export const declareJourneys = [
   },
   {
     id: "declare-procedure-validates-name-description-and-enabled",
+    integration: true,
     title: "DeclareProcedure names are 1 to 200 characters once trimmed, descriptions at most 2000, `enabled` is required, and the graph is required",
     entryPoint: "DeclareProcedure({ name, description, enabled, graph }), GET /procedures/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -141,6 +143,7 @@ export const declareJourneys = [
   },
   {
     id: "declare-procedure-validates-the-graph-as-import-and-enabling-do",
+    integration: true,
     title: "DeclareProcedure validates the graph as Import JSON does, and an enabled declaration as enabling in the builder does: refused with every error and nothing stored, while a disabled declaration is stored as a draft with its problems",
     entryPoint: "DeclareProcedure({ graph, enabled }), GET /procedures/:id",
     async run(/** @type {Ctx} */ ctx) {

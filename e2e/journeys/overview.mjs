@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { attentionJourneys } from "./parts/overview-attention.mjs";
 import { bannerJourneys } from "./parts/overview-banner.mjs";
 import { figureJourneys } from "./parts/overview-figures.mjs";
@@ -8,4 +8,6 @@ import { routeJourneys } from "./parts/overview-routes.mjs";
 import { recipeJourneys } from "./parts/overview-recipes.mjs";
 import { equivalenceJourneys } from "./parts/stats-equivalence.mjs";
 
-export const journeys = guarded([...recipeJourneys, ...bannerJourneys, ...figureJourneys, ...periodJourneys, ...attentionJourneys, ...listJourneys, ...routeJourneys, ...equivalenceJourneys]);
+const all = guarded([...recipeJourneys, ...bannerJourneys, ...figureJourneys, ...periodJourneys, ...attentionJourneys, ...listJourneys, ...routeJourneys, ...equivalenceJourneys]);
+
+export const { journeys, integration } = byRunner(all);

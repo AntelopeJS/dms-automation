@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { auto, check, list, pick, raw, same, text } from "../auto.mjs";
 import { createProcedure, manualLog } from "../procs.mjs";
 import { member } from "./parts/access-members.mjs";
@@ -44,10 +44,10 @@ async function sweep(ctx, id, who) {
   return results;
 }
 
-export const journeys = guarded([
+const all = guarded([
   {
     id: "every-automation-route-answers-401-without-a-session",
-    tag: "@smoke",
+    integration: true,
     title: "the module's API answers 401 to a caller with no session, on every route and method, and a refused delete or pause changes nothing",
     entryPoint: "every /api/automation route as nobody",
     async run(/** @type {Ctx} */ ctx) {
@@ -67,6 +67,7 @@ export const journeys = guarded([
   },
   {
     id: "a-member-without-permissions-gets-403-owner-only-on-every-route",
+    integration: true,
     title: "the module's API answers the platform owner only: a signed-in member, even one whose role holds Automation page permissions, gets 403 Owner-only on every route and method, and nothing changes",
     entryPoint: "every /api/automation route as a member",
     async run(/** @type {Ctx} */ ctx) {
@@ -92,6 +93,7 @@ export const journeys = guarded([
   },
   {
     id: "a-member-cannot-open-the-automation-pages",
+    tag: "@smoke",
     title: "the Automation pages are the platform owner's: a member is sent to Settings from every page of the module, and the module list answers 403 Forbidden, while the owner opens them",
     entryPoint: "/modules/automation/{overview,procedures,builder,runs,trace,library} as a member and as the owner",
     async run(/** @type {Ctx} */ ctx) {
@@ -128,3 +130,5 @@ export const journeys = guarded([
     },
   },
 ]);
+
+export const { journeys, integration } = byRunner(all);

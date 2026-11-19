@@ -9,6 +9,7 @@ import { strings } from "./package-shared.mjs";
 export const moreContractJourneys = [
   {
     id: "an-action-resolves-with-an-object-or-nothing-and-a-throw-fails-the-step",
+    integration: true,
     title: 'an action that resolves with anything but an object or nothing fails its step with `action type "<id>" must resolve with an object or nothing`; a throw of any value fails the step',
     entryPoint: "ActionType.execute results, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -58,6 +59,7 @@ export const moreContractJourneys = [
   },
   {
     id: "a-data-node-evaluates-to-an-object-and-an-error-fails-the-step-that-reads-it",
+    integration: true,
     title: 'an evaluation error, or a result that is not an object or is an array, fails the step that reads the data node with `data node type "<id>" must evaluate to an object`',
     entryPoint: "DataNodeType.evaluate results, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -122,6 +124,7 @@ export const moreContractJourneys = [
   },
   {
     id: "the-execution-context-carries-the-ids-of-the-run-and-the-node",
+    integration: true,
     title: "ExecutionCtx holds procedureId, runId and nodeId, and dryRun reads false in a real run",
     entryPoint: "ExecutionCtx in execute, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
