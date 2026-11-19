@@ -12,12 +12,14 @@ import {
 /**
  * @typedef {import("@antelopejs/dms/e2e/run").RunState} RunState
  * @typedef {{ name: string, pass: boolean, detail: string }} Check
- * @typedef {{ id: string, title: string, knownFailures?: Record<string, string>, run: (ctx: IntegrationContext) => Promise<void> }} Journey
+ * @typedef {{ id: string, title: string, knownFailures?: Record<string, string>, onboard?: boolean, database?: string, backend?: string, standby?: boolean, run: (ctx: IntegrationContext) => Promise<void> }} Journey
  */
 
 const TEST_TIMEOUT_MS = 10 * 60_000;
 const UNIQUE_BYTES = 3;
 const PASSWORD_BYTES = 12;
+/** The journey fields the kit honours and this runner does not: a fresh database, a production backend from the standby and an onboarded administrator are all it gives. */
+const UNSUPPORTED = ["onboard", "database", "backend", "standby"];
 
 /** @type {Awaited<ReturnType<typeof startRun>> | undefined} */
 let started;
@@ -52,9 +54,18 @@ export class IntegrationContext {
   constructor(state, folder) {
     this.state = state;
     this.folder = folder;
+    this.generation = count;
     this.index = 0;
     /** @type {{ step: string, checks: Check[] }[]} */
     this.steps = [];
+  }
+
+  /** @throws When a later test has moved the run onto its own database, as after this journey's timeout */
+  live() {
+    if (this.generation !== count)
+      throw new Error(
+        `${this.folder} ended: the run belongs to a later test now`,
+      );
   }
 
   /**
@@ -78,6 +89,7 @@ export class IntegrationContext {
    * @returns {boolean} Whether every check passed
    */
   record(folder, checks, options = {}) {
+    this.live();
     this.steps.push({ step: folder.slice(this.folder.length + 1), checks });
     writeFileSync(
       join(folder, "checks.json"),
@@ -104,9 +116,15 @@ export class IntegrationContext {
 
   /**
    * @param {string} label What the call does
-   * @param {{ method: string, path: string, body?: unknown, as?: string }} request What to send, as `admin` by default
+   * @param {{ method: string, path: string, body?: unknown, as?: string, token?: string }} request What to send, as `admin` by default
+   * @throws With `token`, which the kit sends as is and this runner does not
    */
   api(label, request) {
+    this.live();
+    if (request.token !== undefined)
+      throw new Error(
+        "an integration test calls the API as an account: an explicit token belongs in the Playwright suite",
+      );
     return apiRequest(this.state, {
       ...request,
       as: request.as ?? "admin",
@@ -134,6 +152,7 @@ export class IntegrationContext {
 
   /** Restarts the backend on the same database with `state.extraEnv`. */
   async restartBackend() {
+    this.live();
     await restartBackend(this.state);
   }
 
@@ -177,9 +196,17 @@ function verdict(ctx, known) {
  *
  * @param {string} feature The feature the journeys belong to
  * @param {Journey[]} journeys The journeys
+ * @throws When a journey sets a field this runner does not honour
  */
 export function journeyTests(feature, journeys) {
   for (const journey of journeys) {
+    const unsupported = UNSUPPORTED.filter(
+      (field) => journey[field] !== undefined,
+    );
+    if (unsupported.length > 0)
+      throw new Error(
+        `${feature} › ${journey.id} sets ${unsupported.join(", ")}: it belongs in the Playwright suite`,
+      );
     void test(journey.id, { timeout: TEST_TIMEOUT_MS }, async (t) => {
       assert.ok(started, "the run started");
       const { run } = started;
