@@ -37,11 +37,11 @@ Every configuration runs two instances, one Redis error and one reconcile queued
 
 The lines that name a changed rule match `^(?:BROKEN|CHANGED|HOLDS) +(\w+)`. A rule that still holds prints as lowercase `holds`.
 
-A rule with a recorded finding is judged by the length of its shortest counterexample alone. A change that adds a longer counterexample to a recorded finding exits 0, so a regression of `AtMostOneArmed` stays green while its finding stands. `antelopejs-verify formal` closes that gap for a diff: while a finding stands, it fails a verdict whose diff changes the covered behaviour. Fixing the finding closes the gap for good. Three CI runs and two full runs on one machine printed identical lengths and paths; the check judges lengths only.
+A rule with a recorded finding is judged by the length of its shortest counterexample alone. A change that adds a longer counterexample to a recorded finding exits 0, so a regression of `AtMostOneArmed` stays green while its finding stands. Three CI runs and two full runs on one machine printed identical lengths and paths; the check judges lengths only.
 
 ## When to run it
 
-Run `--full` when a change touches a file in the coverage record below, or this folder. CI runs the CI configuration on every push (job `formal-leader-triggers`, in the `ubuntu` gate). The repository has no verification skill yet; when `verify-dms-automation` lands, its `verify.config.ts` takes a `formal` entry for this check, so a verdict fails on a changed rule, and on a recorded finding only when the diff changes the covered code.
+Run `--full` when a change touches a file in the coverage record below, or this folder. CI runs the CI configuration on every push (job `formal-leader-triggers`, in the `ubuntu` gate).
 
 ## The rules
 
