@@ -6,8 +6,18 @@ const { ROOT } = require("./helpers/package-files.cjs");
 
 void test("dms-control map: fails on an uncovered file, a feature without journeys or docs, or a glob matching no file", () => {
   const result = nodeChild.spawnSync(
-    nodePath.join(ROOT, "node_modules", ".bin", "dms-control"),
-    ["map"],
+    process.execPath,
+    [
+      nodePath.join(
+        ROOT,
+        "node_modules",
+        "@antelopejs",
+        "dms",
+        "bin",
+        "dms-control.mjs",
+      ),
+      "map",
+    ],
     {
       cwd: ROOT,
       encoding: "utf8",

@@ -144,8 +144,12 @@ void test("docs code blocks: fails on a TypeScript block that no longer compiles
     }),
   );
   const compiled = nodeChild.spawnSync(
-    nodePath.join(ROOT, MODULE, "node_modules", ".bin", "tsc"),
-    ["-p", nodePath.join(folder, "tsconfig.json")],
+    process.execPath,
+    [
+      nodePath.join(ROOT, MODULE, "node_modules", "typescript", "bin", "tsc"),
+      "-p",
+      nodePath.join(folder, "tsconfig.json"),
+    ],
     { encoding: "utf8" },
   );
   const errors = compiled.stdout

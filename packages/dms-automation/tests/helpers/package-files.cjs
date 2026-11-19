@@ -141,6 +141,7 @@ function packedFiles(folder) {
       cwd: nodePath.join(ROOT, folder),
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
+      shell: process.platform === "win32",
     },
   );
   const parsed = list(parseJson(result.stdout))[0];
