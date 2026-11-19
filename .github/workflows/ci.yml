@@ -118,7 +118,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: echo "DMS_CONTROL_RUNS=${RUNNER_TEMP}/dms-runs" >> "$GITHUB_ENV"
+      # The dms-control names go once the repo is on a dms release with AntelopeJS/dms#1184.
+      - run: |
+          echo "DMS_CONTROL_RUNS=${RUNNER_TEMP}/dms-runs" >> "$GITHUB_ENV"
+          echo "DMS_E2E_RUNS=${RUNNER_TEMP}/dms-runs" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -135,9 +138,11 @@ jobs:
           key: e2e-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'packages/*/pnpm-lock.yaml', 'e2e/playground/antelope.config.ts') }}
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/dms-control/frontend
-          key: dms-control-frontend-${{ github.sha }}
-          restore-keys: dms-control-frontend-
+          path: |
+            ~/.cache/dms-control/frontend
+            ~/.cache/dms-e2e/frontend
+          key: dms-e2e-frontend-${{ github.sha }}
+          restore-keys: dms-e2e-frontend-
       - name: Install Chromium and its system packages
         run: |
           if timeout 240 pnpm exec playwright install --with-deps --only-shell chromium; then
@@ -185,7 +190,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - run: echo "DMS_CONTROL_RUNS=${RUNNER_TEMP}/dms-runs" >> "$GITHUB_ENV"
+      # The dms-control names go once the repo is on a dms release with AntelopeJS/dms#1184.
+      - run: |
+          echo "DMS_CONTROL_RUNS=${RUNNER_TEMP}/dms-runs" >> "$GITHUB_ENV"
+          echo "DMS_E2E_RUNS=${RUNNER_TEMP}/dms-runs" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -200,9 +208,11 @@ jobs:
           key: journeys-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'packages/*/pnpm-lock.yaml', 'e2e/playground/antelope.config.ts') }}
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/dms-control/frontend
-          key: dms-control-frontend-${{ github.sha }}
-          restore-keys: dms-control-frontend-
+          path: |
+            ~/.cache/dms-control/frontend
+            ~/.cache/dms-e2e/frontend
+          key: dms-e2e-frontend-${{ github.sha }}
+          restore-keys: dms-e2e-frontend-
       - run: node --test --test-isolation=none --test-shard=${{ matrix.shard }}/${{ strategy.job-total }} e2e/integration/*.journeys.test.mjs
         env:
           DMS_E2E_PREBUILT: "1"
