@@ -10,7 +10,7 @@ A pnpm workspace with two published packages. The root holds the tool configs an
 | `packages/dms-automation`                 | `@antelopejs/dms-automation`, the module that implements it                                 |
 | `packages/dms-automation/frontend-vue`    | The Vue layer. oxlint skips it and ESLint lints it. oxfmt gates everything but `.vue`; its own `format` runs Prettier over all of it, so run the root `pnpm run format` after it |
 | `packages/dms-automation/playground`      | A standalone project with its own lockfile, outside the workspace install                  |
-| `e2e`                                     | The journeys as a Playwright suite, on the adapter of `@antelopejs/dms/e2e`   |
+| `e2e`                                     | The journeys as a Playwright suite, on the adapter of `@antelopejs/dms/e2e`                  |
 
 Run a package script from its own directory: `pnpm --dir packages/dms-automation <script>`.
 
