@@ -158,5 +158,10 @@ void test("docs code blocks: fails on a TypeScript block that no longer compiles
   await assertChecks(t, "the docs' TypeScript blocks compile", [
     check("there are blocks to compile", names.length >= 14, names.length),
     same("no type error", errors, []),
+    check(
+      "tsc ran and exited 0",
+      compiled.error === undefined && compiled.status === 0,
+      `${String(compiled.status)} ${compiled.error?.message ?? ""} ${compiled.stderr.slice(0, 300)}`,
+    ),
   ]);
 });

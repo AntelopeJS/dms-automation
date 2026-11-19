@@ -80,7 +80,7 @@ function byText(left, right) {
 /**
  * @param {string} root An absolute folder
  * @param {(path: string) => boolean} [skip] Which entries to leave out
- * @returns {string[]} Every file below it, relative to it
+ * @returns {string[]} Every file below it, relative to it, with `/` separators as `npm pack` lists them
  */
 function filesBelow(root, skip = () => false) {
   /** @type {string[]} */
@@ -89,9 +89,13 @@ function filesBelow(root, skip = () => false) {
   const walk = (folder) => {
     for (const entry of nodeFs.readdirSync(folder, { withFileTypes: true })) {
       const full = nodePath.join(folder, entry.name);
-      if (skip(nodePath.relative(root, full))) continue;
+      const relative = nodePath
+        .relative(root, full)
+        .split(nodePath.sep)
+        .join("/");
+      if (skip(relative)) continue;
       if (entry.isDirectory()) walk(full);
-      else out.push(nodePath.relative(root, full));
+      else out.push(relative);
     }
   };
   if (nodeFs.existsSync(root) && nodeFs.statSync(root).isDirectory())
