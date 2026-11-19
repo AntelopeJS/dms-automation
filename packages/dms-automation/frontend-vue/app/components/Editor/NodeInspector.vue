@@ -475,7 +475,7 @@ function onUnwire(field: string) {
 				<DmsInputSelect
 					v-else-if="Array.isArray(f.prop.enum) && f.prop.enum.length > 0"
 					:id="`inspector-${f.name}`"
-					:items="(f.prop.enum as unknown[]).map((v) => String(v))"
+					:items="(f.prop.enum as unknown[]).map((v) => ({ label: String(v), value: String(v) }))"
 					:model-value="asString(getValue(f.name) ?? f.prop.default)"
 					class="w-full"
 					@update:model-value="(v: string) => emitUpdated(f.name, v)"
