@@ -25,6 +25,7 @@ Run a package script from its own directory: `pnpm --dir packages/dms-automation
 - The frontend build and typecheck need a generated Inertia workspace: set `DMS_FRONTEND_WORKSPACE` to its absolute path, then run `pnpm --dir packages/dms-automation/frontend-vue build` or `typecheck`.
 - The playground needs MongoDB, then `pnpm --dir packages/dms-automation/playground install --ignore-workspace`, a root `pnpm run build`, and in `packages/dms-automation/playground`: `pnpm run build` and `pnpm exec ajs project modules install`.
 - The `e2e/` suite runs in CI on the full and nightly tiers only. Locally, `pnpm e2e --grep @smoke` prepares and starts a run, drives the 6 smoke journeys and stops it; `pnpm e2e -g <feature or journey id>` narrows it.
+- The journeys marked `integration: true` only call the API or run commands: `e2e/integration/*.journeys.test.mjs` runs them as `node:test` tests, in CI wherever every journey runs. Locally, `pnpm run e2e:build`, then `DMS_E2E_PREBUILT=1 pnpm test:journeys`, or `node --test --test-isolation=none e2e/integration/<feature>.journeys.test.mjs` for one feature.
 - `pnpm --dir packages/dms-automation knip:all` also reports unused files and exports.
 
 <!-- antelopejs-guardrails:start -->
