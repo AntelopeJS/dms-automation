@@ -106,3 +106,21 @@ export function guarded(journeys) {
     },
   }));
 }
+
+/**
+ * Splits a feature's journeys by where they run: the ones that open a tab
+ * stay `journeys`, which the Playwright suite registers; the ones marked
+ * `integration: true` only call the API or run commands, and
+ * `e2e/integration/<feature>.journeys.test.mjs` runs
+ * them as `node:test` tests.
+ *
+ * @template {{ integration?: boolean }} J
+ * @param {J[]} all The feature's journeys
+ * @returns {{ journeys: J[], integration: J[] }} The browser journeys and the integration ones
+ */
+export function byRunner(all) {
+  return {
+    journeys: all.filter((journey) => journey.integration !== true),
+    integration: all.filter((journey) => journey.integration === true),
+  };
+}

@@ -29,6 +29,7 @@ function runOfSize(ctx, logSteps, levelSteps) {
 export const logCapJourneys = [
   {
     id: "a-run-log-over-2000-entries-keeps-2000-with-a-truncation-notice",
+    integration: true,
     title: "a run whose log holds exactly 2000 entries is stored whole; one entry more is stored as 2000 entries, the last a warning that says 2 entries were dropped",
     entryPoint: "GET /runs/:id/logs, a chain of Log steps",
     async run(/** @type {Ctx} */ ctx) {

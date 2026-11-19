@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { auto, check, list, pick, same, text } from "../auto.mjs";
 import { chain, action, createEnabled, runNow, trigger } from "../procs.mjs";
 import { bodyText, graphWithMessage, openPage, saveGraph, size, storedRun, textWhen, twoStepProcedure, withRuns } from "./parts/runs-common.mjs";
@@ -10,7 +10,7 @@ import { seededFailures } from "./parts/trace-seed.mjs";
 
 const flat = (/** @type {string} */ value) => value.replace(/\s+/g, " ").trim();
 
-export const journeys = guarded([
+const all = guarded([
   {
     id: "the-trace-header-and-figures-describe-a-succeeded-run",
     tag: "@smoke",
@@ -219,3 +219,5 @@ async function storedGone(ctx, runId) {
   const row = await storedRun(ctx, runId);
   if (pick(row, "graphSnapshot")) throw new Error("the draft is still stored");
 }
+
+export const { journeys, integration } = byRunner(all);

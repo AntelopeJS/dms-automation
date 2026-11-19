@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { auto, check, pick, raw, same, text } from "../auto.mjs";
 import { createProcedure, manualLog, runNow, withConfig } from "../procs.mjs";
 import { insertRuns, MS_PER_HOUR, openPage, runDocument, runTable, textWhen, twoStepProcedure } from "./parts/runs-common.mjs";
@@ -9,13 +9,14 @@ import { holdJourneys } from "./parts/runs-hold.mjs";
 
 /** @typedef {import("../auto.mjs").Ctx} Ctx */
 
-export const journeys = guarded([
+const all = guarded([
   ...listJourneys,
   ...pageJourneys,
   ...drawerWidthJourneys,
   ...holdJourneys,
   {
     id: "run-routes-refuse-an-unknown-run-and-odd-methods",
+    integration: true,
     title: "an unknown run id answers 404 `run \"<id>\" not found` on the run, its log, its re-run confirmation and its re-run; an unknown KPI metric answers 404; the run routes accept only the documented methods",
     entryPoint: "GET /runs/:id, GET /runs/:id/logs, GET /runs/:id/rerun-confirm, POST /runs/:id/rerun, GET /runs/kpi/:metric",
     async run(/** @type {Ctx} */ ctx) {
@@ -84,6 +85,7 @@ export const journeys = guarded([
   },
   {
     id: "the-run-figures-count-runs-success-rate-failed-and-p95-against-the-compared-window",
+    integration: true,
     title: "the Runs, Success rate, Failed and p95 figures count production runs of every procedure in the window and give the change against the compared window; test runs never count",
     entryPoint: "GET /runs/kpi/:metric, /modules/automation/runs",
     async run(/** @type {Ctx} */ ctx) {
@@ -133,3 +135,5 @@ export const journeys = guarded([
     },
   },
 ]);
+
+export const { journeys, integration } = byRunner(all);

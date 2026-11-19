@@ -175,6 +175,7 @@ export const pageJourneys = [
   },
   {
     id: "a-loopback-api-base-url-is-shown-as-it-is-with-a-hint",
+    integration: true,
     title: "a loopback apiBaseUrl (localhost, ::1, 127.x) is shown as it is, trailing slashes dropped, and counts as unconfigured; any other host counts as configured",
     entryPoint: "GET /library/webhook-base",
     async run(/** @type {Ctx} */ ctx) {

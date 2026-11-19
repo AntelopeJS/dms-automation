@@ -9,6 +9,7 @@ import { twoTriggerGraph, ranWith } from "./interface-runs-shared.mjs";
 export const runJourneys = [
   {
     id: "invoke-procedure-rejects-404-and-400-and-returns-the-id-of-a-failed-run",
+    integration: true,
     title: "InvokeProcedure runs the first manual trigger and resolves to the stored run id, even for a failed run; 404 for an unknown procedure; 400 for a graph without a manual trigger",
     entryPoint: "InvokeProcedure(id, payload), GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -54,6 +55,7 @@ export const runJourneys = [
   },
   {
     id: "run-procedure-payload-defaults-to-the-newest-real-run-among-the-last-50",
+    integration: true,
     title: "RunProcedure without payload replays the last payload the trigger it starts from received (triggerNodeId, else the manual one, else the first), test runs excluded, among the procedure's last 50 runs; else {}",
     entryPoint: "RunProcedure(id, options), POST /procedures/:id/test, GET /procedures/:id/last-payload",
     async run(/** @type {Ctx} */ ctx) {
@@ -98,6 +100,7 @@ export const runJourneys = [
   },
   {
     id: "run-procedure-picks-the-trigger-and-answers-404-for-unknown-ones",
+    integration: true,
     title: "RunProcedure starts from triggerNodeId, else the manual trigger, else the graph's first trigger; an unknown trigger node or procedure answers 404",
     entryPoint: "RunProcedure(id, { triggerNodeId })",
     async run(/** @type {Ctx} */ ctx) {

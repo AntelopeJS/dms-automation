@@ -8,6 +8,7 @@ import { callWebhook, enabledProcedure, runsUntil, summaryOf, summaryUntil, webh
 export const overlapJourneys = [
   {
     id: "two-paths-are-the-same-when-their-segments-are-equal-or-a-param",
+    integration: true,
     title: "two webhook paths count as the same when they have the same number of segments and each pair of segments is equal or one of the pair is a :param segment: the procedure that arms second is Failing with the reason, and the first keeps answering",
     entryPoint: "PUT /procedures/:id/enabled, GET /procedures/summary, POST /webhooks/...",
     async run(/** @type {Ctx} */ ctx) {

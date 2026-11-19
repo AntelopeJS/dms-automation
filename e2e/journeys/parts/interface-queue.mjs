@@ -28,6 +28,7 @@ function withoutImplementation(ctx) {
 export const queueJourneys = [
   {
     id: "interface-calls-wait-for-an-implementation-and-the-queue-holds-1000",
+    integration: true,
     title: "with no implementation loaded, the five calls and the List* functions stay pending; each queues at most 1,000 calls and the next rejects with ProviderQueueFullError; registering throws nothing",
     entryPoint: "the built @antelopejs/interface-dms-automation in a Node process without the module",
     async run(/** @type {Ctx} */ ctx) {
@@ -40,6 +41,7 @@ export const queueJourneys = [
   },
   {
     id: "the-interface-skill-says-what-the-calls-do-without-an-implementation-as-the-readme-does",
+    integration: true,
     title: "the interface skill, the README, the consumer reference and the TSDoc agree on what List*, InvokeProcedure, RunProcedure and DeclareProcedure do with no implementation attached",
     entryPoint: "skills/dms-automation-interface/SKILL.md, README.md, docs/1.index.md against the built interface",
     async run(/** @type {Ctx} */ ctx) {

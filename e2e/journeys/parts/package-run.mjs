@@ -9,6 +9,7 @@ import { MODULE, read } from "./package-files.mjs";
 export const runJourneys = [
   {
     id: "the-module-skill-api-walk-works-as-written",
+    integration: true,
     title: "an exported procedure re-created with POST /procedures/import { json } is a disabled draft, PUT /:id/enabled { enabled } enables it, POST /:id/run-now { payload } runs it, and POST /:id/test answers 409 with realEffects until confirmRealEffects is true",
     entryPoint: "POST /procedures/import, PUT /procedures/:id/enabled, POST /procedures/:id/run-now, POST /procedures/:id/test, POST /procedures/:id/test-effects",
     async run(/** @type {Ctx} */ ctx) {
@@ -57,6 +58,7 @@ export const runJourneys = [
   },
   {
     id: "the-module-skill-webhook-prefixes-are-refused",
+    integration: true,
     title: "a webhook path that is /api, /auth, /dms, /modules or /settings, or starts with one of them and a slash, is refused; a path that merely begins with the same letters is not",
     entryPoint: "POST /procedures/validate with a webhook trigger",
     async run(/** @type {Ctx} */ ctx) {

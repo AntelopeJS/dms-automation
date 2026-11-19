@@ -331,6 +331,7 @@ function clearOfMovingEdges(stored, from, to) {
 export const equivalenceJourneys = [
   {
     id: "every-stats-answer-equals-the-run-by-run-reference-on-a-fixture",
+    integration: true,
     title: "every stats answer equals the answer the run-by-run algorithm gives on the same rows: the health banner, the four figures with and without a compared window, the Runs chart, Needs attention, the recent runs, the procedure counts, By trigger, the procedures list and the Library usage, in order and with the ties of one start read as sets, test runs ignored",
     entryPoint: "GET /stats/{health,kpi/:metric,runs-per-day,attention,recent-runs,procedures,triggers}, /procedures/summary, /tables/procedures/{list,count,get}, /library/usage/:catalog",
     async run(/** @type {Ctx} */ ctx) {

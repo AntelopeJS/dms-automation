@@ -7,6 +7,7 @@ import { emit, enabledProcedure, ofKind, payloadOf, runDetail, runsUntil, saveGr
 export const lifecycleJourneys = [
   {
     id: "a-trigger-that-never-arms-gives-up-after-ten-seconds",
+    integration: true,
     title: "activate and deactivate each get 10 seconds: a trigger whose activate never settles is an arming failure after 10 seconds and the procedure is Failing with the timeout, while the module keeps working",
     entryPoint: "RegisterTriggerType (verify.hang-arm), PUT /procedures/:id/enabled, GET /procedures/summary",
     async run(/** @type {Ctx} */ ctx) {
@@ -29,6 +30,7 @@ export const lifecycleJourneys = [
   },
   {
     id: "a-trigger-is-deactivated-when-its-procedure-is-paused-deleted-or-edited",
+    integration: true,
     title: "pausing, deleting or changing the settings of a trigger deactivates the old handle before anything else fires; an edit that leaves the trigger alone keeps the handle and applies at the next fire; a restart arms the enabled procedures again",
     entryPoint: "PUT /procedures/:id/enabled, PUT /procedures/:id, DELETE /procedures/:id, POST /verify-auto/emit",
     async run(/** @type {Ctx} */ ctx) {
@@ -95,6 +97,7 @@ export const lifecycleJourneys = [
   },
   {
     id: "a-trigger-whose-deactivate-never-settles-is-retried-on-the-next-reconcile",
+    integration: true,
     title: "a deactivate that does not settle gives up after 10 seconds and its handle is kept; the next reconcile retries the deactivation",
     entryPoint: "RegisterTriggerType (verify.hang-disarm), PUT /procedures/:id/enabled",
     async run(/** @type {Ctx} */ ctx) {

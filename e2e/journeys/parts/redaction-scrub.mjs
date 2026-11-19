@@ -17,6 +17,7 @@ const COPIES = [
 export const scrubJourneys = [
   {
     id: "a-credential-a-step-copied-into-its-log-is-not-stored",
+    integration: true,
     title: "a credential the trigger received is not stored in the inputs, output or messages of the steps that copied it: the whole value, its token after the scheme, and the values of a cookie are replaced by [redacted], while a value shorter than 6 characters is too common to tell from other text",
     entryPoint: "GET /runs/:id/logs, GET /runs/:id",
     async run(/** @type {Ctx} */ ctx) {

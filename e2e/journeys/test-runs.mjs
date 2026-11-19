@@ -1,4 +1,4 @@
-import { guarded } from "../guard.mjs";
+import { byRunner, guarded } from "../guard.mjs";
 import { auto, check, list, pick, raw, same, text } from "../auto.mjs";
 import { action, chain, clearLedger, createProcedure, graph, ledger, manualLog, runNow, runsOfProcedure, statusIs, tedge, trigger } from "../procs.mjs";
 import { payloadOf, runDetail, summaryOf } from "./parts/triggers-common.mjs";
@@ -8,10 +8,11 @@ import { builderJourneys } from "./parts/test-runs-builder.mjs";
 
 /** @typedef {import("../auto.mjs").Ctx} Ctx */
 
-export const journeys = guarded([
+const all = guarded([
   ...effectsJourneys,
   {
     id: "a-test-run-is-kept-as-a-test-run-of-the-draft-and-never-counts",
+    integration: true,
     title: "a test runs the unsaved draft without saving it, is stored with its trace as a test (no saved version), and never counts in the procedure's states, runs, last runs, KPIs, charts or Needs attention, even when it fails; Run now counts",
     entryPoint: "POST /procedures/:id/test, GET /runs/:id, GET /procedures/summary, GET /stats/*",
     async run(/** @type {Ctx} */ ctx) {
@@ -80,6 +81,7 @@ export const journeys = guarded([
   },
   {
     id: "a-test-run-refuses-what-the-builder-would-not-let-through",
+    integration: true,
     title: "a test is refused before anything runs when the draft has errors (400 with the issues), no trigger, an unknown trigger node, a missing graph or an unknown procedure (404), and a test picks the Manual trigger by default or the trigger it is told to",
     entryPoint: "POST /procedures/:id/test",
     async run(/** @type {Ctx} */ ctx) {
@@ -144,6 +146,7 @@ export const journeys = guarded([
   },
   {
     id: "the-test-payload-comes-from-the-last-real-run",
+    integration: true,
     title: "Run now and the test payload default to the trigger's last real payload (test runs excluded), or {} when there is none; an explicit payload wins",
     entryPoint: "GET /procedures/:id/last-payload, POST /procedures/:id/run-now, POST /procedures/:id/test",
     async run(/** @type {Ctx} */ ctx) {
@@ -190,3 +193,5 @@ export const journeys = guarded([
   },
   ...builderJourneys,
 ]);
+
+export const { journeys, integration } = byRunner(all);

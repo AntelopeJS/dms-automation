@@ -9,6 +9,7 @@ import { declaration, refusal, stored } from "./interface-declare-shared.mjs";
 export const startJourneys = [
   {
     id: "a-procedure-declared-from-start-is-created-then-kept-across-restarts",
+    integration: true,
     title: "a module declares procedures in start(): created on the first boot, kept on the next, with the user's edits and deletions deciding",
     entryPoint: "DeclareProcedure from start(), backend restart, GET /procedures/:id",
     async run(/** @type {Ctx} */ ctx) {

@@ -8,6 +8,7 @@ import { NEEDS_CONFIRM, steps, test } from "./test-runs-kit.mjs";
 export const effectsJourneys = [
   {
     id: "a-test-run-asks-before-it-acts-for-real",
+    integration: true,
     title: "a test of a draft with a step that acts for real and cannot simulate it is refused with 409 and the list of those steps until confirmRealEffects is true; nothing runs before the confirmation, and the confirmed test runs the step with ctx.dryRun true",
     entryPoint: "POST /procedures/:id/test, GET /verify-auto/ledger",
     async run(/** @type {Ctx} */ ctx) {
@@ -58,6 +59,7 @@ export const effectsJourneys = [
   },
   {
     id: "test-effects-lists-the-steps-a-test-would-run-for-real",
+    integration: true,
     title: "the steps a test runs for real are the actions that declare neither sideEffects: false nor a dryRun, listed in graph order with the action type's name and the step's name; nothing runs while listing",
     entryPoint: "POST /procedures/:id/test-effects",
     async run(/** @type {Ctx} */ ctx) {
@@ -95,6 +97,7 @@ export const effectsJourneys = [
   },
   {
     id: "a-test-run-calls-dry-run-instead-of-execute-and-sets-ctx-dry-run",
+    integration: true,
     title: "in a test run an action with a dryRun is simulated (dryRun runs instead of execute and the trace logs Simulated (test run): no effect), sideEffects: false wins over dryRun, ctx.dryRun is true for every step including actions without a dryRun, and Run now, triggers, InvokeProcedure and RunProcedure always call execute with ctx.dryRun false",
     entryPoint: "POST /procedures/:id/test, POST /procedures/:id/run-now, POST /verify-auto/invoke, POST /verify-auto/run, POST /verify-auto/emit",
     async run(/** @type {Ctx} */ ctx) {

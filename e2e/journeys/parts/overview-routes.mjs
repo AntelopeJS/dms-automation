@@ -7,6 +7,7 @@ import { DAY, windowQuery } from "./overview-kit.mjs";
 export const routeJourneys = [
   {
     id: "the-stats-routes-refuse-a-bad-period-and-an-unknown-figure",
+    integration: true,
     title: "the Overview's routes answer 400 with the reason for a date that is not one, a period that ends before it starts or spans more than a year, a 404 for a figure that is not one of the four cards, and no route accepts a write",
     entryPoint: "GET /stats/health, /stats/kpi/:metric, /stats/runs-per-day, /stats/attention",
     async run(/** @type {Ctx} */ ctx) {

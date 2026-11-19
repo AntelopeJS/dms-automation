@@ -57,9 +57,7 @@ const config: VerifyConfig = {
   playground: `${SKILL}/playground`,
   prepare: [
     ["pnpm", "install", "--frozen-lockfile", "--prefer-offline", "--ignore-scripts"],
-    ["pnpm", "run", "build"],
-    ["ln", "-sfn", `../../../../${MODULE}/node_modules`, `${SKILL}/playground/node_modules`],
-    [`${MODULE}/node_modules/.bin/tsc`, "-p", `${SKILL}/playground/tsconfig.build.json`],
+    ["pnpm", "run", "e2e:build"],
   ],
   userFacing: [`${MODULE}/src/**`, `${MODULE}/frontend-vue/**`, `${MODULE}/skills/**`, `${MODULE}/package.json`, `${INTERFACE}/src/**`, `${INTERFACE}/skills/**`, `${INTERFACE}/package.json`],
   notUserFacing: [`${MODULE}/frontend-vue/tests/**`, `${MODULE}/frontend-vue/.*`, `${MODULE}/frontend-vue/eslint.config.mjs`, `${MODULE}/frontend-vue/eslint-rules/**`, `${MODULE}/frontend-vue/pnpm-lock.yaml`],

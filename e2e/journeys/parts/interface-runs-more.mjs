@@ -8,6 +8,7 @@ import { actionNode, chainGraph, logGraph, runProcedure, triggerNode } from "./i
 export const moreRunJourneys = [
   {
     id: "run-procedure-answers-the-outcome-runs-a-paused-procedure-and-counts-in-health",
+    integration: true,
     title: "RunProcedure resolves to { runId, status, errorMessage? }, runs a paused procedure too, and stores an ordinary run that counts in the health figures",
     entryPoint: "RunProcedure(id), PUT /procedures/:id/enabled, GET /stats/health, GET /procedures/:id/runs",
     async run(/** @type {Ctx} */ ctx) {
@@ -56,6 +57,7 @@ export const moreRunJourneys = [
   },
   {
     id: "run-procedure-refuses-a-graph-with-an-unknown-type-and-lists-the-issues",
+    integration: true,
     title: "RunProcedure rejects a graph with blocking issues with 400 and lists the issues",
     entryPoint: "RunProcedure(id)",
     async run(/** @type {Ctx} */ ctx) {
@@ -87,6 +89,7 @@ export const moreRunJourneys = [
   },
   {
     id: "run-procedure-refuses-a-graph-with-no-trigger-or-a-missing-setting",
+    integration: true,
     title: "RunProcedure rejects a graph with blocking issues such as no trigger or a step missing its settings with 400, and the rejection lists the issues",
     entryPoint: "RunProcedure(id)",
     async run(/** @type {Ctx} */ ctx) {

@@ -8,6 +8,7 @@ import { steps, test } from "./test-runs-kit.mjs";
 export const builderJourneys = [
   {
     id: "a-test-run-can-be-run-again-and-is-stored-as-a-test",
+    integration: true,
     title: "re-running a test runs again the draft that test ran, not the saved graph, from the same trigger with the same payload, stored as a test; its confirmation names the steps that act for real",
     entryPoint: "GET /runs/:id/rerun-confirm, POST /runs/:id/rerun",
     async run(/** @type {Ctx} */ ctx) {

@@ -158,6 +158,7 @@ export const useJourneys = [
   },
   {
     id: "steps-of-a-disabled-type-fail-and-a-disabled-trigger-is-not-armed",
+    integration: true,
     title: "steps of a disabled action type fail when they run, and a disabled trigger type is not armed; both work again once enabled",
     entryPoint: "PUT /action-types/:id/config, PUT /trigger-types/:id/config",
     async run(/** @type {Ctx} */ ctx) {

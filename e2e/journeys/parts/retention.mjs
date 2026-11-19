@@ -32,6 +32,7 @@ async function afterStart(ctx, expected) {
 export const retentionJourneys = [
   {
     id: "runs-older-than-the-retention-are-deleted-when-the-module-starts",
+    integration: true,
     title: "the leader instance deletes the runs older than runs.retentionDays when the module starts: 30 days by default, tests and re-runs too, the procedure stays; 0 keeps every run; another value N keeps the last N days",
     entryPoint: "runs.retentionDays, module start",
     async run(/** @type {Ctx} */ ctx) {

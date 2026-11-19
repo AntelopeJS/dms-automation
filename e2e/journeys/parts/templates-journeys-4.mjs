@@ -12,6 +12,7 @@ import { allInnerTexts, either, withText } from "./overview-page.mjs";
 export const templatesJourneys4 = [
   {
     id: "template-routes-answer-404-for-unknown-ids-and-refuse-other-methods",
+    integration: true,
     title: "an unknown template id answers 404 with its id in the text on GET, usages, PUT and DELETE; a malformed edit body is checked before the id; unsupported methods and paths answer 404 and change nothing",
     entryPoint: "GET|PUT|DELETE /templates/:id, PATCH|POST|OPTIONS /templates/:id",
     async run(/** @type {Ctx} */ ctx) {
@@ -61,6 +62,7 @@ export const templatesJourneys4 = [
   },
   {
     id: "a-procedure-placing-a-missing-template-cannot-be-enabled",
+    integration: true,
     title: "a procedure whose group names a template that does not exist is imported as a draft with an unknownTemplate problem, and enabling it is refused with 400 invalid graph",
     entryPoint: "POST /procedures/import, PUT /procedures/:id/enabled",
     async run(/** @type {Ctx} */ ctx) {
