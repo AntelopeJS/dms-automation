@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.11.5
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.4...v0.11.5)
+
+### 🩹 Fixes
+
+- **frontend:** Label the enum options of the builder inspector ([#233](https://github.com/AntelopeJS/dms-automation/pull/233))
+
+### 📦 Build
+
+- **deps:** Depend on the interface-dms 0.15 preview for the release train ([#235](https://github.com/AntelopeJS/dms-automation/pull/235))
+- **deps:** Move the dms previews to the released stable versions ([#237](https://github.com/AntelopeJS/dms-automation/pull/237))
+
+### ✅ Tests
+
+- **e2e:** Cover the main flows in Playwright and run every journey in the merge queue ([#229](https://github.com/AntelopeJS/dms-automation/pull/229))
+- **e2e:** Port the HTTP and command-line journeys to node:test integration tests ([#230](https://github.com/AntelopeJS/dms-automation/pull/230))
+- **e2e:** Run the e2e kit and tests without the verify skill or dms-control ([#231](https://github.com/AntelopeJS/dms-automation/pull/231))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.11.4
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.3...v0.11.4)
