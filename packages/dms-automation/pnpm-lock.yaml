@@ -27,8 +27,8 @@ importers:
         specifier: '>=0.5.2 <0.6.0'
         version: 0.5.2(@antelopejs/interface-api@0.3.3(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database@0.4.0(@antelopejs/interface-core@0.5.1))
       '@antelopejs/interface-dms':
-        specifier: '>=0.14.0 <0.15.0'
-        version: 0.14.0(bc1e34e81e4cc9ce1ab21366ee72116a)
+        specifier: 0.14.7-next.1011.g9a5478b
+        version: 0.14.7-next.1011.g9a5478b(bc1e34e81e4cc9ce1ab21366ee72116a)
       '@antelopejs/interface-dms-automation':
         specifier: workspace:^
         version: link:../interface-dms-automation
@@ -175,19 +175,19 @@ packages:
     peerDependencies:
       '@antelopejs/interface-core': '>=0.5.1 <0.6.0'
 
-  '@antelopejs/interface-dms@0.14.0':
-    resolution: {integrity: sha512-ijkyQtL+ofdOf3VYRb6Ws/dPhERwL4Yhe088aiOMofb9c+zUtEv+tymDSRSCh40dC7xA8AVIC8IMjEhu1/gcMA==}
+  '@antelopejs/interface-dms@0.14.6':
+    resolution: {integrity: sha512-OcGF1q+fZD54z00MVGLnIvcD1ee8jyC0KmDk6f9a7m2cugQVcgDXKKAQ547dwaT7OIqMLVNkRiNi5N43AF0Ojw==}
     peerDependencies:
-      '@antelopejs/interface-api': '>=0.3.0 <1.0.0'
-      '@antelopejs/interface-api-util': '>=0.1.3 <1.0.0'
-      '@antelopejs/interface-core': '>=0.5.1 <1.0.0'
+      '@antelopejs/interface-api': '>=0.3.0 <0.4.0'
+      '@antelopejs/interface-api-util': '>=0.3.0 <0.4.0'
+      '@antelopejs/interface-core': '>=0.5.1 <0.6.0'
       '@antelopejs/interface-data-api': '>=0.8.0 <0.9.0'
       '@antelopejs/interface-database': '>=0.4.0 <0.5.0'
       '@antelopejs/interface-database-decorators': '>=0.5.2 <0.6.0'
-      '@antelopejs/interface-file-storage': '>=0.1.4 <1.0.0'
+      '@antelopejs/interface-file-storage': '>=0.1.4 <0.2.0'
 
-  '@antelopejs/interface-dms@0.14.6':
-    resolution: {integrity: sha512-OcGF1q+fZD54z00MVGLnIvcD1ee8jyC0KmDk6f9a7m2cugQVcgDXKKAQ547dwaT7OIqMLVNkRiNi5N43AF0Ojw==}
+  '@antelopejs/interface-dms@0.14.7-next.1011.g9a5478b':
+    resolution: {integrity: sha512-tSV2Vzq1XFaUdqYntA2V1xT3jYp7KvtTWrI1fLMRkr8h3EKy04x/57JKjM5r6aX27NLNsHuSep07OgcDzRUOUw==}
     peerDependencies:
       '@antelopejs/interface-api': '>=0.3.0 <0.4.0'
       '@antelopejs/interface-api-util': '>=0.3.0 <0.4.0'
@@ -3152,7 +3152,7 @@ snapshots:
     dependencies:
       '@antelopejs/interface-core': 0.5.1
 
-  '@antelopejs/interface-dms@0.14.0(bc1e34e81e4cc9ce1ab21366ee72116a)':
+  '@antelopejs/interface-dms@0.14.6(bc1e34e81e4cc9ce1ab21366ee72116a)':
     dependencies:
       '@antelopejs/interface-api': 0.3.3(@antelopejs/interface-core@0.5.1)
       '@antelopejs/interface-api-util': 0.3.0(@antelopejs/interface-api@0.3.3(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)
@@ -3165,7 +3165,7 @@ snapshots:
       zod: 3.25.76
       zod-to-json-schema: 3.24.6(zod@3.25.76)
 
-  '@antelopejs/interface-dms@0.14.6(bc1e34e81e4cc9ce1ab21366ee72116a)':
+  '@antelopejs/interface-dms@0.14.7-next.1011.g9a5478b(bc1e34e81e4cc9ce1ab21366ee72116a)':
     dependencies:
       '@antelopejs/interface-api': 0.3.3(@antelopejs/interface-core@0.5.1)
       '@antelopejs/interface-api-util': 0.3.0(@antelopejs/interface-api@0.3.3(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)
