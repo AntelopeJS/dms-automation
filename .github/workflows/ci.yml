@@ -40,8 +40,6 @@ jobs:
       # workspace, where the host DMS composables and SDK aliases resolve.
     permissions:
       contents: read
-    secrets:
-      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
 
   # ci-node.yml exposes no outputs, so the shared ci-tier action picks the tier
   # for the jobs declared here: a draft and the next to main pull request skip them.
