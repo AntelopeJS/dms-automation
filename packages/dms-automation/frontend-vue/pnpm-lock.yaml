@@ -22,8 +22,8 @@ importers:
         specifier: '>=0.11.4 <0.12.0'
         version: 0.11.8(@antelopejs/core@1.24.4)
       '@antelopejs/tooling-configs':
-        specifier: '>=0.9.3 <0.10.0'
-        version: 0.9.3(playwright-core@1.65.1)
+        specifier: '>=0.9.4 <0.10.0'
+        version: 0.9.4(playwright-core@1.65.1)
       '@eslint/js':
         specifier: ^9.0.0
         version: 9.39.5
@@ -73,6 +73,7 @@ packages:
   '@antelopejs/core@1.24.4':
     resolution: {integrity: sha512-79v2Sr+fw3j9NZLeT3qe40+D7UTA5wR1KiroX6lEd1E0VOTZ8pyf2tINj7cl5XxSJnfU6jg5RKHNL2fTRqZxuw==}
     engines: {node: ^20.19.0 || >=22.12.0}
+    deprecated: 'Update to @antelopejs/core >=1.24.6: interface-core 0.5.2 adds HoldReloads, which older cores do not implement'
     hasBin: true
 
   '@antelopejs/dms-frontend@0.11.8':
@@ -173,8 +174,8 @@ packages:
     peerDependencies:
       '@antelopejs/interface-core': '>=0.2.4 <1.0.0'
 
-  '@antelopejs/tooling-configs@0.9.3':
-    resolution: {integrity: sha512-iNFWt6wP+fLAVB84m5QW9ncG6z3g1qnVmCX9VKcaCctIfWnsCUDUVQum2Fa1S0UaLQY5/pWs5clAfWrnyjxXJQ==}
+  '@antelopejs/tooling-configs@0.9.4':
+    resolution: {integrity: sha512-cP2xhjJkxdwhaCRm3kDnZ4AS4GJ4LY7oDvd2MidYl2snFsW1UbUbCzhHcnrYQWifPZV8LCvO0xZMTvLM2OWDKQ==}
     engines: {node: '>=22.18.0'}
     hasBin: true
     peerDependencies:
@@ -3841,7 +3842,7 @@ snapshots:
       - supports-color
     optional: true
 
-  '@antelopejs/tooling-configs@0.9.3(playwright-core@1.65.1)':
+  '@antelopejs/tooling-configs@0.9.4(playwright-core@1.65.1)':
     dependencies:
       '@oxlint/plugins': 1.94.0
       dts-bundle-generator: 9.5.1
