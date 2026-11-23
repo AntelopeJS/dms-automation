@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { isNumber } from './Editor/jsonValue'
 import {
 	builderRunUrl,
 	opensInBuilder,
@@ -32,14 +33,31 @@ const { rerun, rerunning } = useRunActions({ apiUrl: props.apiUrl, traceUrl: pro
 
 const runId = computed(() => {
 	const q = route.query.run
-	return typeof q === 'string' ? q : Array.isArray(q) ? (q[0] ?? null) : null
+	return [q].flat()[0] ?? null
 })
 
 const HTTP_NOT_FOUND = 404
 
-function statusOf(e: unknown): number | undefined {
-	const error = e as { statusCode?: number; response?: { status?: number } }
-	return error.statusCode ?? error.response?.status
+interface HttpFailure {
+	statusCode?: number | null
+	response?: { status?: number | null } | null
+}
+
+function isOptionalNumber(value: unknown): value is number | null | undefined {
+	return value == null || isNumber(value)
+}
+
+function isHttpFailure(value: unknown): value is HttpFailure {
+	if (typeof value !== 'object' || value === null) return false
+	if ('statusCode' in value && !isOptionalNumber(value.statusCode)) return false
+	if (!('response' in value) || value.response == null) return true
+	const response = value.response
+	return typeof response === 'object' && (!('status' in response) || isOptionalNumber(response.status))
+}
+
+function statusOf(e: unknown): number | null | undefined {
+	if (isHttpFailure(e)) return e.statusCode ?? e.response?.status
+	return undefined
 }
 
 const runRead = runs.readRun(runId)

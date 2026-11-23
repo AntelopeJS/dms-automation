@@ -54,10 +54,14 @@ function branchesNotTaken(nodeId: string): PathItem['notTaken'] {
 const CHOOSING_KINDS = new Set(['if', 'switch', 'tryCatch', 'retry'])
 
 const items = computed<PathItem[]>(() => {
-	const byNode = new Map<string, TraceStep[]>()
-	for (const step of props.run.trace.steps) byNode.set(step.nodeId, [...(byNode.get(step.nodeId) ?? []), step])
+	const byNode = new Map<string, [TraceStep, ...TraceStep[]]>()
+	for (const step of props.run.trace.steps) {
+		const executions = byNode.get(step.nodeId)
+		if (executions) executions.push(step)
+		else byNode.set(step.nodeId, [step])
+	}
 	return [...byNode.entries()].map(([nodeId, executions]) => {
-		const first = executions[0]!
+		const [first] = executions
 		const branch = executions.map((s) => s.branch).find(Boolean)
 		return {
 			nodeId,

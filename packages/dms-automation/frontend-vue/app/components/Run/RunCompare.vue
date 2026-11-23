@@ -21,8 +21,7 @@ interface Row {
 	tone: 'failed' | 'handled' | 'ok'
 }
 
-const rows = computed<Row[]>(() => {
-	const before = new Map(Object.entries(props.run.lastSuccess?.stepDurations ?? {}))
+function reachedRows(before: ReadonlyMap<string, number | null>): Map<string, Row> {
 	const rowsById = new Map<string, Row>()
 	for (const step of props.run.trace.steps) {
 		const row = rowsById.get(step.nodeId) ?? {
@@ -37,6 +36,10 @@ const rows = computed<Row[]>(() => {
 		if (step.status === 'failed') row.tone = step.handled && row.tone !== 'failed' ? 'handled' : 'failed'
 		rowsById.set(step.nodeId, row)
 	}
+	return rowsById
+}
+
+function addUnreachedRows(rowsById: Map<string, Row>, before: ReadonlyMap<string, number | null>) {
 	const skippedNames = new Map(props.run.trace.skipped.map((s) => [s.nodeId, stepTitle(s.name, processI18n)]))
 	const labels = new Map((props.run.graph?.nodes ?? []).flatMap((n) => (n.label ? [[n.id, n.label] as const] : [])))
 	for (const [flatId, ms] of before) {
@@ -53,6 +56,12 @@ const rows = computed<Row[]>(() => {
 		if (row.notReached && ms !== null) row.before = (row.before ?? 0) + ms
 		rowsById.set(nodeId, row)
 	}
+}
+
+const rows = computed<Row[]>(() => {
+	const before = new Map(Object.entries(props.run.lastSuccess?.stepDurations ?? {}))
+	const rowsById = reachedRows(before)
+	addUnreachedRows(rowsById, before)
 	return [...rowsById.values()]
 })
 
