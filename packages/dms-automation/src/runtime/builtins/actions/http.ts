@@ -128,7 +128,7 @@ function checkUrl(raw: DataValue): URL {
   return url;
 }
 
-const headersSchema = z.record(z.unknown());
+const headersSchema = z.record(z.string(), z.unknown());
 
 function toHeaders(raw: DataValue): Headers {
   if (raw === undefined || raw === null) return new Headers();

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type DataValue, isDataValue } from "../types/dataValue";
+import { isPropertyBag } from "../types/guards";
 import { procedureGraphSchema } from "./graphSchema";
 
 /** The bodies the procedures routes accept. */
@@ -88,12 +89,15 @@ const IMPORT = "$dms_automation.importProcedure";
  * the form translates (it passes no parameters): no name or no graph, a step
  * kind this installation does not have, or a graph of another shape.
  */
-export function importErrorOf(issues: z.ZodIssue[]): string {
+export function importErrorOf(
+  raw: DataValue,
+  issues: readonly z.core.$ZodIssue[],
+): string {
   const missing = issues.some(
     (i) =>
       i.path.length === 1 &&
-      i.code === "invalid_type" &&
-      i.received === "undefined",
+      isPropertyBag(raw) &&
+      raw[String(i.path[0])] === undefined,
   );
   if (missing || issues.length === 0) return `${IMPORT}.notProcedure`;
   const unknownKind = issues.some((i) => i.path.at(-1) === "kind");

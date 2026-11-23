@@ -61,7 +61,11 @@ import {
   parseBody,
   refused,
 } from "./requests";
-import type { DataRecord, DataValue } from "../types/dataValue";
+import {
+  type DataRecord,
+  type DataValue,
+  parseJsonText,
+} from "../types/dataValue";
 
 async function loadProcedure(id: string): Promise<Procedure> {
   const procedure = await GetModel(ProcedureModel, DATABASE_NAME).get(id);
@@ -274,9 +278,9 @@ export class ProceduresController extends Controller(
   @Post("/import")
   async importJson(@AuthRawUser() _user: User, @JSONBody() body: DataValue) {
     const { json } = parseBody(importSchema, body);
-    let raw: unknown;
+    let raw: DataValue;
     try {
-      raw = JSON.parse(json);
+      raw = parseJsonText(json);
     } catch {
       throw new HTTPResult(400, {
         field: "json",
@@ -287,7 +291,7 @@ export class ProceduresController extends Controller(
     if (!parsed.success) {
       throw new HTTPResult(400, {
         field: "json",
-        message: importErrorOf(parsed.error.issues),
+        message: importErrorOf(raw, parsed.error.issues),
       });
     }
     const warning = await nameWarning(parsed.data.name);

@@ -27,7 +27,7 @@ void test("a body zod refuses answers its issues, a union's included, in the byt
     [
       400,
       "application/json",
-      '{"error":"invalid body","message":"$dms_automation.api.invalidBody","issues":[{"code":"invalid_union","unionErrors":[{"issues":[{"received":true,"code":"invalid_literal","expected":"a","path":["kind"],"message":"Invalid literal value, expected \\"a\\""}],"name":"ZodError"},{"issues":[{"code":"invalid_type","expected":"number","received":"boolean","path":["kind"],"message":"Expected number, received boolean"}],"name":"ZodError"}],"path":["kind"],"message":"Invalid input"},{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["count"]}]}',
+      '{"error":"invalid body","message":"$dms_automation.api.invalidBody","issues":[{"code":"invalid_union","errors":[[{"code":"invalid_value","values":["a"],"path":[],"message":"Invalid input: expected \\"a\\""}],[{"expected":"number","code":"invalid_type","path":[],"message":"Invalid input: expected number, received boolean"}]],"path":["kind"],"message":"Invalid input"},{"expected":"int","format":"safeint","code":"invalid_type","path":["count"],"message":"Invalid input: expected int, received number"}]}',
     ],
   );
 });
@@ -43,7 +43,7 @@ void test("a graph body zod refuses answers its issues in the same bytes", () =>
     [
       400,
       "application/json",
-      '{"error":"invalid body","issues":[{"code":"invalid_union","unionErrors":[{"issues":[{"received":true,"code":"invalid_literal","expected":"a","path":["kind"],"message":"Invalid literal value, expected \\"a\\""}],"name":"ZodError"},{"issues":[{"code":"invalid_type","expected":"number","received":"boolean","path":["kind"],"message":"Expected number, received boolean"}],"name":"ZodError"}],"path":["kind"],"message":"Invalid input"},{"code":"invalid_type","expected":"integer","received":"float","message":"Expected integer, received float","path":["count"]}]}',
+      '{"error":"invalid body","issues":[{"code":"invalid_union","errors":[[{"code":"invalid_value","values":["a"],"path":[],"message":"Invalid input: expected \\"a\\""}],[{"expected":"number","code":"invalid_type","path":[],"message":"Invalid input: expected number, received boolean"}]],"path":["kind"],"message":"Invalid input"},{"expected":"int","format":"safeint","code":"invalid_type","path":["count"],"message":"Invalid input: expected int, received number"}]}',
     ],
   );
 });

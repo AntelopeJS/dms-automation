@@ -25,7 +25,7 @@ export const groupPortSchema: z.ZodType<GroupPort> = z.object({
   name: z.string().min(1),
   kind: z.enum(["data", "trigger"]),
   direction: z.enum(["in", "out"]),
-  schema: z.record(z.unknown()).optional(),
+  schema: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
@@ -77,14 +77,17 @@ const graphBodySchema: z.ZodType<ProcedureGraph> = z.lazy(() =>
   }),
 );
 
-export const procedureGraphSchema: z.ZodType<
-  ProcedureGraph,
-  z.ZodTypeDef,
-  unknown
-> = z
-  .custom<DataValue>(isDataValue)
-  .refine((graph) => groupDepthOf(graph, MAX_GROUP_DEPTH) <= MAX_GROUP_DEPTH, {
-    message: `groups are nested more than ${MAX_GROUP_DEPTH} levels deep`,
+export const procedureGraphSchema: z.ZodType<ProcedureGraph, unknown> = z
+  .unknown()
+  .superRefine((graph, ctx) => {
+    if (!isDataValue(graph)) {
+      ctx.addIssue({ code: "custom", message: "Invalid input" });
+    } else if (groupDepthOf(graph, MAX_GROUP_DEPTH) > MAX_GROUP_DEPTH) {
+      ctx.addIssue({
+        code: "custom",
+        message: `groups are nested more than ${MAX_GROUP_DEPTH} levels deep`,
+      });
+    }
   })
   .pipe(graphBodySchema);
 
@@ -99,14 +102,14 @@ const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
       id: z.string(),
       kind: nodeKindSchema,
       typeId: z.string().optional(),
-      config: z.record(z.custom<DataValue>(isDataValue)),
+      config: z.record(z.string(), z.custom<DataValue>(isDataValue)),
       position: z.object({ x: z.number().finite(), y: z.number().finite() }),
       label: z.string().optional(),
       templateId: z.string().optional(),
       ports: z.array(z.lazy(() => groupPortSchema)).optional(),
       subgraph: graphBodySchema.optional(),
     })
-    .passthrough(),
+    .loose(),
 );
 
 /**
@@ -116,7 +119,7 @@ const graphNodeSchema: z.ZodType<GraphNode> = z.lazy(() =>
  * and templates routes.
  */
 export function parseAndValidate<T>(
-  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  schema: z.ZodType<T, unknown>,
   body: DataValue,
   graphSelector: (data: T) => ProcedureGraph,
 ): T {

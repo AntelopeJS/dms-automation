@@ -39,7 +39,7 @@ export function invalid(
 }
 
 export function parseBody<T>(
-  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  schema: z.ZodType<T, unknown>,
   body: DataValue,
 ): T {
   const parsed = schema.safeParse(body);

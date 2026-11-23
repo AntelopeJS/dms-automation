@@ -33,7 +33,7 @@ export const declareJourneys = [
       await ctx.verify("ids that are refused", refusals);
       const charset = await declareProcedure(ctx, declaration("a b"));
       const tooLong = await declareProcedure(ctx, declaration("x".repeat(121)));
-      await ctx.verify("the refusal names the id rule", [same("charset", charset.error, refusal("a b", "id: letters, digits, '.', '_' and '-' only")), check("length", tooLong.error.includes("id: String must contain at most 120 character(s)"), tooLong.error)]);
+      await ctx.verify("the refusal names the id rule", [same("charset", charset.error, refusal("a b", "id: letters, digits, '.', '_' and '-' only")), check("length", tooLong.error.includes("id: Too big: expected string to have <=120 characters"), tooLong.error)]);
       const dotted = "bakery.quote-follow-up";
       const invoked = await fixture(ctx, "InvokeProcedure", "POST", "/invoke", {
         id: dotted,
@@ -126,10 +126,10 @@ export const declareJourneys = [
         enabled: false,
       });
       await ctx.verify("required fields", [
-        same("enabled left out", noEnabled.error, refusal("shape.no-enabled", "enabled: Required")),
+        same("enabled left out", noEnabled.error, refusal("shape.no-enabled", "enabled: Invalid input: expected boolean, received undefined")),
         check("enabled must be a boolean", !stringEnabled.ok && stringEnabled.error.startsWith(refusal("shape.string-enabled", "enabled: ")), stringEnabled.error),
-        same("graph left out", noGraph.error, refusal("shape.no-graph", "graph: Required")),
-        same("name left out", noName.error, refusal("shape.no-name", "name: Required")),
+        same("graph left out", noGraph.error, refusal("shape.no-graph", "graph: Invalid input: expected object, received undefined")),
+        same("name left out", noName.error, refusal("shape.no-name", "name: Invalid input: expected string, received undefined")),
         same("none of them stored", await Promise.all(["shape.no-enabled", "shape.string-enabled", "shape.no-graph", "shape.no-name"].map((id) => stored(ctx, id))), [null, null, null, null]),
       ]);
       const both = await declareProcedure(ctx, {
@@ -138,7 +138,7 @@ export const declareJourneys = [
         graph: logGraph("x"),
         enabled: false,
       });
-      await ctx.verify("every problem is named, separated by '; '", [same("the message", both.error, refusal("bad id", "name: String must contain at least 1 character(s); id: letters, digits, '.', '_' and '-' only"))]);
+      await ctx.verify("every problem is named, separated by '; '", [same("the message", both.error, refusal("bad id", "name: Too small: expected string to have >=1 characters; id: letters, digits, '.', '_' and '-' only"))]);
     },
   },
   {

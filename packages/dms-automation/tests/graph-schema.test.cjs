@@ -41,3 +41,32 @@ void test("a node config holding a function is refused", () => {
   const parsed = procedureGraphSchema.safeParse(graphWith({ run: () => 1 }));
   assert.equal(parsed.success, false);
 });
+
+void test("an import missing its name or graph is not a procedure, which an importErrorOf reading zod 3's `received` calls an invalid graph", () => {
+  const {
+    exportedSchema,
+    importErrorOf,
+  } = require("../dist/routes/procedureSchemas.js");
+  const graph = { nodes: [], triggerEdges: [], dataEdges: [] };
+  const node = { id: "a", kind: "wat", config: {}, position: { x: 0, y: 0 } };
+  /** @param {unknown} raw */
+  const errorOf = (raw) =>
+    importErrorOf(raw, exportedSchema.safeParse(raw).error.issues);
+  const IMPORT = "$dms_automation.importProcedure";
+  assert.deepEqual(
+    [
+      errorOf({ graph }),
+      errorOf({ name: "x" }),
+      errorOf({ name: "x", graph: { ...graph, nodes: [node] } }),
+      errorOf({ name: "x", graph: { nodes: 3 } }),
+      errorOf([]),
+    ],
+    [
+      `${IMPORT}.notProcedure`,
+      `${IMPORT}.notProcedure`,
+      `${IMPORT}.unknownKind`,
+      `${IMPORT}.invalidGraph`,
+      `${IMPORT}.invalidGraph`,
+    ],
+  );
+});
