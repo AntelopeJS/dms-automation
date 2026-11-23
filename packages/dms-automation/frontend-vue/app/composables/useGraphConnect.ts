@@ -554,31 +554,16 @@ function canConnectData(
   return { ok: true };
 }
 
-type CanConnectArguments = [
-  graph: ProcedureGraph,
-  nodeKinds: NodeKindEntry[],
-  triggerTypes: TriggerType[],
-  actionTypes: ActionType[],
-  dataNodeTypes: DataNodeType[],
-  connection: ConnectionLike,
-  context?: ConnectContext,
-];
-
 /**
  * Whether a connection may be drawn. A connection missing an endpoint is
  * accepted: Vue Flow may call this during prop sync before the connection is
  * populated, and rejecting it would drop the existing edge from the render.
  */
 export function canConnect(
-  ...[
-    graph,
-    nodeKinds,
-    triggerTypes,
-    actionTypes,
-    dataNodeTypes,
-    connection,
-    context,
-  ]: CanConnectArguments
+  graph: ProcedureGraph,
+  catalog: TypeCatalog,
+  connection: ConnectionLike,
+  context?: ConnectContext,
 ): ConnectResult {
   const { source, target, sourceHandle, targetHandle } = connection;
   if (!source || !target) return { ok: true };
@@ -603,7 +588,6 @@ export function canConnect(
   const port = parseDataPort(sourceHandle);
   const field = parseDataField(targetHandle);
   if (!port || !field) return { ok: false, code: "invalidPorts" };
-  const catalog = { nodeKinds, triggerTypes, actionTypes, dataNodeTypes };
   return canConnectData(
     graph,
     { sourceNode, targetNode, port, field },

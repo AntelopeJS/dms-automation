@@ -8,7 +8,7 @@ const {
 } = require("../frontend-vue/app/composables/useGraphConnect.ts");
 
 /** @typedef {Parameters<typeof canConnect>[0]} ProcedureGraph */
-/** @typedef {Parameters<typeof canConnect>[5]} Connection */
+/** @typedef {Parameters<typeof canConnect>[2]} Connection */
 /** @typedef {{ name: string; type?: string }} PortFixture */
 /**
  * @typedef {{
@@ -74,7 +74,16 @@ const node = (id, kind = "step") => ({
  * @param {Connection} connection
  */
 function check(graph, connection) {
-  return canConnect(graph, NODE_KINDS, [], [], [], connection);
+  return canConnect(
+    graph,
+    {
+      nodeKinds: NODE_KINDS,
+      triggerTypes: [],
+      actionTypes: [],
+      dataNodeTypes: [],
+    },
+    connection,
+  );
 }
 
 /**

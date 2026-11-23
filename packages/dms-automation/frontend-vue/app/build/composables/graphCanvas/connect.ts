@@ -31,15 +31,9 @@ export type ConnectionCheck = (
 
 export function connectionCheck(props: Readonly<CanvasProps>): ConnectionCheck {
   return (graph, conn) =>
-    canConnect(
-      graph,
-      props.nodeKinds,
-      props.triggerTypes,
-      props.actionTypes,
-      props.dataNodeTypes,
-      conn,
-      { parentGroupPorts: props.parentGroupPorts },
-    );
+    canConnect(graph, props, conn, {
+      parentGroupPorts: props.parentGroupPorts,
+    });
 }
 
 /**

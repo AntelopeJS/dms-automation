@@ -142,14 +142,13 @@ const scenarios = [
   [
     "builder save",
     (ctx) => {
-      const actions = useBuilderSave(
-        ctx,
-        { takeSnapshot: () => ({ name: "Draft", graph: {} }) },
-        { nameMissing: ref(false), blockingIssues: ref([]) },
-        {},
-        {},
-        {},
-      );
+      const actions = useBuilderSave(ctx, {
+        history: { takeSnapshot: () => ({ name: "Draft", graph: {} }) },
+        problems: { nameMissing: ref(false), blockingIssues: ref([]) },
+        triggers: {},
+        guards: {},
+        later: {},
+      });
       return { act: actions.onSave, pending: ctx.saving };
     },
   ],

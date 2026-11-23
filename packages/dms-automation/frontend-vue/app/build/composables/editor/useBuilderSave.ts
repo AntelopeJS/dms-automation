@@ -14,13 +14,14 @@ import type { UnsavedGuards } from "./useUnsavedGuards";
 import { seedSubgraphPath } from "./useSubgraphNavigation";
 import { isNumber, isRecord } from "../../../utils/json";
 
-type SaveDependencies = [
-  history: GraphHistory,
-  problems: DraftProblems,
-  triggers: SavedTriggers,
-  guards: UnsavedGuards,
-  later: { onTestRun: () => Promise<void> },
-];
+/** The composables a save reads and acts through. */
+interface SaveDependencies {
+  history: GraphHistory;
+  problems: DraftProblems;
+  triggers: SavedTriggers;
+  guards: UnsavedGuards;
+  later: { onTestRun: () => Promise<void> };
+}
 
 /** The server refused a save because the procedure was written elsewhere; `data.revision` is the revision it holds. */
 interface StaleConflict {
@@ -172,7 +173,7 @@ async function replaceWithSaved(
  */
 export function useBuilderSave(
   ctx: EditorContext,
-  ...[history, problems, triggers, guards, later]: SaveDependencies
+  { history, problems, triggers, guards, later }: SaveDependencies,
 ) {
   const errorPresenter = useApiErrorPresenter();
   const {

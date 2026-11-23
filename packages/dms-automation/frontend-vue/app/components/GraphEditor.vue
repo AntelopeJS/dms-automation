@@ -51,12 +51,27 @@ const problems = useDraftProblems(ctx, graphHistory, nav)
 const triggers = useSavedTriggers(ctx, problems)
 const guards = useUnsavedGuards(ctx, graphHistory, problems, { onSave: () => save.onSave() })
 const actions = useProcedureActions(ctx, load, problems, guards)
-const save = useBuilderSave(ctx, graphHistory, problems, triggers, guards, { onTestRun: () => runs.onTestRun() })
+const save = useBuilderSave(ctx, {
+	history: graphHistory,
+	problems,
+	triggers,
+	guards,
+	later: { onTestRun: () => runs.onTestRun() },
+})
 const saveTpl = useSaveAsTemplate(ctx, graphHistory, nav, save)
 const fork = useForkToLocal(ctx, nav)
-useBuilderShortcuts(ctx, graphHistory, nav, groups, guards, save, saveTpl, fork, {
-	onTestRun: () => runs.onTestRun(),
-	exitDebug: () => runs.exitDebug(),
+useBuilderShortcuts(ctx, {
+	history: graphHistory,
+	nav,
+	groups,
+	guards,
+	save,
+	saveTpl,
+	fork,
+	later: {
+		onTestRun: () => runs.onTestRun(),
+		exitDebug: () => runs.exitDebug(),
+	},
 })
 const runs = useRunOverlay(ctx, graphHistory, problems, triggers, guards)
 const mount = useBuilderMount(ctx, nav, problems, runs)

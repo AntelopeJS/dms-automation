@@ -20,16 +20,17 @@ import type { BuilderSave } from "./useBuilderSave";
 import type { SaveAsTemplate } from "./useSaveAsTemplate";
 import type { ForkToLocal } from "./useForkToLocal";
 
-type ShortcutDependencies = [
-  history: GraphHistory,
-  nav: SubgraphNavigation,
-  groups: GroupEditing,
-  guards: UnsavedGuards,
-  save: BuilderSave,
-  saveTpl: SaveAsTemplate,
-  fork: ForkToLocal,
-  later: { onTestRun: () => Promise<void>; exitDebug: () => void },
-];
+/** The composables the shortcuts act through. */
+interface ShortcutDependencies {
+  history: GraphHistory;
+  nav: SubgraphNavigation;
+  groups: GroupEditing;
+  guards: UnsavedGuards;
+  save: BuilderSave;
+  saveTpl: SaveAsTemplate;
+  fork: ForkToLocal;
+  later: { onTestRun: () => Promise<void>; exitDebug: () => void };
+}
 
 /**
  * Blurs the focused field so it commits what is typed in it (a JSON setting
@@ -123,7 +124,7 @@ function useEditShortcuts(
  */
 export function useBuilderShortcuts(
   ctx: EditorContext,
-  ...[
+  {
     history,
     nav,
     groups,
@@ -132,7 +133,7 @@ export function useBuilderShortcuts(
     saveTpl,
     fork,
     later,
-  ]: ShortcutDependencies
+  }: ShortcutDependencies,
 ) {
   const {
     editorMode,
