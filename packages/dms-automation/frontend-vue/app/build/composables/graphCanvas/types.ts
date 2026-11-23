@@ -10,6 +10,7 @@ import type {
   TriggerType,
 } from "../../../composables/useGraphConnect";
 import type { WordedTrigger } from "../../../utils/describe";
+import type { GraphIssue } from "../../types/editor";
 
 /** The props of the graph canvas. */
 export interface CanvasProps {
@@ -26,17 +27,17 @@ export interface CanvasProps {
   nodeKinds: NodeKindEntry[];
   canUndo?: boolean;
   canRedo?: boolean;
-  // When the canvas is showing a group's inner subgraph, these are the
-  // parent group's declared ports — the sentinel nodes (groupInput /
-  // groupOutput) render handles derived from this list rather than
-  // reading from their own node data. (Sentinel nodes themselves don't
-  // carry ports; their parent group does.) Undefined at the procedure
-  // root.
+  /**
+   * The declared ports of the parent group while the canvas shows its inner
+   * subgraph: the sentinel nodes (groupInput, groupOutput) draw their handles
+   * from them, as they carry no ports of their own. Undefined at the procedure
+   * root.
+   */
   parentGroupPorts?: GroupPort[];
-  // When true, the canvas suppresses graph mutations from user input —
-  // used for the read-only view of template-instance inner subgraphs.
-  // User can still pan / zoom / select / inspect, just not connect,
-  // move, delete, or edit. The "Apply / Cancel" buttons are hidden too.
+  /**
+   * Suppresses graph mutations from user input (the inner subgraph of a
+   * template instance): the user can still pan, zoom, select and inspect.
+   */
   readOnly?: boolean;
   /** Outcome of each node in the run shown over the canvas (a test run, a debugged run). */
   runStates?: Map<string, NodeRunState>;
@@ -61,28 +62,23 @@ export interface CanvasProps {
   triggers?: WordedTrigger[];
 }
 
-export interface NodeIssue {
-  severity: "error" | "warning";
-  message: string;
-  /** Problem code, translated as `dms_automation.editor.problems.codes.<code>`. */
-  code?: string;
-  params?: Record<string, unknown>;
-}
+/**
+ * The problem of a node: its `code` is translated as
+ * `dms_automation.editor.problems.codes.<code>`, `message` is the fallback.
+ */
+export type NodeIssue = Omit<GraphIssue, "nodeId">;
 
-/** The events of the graph canvas. */
+/**
+ * The events of the graph canvas. `selection-change` carries every selected
+ * node id of the canvas, sentinels excluded. `group:enter` is the double-click
+ * of a group node, filtered by kind here.
+ */
 export interface CanvasEmits {
   (e: "update:graph", g: ProcedureGraph): void;
   (e: "select:node", id: string | null): void;
-  // Fires whenever the selection set changes (single or multi). `ids` is
-  // the full set of currently selected node ids in this canvas — used by
-  // Editor.vue to drive the "Group selection" toolbar action. Sentinel
-  // nodes (groupInput / groupOutput) are filtered out before emitting.
   (e: "selection-change", payload: { ids: string[] }): void;
   (e: "undo"): void;
   (e: "redo"): void;
-  // Bubbles up GroupNode's @dblclick — Editor.vue uses this to push the
-  // group onto the subgraph navigation path. Filtered by kind here so
-  // the parent doesn't need to look the node up itself.
   (e: "group:enter", payload: { id: string }): void;
 }
 
@@ -94,26 +90,30 @@ export interface CanvasText {
   processText: ReturnType<typeof useComposedText>["processText"];
 }
 
-// The node to select and bring into view once drawn: one just added, or one
-// the editor points at (`readable`).
+/**
+ * The node to select and bring into view once drawn: one just added, or one
+ * the editor points at (`readable`).
+ */
 export interface Reveal {
   pending: { id: string; readable: boolean } | null;
 }
 
-// Fit view never zooms past 100% (a lone trigger would fill the canvas) and
-// may go down to 10% so a large graph fits whole.
 export const FIT_PADDING = 0.15;
+
+/** Fit view never zooms past 100%: a lone trigger would fill the canvas. */
 export const FIT_MAX_ZOOM = 1;
+
+/** Fit view may go down to 10% so a large graph fits whole. */
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 1.5;
-// Room left around a new node, and the size assumed for a node not drawn
-// yet (GenericNode's width, a typical height).
+
+/** Room left around a new node. */
 export const NODE_GAP = 60;
+
+/** The size assumed for a node not drawn yet: GenericNode's width, a typical height. */
 export const NEW_NODE_SIZE = { width: 230, height: 90 };
 
-// Sentinel node kinds — only valid inside a group's subgraph and never
-// user-deletable. We filter them out of keyboard/right-click delete in
-// onNodesChange below.
+/** Node kinds valid only inside a group's subgraph and never user-deletable. */
 export const SENTINEL_KINDS: ReadonlySet<NodeKind> = new Set<NodeKind>([
   "groupInput",
   "groupOutput",
@@ -148,12 +148,7 @@ export interface LinkItem {
   connection: Connection;
 }
 
-// DmsFlowCanvas owns the VueFlow store (it calls `useVueFlow(flowId)` with a
-// private id and `defineExpose`s the resulting controller). We grab that
-// controller through a template ref instead of calling `useVueFlow()` here —
-// a bare `useVueFlow()` would resolve to the DEFAULT store, which is NOT the
-// one DmsFlowCanvas drives, so zoom/fit/updateNodeInternals would silently
-// no-op. Only the handful of imperative methods we actually use are typed.
+/** A node of the Vue Flow store, as far as the canvas reads it. */
 export interface FlowNodeState {
   id: string;
   selected?: boolean;
@@ -161,6 +156,13 @@ export interface FlowNodeState {
   dimensions: { width: number; height: number };
 }
 
+/**
+ * The Vue Flow controller DmsFlowCanvas exposes, read through a template ref:
+ * a bare `useVueFlow()` would resolve to the default store, not the private
+ * one DmsFlowCanvas drives, and zoom, fit and `updateNodeInternals` would
+ * silently do nothing. Vue's expose proxy unwraps the refs, so `viewport.zoom`
+ * is read directly, without `.value`. Only the methods the canvas uses are typed.
+ */
 export interface FlowController {
   zoomIn: () => void;
   zoomOut: () => void;
@@ -174,10 +176,6 @@ export interface FlowController {
   addSelectedNodes: (nodes: FlowNodeState[]) => void;
   removeSelectedNodes: (nodes: FlowNodeState[]) => void;
   updateNodeInternals: (ids?: string | string[]) => void;
-  // DmsFlowCanvas `defineExpose`s the VueFlow controller; Vue's expose proxy
-  // unwraps the `viewport` ref, so consumers read `.viewport.zoom` directly
-  // (NOT `.viewport.value.zoom` — that extra `.value` is undefined and pinned
-  // the zoom readout at 100%). Same for the refs below.
   viewport: XY & { zoom: number };
   /** Size of the canvas on screen. */
   dimensions: { width: number; height: number };
