@@ -31,19 +31,15 @@ export type ConnectionCheck = (
 
 export function connectionCheck(props: Readonly<CanvasProps>): ConnectionCheck {
   return (graph, conn) =>
-    canConnect(
-      graph,
-      props.nodeKinds,
-      props.triggerTypes,
-      props.actionTypes,
-      props.dataNodeTypes,
-      conn,
-      { parentGroupPorts: props.parentGroupPorts },
-    );
+    canConnect(graph, props, conn, {
+      parentGroupPorts: props.parentGroupPorts,
+    });
 }
 
-// The link from `from`'s main output to `to`, when that output is free and
-// `to` has an input that accepts it.
+/**
+ * The link from `from`'s main output to `to`, when that output is free and
+ * `to` has an input that accepts it.
+ */
 export function nextStepConnection(
   graph: ProcedureGraph,
   from: AppGraphNode,
@@ -70,7 +66,11 @@ export function nextStepConnection(
   return check(graph, conn).ok ? conn : null;
 }
 
-// The graph once `conn` is drawn, and the link it took the place of.
+/**
+ * The graph once `conn` is drawn, and the link it took the place of. A source
+ * and branch carries one outgoing trigger edge, and a data field reads from one
+ * output only: connecting again replaces the existing edge.
+ */
 export function withConnection(
   graph: ProcedureGraph,
   conn: Connection,
@@ -91,10 +91,6 @@ export function withConnection(
           ? { node: conn.target, branch: toBranch }
           : { node: conn.target },
     };
-    // Each source/branch carries exactly one outgoing trigger edge.
-    // Connecting again replaces any existing edge from that source/branch.
-    // (Branching across if/switch named branches still works because each
-    // branch has its own `from.branch` and only conflicts with itself.)
     const replaced = graph.triggerEdges.find(
       (e) =>
         e.from.node === conn.source && (e.from.branch ?? "main") === branch,
@@ -120,7 +116,6 @@ export function withConnection(
     from: { node: conn.source, port },
     to: { node: conn.target, field },
   };
-  // Overwrite: a field reads from one output only.
   const replaced = graph.dataEdges.find(
     (e) => e.to.node === conn.target && e.to.field === field,
   );
@@ -134,6 +129,44 @@ export function withConnection(
   };
 }
 
+function isDataEdge(edge: TriggerEdge | DataEdge): edge is DataEdge {
+  return "port" in edge.from && "field" in edge.to;
+}
+
+/**
+ * The graph once the replacement of `old` by `added` is undone: `added` goes
+ * and `old` comes back, unless `added` is gone already (null), or an end of
+ * `old` was deleted since.
+ */
+function restoredGraph(
+  graph: ProcedureGraph,
+  added: TriggerEdge | DataEdge,
+  old: TriggerEdge | DataEdge,
+): ProcedureGraph | null {
+  const ids = new Set(graph.nodes.map((n) => n.id));
+  const back = ids.has(old.from.node) && ids.has(old.to.node);
+  if (isDataEdge(added)) {
+    if (!graph.dataEdges.some((e) => e.id === added.id)) return null;
+    const edges = graph.dataEdges.filter((e) => e.id !== added.id);
+    return {
+      ...graph,
+      dataEdges: back && isDataEdge(old) ? [...edges, old] : edges,
+    };
+  }
+  if (!graph.triggerEdges.some((e) => e.id === added.id)) return null;
+  const edges = graph.triggerEdges.filter((e) => e.id !== added.id);
+  return {
+    ...graph,
+    triggerEdges: back && !isDataEdge(old) ? [...edges, old] : edges,
+  };
+}
+
+/**
+ * The connection handlers of the canvas. Drawing over an existing link
+ * replaces it: a toast says which, with an undo of that replacement only. The
+ * reason a port under a link being drawn refuses it shows while it hovers, and
+ * stays on screen when the link is released over it.
+ */
 export function useConnections({
   props,
   t,
@@ -160,45 +193,17 @@ export function useConnections({
         );
   }
 
-  // Undo of a replacement: the new link goes, the old one comes back — unless
-  // the new link is gone already, or an end of the old one was deleted since.
-  function restoreLink(
-    added: TriggerEdge | DataEdge,
-    old: TriggerEdge | DataEdge,
-  ) {
-    const graph = props.graph;
-    const ids = new Set(graph.nodes.map((n) => n.id));
-    const back = ids.has(old.from.node) && ids.has(old.to.node);
-    if ("port" in added.from) {
-      if (!graph.dataEdges.some((e) => e.id === added.id)) return;
-      const edges = graph.dataEdges.filter((e) => e.id !== added.id);
-      emitGraph({
-        ...graph,
-        dataEdges: back ? [...edges, old as DataEdge] : edges,
-      });
-    } else {
-      if (!graph.triggerEdges.some((e) => e.id === added.id)) return;
-      const edges = graph.triggerEdges.filter((e) => e.id !== added.id);
-      emitGraph({
-        ...graph,
-        triggerEdges: back ? [...edges, old as TriggerEdge] : edges,
-      });
-    }
-  }
-
-  // Drawing over an existing link replaces it: say which one, with an undo of
-  // that replacement only.
   function notifyReplaced(
     added: TriggerEdge | DataEdge,
     old: TriggerEdge | DataEdge,
     conn: Connection,
   ) {
     let description: string;
-    if ("port" in old.from) {
+    if (isDataEdge(old)) {
       const port = parseDataPort(conn.sourceHandle);
       if (old.from.node === conn.source && old.from.port === port) return;
       description = t("dms_automation.editor.canvas.replaced.data", {
-        field: (old as DataEdge).to.field,
+        field: old.to.field,
         step: menuName(conn.target),
         source: `${menuName(conn.source)} · ${port}`,
         previous: `${menuName(old.from.node)} · ${old.from.port}`,
@@ -219,7 +224,10 @@ export function useConnections({
       actions: [
         {
           label: t("dms_automation.editor.canvas.undo"),
-          onClick: () => restoreLink(added, old),
+          onClick: () => {
+            const restored = restoredGraph(props.graph, added, old);
+            if (restored) emitGraph(restored);
+          },
         },
       ],
     });
@@ -243,7 +251,6 @@ export function useConnections({
     if (next.replaced) notifyReplaced(next.added, next.replaced, conn);
   }
 
-  // Why the port under a link being drawn refuses it, shown while it hovers.
   const refusal = ref("");
 
   const refusalShown = computed(
@@ -256,7 +263,6 @@ export function useConnections({
     return result.ok;
   }
 
-  // Released over a port that refuses the link: keep the reason on screen.
   function onConnectEnd() {
     if (refusalShown.value) {
       toast.add({

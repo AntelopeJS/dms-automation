@@ -6,8 +6,10 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   return false;
 }
 
-// Open overlays only: a closing dialog stays in the page while it animates
-// out, and a non-modal card (the DMS star prompt) has no state at all.
+/**
+ * Open overlays only: a closing dialog stays in the page while it animates
+ * out, and a non-modal card (the DMS star prompt) has no state at all.
+ */
 export const OVERLAY_SELECTOR =
   ':is([role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"])[data-state="open"]';
 

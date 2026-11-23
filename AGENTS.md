@@ -8,11 +8,13 @@ A pnpm workspace with two published packages. The root holds the tool configs an
 | ----------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `packages/interface-dms-automation`       | `@antelopejs/interface-dms-automation`, the contract other modules use to declare their nodes |
 | `packages/dms-automation`                 | `@antelopejs/dms-automation`, the module that implements it                                 |
-| `packages/dms-automation/frontend-vue`    | The Vue layer. oxlint skips it and ESLint lints it. oxfmt gates everything but `.vue`; its own `format` runs Prettier over all of it, so run the root `pnpm run format` after it |
+| `packages/dms-automation/frontend-vue`    | The Vue layer. oxlint lints it like the rest; ESLint (`antelopeNuxtConfig`) adds the Vue rules and the type-aware rules on `.vue` script blocks, through the types its `types` script writes to `frontend-vue/.dms-types`, which `lint` runs first. oxfmt gates everything but `.vue`; its own `format` runs Prettier over all of it, so run the root `pnpm run format` after it |
 | `packages/dms-automation/playground`      | A standalone project with its own lockfile, outside the workspace install                  |
 | `e2e`                                     | The journeys as a Playwright suite, on the adapter of `@antelopejs/dms/e2e`                  |
 
 Run a package script from its own directory: `pnpm --dir packages/dms-automation <script>`.
+
+Type-aware lint resolves the interface through its built `dist` and the Vue layer through `frontend-vue/.dms-types`. After `pnpm install`, run `pnpm --dir packages/interface-dms-automation build` and `pnpm --dir packages/dms-automation/frontend-vue types`: without them the commit hook's oxlint reports false `no-unsafe-*` and `require-tsconfig-include` errors. `pnpm -s typecheck` in `frontend-vue/.dms-types` runs vue-tsc over the layer without a full Inertia workspace.
 
 ## Versioning
 

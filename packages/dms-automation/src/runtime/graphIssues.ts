@@ -68,26 +68,25 @@ const DISABLED_LOOKUP = new Map<string, (id: string) => boolean>([
   ["action", isActionTypeDisabled],
 ]);
 
+/**
+ * A procedure's own armed webhook is no conflict, and another procedure's is
+ * checked on the procedures, so this module's armed webhooks are left out.
+ */
+function webhookConfigProblem(config: DataRecord): ConfigProblem | undefined {
+  const { method, path } = webhookRouteOf(config);
+  return (
+    webhookPathProblem(config.path) ??
+    webhookRouteConflict(method, path, armedWebhookRouteIds())
+  );
+}
+
 /** Settings a trigger type checks beyond its schema. */
 const CONFIG_CHECKS = new Map<
   string,
   (config: DataRecord) => ConfigProblem | undefined
 >([
   [cronTrigger.id, (config) => cronProblem(config.cron)],
-  /**
-   * This module's armed webhooks are left out: a procedure's own webhook
-   * is no conflict, and another procedure's is checked on the procedures.
-   */
-  [
-    webhookTrigger.id,
-    (config) => {
-      const { method, path } = webhookRouteOf(config);
-      return (
-        webhookPathProblem(config.path) ??
-        webhookRouteConflict(method, path, armedWebhookRouteIds())
-      );
-    },
-  ],
+  [webhookTrigger.id, webhookConfigProblem],
 ]);
 
 const FOR_RANGE_DEFAULTS = new Map([

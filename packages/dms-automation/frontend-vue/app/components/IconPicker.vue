@@ -6,17 +6,12 @@ export function isIconName(name: string): boolean {
 	return ICON_PATTERN.test(name)
 }
 
-// Where the DMS frontend answers Iconify queries, `not_found` listing the
-// names a collection lacks.
 const ICON_API_PATH = '/api/_dms/icons/'
 </script>
 
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue'
-
-// A grid of icons to pick from, with a search, in place of typing an Iconify
-// name. "More…" keeps the free text for an icon outside the grid, with a
-// preview; it is open from the start when the current icon is not in the grid.
+import { isAbsentOr, isRecord, isStringList } from '../utils/json'
 
 const ICONS = [
 	'i-ph-package', 'i-ph-stack', 'i-ph-flow-arrow', 'i-ph-lightning', 'i-ph-webhooks-logo',
@@ -35,8 +30,6 @@ const custom = ref(!ICONS.includes(model.value))
 const customId = useId()
 const unknown = ref(false)
 
-// Another template picked in the same form: show its icon if the grid lacks
-// it, and say so when no icon has that name (it would show empty).
 let check: ReturnType<typeof setTimeout> | undefined
 watch(
 	model,
@@ -51,17 +44,18 @@ watch(
 	{ immediate: true },
 )
 
+function isIconLookup(value: unknown): value is { not_found?: string[] } {
+	return isRecord(value) && isAbsentOr(value.not_found, isStringList)
+}
+
 async function lookUp(icon: string) {
-	// `i-ph-heart-beat`: collection `ph`, icon `heart-beat`. A collection with a
-	// dash in its name is not found this way, and is then not flagged.
-	const [, prefix, name] = icon.match(/^i-([a-z0-9]+)-(.+)$/) ?? []
+	const [, prefix = '', name = ''] = icon.match(/^i-([a-z0-9]+)-(.+)$/) ?? []
 	try {
 		const response = await fetch(`${ICON_API_PATH}${prefix}.json?icons=${name}`)
 		if (!response.ok) return
-		const data = (await response.json()) as { not_found?: string[] }
-		if (model.value === icon) unknown.value = !!data.not_found?.includes(name!)
+		const data: unknown = await response.json()
+		if (isIconLookup(data) && model.value === icon) unknown.value = !!data.not_found?.includes(name)
 	} catch {
-		// Unknown stays false: a lookup that failed says nothing of the icon.
 	}
 }
 

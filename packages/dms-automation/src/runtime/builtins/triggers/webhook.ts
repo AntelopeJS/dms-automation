@@ -230,20 +230,12 @@ export const webhookTrigger: TriggerType<WebhookConfig, WebhookOutput> = {
       params: { type: "object" },
     },
   },
-  /**
-   * An already armed webhook on this route is a conflict like any route:
-   * the router would hand every call to the first one.
-   */
   async activate(config, emit) {
     const { method, path } = webhookRouteOf({ ...config });
     const problem =
       webhookPathProblem(config.path) ?? webhookRouteConflict(method, path);
     if (problem) throw new TriggerArmError(problem);
 
-    /**
-     * A body over the size limit rejects with a 413: the caller is told,
-     * and the procedure does not run on a payload it never received.
-     */
     const handler: RouteHandler = {
       mode: "handler",
       method,

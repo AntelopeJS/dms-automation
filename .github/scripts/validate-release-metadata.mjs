@@ -1,10 +1,3 @@
-/**
- * Release gate shared by both callers: a package is only allowed to reach npm
- * if its manifest still says what this repository promised to publish. One
- * assertion per rule, all of them reported at once, each naming the fix.
- *
- *   node .github/scripts/validate-release-metadata.mjs packages/dms-automation
- */
 import fs from "node:fs";
 import path from "node:path";
 

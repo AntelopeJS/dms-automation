@@ -1,15 +1,14 @@
 <script setup lang="ts">
-// Keeps a live page in step with its realtime topics: each event refreshes
-// every block of the page, through the page's Live / Pause like any refresh
-// nobody asked for. Draws nothing.
+import { toRef } from 'vue'
 
 const props = defineProps<{
 	realtimeTopic: string[]
 }>()
 
-for (const topic of props.realtimeTopic) {
+const topics = toRef(props, 'realtimeTopic')
+
+for (const topic of topics.value) {
 	useRealtimeTopic(topic, (event) => {
-		// A presence snapshot names no `type`: nothing changed.
 		if ('type' in event) refreshLivePageBlocks()
 	})
 }

@@ -6,19 +6,7 @@ import type {
 } from "../../../composables/useGraphConnect";
 import { newId } from "../../../utils/automation";
 
-// Detect port renames between two port arrays of the same group node.
-//
-// Two-pass matching, scoped per (kind, direction):
-//   1. Ports present in BOTH arrays under the same (kind, direction, name) are
-//      considered identical — no rename.
-//   2. Of the remaining old/new ports, pair them positionally within each
-//      (kind, direction) bucket. Each pair is a rename (old.name → new.name).
-//      Unpaired old-only ports are true deletions; unpaired new-only ports are
-//      true additions.
-//
-// This is heuristic but the GroupPortEditor emits one mutation per UX action,
-// so each ports:update typically carries a single delta and the positional
-// pairing is unambiguous.
+/** A port of a group node that kept its place in its (kind, direction) bucket under a new name. */
 export interface PortRename {
   kind: "data" | "trigger";
   direction: "in" | "out";
@@ -26,6 +14,15 @@ export interface PortRename {
   newName: string;
 }
 
+/**
+ * Port renames between two port arrays of the same group node, matched in two
+ * passes scoped per (kind, direction): ports present in both arrays under the
+ * same name are unchanged, and the remaining old and new ports pair up by
+ * position, each pair a rename. Unpaired old-only ports are deletions and
+ * unpaired new-only ports additions. Heuristic, but the GroupPortEditor emits
+ * one mutation per UX action, so each `ports:update` typically carries a single
+ * delta and the pairing is unambiguous.
+ */
 export function detectPortRenames(
   oldPorts: GroupPort[],
   newPorts: GroupPort[],
@@ -47,38 +44,69 @@ export function detectPortRenames(
     );
     const newNames = new Set(newInBucket.map((p) => p.name));
     const oldNames = new Set(oldInBucket.map((p) => p.name));
-    // Ports that exist in both arrays with the same name didn't change.
     const oldOnly = oldInBucket.filter((p) => !newNames.has(p.name));
     const newOnly = newInBucket.filter((p) => !oldNames.has(p.name));
-    const pairCount = Math.min(oldOnly.length, newOnly.length);
-    for (let i = 0; i < pairCount; i++) {
+    for (const [i, oldPort] of oldOnly.entries()) {
+      const newPort = newOnly[i];
+      if (!newPort) break;
       renames.push({
         kind: b.kind,
         direction: b.direction,
-        oldName: oldOnly[i]!.name,
-        newName: newOnly[i]!.name,
+        oldName: oldPort.name,
+        newName: newPort.name,
       });
     }
   }
   return renames;
 }
 
-// Rewrite edge endpoints that referenced the renamed port names. Mutates the
-// provided edge arrays in place.
-//
-// `nodeId` is the node owning the renamed ports — either the outer group node
-// (for the outer graph's edges) or a sentinel node id inside the subgraph (for
-// the inner edges). The direction of the rename determines which edge end is
-// affected:
-//   • data/in     → edge.to.field   when edge.to.node === nodeId
-//   • data/out    → edge.from.port  when edge.from.node === nodeId
-//   • trigger/in  → edge.to.branch  when edge.to.node === nodeId
-//   • trigger/out → edge.from.branch when edge.from.node === nodeId
-//
-// For the inner subgraph, the sentinels invert the direction (an inbound port
-// on the group is an OUTBOUND handle on the groupInput sentinel and vice
-// versa). Callers pass `invertDirection: true` so a group-level "in" rename is
-// applied to the sentinel's "out" handles, etc.
+function renameDataEdges(
+  dataEdges: DataEdge[],
+  nodeId: string,
+  rename: PortRename,
+  end: "from" | "to",
+): void {
+  for (const e of dataEdges) {
+    if (
+      end === "from" &&
+      e.from.node === nodeId &&
+      e.from.port === rename.oldName
+    )
+      e.from.port = rename.newName;
+    if (end === "to" && e.to.node === nodeId && e.to.field === rename.oldName)
+      e.to.field = rename.newName;
+  }
+}
+
+function renameTriggerEdges(
+  triggerEdges: TriggerEdge[],
+  nodeId: string,
+  rename: PortRename,
+  end: "from" | "to",
+): void {
+  for (const e of triggerEdges) {
+    if (
+      end === "from" &&
+      e.from.node === nodeId &&
+      e.from.branch === rename.oldName
+    )
+      e.from.branch = rename.newName;
+    if (end === "to" && e.to.node === nodeId && e.to.branch === rename.oldName)
+      e.to.branch = rename.newName;
+  }
+}
+
+/**
+ * Rewrites, in place, the edge endpoints that referenced the renamed port
+ * names. `nodeId` is the node owning the renamed ports: the outer group node
+ * (for the outer graph's edges) or a sentinel node id (for the inner edges).
+ * The rename's direction picks the edge end: data/in the `to.field`, data/out
+ * the `from.port`, trigger/in the `to.branch`, trigger/out the `from.branch`,
+ * each on edges whose end node is `nodeId`. The sentinels invert the direction
+ * (an inbound port on the group is an OUTBOUND handle on the groupInput
+ * sentinel and vice versa), so callers pass `invertDirection: true` for the
+ * inner edges.
+ */
 export function applyPortRenamesToEdges(
   triggerEdges: TriggerEdge[],
   dataEdges: DataEdge[],
@@ -87,55 +115,37 @@ export function applyPortRenamesToEdges(
   invertDirection: boolean,
 ): void {
   for (const r of renames) {
-    const effectiveDirection = invertDirection
+    const isOut = invertDirection
       ? r.direction === "in"
-        ? "out"
-        : "in"
-      : r.direction;
-    if (r.kind === "data") {
-      if (effectiveDirection === "out") {
-        for (const e of dataEdges) {
-          if (e.from.node === nodeId && e.from.port === r.oldName) {
-            e.from.port = r.newName;
-          }
-        }
-      } else {
-        for (const e of dataEdges) {
-          if (e.to.node === nodeId && e.to.field === r.oldName) {
-            e.to.field = r.newName;
-          }
-        }
-      }
-    } else {
-      if (effectiveDirection === "out") {
-        for (const e of triggerEdges) {
-          if (e.from.node === nodeId && e.from.branch === r.oldName) {
-            e.from.branch = r.newName;
-          }
-        }
-      } else {
-        for (const e of triggerEdges) {
-          if (e.to.node === nodeId && e.to.branch === r.oldName) {
-            e.to.branch = r.newName;
-          }
-        }
-      }
-    }
+      : r.direction === "out";
+    const end = isOut ? "from" : "to";
+    if (r.kind === "data") renameDataEdges(dataEdges, nodeId, r, end);
+    else renameTriggerEdges(triggerEdges, nodeId, r, end);
   }
 }
 
-// Make sure the group node's local subgraph has the sentinels and that no
-// inner edge references a port that was just removed. The sentinels are
-// auto-managed (the user never creates them by hand); their handle set is
-// derived at render time from the parent group's `ports` array (see
-// GraphCanvas.vue `parent-group-ports` prop plumbing), so this
-// function only owns four responsibilities:
-//   1. Ensure a single groupInput and a single groupOutput exist.
-//   2. Drop data edges whose source/target port no longer exists.
-//   3. Drop trigger edges whose source branch (originating at groupInput)
-//      no longer exists.
-//   4. Drop trigger edges into groupOutput whose target port (`to.branch`)
-//      no longer exists.
+function portNames(
+  ports: GroupPort[],
+  kind: GroupPort["kind"],
+  direction: GroupPort["direction"],
+): Set<string> {
+  return new Set(
+    ports
+      .filter((p) => p.kind === kind && p.direction === direction)
+      .map((p) => p.name),
+  );
+}
+
+/**
+ * Makes sure the group node's local subgraph has its sentinels and that no
+ * inner edge references a port that was just removed. The sentinels are
+ * auto-managed (the user never creates them); their handle set is derived at
+ * render time from the parent group's `ports` array, so this owns four things:
+ * a single groupInput and a single groupOutput exist; data edges whose
+ * source or target port no longer exists are dropped; trigger edges out of
+ * groupInput whose branch no longer exists are dropped; so are trigger edges
+ * into groupOutput whose target port (`to.branch`) no longer exists.
+ */
 export function syncSentinels(group: GraphNode): void {
   if (!group.subgraph) return;
 
@@ -162,26 +172,10 @@ export function syncSentinels(group: GraphNode): void {
   }
 
   const ports = Array.isArray(group.ports) ? group.ports : [];
-  const validDataIn = new Set(
-    ports
-      .filter((p) => p.kind === "data" && p.direction === "in")
-      .map((p) => p.name),
-  );
-  const validDataOut = new Set(
-    ports
-      .filter((p) => p.kind === "data" && p.direction === "out")
-      .map((p) => p.name),
-  );
-  const validTriggerIn = new Set(
-    ports
-      .filter((p) => p.kind === "trigger" && p.direction === "in")
-      .map((p) => p.name),
-  );
-  const validTriggerOut = new Set(
-    ports
-      .filter((p) => p.kind === "trigger" && p.direction === "out")
-      .map((p) => p.name),
-  );
+  const validDataIn = portNames(ports, "data", "in");
+  const validDataOut = portNames(ports, "data", "out");
+  const validTriggerIn = portNames(ports, "trigger", "in");
+  const validTriggerOut = portNames(ports, "trigger", "out");
 
   const giId = gi.id;
   const goId = go.id;
@@ -193,15 +187,10 @@ export function syncSentinels(group: GraphNode): void {
   });
 
   group.subgraph.triggerEdges = group.subgraph.triggerEdges.filter((e) => {
-    // trigger edges OUT OF groupInput carry the port name as `from.branch`
-    // (the same convention if/switch use for named branches).
     if (e.from.node === giId) {
       const branch = e.from.branch ?? "main";
       if (!validTriggerIn.has(branch)) return false;
     }
-    // trigger edges INTO groupOutput carry the target port name on
-    // `to.branch`. If the port has been removed from the group's
-    // declarations, drop the edge.
     if (e.to.node === goId && e.to.branch !== undefined) {
       if (!validTriggerOut.has(e.to.branch)) return false;
     }

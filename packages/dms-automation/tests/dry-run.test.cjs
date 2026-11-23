@@ -6,12 +6,6 @@ const { run } = require("../dist/runtime/executor.js");
 const { realEffectStepsOf } = require("../dist/runtime/sideEffects.js");
 const { isPropertyBag } = require("../dist/types/guards.js");
 
-/**
- * A test run of a draft must not act behind the user's back: an action that
- * can simulate does, and the steps that would act for real are listed so the
- * builder asks before the test, not after.
- */
-
 for (const t of builtinTriggers) registry.addTrigger(t.id, t);
 for (const a of builtinActions) registry.addAction(a.id, a);
 
@@ -19,7 +13,6 @@ const sent = [];
 const SCHEMA = { type: "object" };
 const OUTPUT = { type: "object", properties: { id: { type: "string" } } };
 
-/** An action that acts and can pretend to. */
 registry.addAction("acme.send", {
   id: "acme.send",
   name: "$acme.send.name",

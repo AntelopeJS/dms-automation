@@ -1,72 +1,113 @@
-import { computed, nextTick, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import type { EditorContext } from "./useEditorContext";
 import type { DockRun } from "../../../components/Editor/BottomDock.vue";
 import type { NodeRunState } from "../../../components/Editor/nodes/GenericNode.vue";
-import {
-  type RunDetail,
-  type TraceStep,
+import type {
+  RunDetail,
+  TraceStep,
 } from "../../../composables/useAutomationRuns";
+import type { ProcedureGraph } from "../../../composables/useGraphConnect";
 import {
   describeDuration,
   describeTime,
   stepTitle,
 } from "../../../utils/describe";
 import { issuesOf } from "../../utils/editor/apiErrors";
+import type { ChoiceQuestion } from "../../types/editor";
 import type { GraphHistory } from "./useGraphHistory";
 import type { DraftProblems } from "./useDraftProblems";
 import type { SavedTriggers } from "./useSavedTriggers";
 import type { UnsavedGuards } from "./useUnsavedGuards";
 
-/** The runs shown over the canvas: a test of the draft, or a stored run being debugged. */
-export function useRunOverlay(
+const RECENT_RUNS = 8;
+
+/** A step a test runs for real, as `POST /procedures/:id/test-effects` lists it. */
+interface RealEffectStep {
+  nodeId: string;
+  typeId: string;
+  typeName: string;
+  label?: string;
+}
+
+/** The id of the node a step ran for: a step inside a loop or a group carries the node's id, then `__` and its own. */
+function nodeIdOfStep(stepNodeId: string): string {
+  const [nodeId = stepNodeId] = stepNodeId.split("__");
+  return nodeId;
+}
+
+function runSavedQuestion(
+  t: EditorContext["t"],
+  count: number,
+): ChoiceQuestion<"cancel" | "test" | "saved"> {
+  return {
+    title: t("dms_automation.editor.runSaved.title"),
+    description: t("dms_automation.editor.runSaved.description", { count }),
+    choices: [
+      {
+        value: "cancel",
+        label: t("dms_automation.common.cancel"),
+        color: "neutral",
+        variant: "ghost",
+      },
+      {
+        value: "test",
+        label: t("dms_automation.editor.runSaved.testDraft"),
+        color: "neutral",
+        variant: "outline",
+      },
+      {
+        value: "saved",
+        label: t("dms_automation.editor.runSaved.runSaved"),
+        color: "warning",
+      },
+    ],
+    dismiss: "cancel",
+  };
+}
+
+/**
+ * Asks before a test that acts for real: the steps that would (actions that
+ * cannot simulate) are listed. Resolves `true` at once when there are none.
+ */
+async function confirmRealEffects(
   ctx: EditorContext,
-  history: GraphHistory,
-  problems: DraftProblems,
-  triggers: SavedTriggers,
-  guards: UnsavedGuards,
-) {
-  const { presentError } = useApiErrorPresenter();
-  const {
-    $authFetch,
-    builderPath,
-    confirm,
-    dateTimeFormat,
-    dockCollapsed,
-    dockTab,
-    editorMode,
-    issues,
-    locale,
-    overlayIsTest,
-    overlayRun,
-    procedures,
-    processI18n,
-    props,
-    queryValue,
-    router,
-    runNowOpen,
-    runsApi,
-    selected,
-    selectedId,
-    selectedNodeId,
-    subgraphPath,
-    t,
-    testPayload,
-    testPayloadSource,
-    testTriggerNodeId,
-    testing,
-    toast,
-  } = ctx;
-  const { isDirty } = history;
-  const { changeCount, savedName, selectNode, summariesRead } = problems;
+  procedureId: string,
+  graph: ProcedureGraph,
+): Promise<boolean> {
+  const { $authFetch, confirm, processI18n, props, t } = ctx;
+  const { realEffects } = await $authFetch<{ realEffects: RealEffectStep[] }>(
+    `${props.apiUrl}/procedures/${procedureId}/test-effects`,
+    {
+      method: "POST",
+      body: { graph },
+    },
+  );
+  if (realEffects.length === 0) return true;
+  return await confirm({
+    title: t("dms_automation.editor.testEffects.title"),
+    description: t("dms_automation.editor.testEffects.description", {
+      count: realEffects.length,
+    }),
+    color: "warning",
+    icon: "i-ph-flask",
+    confirmLabel: t("dms_automation.editor.testEffects.confirm"),
+    initialFocus: "cancel",
+    impact: realEffects.map((step) =>
+      step.label
+        ? {
+            icon: "i-ph-lightning",
+            label: processI18n(step.typeName),
+            count: step.label,
+          }
+        : { icon: "i-ph-lightning", label: processI18n(step.typeName) },
+    ),
+  });
+}
+
+/** The dock's last runs, its tab counting the failed ones, and the last real payload of the trigger a Test run starts from, which fills the test payload the user then edits. */
+function useRecentRuns(ctx: EditorContext, triggers: SavedTriggers) {
+  const { testPayload, testPayloadSource, testTriggerNodeId } = ctx;
   const { ofSelected, selectedProcedureUrl } = triggers;
-  const { askChoice } = guards;
-
-  // ---------------------------------------------------------------------------
-  // Runs over the canvas: Test run of the draft, debugging a stored run (AU-05)
-  // ---------------------------------------------------------------------------
-
-  // The dock's last runs: its tab counts the failed ones, folded too.
-  const RECENT_RUNS = 8;
   const recentRunsRead = useApiData<DockRun[]>(selectedProcedureUrl("runs"), {
     query: { limit: RECENT_RUNS },
   });
@@ -75,20 +116,14 @@ export function useRunOverlay(
     return Array.isArray(list) ? list.slice(0, RECENT_RUNS) : [];
   });
 
-  // The last real payload of the trigger a Test run starts from, which fills
-  // the test payload the user then edits. Left to the browser: it is shown
-  // only once the dock's payload tab is opened, and may be large.
   const lastPayloadRead = useApiData<{
     last: { runId: string; payload: unknown } | null;
   }>(selectedProcedureUrl("last-payload"), {
     query: () =>
       testTriggerNodeId.value ? { triggerNodeId: testTriggerNodeId.value } : {},
     server: false,
-    // Copied into an editable field: the page's refreshes leave the draft alone.
     refreshOnPageRefresh: false,
   });
-  // Each answer (or failure) of another procedure or trigger replaces the
-  // payload; the previous procedure's, still on screen meanwhile, does not.
   watch(
     [() => lastPayloadRead.data.value, () => lastPayloadRead.error.value],
     ([answer, error]) => {
@@ -99,12 +134,30 @@ export function useRunOverlay(
     },
   );
 
+  return { recentRunsRead, recentRuns };
+}
+
+/** What the run on screen looks like: the state of each node on the canvas, the steps for the dock and the inspector, and the banner's label, description, summary and look. */
+function useOverlayView(ctx: EditorContext) {
+  const {
+    dateTimeFormat,
+    dockTab,
+    locale,
+    overlayIsTest,
+    overlayRun,
+    processI18n,
+    selected,
+    selectedNodeId,
+    subgraphPath,
+    t,
+  } = ctx;
+
   const runStates = computed<Map<string, NodeRunState> | undefined>(() => {
     const run = overlayRun.value;
     if (!run || subgraphPath.value.length > 1) return undefined;
     const out = new Map<string, NodeRunState>();
     for (const step of run.trace.steps) {
-      const id = step.nodeId.split("__")[0]!;
+      const id = nodeIdOfStep(step.nodeId);
       const previous = out.get(id);
       const status = step.status === "failed" ? "failed" : "ok";
       if (!previous || status === "failed") {
@@ -123,12 +176,10 @@ export function useRunOverlay(
     overlayIsTest.value ? (overlayRun.value?.trace.steps ?? null) : null,
   );
 
-  // The dock's "Test run" tab only exists while a test run is on screen.
   watch(overlaySteps, (steps) => {
     if (!steps && dockTab.value === "test") dockTab.value = "problems";
   });
 
-  /** The step of the selected node in the run on screen, for the inspector. */
   const selectedRunStep = computed<TraceStep | null>(() => {
     const id = selectedNodeId.value;
     const steps = overlayRun.value?.trace.steps ?? [];
@@ -151,7 +202,6 @@ export function useRunOverlay(
         });
   });
 
-  /** A real run of an older version than the one open says so. */
   const overlayDescription = computed(() => {
     const run = overlayRun.value;
     const version = selected.value?.version;
@@ -179,7 +229,6 @@ export function useRunOverlay(
     return t("dms_automation.editor.debug.passed", { duration });
   });
 
-  /** The overlay banner's tone and icon, by how the run ended. */
   const overlayLook = computed(() => {
     const status = overlayRun.value?.status;
     if (status === "failed")
@@ -187,11 +236,38 @@ export function useRunOverlay(
     return { tone: "success", icon: "i-ph-check-circle" } as const;
   });
 
-  /** Shows a stored run over the canvas; a test run is told by its kind. */
+  return {
+    runStates,
+    overlaySteps,
+    selectedRunStep,
+    overlayLabel,
+    overlayDescription,
+    overlaySummary,
+    overlayLook,
+  };
+}
+
+/** Showing a stored run over the canvas, and leaving it. A test run is told by its kind. `?run=` shows the run over the procedure it ran, which the builder opens if another one is asked; a run that no longer exists is said. */
+function useRunDisplay(ctx: EditorContext, problems: DraftProblems) {
+  const errorPresenter = useApiErrorPresenter();
+  const {
+    builderPath,
+    overlayIsTest,
+    overlayRun,
+    procedures,
+    queryValue,
+    router,
+    runsApi,
+    selectedId,
+    t,
+    toast,
+  } = ctx;
+  const { selectNode } = problems;
+
   function displayRun(run: RunDetail) {
     overlayRun.value = run;
     overlayIsTest.value = run.kind === "test";
-    if (run.failedNodeId) selectNode(run.failedNodeId.split("__")[0]!);
+    if (run.failedNodeId) selectNode(nodeIdOfStep(run.failedNodeId));
   }
 
   async function showRun(runId: string): Promise<RunDetail> {
@@ -200,10 +276,13 @@ export function useRunOverlay(
     return run;
   }
 
-  /**
-   * `?run=`: the run is shown over the procedure it ran, which the builder
-   * opens if another one is asked; a run that no longer exists is said.
-   */
+  function exitDebug() {
+    overlayRun.value = null;
+    overlayIsTest.value = false;
+    if (queryValue("run"))
+      void router.replace(`${builderPath()}?selected=${selectedId.value}`);
+  }
+
   async function openRunFromUrl(runId: string) {
     const notFound = () => {
       toast.add({
@@ -217,7 +296,7 @@ export function useRunOverlay(
     try {
       run = await runsApi.getRun(runId);
     } catch (error) {
-      presentError(error, {
+      errorPresenter.presentError(error, {
         fallbackKey: "dms_automation.editor.debug.runNotFound",
       });
       exitDebug();
@@ -229,63 +308,38 @@ export function useRunOverlay(
         return;
       }
       selectedId.value = run.procedureId;
-      // Switching clears the run on screen: show this one after it.
       await nextTick();
     }
     displayRun(run);
   }
 
-  function exitDebug() {
-    overlayRun.value = null;
-    overlayIsTest.value = false;
-    if (queryValue("run"))
-      void router.replace(`${builderPath()}?selected=${selectedId.value}`);
-  }
+  return { showRun, exitDebug, openRunFromUrl };
+}
 
-  /** A step a test runs for real, as `POST /procedures/:id/test-effects` lists it. */
-  interface RealEffectStep {
-    nodeId: string;
-    typeId: string;
-    typeName: string;
-    label?: string;
-  }
-
-  /**
-   * Asks before a test that acts for real: the steps that would (actions that
-   * cannot simulate) are listed. Resolves `true` at once when there are none.
-   */
-  async function confirmRealEffects(
-    procedureId: string,
-    graph: unknown,
-  ): Promise<boolean> {
-    const { realEffects } = await $authFetch<{ realEffects: RealEffectStep[] }>(
-      `${props.apiUrl}/procedures/${procedureId}/test-effects`,
-      {
-        method: "POST",
-        body: { graph },
-      },
-    );
-    if (realEffects.length === 0) return true;
-    return await confirm({
-      title: t("dms_automation.editor.testEffects.title"),
-      description: t("dms_automation.editor.testEffects.description", {
-        count: realEffects.length,
-      }),
-      color: "warning",
-      icon: "i-ph-flask",
-      confirmLabel: t("dms_automation.editor.testEffects.confirm"),
-      initialFocus: "cancel",
-      impact: realEffects.map((step) => ({
-        icon: "i-ph-lightning",
-        label: processI18n(step.typeName),
-        ...(step.label ? { count: step.label } : {}),
-      })),
-    });
-  }
+/** Test run of the draft. Steps that act for real (an e-mail sent, a record written) are named before the test runs, never after: closing the question runs nothing. */
+function useTestRun(
+  ctx: EditorContext,
+  display: ReturnType<typeof useRunDisplay>,
+  recent: ReturnType<typeof useRecentRuns>,
+) {
+  const errorPresenter = useApiErrorPresenter();
+  const {
+    $authFetch,
+    dockCollapsed,
+    dockTab,
+    editorMode,
+    issues,
+    overlayIsTest,
+    overlayRun,
+    props,
+    selected,
+    testPayload,
+    testTriggerNodeId,
+    testing,
+  } = ctx;
 
   async function onTestRun() {
     const current = selected.value;
-    // One test at a time: Ctrl+Enter pressed again waits for it.
     if (!current || editorMode.value !== "procedure" || testing.value) return;
     let payload: unknown;
     try {
@@ -293,17 +347,14 @@ export function useRunOverlay(
     } catch (error) {
       dockTab.value = "payload";
       dockCollapsed.value = false;
-      presentError(error, {
+      errorPresenter.presentError(error, {
         fallbackKey: "dms_automation.editor.dock.invalidJson",
       });
       return;
     }
     testing.value = true;
     try {
-      // Steps that act for real (an e-mail sent, a record written) are named
-      // before the test runs, never after: closing the question runs nothing.
-      if (!(await confirmRealEffects(current._id, current.graph))) return;
-      // The previous result leaves the canvas while this test runs.
+      if (!(await confirmRealEffects(ctx, current._id, current.graph))) return;
       overlayRun.value = null;
       overlayIsTest.value = false;
       const res = await $authFetch<{ runId: string }>(
@@ -318,10 +369,10 @@ export function useRunOverlay(
           },
         },
       );
-      await showRun(res.runId);
+      await display.showRun(res.runId);
       dockTab.value = "test";
       dockCollapsed.value = false;
-      void recentRunsRead.refresh();
+      void recent.recentRunsRead.refresh();
     } catch (e) {
       const refused = issuesOf(e);
       if (refused) {
@@ -329,7 +380,7 @@ export function useRunOverlay(
         dockTab.value = "problems";
         dockCollapsed.value = false;
       }
-      presentError(e, {
+      errorPresenter.presentError(e, {
         fallbackKey: "dms_automation.editor.testRunError",
       });
     } finally {
@@ -337,37 +388,45 @@ export function useRunOverlay(
     }
   }
 
-  /** Run now runs the saved graph: with unsaved changes, say so first. */
+  return { onTestRun };
+}
+
+/** The runs shown over the canvas: a test of the draft, or a stored run being debugged. */
+export function useRunOverlay(
+  ctx: EditorContext,
+  history: GraphHistory,
+  problems: DraftProblems,
+  triggers: SavedTriggers,
+  guards: UnsavedGuards,
+) {
+  const errorPresenter = useApiErrorPresenter();
+  const {
+    builderPath,
+    confirm,
+    processI18n,
+    props,
+    queryValue,
+    router,
+    runNowOpen,
+    runsApi,
+    selected,
+    selectedId,
+    t,
+    toast,
+  } = ctx;
+  const { isDirty } = history;
+  const { changeCount, savedName, summariesRead } = problems;
+  const { askChoice } = guards;
+
+  const recent = useRecentRuns(ctx, triggers);
+  const view = useOverlayView(ctx);
+  const display = useRunDisplay(ctx, problems);
+  const { onTestRun } = useTestRun(ctx, display, recent);
+
   async function openRunNow() {
     if (!selected.value) return;
     if (isDirty.value) {
-      // Closing the question (Escape, ✕, a click outside) runs nothing.
-      const choice = await askChoice({
-        title: t("dms_automation.editor.runSaved.title"),
-        description: t("dms_automation.editor.runSaved.description", {
-          count: changeCount.value,
-        }),
-        choices: [
-          {
-            value: "cancel",
-            label: t("dms_automation.common.cancel"),
-            color: "neutral",
-            variant: "ghost",
-          },
-          {
-            value: "test",
-            label: t("dms_automation.editor.runSaved.testDraft"),
-            color: "neutral",
-            variant: "outline",
-          },
-          {
-            value: "saved",
-            label: t("dms_automation.editor.runSaved.runSaved"),
-            color: "warning",
-          },
-        ],
-        dismiss: "cancel",
-      });
+      const choice = await askChoice(runSavedQuestion(t, changeCount.value));
       if (choice === "cancel") return;
       if (choice === "test") {
         await onTestRun();
@@ -377,20 +436,19 @@ export function useRunOverlay(
     runNowOpen.value = true;
   }
 
-  /** A run of the saved version ended: show it, and say how it went. */
   async function onRunStarted(runId: string) {
     const name = savedName.value;
     const trace = {
       label: t("dms_automation.runs.trace"),
       onClick: () => void router.push(`${props.traceUrl}?run=${runId}`),
     };
-    void recentRunsRead.refresh();
+    void recent.recentRunsRead.refresh();
     void summariesRead.refresh();
     let run: RunDetail;
     try {
-      run = await showRun(runId);
+      run = await display.showRun(runId);
     } catch (error) {
-      presentError(error, {
+      errorPresenter.presentError(error, {
         fallbackKey: "dms_automation.editor.runStarted",
         params: { name },
         actions: [
@@ -413,14 +471,10 @@ export function useRunOverlay(
     });
   }
 
-  /**
-   * Debugging a real run: once the fix is saved, run it again with the payload
-   * it received, on the saved version, and show the new run in its place.
-   */
   async function rerunOverlay() {
-    const run = overlayRun.value;
-    if (!run || overlayIsTest.value) return;
-    let newRunId: string | null = null;
+    const run = ctx.overlayRun.value;
+    if (!run || ctx.overlayIsTest.value) return;
+    const rerunId = ref<string | null>(null);
     const confirmed = await confirm({
       title: t("dms_automation.runs.rerunConfirmTitle"),
       description: t("dms_automation.runs.rerunConfirmDescription"),
@@ -428,9 +482,10 @@ export function useRunOverlay(
       icon: "i-ph-arrow-clockwise",
       confirmLabel: t("dms_automation.runs.rerun"),
       onConfirm: async () => {
-        newRunId = (await runsApi.rerun(run._id)).runId;
+        rerunId.value = (await runsApi.rerun(run._id)).runId;
       },
     });
+    const newRunId = rerunId.value;
     if (!confirmed || !newRunId) return;
     await onRunStarted(newRunId);
     if (queryValue("run"))
@@ -444,22 +499,15 @@ export function useRunOverlay(
   }
 
   return {
-    recentRunsRead,
-    recentRuns,
-    runStates,
-    overlaySteps,
-    selectedRunStep,
-    overlayLabel,
-    overlayDescription,
-    overlaySummary,
-    overlayLook,
-    exitDebug,
+    ...recent,
+    ...view,
+    exitDebug: display.exitDebug,
     onTestRun,
     openRunNow,
     onRunStarted,
     rerunOverlay,
     openTrace,
-    openRunFromUrl,
+    openRunFromUrl: display.openRunFromUrl,
   };
 }
 

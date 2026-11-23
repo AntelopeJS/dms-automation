@@ -1,3 +1,9 @@
+import {
+  isJsonValue,
+  isNonEmptyScalar,
+  isScalar,
+  isString,
+} from "../../utils/json";
 import type {
   DataNodeType,
   JsonSchema,
@@ -15,26 +21,24 @@ export function portsSchema(
 }
 
 export function asString(v: unknown): string {
-  if (v === undefined || v === null) return "";
-  if (typeof v === "string") return v;
-  return String(v);
+  return isScalar(v) ? String(v) : "";
 }
 
 export function asNumber(v: unknown): number | undefined {
-  if (v === undefined || v === null || v === "") return undefined;
-  const n = Number(v);
+  const n = isNonEmptyScalar(v) ? Number(v) : Number.NaN;
   return Number.isNaN(n) ? undefined : n;
 }
 
 export function asBool(v: unknown): boolean {
-  return !!v;
+  return isJsonValue(v) && !!v;
 }
 
-// Returns true if `prop.type` is `"string"` OR an array of scalar types that
-// includes `"string"`. Used to render a plain string input instead of a JSON
-// textarea for multi-type fields like compare-node ports. A type that also
-// takes an object or an array (an HTTP body) keeps the JSON editor, which
-// still accepts plain text.
+/**
+ * Whether `prop.type` is `"string"` or an array of scalar types that includes
+ * `"string"`: such a field renders a plain string input instead of a JSON
+ * textarea (compare-node ports). A type that also takes an object or an array
+ * (an HTTP body) keeps the JSON editor, which still accepts plain text.
+ */
 export function isStringish(prop: JsonSchemaProperty): boolean {
   const t = prop.type;
   if (t === "string") return true;
@@ -71,9 +75,8 @@ export function isBoolish(prop: JsonSchemaProperty): boolean {
 }
 
 export function arrayToText(v: unknown): string {
-  if (Array.isArray(v)) return v.map((x) => String(x)).join("\n");
-  if (typeof v === "string") return v;
-  return "";
+  if (Array.isArray(v)) return v.map(String).join("\n");
+  return isString(v) ? v : "";
 }
 
 export function textToArray(s: string): string[] {
@@ -93,8 +96,8 @@ export function dataNodeSchema(t: DataNodeType): JsonSchema | null {
   return {
     type: "object",
     properties: {
-      ...(t.inputSchema?.properties ?? {}),
-      ...(t.configSchema.properties ?? {}),
+      ...t.inputSchema?.properties,
+      ...t.configSchema.properties,
     },
     required: [
       ...(t.inputSchema?.required ?? []),

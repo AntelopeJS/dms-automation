@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { parsePayload, prettyJson } from '../../utils/describe'
-
-// A run's trigger payload, pretty-printed and copyable. A body received as
-// text (plain text, XML) is shown as it came, apart, with its own copy
-// button. A payload too large to keep shows its stored preview, as text,
-// with the size it had.
+import { prettyJson } from '../../utils/describe'
+import { isJsonObject, isNumber, isString, parseJsonText } from '../../utils/json'
 
 const props = defineProps<{
 	raw: string | undefined
@@ -14,31 +10,32 @@ const props = defineProps<{
 
 const { locale } = useI18n()
 
-const parsed = computed(() => parsePayload(props.raw ?? 'null'))
+const parsed = computed(() => parseJsonText(props.raw ?? 'null'))
 
 /** What the backend keeps of a payload too large: its size and a preview. */
 const preview = computed(() => {
 	if (props.kept) return null
-	const marker = parsed.value as { originalBytes?: unknown; preview?: unknown } | null
+	const marker = isJsonObject(parsed.value) ? parsed.value : null
 	return {
-		text: typeof marker?.preview === 'string' ? marker.preview : '',
-		bytes: typeof marker?.originalBytes === 'number' ? marker.originalBytes : null,
+		text: isString(marker?.preview) ? marker.preview : '',
+		bytes: isNumber(marker?.originalBytes) ? marker.originalBytes : null,
 	}
 })
 
 /** A webhook body that is text, not JSON: shown as received. */
 const textBody = computed(() => {
 	if (!props.kept) return null
-	const envelope = parsed.value as { body?: unknown; headers?: Record<string, unknown> } | null
-	if (typeof envelope?.body !== 'string') return null
-	const type = envelope.headers?.['content-type']
-	return { text: envelope.body, type: typeof type === 'string' ? type : null }
+	const envelope = isJsonObject(parsed.value) ? parsed.value : null
+	if (!isString(envelope?.body)) return null
+	const headers = isJsonObject(envelope.headers) ? envelope.headers : null
+	const type = headers?.['content-type']
+	return { text: envelope.body, type: isString(type) ? type : null }
 })
 
 const text = computed(() => {
-	if (!textBody.value) return prettyJson(parsed.value)
-	// The body is shown on its own; the rest of the envelope stays JSON.
-	const { body: _body, ...rest } = parsed.value as Record<string, unknown>
+	const value = parsed.value
+	if (!textBody.value || !isJsonObject(value)) return prettyJson(value)
+	const { body: _body, ...rest } = value
 	return prettyJson(rest)
 })
 

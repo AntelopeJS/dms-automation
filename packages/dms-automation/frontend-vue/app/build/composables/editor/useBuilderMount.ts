@@ -1,9 +1,10 @@
 import { computed, onMounted, watch } from "vue";
 import type { EditorContext } from "./useEditorContext";
-import { type TriggerSummary } from "../../../utils/describe";
+import type { TriggerSummary } from "../../../utils/describe";
 import type { SubgraphNavigation } from "./useSubgraphNavigation";
 import type { DraftProblems } from "./useDraftProblems";
 import type { RunOverlay } from "./useRunOverlay";
+import { isString } from "../../../utils/json";
 
 /** What the builder does when another procedure opens, when it mounts, and when its triggers change. */
 export function useBuilderMount(
@@ -35,8 +36,6 @@ export function useBuilderMount(
   const { selectNode } = problems;
   const { openRunFromUrl } = runs;
 
-  // Another procedure opened: what the bar and the dock show follows it
-  // through their reads' URLs.
   watch(selectedId, (id) => {
     if (id) missingProcedureId.value = null;
     overlayRun.value = null;
@@ -61,7 +60,6 @@ export function useBuilderMount(
       if (enterPathFromUrl()) selectedNodeId.value = nodeId;
       else selectNode(nodeId);
     }
-    // The URL names the procedure on screen, to share or reload it.
     if (
       editorMode.value === "procedure" &&
       selectedId.value &&
@@ -75,21 +73,24 @@ export function useBuilderMount(
   });
 
   const selectedTriggerSummaries = computed<TriggerSummary[]>(() =>
-    (selected.value?.graph.nodes ?? [])
-      .filter((n) => n.kind === "trigger" && n.typeId)
-      .map((n) => ({
-        nodeId: n.id,
-        typeId: n.typeId!,
-        typeName:
-          triggerTypes.value.find((x) => x.id === n.typeId)?.name ?? n.typeId!,
-        path: typeof n.config?.path === "string" ? n.config.path : undefined,
-        method:
-          typeof n.config?.method === "string" ? n.config.method : undefined,
-        cron: typeof n.config?.cron === "string" ? n.config.cron : undefined,
-      })),
+    (selected.value?.graph.nodes ?? []).flatMap((n) => {
+      const typeId = n.typeId;
+      if (n.kind !== "trigger" || !typeId) return [];
+      const config = n.config;
+      return [
+        {
+          nodeId: n.id,
+          typeId,
+          typeName:
+            triggerTypes.value.find((x) => x.id === typeId)?.name ?? typeId,
+          path: isString(config?.path) ? config.path : undefined,
+          method: isString(config?.method) ? config.method : undefined,
+          cron: isString(config?.cron) ? config.cron : undefined,
+        },
+      ];
+    }),
   );
 
-  // A draft trigger as the server words it, its type's name until it has.
   function triggerLabel(trigger: TriggerSummary): string {
     const worded = draftTriggers.value.find(
       (tr) => tr.nodeId === trigger.nodeId,
@@ -97,9 +98,6 @@ export function useBuilderMount(
     return worded ? processText(worded.text) : processI18n(trigger.typeName);
   }
 
-  // Test run starts from the trigger picked in the dock: the manual one, else
-  // the first, until the user picks another; its last real payload prefills
-  // the test payload.
   const testTriggerItems = computed(() =>
     selectedTriggerSummaries.value.map((trigger) => ({
       label: triggerLabel(trigger),

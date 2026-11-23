@@ -3,12 +3,6 @@ import { type DataRecord, type DataValue, kindOf } from "../types/dataValue";
 import { isPropertyBag } from "../types/guards";
 import type { GraphNode, ProcedureGraph } from "../types/graph";
 import type { FireNode, LogEntry, RunLog } from "../types/runLog";
-/**
- * Side-effect import: every `nodes/<kind>.ts` registers itself on load,
- * so anything consuming the registry (the `/api/automation/node-kinds`
- * route, the validator, executors) sees the built-ins immediately —
- * not only after the first run.
- */
 import "./builtins";
 import { redactHeaders } from "./boundRunLog";
 import { labelOf } from "./describe";

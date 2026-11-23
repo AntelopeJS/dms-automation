@@ -1,7 +1,6 @@
-export interface JsonSchema {
-  type?: string | string[];
-  [key: string]: unknown;
-}
+import type { JsonSchema } from "../../composables/useGraphConnect";
+
+export type { JsonSchema };
 
 export interface TemplatePort {
   name: string;
@@ -82,7 +81,5 @@ export function usageRowsOf(usages: TemplateUsages): UsageRow[] {
 export function schemaTypeOf(p: TemplatePort): string {
   if (p.kind !== "data") return "—";
   const type = p.schema?.type;
-  if (typeof type === "string") return type;
-  if (Array.isArray(type)) return type.join(" | ");
-  return "any";
+  return Array.isArray(type) ? type.join(" | ") : (type ?? "any");
 }

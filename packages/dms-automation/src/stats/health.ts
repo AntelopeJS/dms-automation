@@ -1,9 +1,3 @@
-/**
- * The health of procedures, computed from what the database counted of their
- * runs. Pure functions over plain rows, so the rules are tested without a
- * database.
- */
-
 import type { ArmError } from "../runtime/armErrors";
 
 /**

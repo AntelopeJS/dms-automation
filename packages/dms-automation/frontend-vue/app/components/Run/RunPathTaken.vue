@@ -3,13 +3,6 @@ import { computed } from 'vue'
 import { builderRunUrl, opensInBuilder, type RunDetail, type TraceStep } from '../../composables/useAutomationRuns'
 import { stepTitle } from '../../utils/describe'
 
-// The path the run took, read from its log as a list: each step once, in the
-// order it first ran, indented under its loop or try, with how often it ran
-// and the branch it chose; the branches it left aside under the step that
-// chose. A step opens in the builder on this run. Read from the log, the path
-// is the run's own even when the graph that ran was not kept: then only the
-// branches left aside, which come from the graph, are not shown.
-
 const props = defineProps<{
 	run: RunDetail
 	builderUrl?: string
@@ -41,7 +34,6 @@ function stateOf(executions: TraceStep[]): State {
 	return 'ok'
 }
 
-// Only a graph that is the one that ran says which branches were left aside.
 const graph = computed(() => (props.run.graphOutdated ? null : props.run.graph))
 
 const names = computed(() => {
@@ -59,15 +51,17 @@ function branchesNotTaken(nodeId: string): PathItem['notTaken'] {
 		.map((e) => ({ branch: e.from.branch ?? 'main', title: names.value.get(e.to.node) ?? e.to.node }))
 }
 
-// Steps that choose where the run goes on: the branches they left aside are
-// listed under them.
 const CHOOSING_KINDS = new Set(['if', 'switch', 'tryCatch', 'retry'])
 
 const items = computed<PathItem[]>(() => {
-	const byNode = new Map<string, TraceStep[]>()
-	for (const step of props.run.trace.steps) byNode.set(step.nodeId, [...(byNode.get(step.nodeId) ?? []), step])
+	const byNode = new Map<string, [TraceStep, ...TraceStep[]]>()
+	for (const step of props.run.trace.steps) {
+		const executions = byNode.get(step.nodeId)
+		if (executions) executions.push(step)
+		else byNode.set(step.nodeId, [step])
+	}
 	return [...byNode.entries()].map(([nodeId, executions]) => {
-		const first = executions[0]!
+		const [first] = executions
 		const branch = executions.map((s) => s.branch).find(Boolean)
 		return {
 			nodeId,
@@ -90,9 +84,6 @@ const ICON: Record<State, { name: string; class: string }> = {
 	truncated: { name: 'i-ph-scissors', class: 'text-muted' },
 }
 
-// The builder opens the procedure on this run with the step selected; not
-// when it cannot show the run, nor when the graph shown is not the one that
-// ran.
 function stepUrl(nodeId: string): string | undefined {
 	if (!props.builderUrl || !opensInBuilder(props.run) || props.run.graphOutdated) return undefined
 	return builderRunUrl(props.builderUrl, props.run, nodeId)

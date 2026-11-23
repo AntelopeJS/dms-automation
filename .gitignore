@@ -3,6 +3,8 @@ node_modules
 .antelope
 # The production frontend workspace `ajs dms build` writes into a project
 .dms-frontend
+# The frontend types `ajs dms prepare-types` writes for type-aware lint
+.dms-types
 
 /e2e/playground/dist
 /e2e/playwright-report

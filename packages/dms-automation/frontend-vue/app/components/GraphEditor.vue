@@ -21,23 +21,6 @@ import { useSavedTriggers } from '../build/composables/editor/useSavedTriggers'
 import { seedSubgraphPath, useSubgraphNavigation } from '../build/composables/editor/useSubgraphNavigation'
 import { useUnsavedGuards } from '../build/composables/editor/useUnsavedGuards'
 
-// Editor mode.
-//
-// 'procedure' (default) — loads /api/automation/procedures,
-//   manages the selected procedure list, saves via PUT /procedures/:id, exposes
-//   the manual Run-now button.
-// 'template'   — loads ONE template via GET /api/automation/templates/:id and
-//   edits its `subgraph` directly. The template's `ports` are injected as the
-//   root canvas's `parentGroupPorts` so the groupInput/groupOutput sentinels at
-//   the root level render the template's outer-face handles. Save goes to
-//   PUT /api/automation/templates/:id. Run, procedure list, and enabled toggle
-//   are hidden.
-//
-// Mode is resolved from the route query: `?template=<id>` switches into
-// template mode.
-// This keeps the route wiring trivial (the Templates catalog navigates
-// to `/modules/automation/builder?template=<id>`) without needing a
-// dedicated page.
 const props = withDefaults(
 	defineProps<{
 		apiUrl?: string
@@ -55,17 +38,10 @@ const ctx = createEditorContext(props)
 const graphHistory = useGraphHistory(ctx)
 const load = useEditorLoad(ctx)
 
-// What the builder opens is awaited: the server renders it, and the browser
-// opens the same from the data handed over. The catalogs, the templates and
-// the bar's figures are read meanwhile, in parallel.
 await Promise.all([load.procedureListRead, load.templateRead])
 if (ctx.editorMode.value === 'template') load.openTemplate()
 else load.openList()
 
-// `watch(selectedId, …)` (declared below) doesn't fire for the value
-// assigned during the awaits above, so seed history + savedSnapshot once
-// for the auto-selected procedure. Must come after `selected` is declared
-// — initHistoryAndSaved() reads selected.value.
 graphHistory.initHistoryAndSaved()
 seedSubgraphPath(ctx)
 
@@ -75,20 +51,32 @@ const problems = useDraftProblems(ctx, graphHistory, nav)
 const triggers = useSavedTriggers(ctx, problems)
 const guards = useUnsavedGuards(ctx, graphHistory, problems, { onSave: () => save.onSave() })
 const actions = useProcedureActions(ctx, load, problems, guards)
-const save = useBuilderSave(ctx, graphHistory, problems, triggers, guards, { onTestRun: () => runs.onTestRun() })
+const save = useBuilderSave(ctx, {
+	history: graphHistory,
+	problems,
+	triggers,
+	guards,
+	later: { onTestRun: () => runs.onTestRun() },
+})
 const saveTpl = useSaveAsTemplate(ctx, graphHistory, nav, save)
 const fork = useForkToLocal(ctx, nav)
-useBuilderShortcuts(ctx, graphHistory, nav, groups, guards, save, saveTpl, fork, {
-	onTestRun: () => runs.onTestRun(),
-	exitDebug: () => runs.exitDebug(),
+useBuilderShortcuts(ctx, {
+	history: graphHistory,
+	nav,
+	groups,
+	guards,
+	save,
+	saveTpl,
+	fork,
+	later: {
+		onTestRun: () => runs.onTestRun(),
+		exitDebug: () => runs.exitDebug(),
+	},
 })
 const runs = useRunOverlay(ctx, graphHistory, problems, triggers, guards)
 const mount = useBuilderMount(ctx, nav, problems, runs)
 const palette = usePalette()
 
-// The inspector (or the template's ports): docked beside the canvas from lg
-// (the palette starts folded below xl, so the canvas keeps most of the
-// width), floating over it on narrower screens.
 const ASIDE_CLASS =
 	'absolute inset-y-0 right-0 z-10 flex w-80 max-w-full flex-col border-l border-default bg-default shadow-lg lg:relative lg:z-auto lg:shrink-0 lg:shadow-none'
 
@@ -318,12 +306,12 @@ const { paletteHidden, togglePalette } = palette
 			v-model:tab="dockTab"
 			v-model:payload="testPayload"
 			v-model:collapsed="dockCollapsed"
+			v-model:trigger="testTriggerNodeId"
 			:issues="dockIssues"
 			:runs="recentRuns"
 			:test-steps="overlaySteps"
 			:payload-source="testPayloadSource"
 			:triggers="testTriggerItems"
-			v-model:trigger="testTriggerNodeId"
 			:runs-url="`${runsUrl}?procedure=${selectedId}`"
 			@select-node="selectNode"
 			@open-trace="openTrace"
@@ -334,7 +322,7 @@ const { paletteHidden, togglePalette } = palette
 			v-model:open="switcherOpen"
 			:procedures="summaries"
 			:current-id="selectedId"
-			proceduresUrl="/modules/automation/procedures"
+			procedures-url="/modules/automation/procedures"
 			@pick="onPickProcedure"
 			@create="onCreate"
 		/>

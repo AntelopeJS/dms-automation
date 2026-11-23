@@ -1,15 +1,13 @@
 const assert = require("node:assert/strict");
-const path = require("node:path");
 const { after, beforeEach, test } = require("node:test");
-const { FRONTEND } = require("../../tests/helpers/frontend.cjs");
-const { clientComposable, componentSetup } = require("./helpers/setup.cjs");
-const { computed, effectScope, ref } = require("vue");
-const { useApiErrorPresenter } = clientComposable(
-  path.join(
-    FRONTEND,
-    "node_modules/@antelopejs/dms/frontend-vue/layers/dms-core/app/composables/useApiErrorPresenter.ts",
-  ),
-);
+require("../../tests/helpers/frontend.cjs");
+const {
+  clientApiErrorPresenter,
+  componentSetup,
+  isRecord,
+} = require("./helpers/setup.cjs");
+const { computed, effectScope, isRef, ref } = require("vue");
+const useApiErrorPresenter = clientApiErrorPresenter();
 const {
   useRunOverlay,
 } = require("../app/build/composables/editor/useRunOverlay.ts");
@@ -65,6 +63,34 @@ beforeEach(() => {
   });
 });
 after(() => scope.stop());
+
+/**
+ * @param {unknown} row
+ * @returns {row is { nodeId: string; before: number | null; now: number | null }} Whether the row has the durations the test reads.
+ */
+const isCompareRow = (row) =>
+  isRecord(row) &&
+  typeof row.nodeId === "string" &&
+  (row.before === null || typeof row.before === "number") &&
+  (row.now === null || typeof row.now === "number");
+
+/**
+ * @param {unknown} bindings
+ * @returns {bindings is { rows: import("vue").Ref<{ nodeId: string; before: number | null; now: number | null }[]> }} Whether the bindings hold the comparison rows.
+ */
+function bindsCompareRows(bindings) {
+  if (!isRecord(bindings) || !isRef(bindings.rows)) return false;
+  /** @type {unknown} */
+  const rows = bindings.rows.value;
+  return Array.isArray(rows) && rows.every(isCompareRow);
+}
+
+/**
+ * @param {unknown} bindings
+ * @returns {bindings is { useCount: (id: string) => number }} Whether the bindings hold the usage counter.
+ */
+const bindsUseCount = (bindings) =>
+  isRecord(bindings) && bindings.useCount instanceof Function;
 
 /** @param {string} id */
 const group = (id) => ({
@@ -192,24 +218,28 @@ for (const name of INHERITED_NAMES) {
   });
 
   void test(`a step ${name} the last success never ran compares with nothing`, () => {
-    const { rows } = componentSetup("Run/RunCompare.vue", {
-      run: {
-        trace: {
-          steps: [
-            {
-              nodeId: name,
-              name: { nodeId: name },
-              status: "ok",
-              durationMs: 5,
-            },
-          ],
-          skipped: [],
+    const { rows } = componentSetup(
+      "Run/RunCompare.vue",
+      {
+        run: {
+          trace: {
+            steps: [
+              {
+                nodeId: name,
+                name: { nodeId: name },
+                status: "ok",
+                durationMs: 5,
+              },
+            ],
+            skipped: [],
+          },
+          graph: null,
+          lastSuccess: { stepDurations: { other: 3 } },
         },
-        graph: null,
-        lastSuccess: { stepDurations: JSON.parse('{"other":3}') },
+        traceUrl: "/t",
       },
-      traceUrl: "/t",
-    });
+      bindsCompareRows,
+    );
     assert.deepEqual(
       rows.value.map((row) => [row.nodeId, row.before, row.now]),
       [
@@ -233,11 +263,15 @@ for (const name of INHERITED_NAMES) {
       describeApiError: key,
     });
     const catalog = scope.run(() =>
-      componentSetup("LibraryCatalog.vue", {
-        kind: "triggers",
-        apiUrl: "/api/automation",
-        builderUrl: "/b",
-      }),
+      componentSetup(
+        "LibraryCatalog.vue",
+        {
+          kind: "triggers",
+          apiUrl: "/api/automation",
+          builderUrl: "/b",
+        },
+        bindsUseCount,
+      ),
     );
     assert.equal(catalog.useCount(name), 0);
   });

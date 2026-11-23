@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-// The properties of a JSON schema as a typed table: name, type (with its enum
-// values or default), description. Used for a type's settings, inputs and
-// outputs in the library. Nested object properties read `parent.child`, an
-// array its item type (`string[]`), and fields of which one is required are
-// named under the table.
-
 interface JsonSchemaProperty {
 	type?: string | string[]
 	title?: string
@@ -27,7 +21,6 @@ const props = defineProps<{
 
 const { processI18n } = useTranslation()
 
-// Deep enough for any real settings form; stops a self-similar schema.
 const MAX_DEPTH = 3
 
 function typeOf(p: JsonSchemaProperty): string {
@@ -72,8 +65,6 @@ function rowsOf(schema: JsonSchemaProperty | null | undefined, prefix: string, d
 const rows = computed(() => rowsOf(props.schema, '', 0))
 const hasDescriptions = computed(() => rows.value.some((r) => r.description || r.details))
 
-// "userIds or roleIds": the alternatives of the schema that each require
-// fields, as `anyOf: [{ required: ['userIds'] }, { required: ['roleIds'] }]`.
 const oneOf = computed(() =>
 	(props.schema?.anyOf ?? props.schema?.oneOf ?? [])
 		.map((a) => (a.required ?? []).join(' + '))

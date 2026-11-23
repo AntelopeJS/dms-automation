@@ -1,43 +1,19 @@
-import eslint from "@eslint/js";
-import ts from "typescript-eslint";
-import vue from "eslint-plugin-vue";
-import dmsGlobals from "@antelopejs/dms/eslint-globals";
-import dmsFrontendGlobals from "@antelopejs/dms-frontend/eslint-globals";
-import globals from "globals";
+import { antelopeNuxtConfig } from "@antelopejs/tooling-configs/eslint";
 import automation from "./eslint-rules/index.mjs";
 
-export default ts.config(
-  { ignores: ["dist/**", "node_modules/**"] },
-  eslint.configs.recommended,
-  ...vue.configs["flat/essential"],
-  {
-    files: ["tests/**/*.cjs"],
-    languageOptions: { globals: globals.node },
-  },
-  {
-    files: ["**/*.{ts,vue}"],
-    languageOptions: {
-      parserOptions: { parser: ts.parser },
-      globals: {
-        ...globals.browser,
-        ...globals.node,
-        ...dmsFrontendGlobals,
-        ...dmsGlobals,
-      },
+export default antelopeNuxtConfig({
+  typeAware: { tsconfigRootDir: import.meta.dirname },
+})
+  .prepend({ ignores: [".dms-types/**"] })
+  .append(
+    {
+      files: ["app/**/*.{ts,vue}"],
+      plugins: { automation },
+      rules: { "automation/confirm-from-row-tokens": "error" },
     },
-    rules: {
-      "no-unused-vars": "off",
+    {
+      files: ["app/**/*.vue"],
+      plugins: { automation },
+      rules: { "automation/no-comment-before-else": "error" },
     },
-  },
-  { files: ["**/*.ts"], languageOptions: { parser: ts.parser } },
-  {
-    files: ["app/**/*.{ts,vue}"],
-    plugins: { automation },
-    rules: { "automation/confirm-from-row-tokens": "error" },
-  },
-  {
-    files: ["app/**/*.vue"],
-    plugins: { automation },
-    rules: { "automation/no-comment-before-else": "error" },
-  },
-);
+  );
