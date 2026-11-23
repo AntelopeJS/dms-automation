@@ -50,3 +50,10 @@ export function parseJsonText(text: string): JsonValue {
     return text;
   }
 }
+
+/** Whether a JSON value is an object or an array. */
+export function isJsonContainer(
+  value: JsonValue | undefined,
+): value is JsonValue[] | { [key: string]: JsonValue } {
+  return typeof value === "object" && value !== null;
+}

@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import type { SkippedStep, TraceStep } from '../../composables/useAutomationRuns'
 import { describeDuration, prettyJson, stepTitle } from '../../utils/describe'
+import { isJsonContainer, isJsonObject, isJsonValue, isNumber } from '../Editor/jsonValue'
+import type { JsonValue } from '../Editor/jsonValue'
 
 const props = defineProps<{
 	steps: TraceStep[]
@@ -17,20 +19,20 @@ const { processI18n } = useTranslation()
 const open = ref<Set<number>>(new Set())
 const toggledGroups = ref<Set<number>>(new Set())
 
-const KIND_ICONS: Record<string, string> = {
-	trigger: 'i-ph-lightning',
-	action: 'i-ph-play-circle',
-	if: 'i-ph-git-branch',
-	switch: 'i-ph-arrows-split',
-	foreach: 'i-ph-repeat',
-	forRange: 'i-ph-repeat',
-	retry: 'i-ph-arrow-clockwise',
-	tryCatch: 'i-ph-shield-check',
-	parallel: 'i-ph-git-fork',
-	delay: 'i-ph-hourglass',
-	setVariable: 'i-ph-pencil-simple',
-	group: 'i-ph-stack',
-}
+const KIND_ICONS = new Map([
+	['trigger', 'i-ph-lightning'],
+	['action', 'i-ph-play-circle'],
+	['if', 'i-ph-git-branch'],
+	['switch', 'i-ph-arrows-split'],
+	['foreach', 'i-ph-repeat'],
+	['forRange', 'i-ph-repeat'],
+	['retry', 'i-ph-arrow-clockwise'],
+	['tryCatch', 'i-ph-shield-check'],
+	['parallel', 'i-ph-git-fork'],
+	['delay', 'i-ph-hourglass'],
+	['setVariable', 'i-ph-pencil-simple'],
+	['group', 'i-ph-stack'],
+])
 
 const UNFOLDED_ITERATIONS = 3
 const MAX_INDENT = 6
@@ -73,13 +75,18 @@ function indent(depth: number) {
 	return { paddingInlineStart: `${Math.min(depth, MAX_INDENT)}rem` }
 }
 
+interface IndexedStep {
+	index: number
+	step: TraceStep
+}
+
 /** The steps each step started (a loop's body, a try, a retry's attempts). */
 const children = computed(() => {
-	const map = new Map<number, number[]>()
+	const map = new Map<number, IndexedStep[]>()
 	props.steps.forEach((step, index) => {
 		if (step.parent === undefined) return
 		const list = map.get(step.parent) ?? []
-		list.push(index)
+		list.push({ index, step })
 		map.set(step.parent, list)
 	})
 	return map
@@ -134,25 +141,25 @@ function tagOf(step: TraceStep): string | undefined {
 }
 
 /** The fires a step started, in order, each with its direct steps. */
-function firesUnder(index: number) {
-	const fires = new Map<string, number[]>()
+function firesUnder(index: number): Array<[string, IndexedStep[]]> {
+	const fires = new Map<string, IndexedStep[]>()
 	for (const child of children.value.get(index) ?? []) {
-		const fireId = props.steps[child]!.fireId
+		const fireId = child.step.fireId
 		fires.set(fireId, [...(fires.get(fireId) ?? []), child])
 	}
 	return [...fires.entries()]
 }
 
-function groupRow(index: number, fires: Array<[string, number[]]>, unfolded: boolean): GroupRow {
-	const kids = fires.flatMap(([, list]) => list).map((i) => props.steps[i]!)
+function groupRow({ index, step: parent }: IndexedStep, fires: Array<[string, IndexedStep[]]>, unfolded: boolean): GroupRow {
+	const kids = fires.flatMap(([, list]) => list).map(({ step }) => step)
 	const startMs = Math.min(...kids.map((s) => s.startMs))
 	const endMs = Math.max(...kids.map((s) => s.startMs + (s.durationMs ?? 0)))
 	return {
 		type: 'group',
 		parent: index,
-		depth: props.steps[index]!.depth + 1,
+		depth: parent.depth + 1,
 		count: fires.length,
-		attempts: props.steps[index]!.name.kind === 'retry',
+		attempts: parent.name.kind === 'retry',
 		failed: fires.filter(([fireId]) => failingFires.value.has(fireId)).length,
 		handled: !fires.some(([fireId]) => fatalFires.value.has(fireId)),
 		startMs,
@@ -163,23 +170,23 @@ function groupRow(index: number, fires: Array<[string, number[]]>, unfolded: boo
 
 const rows = computed(() => {
 	const out: Array<StepRow | GroupRow> = []
-	const visit = (index: number) => {
-		const step = props.steps[index]!
+	const visit = (current: IndexedStep) => {
+		const { index, step } = current
 		out.push({ type: 'step', index, step, tag: tagOf(step) })
 		const fires = firesUnder(index)
-		const iterated = fires.length > 1 && props.steps[fires[0]![1][0]!]!.iteration !== undefined
+		const iterated = fires.length > 1 && fires[0]?.[1][0]?.step.iteration !== undefined
 		if (!iterated) {
 			for (const [, list] of fires) list.forEach(visit)
 			return
 		}
 		const unfolded = (fires.length <= UNFOLDED_ITERATIONS) !== toggledGroups.value.has(index)
-		out.push(groupRow(index, fires, unfolded))
+		out.push(groupRow(current, fires, unfolded))
 		for (const [fireId, list] of fires) {
 			if (unfolded || failingFires.value.has(fireId)) list.forEach(visit)
 		}
 	}
 	props.steps.forEach((step, index) => {
-		if (step.parent === undefined) visit(index)
+		if (step.parent === undefined) visit({ index, step })
 	})
 	return out
 })
@@ -203,21 +210,23 @@ function outcome(step: TraceStep): string {
 	if (step.status === 'failed') return step.error ?? ''
 	if (step.status === 'truncated') return processI18n('$dms_automation.trace.cutFromLog')
 	if (step.branch) return `→ ${step.branch}`
-	const output = (step.output as { value?: unknown } | undefined)?.value
+	const output = isJsonValue(step.output) && isJsonObject(step.output) ? step.output.value : undefined
 	if (output === undefined || output === null) return ''
-	if (typeof output !== 'object') return `→ ${String(output)}`
-	const status = (output as Record<string, unknown>).status
-	if (typeof status === 'number') return `→ ${status}`
+	if (!isJsonContainer(output)) return `→ ${String(output)}`
+	const status = isJsonObject(output) ? output.status : undefined
+	if (isNumber(status)) return `→ ${status}`
 	const keys = Object.keys(output)
 	return keys.length ? `→ { ${keys.slice(0, 3).join(', ')}${keys.length > 3 ? ', …' : ''} }` : ''
 }
 
-function unwrap(described: unknown): unknown {
-	if (!described || typeof described !== 'object') return described
-	if ('value' in described && 'type' in described) return (described as { value: unknown }).value
-	return Object.fromEntries(
-		Object.entries(described as Record<string, unknown>).map(([k, v]) => [k, unwrap(v)]),
-	)
+function unwrap(described: JsonValue): JsonValue {
+	if (!isJsonContainer(described)) return described
+	if (isJsonObject(described) && 'value' in described && 'type' in described) return described.value
+	return Object.fromEntries(Object.entries(described).map(([k, v]) => [k, unwrap(v)]))
+}
+
+function shownJson(value: unknown): string {
+	return isJsonValue(value) ? prettyJson(unwrap(value)) : ''
 }
 
 const QUARTERS = [0, 0.25, 0.5, 0.75, 1]
@@ -289,7 +298,7 @@ const NAME_CLASS = 'break-words @xl:truncate'
 				>
 					<span class="flex min-w-0 items-center gap-2" :style="indent(row.step.depth)">
 						<UIcon
-							:name="KIND_ICONS[row.step.name.kind ?? ''] ?? 'i-ph-circle'"
+							:name="KIND_ICONS.get(row.step.name.kind ?? '') ?? 'i-ph-circle'"
 							class="size-4 shrink-0"
 							:class="TEXT_CLASS[toneOf(row.step)]"
 						/>
@@ -316,7 +325,7 @@ const NAME_CLASS = 'break-words @xl:truncate'
 				<div v-if="open.has(row.index)" class="grid gap-3 border-b border-default bg-elevated/40 px-3 py-3 @2xl:grid-cols-2">
 					<div class="flex min-w-0 flex-col gap-1">
 						<span class="font-mono text-[10.5px] text-dimmed uppercase">{{ $t('dms_automation.trace.input') }}</span>
-						<pre class="max-h-64 overflow-auto rounded-md bg-default p-2 font-mono text-xs text-toned">{{ prettyJson(unwrap(row.step.inputs)) || '—' }}</pre>
+						<pre class="max-h-64 overflow-auto rounded-md bg-default p-2 font-mono text-xs text-toned">{{ shownJson(row.step.inputs) || '—' }}</pre>
 					</div>
 					<div class="flex min-w-0 flex-col gap-1">
 						<span class="font-mono text-[10.5px] text-dimmed uppercase">
@@ -325,7 +334,7 @@ const NAME_CLASS = 'break-words @xl:truncate'
 						<pre
 							class="max-h-64 overflow-auto rounded-md bg-default p-2 font-mono text-xs whitespace-pre-wrap"
 							:class="row.step.status === 'failed' ? TEXT_CLASS[toneOf(row.step)] : 'text-toned'"
-						>{{ row.step.status === 'failed' ? row.step.error : prettyJson(unwrap(row.step.output)) || '—' }}</pre>
+						>{{ row.step.status === 'failed' ? row.step.error : shownJson(row.step.output) || '—' }}</pre>
 					</div>
 				</div>
 			</template>
