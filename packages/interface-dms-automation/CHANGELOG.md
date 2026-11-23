@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.7.3
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.7.2...interface-v0.7.3)
+
+### 🏡 Chore
+
+- **deps:** Adopt tooling-configs 0.10 and its comment rule ([#242](https://github.com/AntelopeJS/dms-automation/pull/242))
+
+### ✅ Tests
+
+- **e2e:** Cover the main flows in Playwright and run every journey in the merge queue ([#229](https://github.com/AntelopeJS/dms-automation/pull/229))
+
+### 🤖 CI
+
+- Re-sync the AntelopeJS pack for the release app ([#239](https://github.com/AntelopeJS/dms-automation/pull/239))
+- Stop forwarding the retired RELEASE_GITHUB_TOKEN ([#240](https://github.com/AntelopeJS/dms-automation/pull/240))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.7.2
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/interface-v0.7.1...interface-v0.7.2)
