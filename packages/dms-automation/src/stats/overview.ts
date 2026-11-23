@@ -125,17 +125,18 @@ export async function healthHero(
     countsBetween(window.from, window.to),
   ]);
   const states = [...health.values()].map((h) => h.state);
-  const urgency = (id: string): Urgency => {
-    const h = health.get(id)!;
-    return { state: h.state, streak: h.failureStreak, failed: h.failed };
-  };
+  const urgency = (h: ProcedureHealth): Urgency => ({
+    state: h.state,
+    streak: h.failureStreak,
+    failed: h.failed,
+  });
   const failing = ctx.procedures
-    .filter((p) => health.get(p.procedure._id)?.state === "failing")
-    .sort((a, b) =>
-      byUrgency(urgency(a.procedure._id), urgency(b.procedure._id)),
-    )
-    .map((p) => {
-      const h = health.get(p.procedure._id)!;
+    .flatMap((p) => {
+      const h = health.get(p.procedure._id);
+      return h?.state === "failing" ? [{ p, h }] : [];
+    })
+    .sort((a, b) => byUrgency(urgency(a.h), urgency(b.h)))
+    .map(({ p, h }) => {
       return {
         procedureId: p.procedure._id,
         name: p.procedure.name,
@@ -204,11 +205,11 @@ function isDismissed(
 
 function attentionRow(
   ctx: StatsContext,
-  procedureId: string,
+  facts: StatsContext["procedures"][number],
   health: ProcedureHealth,
 ): AttentionRow {
-  const facts = ctx.byId.get(procedureId)!;
   const procedure = facts.procedure;
+  const procedureId = procedure._id;
   const lastFailed = lastFailedOfProcedure(ctx, procedureId);
   return {
     procedureId,
@@ -256,7 +257,7 @@ export async function attentionRows(
     const dismissed =
       h.state === "degraded" &&
       isDismissed(facts.procedure.attentionDismissedAt, lastFailed);
-    if (!dismissed) rows.push(attentionRow(ctx, id, h));
+    if (!dismissed) rows.push(attentionRow(ctx, facts, h));
   }
   return {
     items: rows.sort(byUrgency).slice(0, MAX_ATTENTION_ROWS),
@@ -490,21 +491,21 @@ export async function runsPerDayChart(
     comparedTally(window, false),
   ]);
   const starts = bucketStarts(window);
-  const point =
-    (count: (bucket: Tally) => number) => (bucket: Tally, i: number) => ({
-      x: starts[i]!.toISOString(),
-      y: count(bucket),
+  const points = (count: (bucket: Tally) => number) =>
+    current.buckets.flatMap((bucket, i) => {
+      const start = starts[i];
+      return start ? [{ x: start.toISOString(), y: count(bucket) }] : [];
     });
   const chart: ChartPayload = {
     value: current.total.total,
     series: [
       {
         name: "$dms_automation.overview.succeeded",
-        data: current.buckets.map(point((b) => b.ok)),
+        data: points((b) => b.ok),
       },
       {
         name: "$dms_automation.overview.failedRuns",
-        data: current.buckets.map(point((b) => b.failed)),
+        data: points((b) => b.failed),
       },
     ],
   };

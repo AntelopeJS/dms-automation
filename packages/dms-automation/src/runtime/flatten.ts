@@ -177,11 +177,6 @@ function rewriteTriggerEdge(
   const sourceExp = expansions.get(e.from.node);
   const targetExp = expansions.get(e.to.node);
 
-  /**
-   * Effective sources: (node, branch?, edgeIdSuffix). For a group source,
-   * each inner edge into groupOutput at the matching port contributes a
-   * direct source — its writer node + writer port — to the rewritten edge.
-   */
   type SourceEnd = { node: string; branch?: string; idSuffix: string };
   const sources: SourceEnd[] = [];
   if (sourceExp) {

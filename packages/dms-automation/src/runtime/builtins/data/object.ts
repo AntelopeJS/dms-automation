@@ -36,19 +36,16 @@ function getPath(obj: DataValue, path: string): DataValue {
 function setPath(obj: DataValue, path: string, value: DataValue): DataRecord {
   const base = isPropertyBag(obj) ? { ...obj } : {};
   if (!path) return base;
-  const parts = path.split(".");
+  const parents = path.split(".");
+  const leaf = parents.pop() ?? path;
   let cur: DataRecord = base;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const k = parts[i]!;
+  for (const k of parents) {
     const next = Object.hasOwn(cur, k) ? cur[k] : undefined;
     const nextObj = isPropertyBag(next) ? { ...next } : {};
     Object.defineProperty(cur, k, { ...OWN_DATA, value: nextObj });
     cur = nextObj;
   }
-  Object.defineProperty(cur, parts[parts.length - 1]!, {
-    ...OWN_DATA,
-    value,
-  });
+  Object.defineProperty(cur, leaf, { ...OWN_DATA, value });
   return base;
 }
 

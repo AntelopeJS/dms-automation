@@ -1,13 +1,3 @@
-/**
- * Single load point for built-in node-kind registration and the
- * trigger/action/data type catalogs. Side-effectful imports run each
- * `nodes/<kind>.ts` file, which calls `nodeKinds.register(...)` on load.
- *
- * Order within `nodes/` is unimportant — registration is position-
- * independent — but the import order below is preserved roughly by
- * category for readability.
- */
-
 import "./nodes/trigger";
 import "./nodes/action";
 import "./nodes/data";
