@@ -2,11 +2,6 @@
 import { computed } from 'vue'
 import { parsePayload, prettyJson } from '../../utils/describe'
 
-// A run's trigger payload, pretty-printed and copyable. A body received as
-// text (plain text, XML) is shown as it came, apart, with its own copy
-// button. A payload too large to keep shows its stored preview, as text,
-// with the size it had.
-
 const props = defineProps<{
 	raw: string | undefined
 	kept: boolean
@@ -37,7 +32,6 @@ const textBody = computed(() => {
 
 const text = computed(() => {
 	if (!textBody.value) return prettyJson(parsed.value)
-	// The body is shown on its own; the rest of the envelope stays JSON.
 	const { body: _body, ...rest } = parsed.value as Record<string, unknown>
 	return prettyJson(rest)
 })

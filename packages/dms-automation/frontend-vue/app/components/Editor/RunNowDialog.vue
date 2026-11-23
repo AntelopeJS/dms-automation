@@ -3,9 +3,6 @@ import { computed, ref, watch } from 'vue'
 import type { WordedTrigger } from '../../utils/describe'
 import { redactedHeadersOf } from '../../utils/redactedHeaders'
 
-// "Run now": the saved procedure, run for real with a payload the user can
-// edit, prefilled with the last real one (AU-01, AU-05).
-
 const props = defineProps<{
 	apiUrl: string
 	procedureId: string
@@ -26,10 +23,8 @@ const source = ref<string | null>(null)
 const submitting = ref(false)
 const PAYLOAD_ID = 'run-now-payload'
 const ROW = { layout: 'stack', spacing: 'list', inset: false } as const
-// A payload that is not JSON shows under it; a refused run is a toast.
 const fieldErrors = useFieldErrors({ fields: { payload: PAYLOAD_ID } })
 
-// A payload prefilled from a stored run says which secret headers it lacks.
 const redactedHeaders = computed(() => redactedHeadersOf(payload.value))
 
 const triggerItems = computed(() =>
@@ -40,10 +35,6 @@ interface LastPayload {
 	last: { runId: string; payload: unknown } | null
 }
 
-// The last real payload of the trigger picked, read once the dialog opens and
-// again when another trigger is picked. Under a key of its own, apart from the
-// builder dock's read of the same URL: each copies its answers into its own
-// editable field. The page's refreshes leave the draft payload alone.
 const lastPayloadRead = useApiData<LastPayload>(
 	() => `dms-automation-run-now-payload:${props.procedureId}:${triggerNodeId.value ?? ''}`,
 	({ $authFetch, signal }) =>
@@ -55,7 +46,6 @@ const lastPayloadRead = useApiData<LastPayload>(
 )
 const loadingPayload = computed(() => lastPayloadRead.pending.value)
 
-// Each answer, or failure, fills the payload in.
 watch(
 	() => lastPayloadRead.status.value,
 	(status) => {

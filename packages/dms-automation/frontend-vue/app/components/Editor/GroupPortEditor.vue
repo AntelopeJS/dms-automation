@@ -46,9 +46,6 @@ function portsFor(section: Section): Array<{ port: GroupPort; index: number }> {
 	return out
 }
 
-// Surface a per-section duplicate-name error. Returns the first duplicated
-// name found within the (kind, direction) tuple, or `null` if all names are
-// unique. Used to both disable the Add button and display an inline alert.
 function duplicateNameIn(section: Section): string | null {
 	const seen = new Set<string>()
 	for (const p of props.ports) {
@@ -121,9 +118,6 @@ function updateSchemaType(index: number, type: SchemaTypeChoice) {
 		if (i !== index) return p
 		if (p.kind !== 'data') return p
 		if (type === 'any') {
-			// Represent "any" as a schema with no type constraint. Keeping a
-			// `schema` object (rather than dropping it) preserves the invariant
-			// that data ports always carry a schema, even if it's permissive.
 			return { ...p, schema: { type: 'any' } }
 		}
 		return { ...p, schema: { ...(p.schema ?? {}), type } }

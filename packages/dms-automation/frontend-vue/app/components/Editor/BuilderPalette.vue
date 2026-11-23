@@ -24,9 +24,6 @@ const emit = defineEmits<{
 
 const search = ref('')
 
-// Registered type names may be `$`-prefixed DMS i18n keys shipped in the
-// declaring module's locales; plain text is shown as written. Search matches
-// the translated label, the type id, its data category and its description.
 const { processI18n } = useTranslation()
 const { t, te } = useI18n()
 
@@ -44,10 +41,6 @@ interface PaletteItem {
 	/** Lower-cased text the search looks in. */
 	keywords: string
 }
-// Items inside a category are bucketed by the module that registered them:
-// one unlabeled leading section for our own built-ins (types the backend left
-// unattributed, plus plain node kinds), then one labeled section per external
-// module. Built-in data nodes are split further by their data category.
 interface PaletteSection {
 	/** Sub-header: a data category, or the id of the module that registered the types. */
 	label?: string
@@ -61,8 +54,6 @@ interface PaletteGroup {
 	sections: PaletteSection[]
 }
 
-// Same category ordering / labels / icons the old "Add node" dropdown used —
-// reproduced here as a grouped, searchable left sidebar per autov2-builder.
 const CATEGORY_ORDER = ['trigger', 'action', 'flow', 'helper', 'data'] as const
 const CATEGORY_LABEL: Record<string, string> = {
 	trigger: '$dms_automation.builder.palette.groups.trigger',
@@ -79,12 +70,8 @@ const CATEGORY_ICON: Record<string, string> = {
 	data: 'i-ph-function',
 }
 
-// Bucket key for the unlabeled built-in section. The backend omits `module`
-// for our own types and for any it couldn't attribute, so both land here
-// rather than under an invented "unknown" sub-header.
 const BUILTIN_BUCKET = ''
 
-// Order of the built-in data categories; any other one follows, A to Z.
 const DATA_CATEGORY_ORDER = ['constant', 'math', 'compare', 'boolean', 'string', 'object', 'json']
 
 function dataCategoryLabel(category: string): string {
@@ -96,7 +83,6 @@ function keywordsOf(...parts: Array<string | undefined>): string {
 	return parts.filter(Boolean).join(' ').toLowerCase()
 }
 
-// Built-in data nodes, one section per data category.
 function dataSections(items: PaletteItem[]): PaletteSection[] {
 	const rank = (c: string) => {
 		const i = DATA_CATEGORY_ORDER.indexOf(c)
@@ -164,14 +150,11 @@ const groups = computed<PaletteGroup[]>(() => {
 					})
 				}
 			} else {
-				// Plain node kinds (flow / helpers) are built into this module.
 				const label = processI18n(ui.label)
 				push(BUILTIN_BUCKET, { key: k.kind, label, icon: ui.icon ?? groupIcon, kind: k.kind, keywords: keywordsOf(label, k.kind) })
 			}
 		}
 
-		// Built-ins first (they're the defaults shipped with the module), then
-		// one labeled section per external module, alphabetically.
 		const sections: PaletteSection[] = []
 		const builtins = byModule.get(BUILTIN_BUCKET)
 		if (builtins && builtins.length > 0) {
@@ -225,7 +208,6 @@ function onItem(item: PaletteItem) {
 	else if (item.kind) emit('add-node', { kind: item.kind, typeId: item.typeId })
 }
 
-// The canvas reads the block back on drop and places it there.
 function onDragStart(event: DragEvent, item: PaletteItem) {
 	if (!event.dataTransfer) return
 	const block: PaletteBlock = item.template ? { template: item.template } : { kind: item.kind, typeId: item.typeId }

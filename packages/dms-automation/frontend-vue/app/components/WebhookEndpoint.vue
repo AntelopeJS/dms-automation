@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-// The full URL a webhook trigger is called on — the API server's public
-// origin and the trigger's path — with a copy button, and a curl example.
-// `compact` keeps the URL and its copy button only, for a line in a list.
-// Until the origin is known, or if it can't be, no URL is offered to copy:
-// the path alone would be a wrong address to hand to another service.
-
 interface WebhookBase {
 	url: string
 	configured: boolean
@@ -22,11 +16,8 @@ const props = withDefaults(
 	{ method: 'POST', apiUrl: '/api/automation', compact: false },
 )
 
-// Every endpoint shown is on the same origin: the endpoints of a page share
-// one read, made with the page.
 const baseRead = useApiData<WebhookBase>(`${props.apiUrl}/library/webhook-base`)
 const base = computed(() => baseRead.data.value)
-// A failure kept while it is tried again still shows the skeleton.
 const status = computed<'loading' | 'ready' | 'error'>(() =>
 	base.value ? 'ready' : baseRead.error.value && baseRead.status.value !== 'pending' ? 'error' : 'loading',
 )

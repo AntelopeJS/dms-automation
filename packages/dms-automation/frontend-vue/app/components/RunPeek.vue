@@ -4,13 +4,6 @@ import { builderRunUrl, opensInBuilder, type RunDetail, useAutomationRuns } from
 import { useRunActions } from '../composables/useRunActions'
 import { describeDateTime, describeDuration } from '../utils/describe'
 
-// The quick look at a run, in the run history's drawer: what it did, where it
-// failed, the path it took and its payload, with the next actions. The DMS
-// drawer draws the row header (the procedure's name, "Run x of y" and the
-// J / K navigation): the body does not name the run again. Its root grows to
-// the drawer's height (the drawer body is a flex column), so the DMS footer
-// sits at the bottom while the run is short.
-
 const props = defineProps<{
 	rowData?: { _id?: string }
 	apiUrl: string
@@ -25,8 +18,6 @@ const { dateTimeFormat } = useRegionalFormat()
 const runs = useAutomationRuns(props.apiUrl)
 const { rerun, rerunning } = useRunActions({ apiUrl: props.apiUrl, traceUrl: props.traceUrl })
 
-// The run of the row opened, read once the drawer shows it. A run does not
-// change once stored: the live page's refreshes leave it alone.
 const runRead = runs.readRun(() => props.rowData?._id, { refreshOnPageRefresh: false })
 const run = computed<RunDetail | null>(() => runRead.data.value)
 const loading = computed(() => runRead.pending.value)

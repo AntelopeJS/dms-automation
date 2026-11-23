@@ -3,13 +3,6 @@ import { computed, ref } from 'vue'
 import type { SkippedStep, TraceStep } from '../../composables/useAutomationRuns'
 import { describeDuration, prettyJson, stepTitle } from '../../utils/describe'
 
-// The steps of a run on a time line: one row per step execution, named, with
-// its duration bar placed where it ran. A click opens what it received and
-// produced. The iterations of a loop (the attempts of a retry) fold under it,
-// numbered; the failed ones stay visible when folded. A failure a Try/Catch
-// or a Retry caught reads apart from the one that stopped the run. Steps that
-// never ran are listed after the others, with why.
-
 const props = defineProps<{
 	steps: TraceStep[]
 	skipped: SkippedStep[]
@@ -22,7 +15,6 @@ const props = defineProps<{
 
 const { processI18n } = useTranslation()
 const open = ref<Set<number>>(new Set())
-// Groups of iterations the reader folded or unfolded, against their default.
 const toggledGroups = ref<Set<number>>(new Set())
 
 const KIND_ICONS: Record<string, string> = {
@@ -40,9 +32,7 @@ const KIND_ICONS: Record<string, string> = {
 	group: 'i-ph-stack',
 }
 
-// A loop with this many iterations or fewer shows them unfolded.
 const UNFOLDED_ITERATIONS = 3
-// Deeper nesting stops indenting, so the names keep their room.
 const MAX_INDENT = 6
 
 type Tone = 'ok' | 'failed' | 'handled' | 'running' | 'truncated'
@@ -108,7 +98,6 @@ function firesWith(failure: (step: TraceStep) => boolean): Set<string> {
 	}
 	return fires
 }
-// Iterations holding a failure stay visible when folded.
 const failingFires = computed(() => firesWith((s) => s.status === 'failed'))
 const fatalFires = computed(() => firesWith((s) => s.status === 'failed' && !s.handled))
 
@@ -231,8 +220,6 @@ function unwrap(described: unknown): unknown {
 	)
 }
 
-// Five ticks on a wide time line, three on a narrow one; a run of a few
-// milliseconds gets only its start and its end, never the same tick twice.
 const QUARTERS = [0, 0.25, 0.5, 0.75, 1]
 const SHORT_SPAN_MS = 10
 const ticks = computed(() => {
@@ -243,13 +230,8 @@ const ticks = computed(() => {
 		.filter((tick) => !seen.has(tick.label) && seen.add(tick.label))
 })
 
-// The row layout: the name and the time on one line and the bar under them
-// in a narrow column (a phone, the run drawer); name, bar and time side by
-// side when there is room.
 const ROW_GRID = 'grid grid-cols-[minmax(0,1fr)_4.5rem] items-center gap-x-3 gap-y-1.5 @xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_4.5rem]'
 const BAR_CELL = 'order-last col-span-2 @xl:order-none @xl:col-span-1'
-// A step's name wraps while its bar takes a line of its own (a phone, a narrow
-// drawer); beside the bar it keeps to one line.
 const NAME_CLASS = 'break-words @xl:truncate'
 </script>
 

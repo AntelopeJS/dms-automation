@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-// "New procedure" from the builder: name it, pick what starts it, and land on
-// a draft with its trigger placed (AU-11).
-
 const props = defineProps<{ apiUrl: string }>()
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ (e: 'created', id: string): void }>()
@@ -24,8 +21,6 @@ const name = ref('')
 const trigger = ref<(typeof STARTERS)[number]['value']>('webhook')
 const description = ref('')
 const submitting = ref(false)
-// A missing name shows under its field; a refused request too when the API
-// names the field, a toast otherwise.
 const fieldErrors = useFieldErrors({ fields: { name: NAME_ID } })
 
 const starterItems = computed(() =>

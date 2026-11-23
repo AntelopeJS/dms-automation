@@ -37,11 +37,7 @@ const props = defineProps<{
 	triggerType: TriggerType | null
 	actionType: ActionType | null
 	dataNodeTypes: DataNodeType[]
-	// Per-NodeKind metadata served by `/api/automation/node-kinds`. The
-	// inspector reads each kind's optional `configSchema` to render its
-	// editable config form — no per-kind branches here.
 	nodeKinds: NodeKindEntry[]
-	// Read-only graphs (template-instance view) hide the delete button.
 	readOnly?: boolean
 	/** The node's step in the run shown over the canvas, for the "Last run" tab. */
 	runStep?: TraceStep | null
@@ -66,13 +62,7 @@ const emit = defineEmits<{
 	(e: 'update:node', n: GraphNode): void
 	(e: 'unwire', payload: { field: string }): void
 	(e: 'ports:update', payload: { nodeId: string; ports: GroupPort[] }): void
-	// Fires when the user clicks the inspector's "Enter subgraph" button on a
-	// group node. Editor.vue translates this into a subgraph-path push (same
-	// path as double-clicking the group on the canvas).
 	(e: 'group:enter', payload: { id: string }): void
-	// Fires when the user clicks the inspector's "Delete node" button. Editor.vue
-	// removes the node and its edges from the current graph — the same outcome as
-	// pressing Delete/Backspace on the canvas, surfaced for discoverability.
 	(e: 'delete:node', payload: { id: string }): void
 	(e: 'duplicate:node', payload: { id: string }): void
 	(e: 'wrap:retry', payload: { id: string }): void
@@ -82,7 +72,6 @@ const emit = defineEmits<{
 type InspectorTab = 'settings' | 'run' | 'docs'
 const tab = ref<InspectorTab>('settings')
 
-// A node with a run to show opens on it; otherwise on its settings.
 watch(
 	[() => props.node?.id, () => !!props.runStep],
 	([, hasRun]) => {
@@ -99,7 +88,6 @@ const tabs = computed(() => [
 	{ label: t('dms_automation.editor.inspector.docs'), value: 'docs' },
 ])
 
-// A group without a step name shows the name it was created with.
 const label = computed({
 	get: () => {
 		const n = props.node as (GraphNode & { label?: string }) | null
@@ -117,7 +105,6 @@ const canWrapInRetry = computed(() => {
 	return !!n && !props.readOnly && n.kind === 'action'
 })
 
-// Built-in blocks without a type (If, Retry…) are described by this module.
 const typeDescription = computed(() => {
 	const n = props.node
 	if (!n) return ''
@@ -129,8 +116,6 @@ const typeDescription = computed(() => {
 
 const kindUi = computed(() => props.nodeKinds.find((k) => k.kind === props.node?.kind)?.meta.ui)
 
-// What the block reads: its type's fields, else its kind's data inputs and
-// settings.
 const inputSchema = computed<JsonSchema | null>(() => {
 	const n = props.node
 	if (!n || n.kind === 'trigger' || n.kind === 'action' || n.kind === 'data') return schema.value
@@ -149,11 +134,8 @@ const outputSchema = computed(() => {
 	return kindUi.value ? portsSchema(kindUi.value.staticDataOuts) : null
 })
 
-// The named ways out of a flow block (then / else, body, try / catch…).
 const branches = computed(() => kindUi.value?.staticTriggerOuts ?? [])
 
-// A template instance runs the template's steps and ports, edited in the
-// template itself.
 const templateId = computed(() => (props.node as (GraphNode & { templateId?: string }) | null)?.templateId)
 
 const issueText = computed(() => {
@@ -161,14 +143,11 @@ const issueText = computed(() => {
 	if (!issue) return ''
 	const key = `dms_automation.editor.problems.codes.${issue.code}`
 	if (!issue.code || !te(key)) return issue.message
-	// A setting's problem names it as the form above does.
 	const field = issue.params?.field
 	const prop = typeof field === 'string' ? schema.value?.properties?.[field] : undefined
 	return t(key, prop ? { ...issue.params, label: fieldLabel(String(field), prop) } : (issue.params ?? {}))
 })
 
-// Sentinel nodes (the group's input/output handles) are auto-managed and
-// never user-deletable, mirroring the canvas keyboard-delete guard.
 const SENTINEL_KINDS: ReadonlySet<string> = new Set(['groupInput', 'groupOutput'])
 
 const canDelete = computed<boolean>(() => {
@@ -182,10 +161,6 @@ function emitDelete() {
 	emit('delete:node', { id: props.node.id })
 }
 
-// True when the selected node is a group with a usable subgraph. Template
-// instances without an inline subgraph (templateId set, no `subgraph`) can't
-// be entered yet — the runtime resolves their subgraph via the template
-// cache, but the editor doesn't wire that into navigation.
 const canEnterGroup = computed<boolean>(() => {
 	const n = props.node
 	if (!n || n.kind !== 'group') return false
@@ -199,10 +174,6 @@ function emitEnterGroup() {
 	emit('group:enter', { id: props.node.id })
 }
 
-// Group ports — surfaced via GroupPortEditor when a group node is selected.
-// The editor emits ports:update with the full GroupPort[] array; we bubble
-// it up to Editor.vue with the owning node id so the parent can locate the
-// group in whichever graph it lives in and run sentinel sync.
 const groupPorts = computed<GroupPort[]>(() => {
 	const n = props.node
 	if (!n || !isGroupNode(n)) return []
@@ -223,13 +194,8 @@ const dataNodeType = computed<DataNodeType | null>(() => {
 const schema = computed<JsonSchema | null>(() => {
 	const n = props.node
 	if (!n) return null
-	// Type-registry-backed kinds — their config form comes from the
-	// selected type's schema, not the kind's own configSchema.
 	if (n.kind === 'trigger') return props.triggerType?.configSchema ?? null
 	if (n.kind === 'action') return props.actionType?.inputSchema ?? null
-	// Data nodes: merge inputSchema (wired-port fields) with configSchema
-	// (in-place config fields, e.g. a constant's value). configSchema wins on
-	// key collisions; nodes declaring only one schema are unaffected.
 	if (n.kind === 'data') {
 		const t = dataNodeType.value
 		if (!t) return null
@@ -253,8 +219,6 @@ const fields = computed<
 	}))
 })
 
-// Type names may be `$`-prefixed DMS i18n keys shipped in the declaring
-// module's locales; plain text is shown as written.
 const { processI18n } = useTranslation()
 const { t, te } = useI18n()
 const { dateTimeFormat } = useRegionalFormat()
@@ -271,9 +235,6 @@ const nodeTypeLabel = computed<string>(() => {
 	return kindUi.value?.label ? processI18n(kindUi.value.label) : n.kind
 })
 
-// A field is named by its schema title when that is a translation key, by
-// this module's name for it, by its plain title, else by its key in words
-// ("maxAttempts" → "Max attempts").
 function fieldLabel(name: string, prop: JsonSchemaProperty): string {
 	if (prop.title?.startsWith('$')) return processI18n(prop.title)
 	const key = `dms_automation.editor.inspector.fields.${name}`
@@ -282,8 +243,6 @@ function fieldLabel(name: string, prop: JsonSchemaProperty): string {
 	return nameInWords(name)
 }
 
-// Under a schedule: when it fires next, in the server's time zone. The
-// server works it out for the saved graph only.
 const nextRunText = computed(() => {
 	const n = props.node
 	const cron = n?.config?.cron
@@ -301,7 +260,6 @@ function isRequired(name: string): boolean {
 	return schema.value?.required?.includes(name) ?? false
 }
 
-// Descriptions mark code with backticks (`*/5 * * * *`).
 function descriptionParts(text: string): Array<{ text: string; code: boolean }> {
 	return processI18n(text)
 		.split('`')

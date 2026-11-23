@@ -3,9 +3,6 @@ import { computed } from 'vue'
 import type { RunDetail } from '../../composables/useAutomationRuns'
 import { describeDuration, describeTime, stepTitle } from '../../utils/describe'
 
-// Where and why a failed run stopped: the step by name, the error, how many
-// runs in a row failed the same way, and a link to when it last worked.
-
 const props = defineProps<{ run: RunDetail; traceUrl: string }>()
 
 const { processI18n } = useTranslation()

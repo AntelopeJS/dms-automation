@@ -3,17 +3,11 @@ import { computed } from 'vue'
 import type { RunDetail } from '../../composables/useAutomationRuns'
 import { describeDateTime, describeDuration, stepTitle } from '../../utils/describe'
 
-// Each step of this run next to the same step in the last successful run,
-// every iteration added up: what got slower, by how much, and the steps the
-// last success went through that this run never reached.
-
 const props = defineProps<{ run: RunDetail; traceUrl: string }>()
 
 const { processI18n } = useTranslation()
 const { dateTimeFormat } = useRegionalFormat()
 
-// A gap under this share of the last success's time, or under a few
-// milliseconds, reads as noise.
 const NOTABLE_GAP = 0.2
 const NOTABLE_GAP_MS = 5
 
@@ -45,8 +39,6 @@ const rows = computed<Row[]>(() => {
 	}
 	const skippedNames = new Map(props.run.trace.skipped.map((s) => [s.nodeId, stepTitle(s.name, processI18n)]))
 	const labels = new Map((props.run.graph?.nodes ?? []).flatMap((n) => (n.label ? [[n.id, n.label] as const] : [])))
-	// A step this run never reached reads as one row, its inner steps (a
-	// group's) added up into it.
 	for (const [flatId, ms] of before) {
 		if (rowsById.has(flatId)) continue
 		const nodeId = flatId.split('__')[0] ?? flatId

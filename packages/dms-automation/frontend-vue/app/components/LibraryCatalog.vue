@@ -3,12 +3,6 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import type { NodeKindEntry, PortRef } from '../composables/useAutomationNodeKinds'
 import type { JsonSchema } from '../composables/useGraphConnect'
 
-// One catalog of the library (triggers, actions, data nodes, or the flow and
-// helper blocks): its entries grouped by the module that registered them, and
-// the picked one's detail — where it is used first, then what disabling it
-// does, its settings, inputs and outputs as tables. The picked entry is kept
-// in the URL (`?item=`), so going back to the library lands on it again.
-
 type CatalogKind = 'triggers' | 'actions' | 'dataNodes' | 'flow'
 
 interface CatalogEntry {
@@ -69,7 +63,6 @@ const STATE_TONES = {
 	draft: 'info',
 } as const
 
-// Procedures needing attention first.
 const STATE_ORDER: ProcedureState[] = ['failing', 'degraded', 'healthy', 'paused', 'draft']
 
 /** Procedures listed under "Used by" before "Show all". */
@@ -85,7 +78,6 @@ const { confirm } = useConfirm()
 const route = useDmsRoute()
 const router = useDmsRouter()
 
-// The catalog and where its entries are used, read with the page.
 const listRead = useApiData<CatalogEntry[] | NodeKindEntry[]>(`${props.apiUrl}/${ENDPOINTS[props.kind]}`)
 const usageRead = useApiData<Record<string, TypeUsage[]>>(`${props.apiUrl}/library/usage/${props.kind}`)
 const usage = computed(() => new Map(Object.entries(usageRead.data.value ?? {})))
@@ -94,7 +86,6 @@ const error = computed(() => {
 	const failure = listRead.error.value ?? usageRead.error.value
 	return failure ? describeApiError(failure) : null
 })
-// The entry picked in this view, else the URL's (`?item=`).
 const picked = ref<string | null>(null)
 const query = ref('')
 const saving = ref(false)
@@ -191,7 +182,6 @@ const selectedId = computed<string | null>(() => {
 	return entries.value.some((e) => e.id === wanted) ? wanted : (groups.value[0]?.[1][0]?.id ?? null)
 })
 
-// A search hiding the picked entry moves the detail to the first one shown.
 watch(groups, (shown) => {
 	if (loading.value || shown.length === 0) return
 	if (!shown.some(([, items]) => items.some((e) => e.id === selectedId.value))) {

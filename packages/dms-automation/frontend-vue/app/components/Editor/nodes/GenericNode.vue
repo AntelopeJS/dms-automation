@@ -5,11 +5,6 @@ import { dataStyle, triggerStyle } from './styles'
 import { describeDuration, portLabel, type NodeRole } from '../../../utils/describe'
 import type { PortRef } from '../../../composables/useAutomationNodeKinds'
 
-// One node of the procedure graph. Its header names it (the label the builder
-// gave it, else its type) under a type eyebrow coloured by its role, then one
-// line saying what it does (AU-10). After a run the header carries the step's
-// outcome; a node with a problem carries it in a strip at the bottom.
-
 /** The last run's outcome of the node, drawn over the canvas. */
 export interface NodeRunState {
 	status: 'ok' | 'failed' | 'skipped'
@@ -71,7 +66,6 @@ const dimmed = computed(() => props.data?.run?.status === 'skipped')
 const { processI18n } = useTranslation()
 const { t, te } = useI18n()
 
-// A data node's category, in words ("Logic" for `boolean`).
 const categoryLabel = computed(() => {
 	const category = props.data?.category
 	if (!category) return undefined
@@ -79,9 +73,6 @@ const categoryLabel = computed(() => {
 	return te(key) ? t(key) : category
 })
 
-// The eyebrow names the type when the node has a label of its own, and the
-// node's role otherwise, so a bare node does not read its type twice.
-// A port reads as its field's title; the key it wires by stays on hover.
 const portText = (port: PortRef) => portLabel(port, processI18n)
 const portHint = (port: PortRef) => (portText(port) === port.name ? undefined : port.name)
 
@@ -97,8 +88,6 @@ interface BodyRow {
 	rightDataOut?: PortRef
 }
 
-// Body layout: each trigger-out paired with the next data-in on its row, then
-// the remaining data-ins next to the data-outs.
 const rows = computed<BodyRow[]>(() => {
 	const r: BodyRow[] = []
 	const ti = [...triggerOuts.value]

@@ -3,12 +3,6 @@ import { computed, ref } from 'vue'
 import { type LogEntry, type RunLog, useAutomationRuns } from '../../composables/useAutomationRuns'
 import { describeDuration, prettyJson, stepTitle, type StepName } from '../../utils/describe'
 
-// The run's log as a timed list, named by step instead of node id: every
-// executor event and every message a step wrote. It can be narrowed to the
-// warnings and errors or to the steps' own messages, searched, jumped to its
-// first error and copied. Read with the run when it carries it, else on
-// demand.
-
 const props = defineProps<{
 	apiUrl: string
 	runId: string
@@ -22,8 +16,6 @@ const { t } = useI18n()
 const runs = useAutomationRuns(props.apiUrl)
 const expanded = ref<Set<number>>(new Set())
 
-// The log a run did not come with, read once the list shows it. A stored
-// run's log does not change: the page's refreshes leave it alone.
 const logRead = runs.readLogs(() => (props.log ? null : props.runId), { refreshOnPageRefresh: false })
 const log = computed(() => props.log ?? logRead.data.value)
 const loading = computed(() => !props.log && logRead.pending.value)

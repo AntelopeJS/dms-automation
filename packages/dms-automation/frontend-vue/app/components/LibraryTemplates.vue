@@ -11,12 +11,6 @@ import {
 	type TemplateUsages,
 } from '../build/utils/templates'
 
-// The library's templates: reusable groups other procedures place as linked
-// blocks. The detail edits the name, icon and description, lists the ports
-// (edited inside the graph) and where the template is used — procedures and
-// other templates; deleting forks every usage into a local group so they keep
-// working. The picked template is kept in the URL (`?template=`).
-
 const props = defineProps<{
 	apiUrl: string
 	builderUrl: string
@@ -53,8 +47,6 @@ function queryTemplate(): string | null {
 	return queryString(route.query.template)
 }
 
-// The templates, and the state of the procedures placing them, read with
-// the page.
 const listRead = useApiData<{ results: TemplateRow[]; total: number }>(`${props.apiUrl}/templates`)
 const summaryRead = useApiData<ProcedureSummary[]>(`${props.apiUrl}/procedures/summary`)
 const items = computed(() => listRead.data.value?.results ?? [])
@@ -77,7 +69,6 @@ function replaceListed(change: (rows: TemplateRow[]) => TemplateRow[]) {
 }
 
 const sortedItems = computed(() => [...items.value].sort((a, b) => a.name.localeCompare(b.name)))
-// The template picked in this view, else the URL's (`?template=`).
 const picked = ref<string | null>(null)
 /** The template shown: the one picked, else the first by name. */
 const selectedId = computed<string | null>(() => {
@@ -86,7 +77,6 @@ const selectedId = computed<string | null>(() => {
 })
 const selected = computed(() => items.value.find((x) => x._id === selectedId.value) ?? null)
 
-// Where the template shown is used, read with it.
 const usagesRead = useApiData<TemplateUsages>(() => (selectedId.value ? `${props.apiUrl}/templates/${selectedId.value}/usages` : null))
 const usages = computed(() => (usagesRead.placeholder.value || usagesRead.error.value ? NO_USAGES : (usagesRead.data.value ?? NO_USAGES)))
 const usagesLoading = computed(() => usagesRead.pending.value && (usagesRead.placeholder.value || !usagesRead.data.value))
@@ -98,7 +88,6 @@ const filteredItems = computed(() => {
 	return sortedItems.value.filter((x) => x.name.toLowerCase().includes(q) || (x.description ?? '').toLowerCase().includes(q))
 })
 
-// A malformed icon is said under the picker; it can't be saved.
 const iconValid = computed(() => !formIcon.value || isIconName(formIcon.value))
 
 const dirty = computed(() => {
@@ -107,13 +96,9 @@ const dirty = computed(() => {
 	return formName.value !== s.name || formDescription.value !== (s.description ?? '') || formIcon.value !== (s.icon || DEFAULT_ICON)
 })
 
-// Picking another template, leaving the page or the tab asks before the
-// form's unsaved changes are lost.
 const form = useTemplateRef<HTMLElement>('form')
 const { confirmLeave } = useUnsavedChanges({ dirty, element: form })
 
-// The form starts from the template shown: awaited, the server renders it
-// filled in, and the browser starts from the same values.
 await listRead
 watch(
 	selected,
@@ -132,7 +117,6 @@ watch(selectedId, (id) => {
 async function select(id: string) {
 	if (id === selectedId.value || !(await confirmLeave())) return
 	picked.value = id
-	// Below the two-column width the detail sits under the list: bring it into view.
 	await nextTick()
 	if (detail.value && list.value && detail.value.offsetTop > list.value.offsetTop) {
 		detail.value.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -149,7 +133,6 @@ const usageRows = computed(() => usageRowsOf(usages.value))
 const NAME_ID = 'template-name'
 const NAME_MAX = 200
 const DESCRIPTION_MAX = 2000
-// A missing or taken name shows under its field; a refused save is a toast.
 const fieldErrors = useFieldErrors({ fields: { name: NAME_ID } })
 watch(formName, () => fieldErrors.clear('name'))
 
@@ -206,7 +189,6 @@ function openUsage(usage: TemplateUsage) {
 async function onDelete() {
 	const s = selected.value
 	if (!s) return
-	// Counted now, not when the list loaded: a usage added since is forked too.
 	await usagesRead.refresh()
 	const fresh = usagesRead.data.value
 	if (usagesRead.error.value || !fresh) {
@@ -233,9 +215,6 @@ async function onDelete() {
 		return
 	}
 	toast.add({ title: t('dms_automation.templates.deleted', { name: s.name }), color: 'success', icon: 'i-ph-check-circle' })
-	// Gone from the list at once (the detail moves to the first template); the
-	// page's refresh on the templates topic reads the forked graphs and usage
-	// counts again.
 	replaceListed((rows) => rows.filter((x) => x._id !== s._id))
 }
 
