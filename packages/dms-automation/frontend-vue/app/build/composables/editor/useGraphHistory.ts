@@ -4,6 +4,11 @@ import type { ProcedureGraph } from "../../../composables/useGraphConnect";
 import { cloneGraph, repeatableChangeKey } from "../../utils/editor/graphShape";
 import type { ProcedureRecord, ProcedureSnapshot } from "../../types/editor";
 
+interface ChangeBurst {
+  key: string | null;
+  at: number;
+}
+
 /** The draft's undo history, and the snapshot a save is compared against. */
 export function useGraphHistory(ctx: EditorContext) {
   const { editorMode, savedSnapshot, selected, templatePorts } = ctx;
@@ -14,21 +19,19 @@ export function useGraphHistory(ctx: EditorContext) {
   const HISTORY_LIMIT = 100;
 
   function takeSnapshot(p: ProcedureRecord): ProcedureSnapshot {
-    return {
+    const snapshot: ProcedureSnapshot = {
       name: p.name,
       enabled: p.enabled,
       graph: cloneGraph(p.graph),
-      ...(editorMode.value === "template"
-        ? { ports: templatePorts.value.map((port) => ({ ...port })) }
-        : {}),
     };
+    if (editorMode.value === "template") {
+      snapshot.ports = templatePorts.value.map((port) => ({ ...port }));
+    }
+    return snapshot;
   }
 
-  // A drag emits a graph per frame and a text field one per keystroke: the
-  // changes of one burst make one undo step (the last one is replaced while
-  // the same nodes move, or the same field is typed in, without a pause).
   const HISTORY_MERGE_MS = 1000;
-  let lastChange: { key: string | null; at: number } = { key: null, at: 0 };
+  let lastChange: ChangeBurst = { key: null, at: 0 };
 
   function pushHistory(g: ProcedureGraph, merge = false) {
     const current = graphHistory.value[graphHistoryIndex.value];
@@ -40,7 +43,6 @@ export function useGraphHistory(ctx: EditorContext) {
       key === lastChange.key &&
       now - lastChange.at < HISTORY_MERGE_MS;
     lastChange = { key, at: now };
-    // A new action, a drag included, drops what Redo could bring back.
     graphHistory.value = graphHistory.value.slice(
       0,
       graphHistoryIndex.value + 1,
