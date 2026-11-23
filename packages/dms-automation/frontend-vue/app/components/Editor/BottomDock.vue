@@ -54,7 +54,7 @@ const payloadError = computed(() => {
 		JSON.parse(payload.value || 'null')
 		return null
 	} catch (e) {
-		return (e as Error).message
+		return e instanceof Error ? e.message : String(e)
 	}
 })
 
@@ -73,7 +73,7 @@ function durationOf(run: DockRun): number | null {
 	return run.endedAt ? new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime() : null
 }
 
-function runIcon(run: DockRun): { name: string; class: string } {
+function runIcon(run: DockRun) {
 	if (run.status === 'failed') return { name: 'i-ph-x-circle', class: 'text-error' }
 	return { name: 'i-ph-check-circle', class: 'text-success' }
 }

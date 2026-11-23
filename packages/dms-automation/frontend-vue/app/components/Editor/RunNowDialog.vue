@@ -69,7 +69,7 @@ async function submit() {
 	try {
 		body = JSON.parse(payload.value || 'null')
 	} catch (e) {
-		await fieldErrors.setError('payload', t('dms_automation.editor.runNow.invalidJson', { error: (e as Error).message }))
+		await fieldErrors.setError('payload', t('dms_automation.editor.runNow.invalidJson', { error: e instanceof Error ? e.message : String(e) }))
 		return
 	}
 	submitting.value = true

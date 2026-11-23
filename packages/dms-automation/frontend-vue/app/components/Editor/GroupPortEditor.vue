@@ -105,12 +105,14 @@ function updateName(index: number, name: string) {
 	emitPorts(next)
 }
 
+function isSchemaTypeChoice(type: string | undefined): type is SchemaTypeChoice {
+	const choices: ReadonlyArray<string | undefined> = SCHEMA_TYPE_CHOICES
+	return choices.includes(type)
+}
+
 function schemaTypeOf(port: GroupPort): SchemaTypeChoice {
 	const t = port.schema?.type
-	if (typeof t === 'string' && (SCHEMA_TYPE_CHOICES as string[]).includes(t)) {
-		return t as SchemaTypeChoice
-	}
-	return 'any'
+	return isSchemaTypeChoice(t) ? t : 'any'
 }
 
 function updateSchemaType(index: number, type: SchemaTypeChoice) {
@@ -120,7 +122,7 @@ function updateSchemaType(index: number, type: SchemaTypeChoice) {
 		if (type === 'any') {
 			return { ...p, schema: { type: 'any' } }
 		}
-		return { ...p, schema: { ...(p.schema ?? {}), type } }
+		return { ...p, schema: { ...p.schema, type } }
 	})
 	emitPorts(next)
 }

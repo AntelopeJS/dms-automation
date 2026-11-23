@@ -10,7 +10,7 @@ interface NodeData {
 	templateId?: string
 	templateName?: string
 	ports?: GroupPort[]
-	config?: { name?: string; [k: string]: unknown }
+	config?: { name?: string }
 	subgraph?: unknown
 }
 
