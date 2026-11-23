@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { isIconName } from './IconPicker.vue'
-import { isString } from '../utils/json'
+import { isAbsentOr, isRecord, isString } from '../utils/json'
 import { queryString } from '../utils/automation'
 import {
 	schemaTypeOf,
@@ -143,14 +143,15 @@ interface RefusalBody {
 	code?: string
 }
 
-/** The `code` a refused request answered with, if any. */
-function isRefusal(value: unknown): value is { data?: RefusalBody } {
-	if (typeof value !== 'object' || value === null || !('data' in value)) return false
-	const data = value.data
-	if (data === undefined) return true
-	return typeof data === 'object' && data !== null && (!('code' in data) || data.code === undefined || isString(data.code))
+function isRefusalBody(value: unknown): value is RefusalBody {
+	return isRecord(value) && isAbsentOr(value.code, isString)
 }
 
+function isRefusal(value: unknown): value is { data?: RefusalBody } {
+	return isRecord(value) && 'data' in value && isAbsentOr(value.data, isRefusalBody)
+}
+
+/** The `code` a refused request answered with, if any. */
 function errorCode(e: unknown): string | undefined {
 	return isRefusal(e) ? e.data?.code : undefined
 }

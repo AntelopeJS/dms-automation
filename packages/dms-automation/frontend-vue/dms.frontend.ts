@@ -8,11 +8,11 @@ interface VueModule {
 
 const components = import.meta.glob<VueModule>("./app/components/**/*.vue");
 
+/**
+ * Registers every component under `componentPrefix`: GraphEditor.vue registers
+ * as DmsAutomationGraphEditor, which the backend names `dms-automation-graph-editor`.
+ */
 const frontendModule: DmsFrontendModule = {
-  /**
-   * Put in front of every registered name: GraphEditor.vue registers as
-   * DmsAutomationGraphEditor, which the backend names `dms-automation-graph-editor`.
-   */
   componentPrefix: "DmsAutomation",
   setup(sdk) {
     Object.entries(components)

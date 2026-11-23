@@ -11,7 +11,7 @@ const ICON_API_PATH = '/api/_dms/icons/'
 
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue'
-import { isString } from '../utils/json'
+import { isAbsentOr, isRecord, isStringList } from '../utils/json'
 
 const ICONS = [
 	'i-ph-package', 'i-ph-stack', 'i-ph-flow-arrow', 'i-ph-lightning', 'i-ph-webhooks-logo',
@@ -45,9 +45,7 @@ watch(
 )
 
 function isIconLookup(value: unknown): value is { not_found?: string[] } {
-	if (typeof value !== 'object' || value === null) return false
-	if (!('not_found' in value)) return true
-	return Array.isArray(value.not_found) && value.not_found.every(isString)
+	return isRecord(value) && isAbsentOr(value.not_found, isStringList)
 }
 
 async function lookUp(icon: string) {

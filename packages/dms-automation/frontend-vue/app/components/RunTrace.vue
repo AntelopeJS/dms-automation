@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { isNumber } from '../utils/json'
+import { isNumber, isRecord } from '../utils/json'
 import {
 	builderRunUrl,
 	opensInBuilder,
@@ -48,11 +48,11 @@ function isOptionalNumber(value: unknown): value is number | null | undefined {
 }
 
 function isHttpFailure(value: unknown): value is HttpFailure {
-	if (typeof value !== 'object' || value === null) return false
-	if ('statusCode' in value && !isOptionalNumber(value.statusCode)) return false
-	if (!('response' in value) || value.response == null) return true
-	const response = value.response
-	return typeof response === 'object' && (!('status' in response) || isOptionalNumber(response.status))
+	return (
+		isRecord(value) &&
+		isOptionalNumber(value.statusCode) &&
+		(value.response == null || (isRecord(value.response) && isOptionalNumber(value.response.status)))
+	)
 }
 
 function statusOf(e: unknown): number | null | undefined {
