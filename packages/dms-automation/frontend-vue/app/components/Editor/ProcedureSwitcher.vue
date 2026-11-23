@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 
-// ⌘P: jump to another procedure, by name, with its state; or create one.
-
 export interface ProcedureSummaryRow {
 	procedureId: string
 	name: string
@@ -34,7 +32,6 @@ const STATE_TONES = {
 const query = ref('')
 const active = ref(0)
 
-// By name, so a procedure is found where it was the last time.
 const visible = computed(() => {
 	const q = query.value.trim().toLowerCase()
 	return props.procedures
@@ -42,8 +39,6 @@ const visible = computed(() => {
 		.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
 })
 
-// The search field drives the list (a combobox): the active row is announced
-// through aria-activedescendant and kept in view while arrows move it.
 const LIST_ID = 'procedure-switcher-list'
 function optionId(index: number): string {
 	return `${LIST_ID}-${index}`
@@ -60,8 +55,6 @@ watch(open, (isOpen) => {
 })
 watch(query, () => (active.value = 0))
 
-// The pick is announced once the switcher has closed: the builder may open
-// its "Save changes?" dialog in answer, which a closing modal would dismiss.
 let pending: (() => void) | null = null
 
 function pick(id: string) {

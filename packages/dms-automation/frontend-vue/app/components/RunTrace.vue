@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { isNumber } from './Editor/jsonValue'
 import {
 	builderRunUrl,
 	opensInBuilder,
@@ -14,11 +15,6 @@ import {
 	describeDuration,
 	type StepName,
 } from '../utils/describe'
-
-// The run trace page (`?run=<id>`): one run, linkable. Why it failed comes
-// first, under the header; then its steps on a time line, the payload and the
-// log in tabs, and beside them the path it took and how it compares with the
-// last success.
 
 const props = defineProps<{
 	apiUrl: string
@@ -37,19 +33,34 @@ const { rerun, rerunning } = useRunActions({ apiUrl: props.apiUrl, traceUrl: pro
 
 const runId = computed(() => {
 	const q = route.query.run
-	return typeof q === 'string' ? q : Array.isArray(q) ? (q[0] ?? null) : null
+	return [q].flat()[0] ?? null
 })
 
 const HTTP_NOT_FOUND = 404
 
-function statusOf(e: unknown): number | undefined {
-	const error = e as { statusCode?: number; response?: { status?: number } }
-	return error.statusCode ?? error.response?.status
+interface HttpFailure {
+	statusCode?: number | null
+	response?: { status?: number | null } | null
+}
+
+function isOptionalNumber(value: unknown): value is number | null | undefined {
+	return value == null || isNumber(value)
+}
+
+function isHttpFailure(value: unknown): value is HttpFailure {
+	if (typeof value !== 'object' || value === null) return false
+	if ('statusCode' in value && !isOptionalNumber(value.statusCode)) return false
+	if (!('response' in value) || value.response == null) return true
+	const response = value.response
+	return typeof response === 'object' && (!('status' in response) || isOptionalNumber(response.status))
+}
+
+function statusOf(e: unknown): number | null | undefined {
+	if (isHttpFailure(e)) return e.statusCode ?? e.response?.status
+	return undefined
 }
 
 const runRead = runs.readRun(runId)
-// Until another run's read answers, the run on screen stays; a run that did
-// not load shows why instead.
 const run = computed<RunDetail | null>(() => (runRead.error.value ? null : runRead.data.value))
 const loading = computed(() => runRead.pending.value)
 /** Why the run did not load: no id given, no such run, or another error. */
@@ -108,8 +119,6 @@ const stepPosition = computed(() => ({
 	total: totalSteps.value,
 }))
 
-// Without the graph that ran, or with a gap in the log, the steps the run did
-// not reach are unknown: so is the total.
 const totalKnown = computed(() => !!run.value?.graph && !run.value.graphOutdated && !run.value.trace.truncated)
 
 const durationDelta = computed(() => {
@@ -140,8 +149,6 @@ const version = computed(() => {
 	return { value, detail: t('dms_automation.trace.currentVersion'), tone: 'neutral' as const }
 })
 
-// A webhook path can be long: the tile keeps its last segment, the detail
-// line and the header say it whole.
 function shortTrigger(r: RunDetail): string {
 	const full = processText(r.triggerText)
 	const path = r.trigger?.path
@@ -222,8 +229,6 @@ const outdatedTitle = computed(() => {
 		: t('dms_automation.trace.graphNotKeptUnknown')
 })
 
-// A test ran a draft the builder does not have: its builder buttons stay,
-// disabled, saying why.
 const builderHint = computed(() =>
 	run.value?.procedure && !opensInBuilder(run.value) ? t('dms_automation.trace.builderDraftHint') : '',
 )

@@ -1,22 +1,19 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-
-// Textarea for any-typed config values. Keeps local string state so the user
-// can type freely (e.g. a partial JSON literal) without the parent re-render
-// clobbering it. Only commits the parsed value upward on blur. If the text
-// fails to JSON.parse on blur, the raw string is committed as-is.
+import { isJsonValue, isText } from './jsonValue'
+import type { JsonValue } from './jsonValue'
 
 const props = defineProps<{
-	modelValue: unknown
+	modelValue: JsonValue | undefined
 }>()
 
 const emit = defineEmits<{
-	(e: 'update:model-value', v: unknown): void
+	(e: 'update:model-value', v: JsonValue | undefined): void
 }>()
 
-function serialize(v: unknown): string {
+function serialize(v: JsonValue | undefined): string {
 	if (v === undefined) return ''
-	if (typeof v === 'string') return v
+	if (isText(v)) return v
 	try {
 		return JSON.stringify(v, null, 2)
 	} catch {
@@ -24,10 +21,11 @@ function serialize(v: unknown): string {
 	}
 }
 
-function parse(s: string): unknown {
+function parse(s: string): JsonValue | undefined {
 	if (s.trim() === '') return undefined
 	try {
-		return JSON.parse(s)
+		const parsed: unknown = JSON.parse(s)
+		return isJsonValue(parsed) ? parsed : s
 	} catch {
 		return s
 	}
@@ -38,9 +36,6 @@ const text = ref<string>(serialize(props.modelValue))
 watch(
 	() => props.modelValue,
 	(v) => {
-		// Only sync from outside if the parsed text doesn't already match —
-		// avoids overwriting the user's in-progress text on unrelated parent
-		// re-renders.
 		const parsed = parse(text.value)
 		if (JSON.stringify(parsed) === JSON.stringify(v)) return
 		text.value = serialize(v)

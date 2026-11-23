@@ -2,10 +2,6 @@
 import { computed, ref } from 'vue'
 import { describeRelative, describeTime, stepTitle, type StepName } from '../utils/describe'
 
-// "Needs attention": the procedures someone should look at, each saying why
-// and offering the next action — open the failing trace, edit the procedure,
-// resume a paused one, dismiss a degraded one that recovered.
-
 interface FailureRef {
 	runId: string
 	startedAt: string
@@ -43,13 +39,15 @@ const props = defineProps<{
 
 const { $authFetch } = useAuthFetch()
 const { processI18n } = useTranslation()
-const { t, te } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
+const te = (key: string) => i18n.te(key)
 const { dateTimeFormat } = useRegionalFormat()
 const toast = useToast()
-const { presentError } = useApiErrorPresenter()
+const errorPresenter = useApiErrorPresenter()
+const presentError = (...args: Parameters<typeof errorPresenter.presentError>) =>
+	errorPresenter.presentError(...args)
 
-// Read like the DMS cards: over the page's period, on its refreshes, through
-// its Live / Pause.
 const { data, isLoading, error, refresh } = useChartFetch<{ items: AttentionRow[]; total: number }>({
 	fetchUrl: props.fetchUrl,
 	periodScope: props.periodScope,
@@ -63,8 +61,6 @@ const busy = ref<string | null>(null)
 
 const TONES = { failing: 'error', degraded: 'warning', paused: 'neutral' } as const
 
-// Two rows are as tall as the empty state (161 and 156 px): the card keeps its
-// height whether the list loads empty or with the usual one or two rows.
 const SKELETON_ROWS = 2
 
 function reason(row: AttentionRow): string {
@@ -105,12 +101,10 @@ function reason(row: AttentionRow): string {
 interface Change {
 	method: 'POST' | 'PUT' | 'DELETE'
 	url: string
-	body?: Record<string, unknown>
+	body?: { enabled?: boolean; restorePause?: boolean }
 }
 
-function failed(e: unknown) {
-	presentError(e, { fallbackKey: 'dms_automation.common.actionFailed' })
-}
+const FAILURE_NOTICE = { fallbackKey: 'dms_automation.common.actionFailed' }
 
 /**
  * Applies a change, then refreshes the page: the banner, the counts and this
@@ -121,7 +115,6 @@ async function act(row: AttentionRow, change: Change, undo: Change, message: str
 	busy.value = row.procedureId
 	try {
 		await $authFetch(change.url, { method: change.method, body: change.body })
-		// The row keeps its spinner until the page shows the change.
 		await refreshPageBlocks()
 		toast.add({
 			title: processI18n(message, { name: row.name }),
@@ -132,14 +125,20 @@ async function act(row: AttentionRow, change: Change, undo: Change, message: str
 					label: processI18n('$dms_automation.attention.undo'),
 					color: 'neutral',
 					variant: 'outline',
-					onClick: () => {
-						$authFetch(undo.url, { method: undo.method, body: undo.body }).then(refreshPageBlocks, failed)
+					onClick: async () => {
+						try {
+							await $authFetch(undo.url, { method: undo.method, body: undo.body })
+						} catch (e) {
+							presentError(e, FAILURE_NOTICE)
+							return
+						}
+						await refreshPageBlocks()
 					},
 				},
 			],
 		})
 	} catch (e) {
-		failed(e)
+		presentError(e, FAILURE_NOTICE)
 	} finally {
 		busy.value = null
 	}
@@ -147,7 +146,6 @@ async function act(row: AttentionRow, change: Change, undo: Change, message: str
 
 function resume(row: AttentionRow) {
 	const url = `${props.apiUrl}/procedures/${row.procedureId}/enabled`
-	// Undo puts the pause back as it was: who paused it, and when.
 	void act(
 		row,
 		{ method: 'PUT', url, body: { enabled: true } },

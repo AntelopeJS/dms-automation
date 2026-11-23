@@ -10,7 +10,7 @@ interface NodeData {
 	templateId?: string
 	templateName?: string
 	ports?: GroupPort[]
-	config?: { name?: string; [k: string]: unknown }
+	config?: { name?: string }
 	subgraph?: unknown
 }
 
@@ -39,7 +39,6 @@ const dataOutPorts = computed(() =>
 
 const isTemplateInstance = computed(() => Boolean(props.data?.templateId))
 
-// GraphCanvas resolves the name: the step name, else the group's own name.
 const title = computed(() => props.data?.label ?? props.data?.config?.name)
 
 const headerIcon = computed(() =>
@@ -48,12 +47,6 @@ const headerIcon = computed(() =>
 
 import { dataHandleStyle, triggerStyle } from './styles'
 
-// Mirror the convention used by GenericNode: the trigger port named "main"
-// lives on the title bar (left for trigger-in, right for trigger-out). Any
-// other trigger ports spill into the body rows below, interleaved with the
-// data port rows. If no port is named "main", the title bar has no trigger
-// handle on that side — the user picks which port is the "main" one by
-// naming it.
 const mainTriggerIn = computed(
 	() => triggerInPorts.value.find((p) => p.name === 'main') ?? null,
 )
@@ -67,9 +60,6 @@ const extraTriggerOut = computed(() =>
 	triggerOutPorts.value.filter((p) => p.name !== 'main'),
 )
 
-// Body rows: left column shows trigger-in extras followed by data-in ports;
-// right column shows trigger-out extras followed by data-out ports. Each row
-// gets one entry per side (may be null if that side has fewer entries).
 interface LeftRow {
 	kind: 'trigger' | 'data'
 	port: GroupPort

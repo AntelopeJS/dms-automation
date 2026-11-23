@@ -1,13 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { isText } from './Editor/jsonValue'
 import type { NodeKindEntry, PortRef } from '../composables/useAutomationNodeKinds'
 import type { JsonSchema } from '../composables/useGraphConnect'
-
-// One catalog of the library (triggers, actions, data nodes, or the flow and
-// helper blocks): its entries grouped by the module that registered them, and
-// the picked one's detail — where it is used first, then what disabling it
-// does, its settings, inputs and outputs as tables. The picked entry is kept
-// in the URL (`?item=`), so going back to the library lands on it again.
 
 type CatalogKind = 'triggers' | 'actions' | 'dataNodes' | 'flow'
 
@@ -69,7 +64,6 @@ const STATE_TONES = {
 	draft: 'info',
 } as const
 
-// Procedures needing attention first.
 const STATE_ORDER: ProcedureState[] = ['failing', 'degraded', 'healthy', 'paused', 'draft']
 
 /** Procedures listed under "Used by" before "Show all". */
@@ -78,15 +72,18 @@ const USES_SHOWN = 8
 const { $authFetch } = useAuthFetch()
 const { processI18n } = useTranslation()
 const { processText } = useComposedText()
-const { t, te } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
+const te = (key: string) => i18n.te(key)
 const toast = useToast()
-const { presentError } = useApiErrorPresenter()
+const errorPresenter = useApiErrorPresenter()
+const presentError = (...args: Parameters<typeof errorPresenter.presentError>) =>
+	errorPresenter.presentError(...args)
 const { confirm } = useConfirm()
 const route = useDmsRoute()
 const router = useDmsRouter()
 
-// The catalog and where its entries are used, read with the page.
-const listRead = useApiData<CatalogEntry[] | NodeKindEntry[]>(`${props.apiUrl}/${ENDPOINTS[props.kind]}`)
+const listRead = useApiData<Array<CatalogEntry | NodeKindEntry>>(`${props.apiUrl}/${ENDPOINTS[props.kind]}`)
 const usageRead = useApiData<Record<string, TypeUsage[]>>(`${props.apiUrl}/library/usage/${props.kind}`)
 const usage = computed(() => new Map(Object.entries(usageRead.data.value ?? {})))
 const loading = computed(() => listRead.pending.value || usageRead.pending.value)
@@ -94,7 +91,6 @@ const error = computed(() => {
 	const failure = listRead.error.value ?? usageRead.error.value
 	return failure ? describeApiError(failure) : null
 })
-// The entry picked in this view, else the URL's (`?item=`).
 const picked = ref<string | null>(null)
 const query = ref('')
 const saving = ref(false)
@@ -130,12 +126,14 @@ function flowEntries(kinds: NodeKindEntry[]): CatalogEntry[] {
 
 function queryItem(): string | null {
 	const q = route.query.item
-	return typeof q === 'string' && q ? q : null
+	return isText(q) && q ? q : null
 }
 
 const entries = computed<CatalogEntry[]>(() => {
 	const listed = listRead.data.value ?? []
-	return props.kind === 'flow' ? flowEntries(listed as NodeKindEntry[]) : (listed as CatalogEntry[])
+	return props.kind === 'flow'
+		? flowEntries(listed.flatMap((entry) => ('meta' in entry ? [entry] : [])))
+		: listed.flatMap((entry) => ('id' in entry ? [entry] : []))
 })
 
 function load() {
@@ -146,7 +144,7 @@ function load() {
 function replaceEntry(id: string, change: Partial<CatalogEntry>) {
 	const listed = listRead.data.value
 	if (!listed || props.kind === 'flow') return
-	listRead.data.value = (listed as CatalogEntry[]).map((entry) => (entry.id === id ? { ...entry, ...change } : entry))
+	listRead.data.value = listed.map((entry) => ('id' in entry && entry.id === id ? { ...entry, ...change } : entry))
 }
 
 /**
@@ -191,11 +189,11 @@ const selectedId = computed<string | null>(() => {
 	return entries.value.some((e) => e.id === wanted) ? wanted : (groups.value[0]?.[1][0]?.id ?? null)
 })
 
-// A search hiding the picked entry moves the detail to the first one shown.
 watch(groups, (shown) => {
 	if (loading.value || shown.length === 0) return
-	if (!shown.some(([, items]) => items.some((e) => e.id === selectedId.value))) {
-		picked.value = shown[0]![1][0]!.id
+	const firstId = shown[0]?.[1][0]?.id
+	if (firstId && !shown.some(([, items]) => items.some((e) => e.id === selectedId.value))) {
+		picked.value = firstId
 	}
 })
 
@@ -224,10 +222,14 @@ const enabledUses = computed(() => new Set(uses.value.filter((u) => u.enabled).m
 
 /** "Used by", one line per procedure with the nodes placing the entry under it, by state then name. */
 const procedureUses = computed(() => {
-	const byProcedure = new Map<string, TypeUsage[]>()
-	for (const use of uses.value) byProcedure.set(use.procedureId, [...(byProcedure.get(use.procedureId) ?? []), use])
+	const byProcedure = new Map<string, [TypeUsage, ...TypeUsage[]]>()
+	for (const use of uses.value) {
+		const group = byProcedure.get(use.procedureId)
+		if (group) group.push(use)
+		else byProcedure.set(use.procedureId, [use])
+	}
 	return [...byProcedure.values()].sort(
-		([a], [b]) => STATE_ORDER.indexOf(a!.state) - STATE_ORDER.indexOf(b!.state) || a!.procedureName.localeCompare(b!.procedureName),
+		([a], [b]) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state) || a.procedureName.localeCompare(b.procedureName),
 	)
 })
 const shownProcedureUses = computed(() => (showAllUses.value ? procedureUses.value : procedureUses.value.slice(0, USES_SHOWN)))

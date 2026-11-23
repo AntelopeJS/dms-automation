@@ -3,17 +3,11 @@ import { computed } from 'vue'
 import type { RunDetail } from '../../composables/useAutomationRuns'
 import { describeDateTime, describeDuration, stepTitle } from '../../utils/describe'
 
-// Each step of this run next to the same step in the last successful run,
-// every iteration added up: what got slower, by how much, and the steps the
-// last success went through that this run never reached.
-
 const props = defineProps<{ run: RunDetail; traceUrl: string }>()
 
 const { processI18n } = useTranslation()
 const { dateTimeFormat } = useRegionalFormat()
 
-// A gap under this share of the last success's time, or under a few
-// milliseconds, reads as noise.
 const NOTABLE_GAP = 0.2
 const NOTABLE_GAP_MS = 5
 
@@ -27,8 +21,7 @@ interface Row {
 	tone: 'failed' | 'handled' | 'ok'
 }
 
-const rows = computed<Row[]>(() => {
-	const before = new Map(Object.entries(props.run.lastSuccess?.stepDurations ?? {}))
+function reachedRows(before: ReadonlyMap<string, number | null>): Map<string, Row> {
 	const rowsById = new Map<string, Row>()
 	for (const step of props.run.trace.steps) {
 		const row = rowsById.get(step.nodeId) ?? {
@@ -43,10 +36,12 @@ const rows = computed<Row[]>(() => {
 		if (step.status === 'failed') row.tone = step.handled && row.tone !== 'failed' ? 'handled' : 'failed'
 		rowsById.set(step.nodeId, row)
 	}
+	return rowsById
+}
+
+function addUnreachedRows(rowsById: Map<string, Row>, before: ReadonlyMap<string, number | null>) {
 	const skippedNames = new Map(props.run.trace.skipped.map((s) => [s.nodeId, stepTitle(s.name, processI18n)]))
 	const labels = new Map((props.run.graph?.nodes ?? []).flatMap((n) => (n.label ? [[n.id, n.label] as const] : [])))
-	// A step this run never reached reads as one row, its inner steps (a
-	// group's) added up into it.
 	for (const [flatId, ms] of before) {
 		if (rowsById.has(flatId)) continue
 		const nodeId = flatId.split('__')[0] ?? flatId
@@ -61,6 +56,12 @@ const rows = computed<Row[]>(() => {
 		if (row.notReached && ms !== null) row.before = (row.before ?? 0) + ms
 		rowsById.set(nodeId, row)
 	}
+}
+
+const rows = computed<Row[]>(() => {
+	const before = new Map(Object.entries(props.run.lastSuccess?.stepDurations ?? {}))
+	const rowsById = reachedRows(before)
+	addUnreachedRows(rowsById, before)
 	return [...rowsById.values()]
 })
 

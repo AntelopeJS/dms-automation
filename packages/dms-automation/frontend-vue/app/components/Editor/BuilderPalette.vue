@@ -5,9 +5,8 @@ import type {
 	TriggerType,
 	ActionType,
 	DataNodeType,
-	GroupPort,
 } from '../../composables/useGraphConnect'
-import { PALETTE_DRAG_TYPE, type NodeKindEntry, type PaletteBlock, type TemplateSummary } from '../../composables/useAutomationNodeKinds'
+import { PALETTE_DRAG_TYPE, type NodeKindEntry, type NodeKindUI, type PaletteBlock, type TemplateSummary } from '../../composables/useAutomationNodeKinds'
 
 const props = defineProps<{
 	nodeKinds: NodeKindEntry[]
@@ -24,11 +23,10 @@ const emit = defineEmits<{
 
 const search = ref('')
 
-// Registered type names may be `$`-prefixed DMS i18n keys shipped in the
-// declaring module's locales; plain text is shown as written. Search matches
-// the translated label, the type id, its data category and its description.
 const { processI18n } = useTranslation()
-const { t, te } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
+const te = (key: string) => i18n.te(key)
 
 interface PaletteItem {
 	key: string
@@ -44,15 +42,15 @@ interface PaletteItem {
 	/** Lower-cased text the search looks in. */
 	keywords: string
 }
-// Items inside a category are bucketed by the module that registered them:
-// one unlabeled leading section for our own built-ins (types the backend left
-// unattributed, plus plain node kinds), then one labeled section per external
-// module. Built-in data nodes are split further by their data category.
 interface PaletteSection {
 	/** Sub-header: a data category, or the id of the module that registered the types. */
 	label?: string
 	module?: boolean
 	items: PaletteItem[]
+}
+interface UiKind {
+	entry: NodeKindEntry
+	ui: NodeKindUI
 }
 interface PaletteGroup {
 	key: string
@@ -61,30 +59,24 @@ interface PaletteGroup {
 	sections: PaletteSection[]
 }
 
-// Same category ordering / labels / icons the old "Add node" dropdown used —
-// reproduced here as a grouped, searchable left sidebar per autov2-builder.
 const CATEGORY_ORDER = ['trigger', 'action', 'flow', 'helper', 'data'] as const
-const CATEGORY_LABEL: Record<string, string> = {
+const CATEGORY_LABEL = {
 	trigger: '$dms_automation.builder.palette.groups.trigger',
 	action: '$dms_automation.builder.palette.groups.action',
 	flow: '$dms_automation.builder.palette.groups.flow',
 	helper: '$dms_automation.builder.palette.groups.helper',
 	data: '$dms_automation.builder.palette.groups.data',
-}
-const CATEGORY_ICON: Record<string, string> = {
+} satisfies Record<(typeof CATEGORY_ORDER)[number], string>
+const CATEGORY_ICON = {
 	trigger: 'i-ph-lightning',
 	action: 'i-ph-gear',
 	flow: 'i-ph-git-fork',
 	helper: 'i-ph-toolbox',
 	data: 'i-ph-function',
-}
+} satisfies Record<(typeof CATEGORY_ORDER)[number], string>
 
-// Bucket key for the unlabeled built-in section. The backend omits `module`
-// for our own types and for any it couldn't attribute, so both land here
-// rather than under an invented "unknown" sub-header.
 const BUILTIN_BUCKET = ''
 
-// Order of the built-in data categories; any other one follows, A to Z.
 const DATA_CATEGORY_ORDER = ['constant', 'math', 'compare', 'boolean', 'string', 'object', 'json']
 
 function dataCategoryLabel(category: string): string {
@@ -96,7 +88,6 @@ function keywordsOf(...parts: Array<string | undefined>): string {
 	return parts.filter(Boolean).join(' ').toLowerCase()
 }
 
-// Built-in data nodes, one section per data category.
 function dataSections(items: PaletteItem[]): PaletteSection[] {
 	const rank = (c: string) => {
 		const i = DATA_CATEGORY_ORDER.indexOf(c)
@@ -111,98 +102,118 @@ function dataSections(items: PaletteItem[]): PaletteSection[] {
 	}))
 }
 
+type BucketedItem = [bucket: string, item: PaletteItem]
+
+function kindsByCategoryOf(nodeKinds: NodeKindEntry[]): Map<string, UiKind[]> {
+	const byCategory = new Map<string, UiKind[]>()
+	for (const entry of nodeKinds) {
+		const ui = entry.meta.ui
+		const cat = ui?.category
+		if (!ui || !cat) continue
+		const arr = byCategory.get(cat) ?? []
+		arr.push({ entry, ui })
+		byCategory.set(cat, arr)
+	}
+	return byCategory
+}
+
+function typeItems(kind: string, types: Array<TriggerType | ActionType>, groupIcon: string): BucketedItem[] {
+	return types.map((type) => {
+		const label = processI18n(type.name)
+		return [
+			type.module ?? BUILTIN_BUCKET,
+			{
+				key: `${kind}:${type.id}`,
+				label,
+				icon: type.icon ?? groupIcon,
+				kind,
+				typeId: type.id,
+				off: type.enabled === false,
+				keywords: keywordsOf(label, type.id, type.description && processI18n(type.description), type.module),
+			},
+		]
+	})
+}
+
+function dataNodeItems(kind: string, types: DataNodeType[], groupIcon: string): BucketedItem[] {
+	return types.map((d) => {
+		const label = processI18n(d.name)
+		return [
+			d.module ?? BUILTIN_BUCKET,
+			{
+				key: `${kind}:${d.id}`,
+				label,
+				icon: d.icon ?? groupIcon,
+				kind,
+				typeId: d.id,
+				category: d.category,
+				keywords: keywordsOf(label, d.id, d.category, dataCategoryLabel(d.category), processI18n(d.description), d.module),
+			},
+		]
+	})
+}
+
+function itemsOfKind({ entry, ui }: UiKind, groupIcon: string): BucketedItem[] {
+	const reg = ui.typeRegistry
+	if (reg === 'triggers') return typeItems(entry.kind, props.triggerTypes ?? [], groupIcon)
+	if (reg === 'actions') return typeItems(entry.kind, props.actionTypes ?? [], groupIcon)
+	if (reg === 'dataNodes') return dataNodeItems(entry.kind, props.dataNodeTypes ?? [], groupIcon)
+	const label = processI18n(ui.label)
+	return [[BUILTIN_BUCKET, { key: entry.kind, label, icon: ui.icon ?? groupIcon, kind: entry.kind, keywords: keywordsOf(label, entry.kind) }]]
+}
+
+function sectionsOf(cat: string, kinds: UiKind[], groupIcon: string): PaletteSection[] {
+	const byModule = new Map<string, PaletteItem[]>()
+	for (const [bucket, item] of kinds.flatMap((kind) => itemsOfKind(kind, groupIcon))) {
+		const arr = byModule.get(bucket) ?? []
+		arr.push(item)
+		byModule.set(bucket, arr)
+	}
+
+	const sections: PaletteSection[] = []
+	const builtins = byModule.get(BUILTIN_BUCKET)
+	if (builtins && builtins.length > 0) {
+		if (cat === 'data') sections.push(...dataSections(builtins))
+		else sections.push({ items: builtins })
+	}
+	const externalModules = [...byModule.keys()]
+		.filter((m) => m !== BUILTIN_BUCKET)
+		.sort()
+	for (const mod of externalModules) {
+		sections.push({ label: mod, module: true, items: byModule.get(mod) ?? [] })
+	}
+	return sections
+}
+
+function templatesGroup(templates: TemplateSummary[]): PaletteGroup {
+	return {
+		key: 'templates',
+		label: processI18n('$dms_automation.builder.palette.groups.templates'),
+		icon: 'i-ph-package',
+		sections: [
+			{
+				items: templates.map((tpl) => {
+					const label = tpl.name.trim() || t('dms_automation.builder.palette.untitledTemplate')
+					return { key: `tpl:${tpl._id}`, label, icon: tpl.icon ?? 'i-ph-package', template: tpl, keywords: keywordsOf(label) }
+				}),
+			},
+		],
+	}
+}
+
 const groups = computed<PaletteGroup[]>(() => {
 	const out: PaletteGroup[] = []
-
-	const kindsByCategory = new Map<string, NodeKindEntry[]>()
-	for (const k of props.nodeKinds ?? []) {
-		const cat = k.meta.ui?.category
-		if (!cat) continue
-		const arr = kindsByCategory.get(cat) ?? []
-		arr.push(k)
-		kindsByCategory.set(cat, arr)
-	}
+	const byCategory = kindsByCategoryOf(props.nodeKinds ?? [])
 
 	for (const cat of CATEGORY_ORDER) {
-		const kinds = kindsByCategory.get(cat)
+		const kinds = byCategory.get(cat)
 		if (!kinds || kinds.length === 0) continue
-		const groupIcon = CATEGORY_ICON[cat] ?? 'i-ph-circle'
-		const byModule = new Map<string, PaletteItem[]>()
-		const push = (bucket: string, item: PaletteItem) => {
-			const arr = byModule.get(bucket) ?? []
-			arr.push(item)
-			byModule.set(bucket, arr)
-		}
-
-		for (const k of kinds) {
-			const ui = k.meta.ui!
-			const reg = ui.typeRegistry
-			if (reg === 'triggers' || reg === 'actions') {
-				for (const type of (reg === 'triggers' ? props.triggerTypes : props.actionTypes) ?? []) {
-					const label = processI18n(type.name)
-					push(type.module ?? BUILTIN_BUCKET, {
-						key: `${k.kind}:${type.id}`,
-						label,
-						icon: type.icon ?? groupIcon,
-						kind: k.kind,
-						typeId: type.id,
-						off: type.enabled === false,
-						keywords: keywordsOf(label, type.id, type.description && processI18n(type.description), type.module),
-					})
-				}
-			} else if (reg === 'dataNodes') {
-				for (const d of props.dataNodeTypes ?? []) {
-					const label = processI18n(d.name)
-					push(d.module ?? BUILTIN_BUCKET, {
-						key: `${k.kind}:${d.id}`,
-						label,
-						icon: d.icon ?? groupIcon,
-						kind: k.kind,
-						typeId: d.id,
-						category: d.category,
-						keywords: keywordsOf(label, d.id, d.category, dataCategoryLabel(d.category), processI18n(d.description), d.module),
-					})
-				}
-			} else {
-				// Plain node kinds (flow / helpers) are built into this module.
-				const label = processI18n(ui.label)
-				push(BUILTIN_BUCKET, { key: k.kind, label, icon: ui.icon ?? groupIcon, kind: k.kind, keywords: keywordsOf(label, k.kind) })
-			}
-		}
-
-		// Built-ins first (they're the defaults shipped with the module), then
-		// one labeled section per external module, alphabetically.
-		const sections: PaletteSection[] = []
-		const builtins = byModule.get(BUILTIN_BUCKET)
-		if (builtins && builtins.length > 0) {
-			if (cat === 'data') sections.push(...dataSections(builtins))
-			else sections.push({ items: builtins })
-		}
-		const externalModules = [...byModule.keys()]
-			.filter((m) => m !== BUILTIN_BUCKET)
-			.sort()
-		for (const mod of externalModules) {
-			sections.push({ label: mod, module: true, items: byModule.get(mod)! })
-		}
-
-		if (sections.length > 0) out.push({ key: cat, label: processI18n(CATEGORY_LABEL[cat] ?? cat), icon: groupIcon, sections })
+		const groupIcon = CATEGORY_ICON[cat]
+		const sections = sectionsOf(cat, kinds, groupIcon)
+		if (sections.length > 0) out.push({ key: cat, label: processI18n(CATEGORY_LABEL[cat]), icon: groupIcon, sections })
 	}
 
-	if (props.templates && props.templates.length > 0) {
-		out.push({
-			key: 'templates',
-			label: processI18n('$dms_automation.builder.palette.groups.templates'),
-			icon: 'i-ph-package',
-			sections: [
-				{
-					items: props.templates.map((tpl) => {
-						const label = tpl.name.trim() || t('dms_automation.builder.palette.untitledTemplate')
-						return { key: `tpl:${tpl._id}`, label, icon: tpl.icon ?? 'i-ph-package', template: tpl, keywords: keywordsOf(label) }
-					}),
-				},
-			],
-		})
-	}
+	if (props.templates && props.templates.length > 0) out.push(templatesGroup(props.templates))
 
 	return out
 })
@@ -225,7 +236,6 @@ function onItem(item: PaletteItem) {
 	else if (item.kind) emit('add-node', { kind: item.kind, typeId: item.typeId })
 }
 
-// The canvas reads the block back on drop and places it there.
 function onDragStart(event: DragEvent, item: PaletteItem) {
 	if (!event.dataTransfer) return
 	const block: PaletteBlock = item.template ? { template: item.template } : { kind: item.kind, typeId: item.typeId }

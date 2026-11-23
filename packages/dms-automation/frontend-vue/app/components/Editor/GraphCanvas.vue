@@ -1,15 +1,5 @@
 <script setup lang="ts">
 import { markRaw, ref } from 'vue'
-// The canvas chrome (dotted DMS background, zoom controls, themed
-// node/handle/edge styling, pan/zoom + fit-view) now comes from the shared
-// DmsFlowCanvas wrapper (dms ≥0.0.25). We only keep the @vue-flow/core bits
-// our business renderers need: `Position` for node source/target anchors and
-// the connection / change / edge types for our wiring handlers. The imperative
-// flow controller (zoom/fit/updateNodeInternals/viewport) is reached through
-// DmsFlowCanvas's exposed store via a template ref (see `flowRef`).
-// Most node kinds share a single port-spec-driven renderer. Group and the
-// two group sentinels stay custom because they have cross-graph port
-// declarations and special handle naming.
 import GenericNode from './nodes/GenericNode.vue'
 import GroupNode from './nodes/GroupNode.vue'
 import GroupInputNode from './nodes/GroupInputNode.vue'
@@ -38,7 +28,9 @@ const emit = defineEmits<CanvasEmits>()
 const toast = useToast()
 const { processI18n } = useTranslation()
 const { processText } = useComposedText()
-const { t, te } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
+const te = (key: string) => i18n.te(key)
 
 const nodeTypes = markRaw({
 	genericNode: GenericNode,
@@ -51,15 +43,11 @@ function emitGraph(g: ProcedureGraph) {
 	emit('update:graph', g)
 }
 
-// The node to select and bring into view once drawn: one just added, or one
-// the editor points at (`readable`).
 const reveal: Reveal = { pending: null }
 
 const flowRef = ref<FlowController | null>(null)
 const wrapRef = ref<HTMLElement | null>(null)
 
-// The same set, reactive (sentinels included), for the toolbar's link menu
-// and the placement of new nodes.
 const canvasSelection = ref<string[]>([])
 
 const { nodeKindUiByKind, handlesOf, vfNodes, menuName } = useCanvasNodes(props, {
@@ -82,8 +70,6 @@ const { addNode, addTemplateInstance, onDragOver, onDrop } = useNodePlacement({
 	handlesOf,
 })
 
-// Node creation is driven from the left BuilderPalette (in Editor.vue) — expose
-// the two add helpers so the palette's events can reach the graph mutation.
 defineExpose({ addNode, addTemplateInstance })
 
 const { fitView, onNodesInitialized, zoomPercent, resetZoom } = useCanvasView({

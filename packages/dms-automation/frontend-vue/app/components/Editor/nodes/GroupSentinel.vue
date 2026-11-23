@@ -4,19 +4,6 @@ import { Handle, Position } from '@vue-flow/core'
 import type { GroupPort } from '../../../composables/useGraphConnect'
 import { dataHandleStyle, triggerStyle } from './styles'
 
-// Shared body for both group sentinels (groupInput / groupOutput). The two
-// are mirror images: `groupInput` exposes the parent group's IN ports as
-// SOURCE handles on the right edge; `groupOutput` exposes its OUT ports as
-// TARGET handles on the left edge. Naming, icon, label, alignment, and
-// empty-state copy all flip on `side`.
-//
-// Sentinel naming:
-//   groupInput-trigger-out-<port> / groupInput-data-out-<port>
-//   groupOutput-trigger-in-<port> / groupOutput-data-in-<port>
-//
-// Sentinels are not user-deletable — enforcement lives in GraphCanvas.vue's
-// onNodesChange handler.
-
 interface NodeData {
 	ports?: GroupPort[]
 }
@@ -49,9 +36,6 @@ const ports = computed<GroupPort[]>(() =>
 	Array.isArray(props.data?.ports) ? props.data.ports : [],
 )
 
-// `groupInput` surfaces the parent's IN ports (they look like sources to
-// the inner subgraph); `groupOutput` surfaces the parent's OUT ports
-// (sinks to the inner subgraph).
 const dataPorts = computed(() =>
 	ports.value.filter((p) => p.kind === 'data' && p.direction === props.side),
 )

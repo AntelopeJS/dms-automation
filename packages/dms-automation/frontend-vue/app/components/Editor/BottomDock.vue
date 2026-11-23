@@ -4,10 +4,6 @@ import type { TraceStep } from '../../composables/useAutomationRuns'
 import { describeDuration, describeTime, stepTitle, type StepName } from '../../utils/describe'
 import { redactedHeadersOf } from '../../utils/redactedHeaders'
 
-// The builder's bottom dock: the graph's problems (each one selects its node),
-// this procedure's last runs (same rows as the run history, each opening its
-// trace), the payload Test run sends, and the steps of the test run on screen.
-
 export interface DockIssue {
 	severity: 'error' | 'warning'
 	message: string
@@ -50,9 +46,7 @@ const emit = defineEmits<{
 const { processI18n } = useTranslation()
 const { dateTimeFormat } = useRegionalFormat()
 
-// Real runs only: a failed test of a draft says nothing of the procedure.
 const failedRuns = computed(() => props.runs.filter((r) => r.status === 'failed' && r.kind !== 'test').length)
-// A payload prefilled from a stored run says which secret headers it lacks.
 const redactedHeaders = computed(() => redactedHeadersOf(payload.value))
 
 const payloadError = computed(() => {
@@ -60,7 +54,7 @@ const payloadError = computed(() => {
 		JSON.parse(payload.value || 'null')
 		return null
 	} catch (e) {
-		return (e as Error).message
+		return e instanceof Error ? e.message : String(e)
 	}
 })
 
@@ -79,7 +73,7 @@ function durationOf(run: DockRun): number | null {
 	return run.endedAt ? new Date(run.endedAt).getTime() - new Date(run.startedAt).getTime() : null
 }
 
-function runIcon(run: DockRun): { name: string; class: string } {
+function runIcon(run: DockRun) {
 	if (run.status === 'failed') return { name: 'i-ph-x-circle', class: 'text-error' }
 	return { name: 'i-ph-check-circle', class: 'text-success' }
 }
