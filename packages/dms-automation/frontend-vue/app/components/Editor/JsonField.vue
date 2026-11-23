@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { isJsonValue, isText } from './jsonValue'
+import type { JsonValue } from './jsonValue'
 
 const props = defineProps<{
-	modelValue: unknown
+	modelValue: JsonValue | undefined
 }>()
 
 const emit = defineEmits<{
-	(e: 'update:model-value', v: unknown): void
+	(e: 'update:model-value', v: JsonValue | undefined): void
 }>()
 
-function serialize(v: unknown): string {
+function serialize(v: JsonValue | undefined): string {
 	if (v === undefined) return ''
-	if (typeof v === 'string') return v
+	if (isText(v)) return v
 	try {
 		return JSON.stringify(v, null, 2)
 	} catch {
@@ -19,10 +21,11 @@ function serialize(v: unknown): string {
 	}
 }
 
-function parse(s: string): unknown {
+function parse(s: string): JsonValue | undefined {
 	if (s.trim() === '') return undefined
 	try {
-		return JSON.parse(s)
+		const parsed: unknown = JSON.parse(s)
+		return isJsonValue(parsed) ? parsed : s
 	} catch {
 		return s
 	}

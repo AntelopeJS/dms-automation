@@ -30,7 +30,9 @@ const { $authFetch } = useAuthFetch()
 const route = useDmsRoute()
 const router = useDmsRouter()
 const toast = useToast()
-const { presentError } = useApiErrorPresenter()
+const errorPresenter = useApiErrorPresenter()
+const presentError = (...args: Parameters<typeof errorPresenter.presentError>) =>
+	errorPresenter.presentError(...args)
 const { t } = useI18n()
 const { confirm } = useConfirm()
 

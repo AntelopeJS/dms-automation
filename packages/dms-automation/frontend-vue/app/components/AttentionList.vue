@@ -39,10 +39,14 @@ const props = defineProps<{
 
 const { $authFetch } = useAuthFetch()
 const { processI18n } = useTranslation()
-const { t, te } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
+const te = (key: string) => i18n.te(key)
 const { dateTimeFormat } = useRegionalFormat()
 const toast = useToast()
-const { presentError } = useApiErrorPresenter()
+const errorPresenter = useApiErrorPresenter()
+const presentError = (...args: Parameters<typeof errorPresenter.presentError>) =>
+	errorPresenter.presentError(...args)
 
 const { data, isLoading, error, refresh } = useChartFetch<{ items: AttentionRow[]; total: number }>({
 	fetchUrl: props.fetchUrl,
@@ -97,12 +101,10 @@ function reason(row: AttentionRow): string {
 interface Change {
 	method: 'POST' | 'PUT' | 'DELETE'
 	url: string
-	body?: Record<string, unknown>
+	body?: { enabled?: boolean; restorePause?: boolean }
 }
 
-function failed(e: unknown) {
-	presentError(e, { fallbackKey: 'dms_automation.common.actionFailed' })
-}
+const FAILURE_NOTICE = { fallbackKey: 'dms_automation.common.actionFailed' }
 
 /**
  * Applies a change, then refreshes the page: the banner, the counts and this
@@ -123,14 +125,20 @@ async function act(row: AttentionRow, change: Change, undo: Change, message: str
 					label: processI18n('$dms_automation.attention.undo'),
 					color: 'neutral',
 					variant: 'outline',
-					onClick: () => {
-						$authFetch(undo.url, { method: undo.method, body: undo.body }).then(refreshPageBlocks, failed)
+					onClick: async () => {
+						try {
+							await $authFetch(undo.url, { method: undo.method, body: undo.body })
+						} catch (e) {
+							presentError(e, FAILURE_NOTICE)
+							return
+						}
+						await refreshPageBlocks()
 					},
 				},
 			],
 		})
 	} catch (e) {
-		failed(e)
+		presentError(e, FAILURE_NOTICE)
 	} finally {
 		busy.value = null
 	}

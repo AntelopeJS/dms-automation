@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue'
 import type { TraceStep } from '../../composables/useAutomationRuns'
 import { describeDateTime } from '../../utils/describe'
 import JsonField from './JsonField.vue'
+import { isJsonValue, isText } from './jsonValue'
+import type { JsonValue } from './jsonValue'
 import NodeInspectorDocs from '../../build/components/editor/NodeInspectorDocs.vue'
 import NodeInspectorRun from '../../build/components/editor/NodeInspectorRun.vue'
 import {
@@ -18,6 +20,7 @@ import {
 	portsSchema,
 	textToArray,
 } from '../../build/utils/inspectorFields'
+import type { GraphIssue } from '../../build/types/editor'
 import type { NodeKindEntry } from '../../composables/useAutomationNodeKinds'
 import type {
 	ActionType,
@@ -46,12 +49,7 @@ const props = defineProps<{
 	/** Opens the trace of that run. */
 	runTraceUrl?: string
 	/** The problem the validator found on this node (`code` translated, `message` as fallback). */
-	issue?: {
-		severity: 'error' | 'warning'
-		message: string
-		code?: string
-		params?: Record<string, unknown>
-	} | null
+	issue?: GraphIssue | null
 	/** How a node is named in the builder, for the "From …" of wired fields. */
 	nodeName?: (id: string) => string
 	/** The saved graph's triggers, with the next time a schedule fires. */
@@ -90,12 +88,12 @@ const tabs = computed(() => [
 
 const label = computed({
 	get: () => {
-		const n = props.node as (GraphNode & { label?: string }) | null
+		const n = props.node
 		return n?.label || (n?.kind === 'group' ? String(n.config?.name ?? '') : '')
 	},
 	set: (value: string) => {
 		if (!props.node) return
-		const next = { ...props.node, label: value.trim() ? value : undefined } as GraphNode
+		const next: GraphNode = { ...props.node, label: value.trim() ? value : undefined }
 		emit('update:node', next)
 	},
 })
@@ -122,7 +120,7 @@ const inputSchema = computed<JsonSchema | null>(() => {
 	const ui = kindUi.value
 	if (!ui) return null
 	const own = portsSchema(ui.staticDataIns)
-	return { properties: { ...own.properties, ...(ui.configSchema?.properties ?? {}) } }
+	return { properties: { ...own.properties, ...ui.configSchema?.properties } }
 })
 
 const outputSchema = computed(() => {
@@ -136,7 +134,7 @@ const outputSchema = computed(() => {
 
 const branches = computed(() => kindUi.value?.staticTriggerOuts ?? [])
 
-const templateId = computed(() => (props.node as (GraphNode & { templateId?: string }) | null)?.templateId)
+const templateId = computed(() => props.node?.templateId)
 
 const issueText = computed(() => {
 	const issue = props.issue
@@ -144,7 +142,7 @@ const issueText = computed(() => {
 	const key = `dms_automation.editor.problems.codes.${issue.code}`
 	if (!issue.code || !te(key)) return issue.message
 	const field = issue.params?.field
-	const prop = typeof field === 'string' ? schema.value?.properties?.[field] : undefined
+	const prop = isText(field) ? schema.value?.properties?.[field] : undefined
 	return t(key, prop ? { ...issue.params, label: fieldLabel(String(field), prop) } : (issue.params ?? {}))
 })
 
@@ -164,8 +162,7 @@ function emitDelete() {
 const canEnterGroup = computed<boolean>(() => {
 	const n = props.node
 	if (!n || n.kind !== 'group') return false
-	const g = n as GraphNode & { templateId?: string; subgraph?: unknown }
-	if (g.templateId && !g.subgraph) return false
+	if (n.templateId && !n.subgraph) return false
 	return true
 })
 
@@ -201,11 +198,7 @@ const schema = computed<JsonSchema | null>(() => {
 		if (!t) return null
 		return dataNodeSchema(t)
 	}
-	return (
-		(props.nodeKinds.find((k) => k.kind === n.kind)?.meta.ui?.configSchema as
-			| JsonSchema
-			| undefined) ?? null
-	)
+	return kindUi.value?.configSchema ?? null
 })
 
 const fields = computed<
@@ -220,7 +213,9 @@ const fields = computed<
 })
 
 const { processI18n } = useTranslation()
-const { t, te } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
+const te = (key: string) => i18n.te(key)
 const { dateTimeFormat } = useRegionalFormat()
 const typeName = (type: { name: string } | null | undefined) =>
 	type ? processI18n(type.name) : undefined
@@ -246,7 +241,7 @@ function fieldLabel(name: string, prop: JsonSchemaProperty): string {
 const nextRunText = computed(() => {
 	const n = props.node
 	const cron = n?.config?.cron
-	if (!n || n.kind !== 'trigger' || typeof cron !== 'string' || !cron) return ''
+	if (!n || n.kind !== 'trigger' || !isText(cron) || !cron) return ''
 	const saved = props.savedTriggers?.find((tr) => tr.nodeId === n.id)
 	if (saved?.cron !== cron) return t('dms_automation.editor.inspector.nextRunAfterSave')
 	if (!saved.nextAt) return ''
@@ -273,7 +268,7 @@ function findIncoming(field: string): DataEdge | undefined {
 	return props.dataEdges.find((e) => e.to.node === id && e.to.field === field)
 }
 
-function emitUpdated(field: string, value: unknown) {
+function emitUpdated(field: string, value: JsonValue | undefined) {
 	if (!props.node) return
 	const next: GraphNode = {
 		...props.node,
@@ -282,8 +277,9 @@ function emitUpdated(field: string, value: unknown) {
 	emit('update:node', next)
 }
 
-function getValue(field: string): unknown {
-	return props.node?.config?.[field]
+function getValue(field: string): JsonValue | undefined {
+	const value = props.node?.config?.[field]
+	return isJsonValue(value) ? value : undefined
 }
 
 
@@ -469,7 +465,7 @@ function onUnwire(field: string) {
 				<JsonField
 					v-else
 					:model-value="getValue(f.name)"
-					@update:model-value="(v: unknown) => emitUpdated(f.name, v)"
+					@update:model-value="(v: JsonValue | undefined) => emitUpdated(f.name, v)"
 				/>
 				<p v-if="f.name === 'cron' && nextRunText" class="text-xs text-muted">{{ nextRunText }}</p>
 			</DmsFieldRow>

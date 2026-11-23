@@ -28,7 +28,9 @@ const emit = defineEmits<CanvasEmits>()
 const toast = useToast()
 const { processI18n } = useTranslation()
 const { processText } = useComposedText()
-const { t, te } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
+const te = (key: string) => i18n.te(key)
 
 const nodeTypes = markRaw({
 	genericNode: GenericNode,

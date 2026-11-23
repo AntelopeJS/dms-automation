@@ -71,9 +71,13 @@ const USES_SHOWN = 8
 const { $authFetch } = useAuthFetch()
 const { processI18n } = useTranslation()
 const { processText } = useComposedText()
-const { t, te } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
+const te = (key: string) => i18n.te(key)
 const toast = useToast()
-const { presentError } = useApiErrorPresenter()
+const errorPresenter = useApiErrorPresenter()
+const presentError = (...args: Parameters<typeof errorPresenter.presentError>) =>
+	errorPresenter.presentError(...args)
 const { confirm } = useConfirm()
 const route = useDmsRoute()
 const router = useDmsRouter()

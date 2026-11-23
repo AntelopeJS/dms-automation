@@ -25,7 +25,9 @@ const emit = defineEmits<{
 const search = ref('')
 
 const { processI18n } = useTranslation()
-const { t, te } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
+const te = (key: string) => i18n.te(key)
 
 interface PaletteItem {
 	key: string

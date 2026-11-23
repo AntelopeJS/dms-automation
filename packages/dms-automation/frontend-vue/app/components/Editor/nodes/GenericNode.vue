@@ -64,7 +64,9 @@ const borderClass = computed(() => {
 const dimmed = computed(() => props.data?.run?.status === 'skipped')
 
 const { processI18n } = useTranslation()
-const { t, te } = useI18n()
+const i18n = useI18n()
+const { t } = i18n
+const te = (key: string) => i18n.te(key)
 
 const categoryLabel = computed(() => {
 	const category = props.data?.category
