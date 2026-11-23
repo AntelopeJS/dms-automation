@@ -4,6 +4,12 @@ import type { GraphNode as AppGraphNode } from "../../../composables/useGraphCon
 import type { ConnectionCheck } from "./connect";
 import type { CanvasProps, CanvasText, LinkItem, NodeHandles } from "./types";
 
+/**
+ * The link menu of the canvas toolbar: every link the selected step can make,
+ * for use without a mouse (WCAG 2.5.7). It is offered for a single selected
+ * step of an editable graph. It is an action, not a field, so it never keeps a
+ * value.
+ */
 export function useLinkMenu({
   props,
   t,
@@ -21,9 +27,6 @@ export function useLinkMenu({
   menuName: (id: string) => string;
   onConnect: (conn: Connection) => void;
 }) {
-  // Without a mouse: every link the selected step can make, from the canvas
-  // toolbar (WCAG 2.5.7).
-
   const linkGroups = computed(() => {
     const id =
       canvasSelection.value.length === 1 ? canvasSelection.value[0] : undefined;
@@ -50,7 +53,6 @@ export function useLinkMenu({
             e.from.node === node.id && (e.from.branch ?? "main") === out.name,
         );
         if (current?.to.node === other.id) continue;
-        // The output already leads somewhere: the menu says what goes.
         const replaces = current
           ? ` (${t("dms_automation.editor.canvas.link.replaces", { name: menuName(current.to.node) })})`
           : "";
@@ -106,12 +108,10 @@ export function useLinkMenu({
     ].filter((g) => g.length > 0);
   });
 
-  // The link menu is offered for a single selected step of an editable graph.
   const canLink = computed(
     () => !props.readOnly && canvasSelection.value.length === 1,
   );
 
-  // The menu is an action, not a field: it never keeps a value.
   const linkChoice = ref<LinkItem | null>(null);
 
   function onLink(item: LinkItem | null) {

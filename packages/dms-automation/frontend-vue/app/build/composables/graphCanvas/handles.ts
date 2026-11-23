@@ -9,6 +9,15 @@ import type {
 import type { CanvasProps, NodeHandles } from "./types";
 import { SENTINEL_KINDS } from "./types";
 
+/** The port lists a node's `data` payload hands its renderer. */
+export interface NodePorts {
+  hasTriggerIn?: boolean;
+  hasMainTriggerOut?: boolean;
+  triggerOuts?: string[];
+  dataIns?: Array<{ name: string }>;
+  dataOuts?: Array<{ name: string }>;
+}
+
 export function vfTypeFor(kind: NodeKind): string {
   if (kind === "group") return "group";
   if (kind === "groupInput") return "groupInput";
@@ -25,8 +34,10 @@ export function propsOf(schema: JsonSchema | undefined) {
   }));
 }
 
-// What a screen reader announces for a node: its type when the node has a
-// name of its own, its name, and what it does.
+/**
+ * What a screen reader announces for a node: its type when the node has a
+ * name of its own, its name, and what it does.
+ */
 export function ariaLabelOf(data: {
   label?: string;
   typeName?: string;
@@ -38,9 +49,12 @@ export function ariaLabelOf(data: {
   return `${type}${data.label}${data.summary ? `, ${data.summary}` : ""}`;
 }
 
-// Trigger edges into a group node or groupOutput sentinel target a specific
-// trigger-in port — the port name lives on `e.to.branch`. Ordinary target
-// nodes have a single fixed `trigger-in` handle.
+/**
+ * The trigger-in handle of an edge's target. A group node and a groupOutput
+ * sentinel have one per port, named by `e.to.branch` (the sentinel's per
+ * declared trigger-out port of the outer group); any other node has the single
+ * `trigger-in`.
+ */
 export function triggerTargetHandle(
   e: TriggerEdge,
   targetKind: NodeKind | undefined,
@@ -49,29 +63,23 @@ export function triggerTargetHandle(
     return `group-trigger-in-${e.to.branch}`;
   }
   if (targetKind === "groupOutput") {
-    // Trigger edge from an inner node into the groupOutput sentinel —
-    // the sentinel exposes a `groupOutput-trigger-in-<port>` handle per
-    // declared trigger-OUT port (since trigger-OUT on the OUTER group is
-    // trigger-IN on the sentinel side).
     return `groupOutput-trigger-in-${e.to.branch}`;
   }
   return "trigger-in";
 }
 
+/**
+ * The trigger-out handle of an edge's source. On a group node and a groupInput
+ * sentinel the branch name is the port name.
+ */
 export function triggerSourceHandle(
   e: TriggerEdge,
   sourceKind: NodeKind | undefined,
 ): string {
   if (sourceKind === "group") {
-    // Source is the OUTER group node firing into an outer downstream
-    // node — the branch name IS the port name (see planNewGroup's
-    // outerTriggerEdges where `from.branch = portName`).
     return `group-trigger-out-${e.from.branch ?? "main"}`;
   }
   if (sourceKind === "groupInput") {
-    // Inner edge out of groupInput into an inner node — handle id is
-    // `groupInput-trigger-out-<port>` and the port name lives on
-    // `from.branch` (per planNewGroup's innerTriggerEdges).
     return `groupInput-trigger-out-${e.from.branch ?? "main"}`;
   }
   return `trigger-out-${e.from.branch ?? "main"}`;
@@ -95,8 +103,10 @@ export function dataTargetHandle(
   return `data-in-${e.to.field}`;
 }
 
-// After a run, the edges it took are drawn solid and the one into the failing
-// step red; the others fade.
+/**
+ * After a run, the edges it took are drawn solid and the one into the failing
+ * step red; the others fade.
+ */
 export function edgeClass(
   runs: CanvasProps["runStates"],
   from: string,
@@ -109,18 +119,18 @@ export function edgeClass(
   return taken ? "edge-trigger edge-taken" : "edge-trigger edge-idle";
 }
 
-// The handles a node draws, named as its renderer names them (see the
-// handle prefix table in useGraphConnect).
+/**
+ * The handles a node draws, named as its renderer names them (see the handle
+ * prefix table in useGraphConnect).
+ */
 export function handlesOf(
   node: AppGraphNode,
   parentGroupPorts: GroupPort[] | undefined,
-  dataFor: (node: AppGraphNode) => object,
+  dataFor: (node: AppGraphNode) => NodePorts,
 ): NodeHandles {
   if (node.kind === "group" || SENTINEL_KINDS.has(node.kind)) {
     const ports =
-      node.kind === "group"
-        ? ((node as AppGraphNode & { ports?: GroupPort[] }).ports ?? [])
-        : (parentGroupPorts ?? []);
+      node.kind === "group" ? (node.ports ?? []) : (parentGroupPorts ?? []);
     const pick = (
       kind: GroupPort["kind"],
       direction: GroupPort["direction"],
@@ -137,8 +147,6 @@ export function handlesOf(
         dataOuts: pick("data", "out", "group-data-out-"),
       };
     }
-    // The sentinels face inwards: the group's inputs leave groupInput, its
-    // outputs enter groupOutput.
     if (node.kind === "groupInput") {
       return {
         triggerIns: [],
@@ -154,13 +162,7 @@ export function handlesOf(
       dataOuts: [],
     };
   }
-  const data = dataFor(node) as {
-    hasTriggerIn?: boolean;
-    hasMainTriggerOut?: boolean;
-    triggerOuts?: string[];
-    dataIns?: Array<{ name: string }>;
-    dataOuts?: Array<{ name: string }>;
-  };
+  const data = dataFor(node);
   const branches = [
     ...(data.hasMainTriggerOut === false ? [] : ["main"]),
     ...(data.triggerOuts ?? []),

@@ -9,23 +9,21 @@ import {
 } from "./handles";
 import type { CanvasProps } from "./types";
 
+/**
+ * The Vue Flow edges of the graph. Their styling lives in the stylesheet
+ * (`.edge-trigger`, `.edge-data`) so the `.selected` highlight wins without
+ * `!important`: an inline `style` on an edge defeats it.
+ */
 export function useCanvasEdges(
   props: Readonly<CanvasProps>,
   menuName: (id: string) => string,
 ) {
-  // Look up the kind of an edge endpoint by node id — needed for the group
-  // handle-id derivation below. Sentinels and groups have richer handle
-  // naming than regular nodes (`group-trigger-in-<port>` vs `trigger-in`),
-  // so the edge mapping needs to know which target/source it's wiring to.
   const nodeKindById = computed<Map<string, NodeKind>>(() => {
     const m = new Map<string, NodeKind>();
     for (const n of props.graph.nodes) m.set(n.id, n.kind);
     return m;
   });
 
-  // Edge styling lives in <style> (.edge-trigger / .edge-data) so the
-  // `.selected` highlight can win without `!important`. Inline `style`
-  // on a vue-flow edge defeats the .selected rule — documented gotcha.
   const vfEdges = computed(() => {
     const kinds = nodeKindById.value;
     const triggerEdges = props.graph.triggerEdges.map((e) => ({
