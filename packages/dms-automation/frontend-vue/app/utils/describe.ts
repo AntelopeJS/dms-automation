@@ -1,3 +1,13 @@
+import {
+  isJsonContainer,
+  isJsonValue,
+  isNumber,
+  isScalar,
+  isString,
+  type JsonObject,
+  type JsonValue,
+} from "./json";
+
 /**
  * Wording of automation objects the backend sends structured: a step, a
  * duration, a date. Every function takes the translator, so cells, cards and
@@ -9,7 +19,7 @@
 /** `processI18n` of the DMS translation composable. */
 export type Translate = (
   key: string,
-  params?: Record<string, unknown>,
+  params?: Record<string, JsonValue>,
 ) => string;
 
 /** What starts a procedure or a run (see the backend `TriggerSummary`). */
@@ -188,22 +198,49 @@ export function describeTime(
 
 /** Pretty JSON for a payload or an output, `null` shown as such. */
 export function prettyJson(value: unknown): string {
-  if (value === undefined) return "";
-  try {
-    return JSON.stringify(value, null, 2) ?? "";
-  } catch {
-    return String(value);
-  }
+  return isJsonValue(value) ? JSON.stringify(value, null, 2) : "";
 }
 
 /** Parse a stored payload string, keeping the text when it is not JSON. */
-export function parsePayload(raw: unknown): unknown {
-  if (typeof raw !== "string") return raw;
+export function parsePayload(raw: string): JsonValue {
   try {
-    return JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
+    return isJsonValue(parsed) ? parsed : raw;
   } catch {
     return raw;
   }
+}
+
+/**
+ * A run's inputs or output as the backend describes them (`{ type, value }`
+ * per value), reduced to the values.
+ */
+export function unwrapDescribed(
+  described: JsonValue | undefined,
+): JsonValue | undefined {
+  if (!isJsonContainer(described)) return described;
+  if ("value" in described && "type" in described) return described.value;
+  return Object.fromEntries(
+    Object.entries(described).map(([key, value]) => [
+      key,
+      unwrapDescribed(value),
+    ]),
+  );
+}
+
+function textOf(config: JsonObject, key: string): string {
+  const value = config[key];
+  return isString(value) ? value : "";
+}
+
+function listText(list: JsonValue | undefined): string | null {
+  return Array.isArray(list) ? list.map(String).join(" · ") : null;
+}
+
+function summarizeTrigger(config: JsonObject, scheduleText?: string): string {
+  if (textOf(config, "path"))
+    return `${textOf(config, "method") || "POST"} ${textOf(config, "path")}`;
+  return textOf(config, "cron") ? (scheduleText ?? textOf(config, "cron")) : "";
 }
 
 /**
@@ -214,30 +251,27 @@ export function parsePayload(raw: unknown): unknown {
 export function summarizeNode(
   kind: string,
   typeId: string | undefined,
-  config: Record<string, unknown> | undefined,
+  config: JsonObject | undefined,
   t: Translate,
   scheduleText?: string,
 ): string {
   const c = config ?? {};
-  const text = (key: string) =>
-    typeof c[key] === "string" ? (c[key] as string) : "";
-  if (kind === "trigger") {
-    if (text("path")) return `${text("method") || "POST"} ${text("path")}`;
-    return text("cron") ? (scheduleText ?? text("cron")) : "";
-  }
-  if (text("url")) return `${text("method") || "GET"} ${shortUrl(text("url"))}`;
+  if (kind === "trigger") return summarizeTrigger(c, scheduleText);
+  const url = textOf(c, "url");
+  if (url) return `${textOf(c, "method") || "GET"} ${shortUrl(url)}`;
   if (kind === "delay" && c.ms !== undefined)
     return describeDuration(Number(c.ms));
-  if (text("message")) return `“${text("message")}”`;
-  if (kind === "data" && c.value !== undefined && typeof c.value !== "object")
-    return String(c.value);
-  if (Array.isArray(c.cases))
-    return (c.cases as unknown[]).map(String).join(" · ");
-  if (typeof c.maxAttempts === "number")
+  const message = textOf(c, "message");
+  if (message) return `“${message}”`;
+  if (kind === "data" && isScalar(c.value)) return String(c.value);
+  const cases = listText(c.cases);
+  if (cases !== null) return cases;
+  if (isNumber(c.maxAttempts))
     return t("$dms_automation.nodes.attempts", { n: c.maxAttempts });
-  if (Array.isArray(c.ports))
-    return (c.ports as unknown[]).map(String).join(" · ");
-  if (kind === "setVariable" && text("name")) return `${text("name")} =`;
+  const ports = listText(c.ports);
+  if (ports !== null) return ports;
+  const name = textOf(c, "name");
+  if (kind === "setVariable" && name) return `${name} =`;
   return typeId && kind === "data" ? typeId : "";
 }
 

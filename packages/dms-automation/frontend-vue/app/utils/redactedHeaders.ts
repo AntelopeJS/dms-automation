@@ -1,12 +1,15 @@
+import { isRecord } from "./json";
+
 /** How a stored run writes a secret header's value (see the backend's REDACTED). */
 const REDACTED = "[redacted]";
 
 /** The names in a group of a payload (headers, query) whose value is hidden. */
 function redactedNames(group: unknown): string[] {
-  if (!group || typeof group !== "object") return [];
-  return Object.entries(group)
-    .filter(([, value]) => value === REDACTED)
-    .map(([name]) => name);
+  return isRecord(group)
+    ? Object.entries(group)
+        .filter(([, value]) => value === REDACTED)
+        .map(([name]) => name)
+    : [];
 }
 
 /**
@@ -17,13 +20,11 @@ function redactedNames(group: unknown): string[] {
  */
 export function redactedHeadersOf(payloadJson: string): string[] {
   try {
-    const payload = JSON.parse(payloadJson || "null") as {
-      headers?: unknown;
-      query?: unknown;
-    } | null;
+    const payload: unknown = JSON.parse(payloadJson || "null");
+    if (!isRecord(payload)) return [];
     return [
-      ...redactedNames(payload?.headers),
-      ...redactedNames(payload?.query).map((name) => `?${name}`),
+      ...redactedNames(payload.headers),
+      ...redactedNames(payload.query).map((name) => `?${name}`),
     ];
   } catch {
     return [];
