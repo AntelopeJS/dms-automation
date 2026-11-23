@@ -5,7 +5,6 @@ import type {
 	TriggerType,
 	ActionType,
 	DataNodeType,
-	GroupPort,
 } from '../../composables/useGraphConnect'
 import { PALETTE_DRAG_TYPE, type NodeKindEntry, type PaletteBlock, type TemplateSummary } from '../../composables/useAutomationNodeKinds'
 
