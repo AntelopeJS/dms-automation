@@ -1,4 +1,9 @@
-import type { NodeKindEntry, PortRef } from "./useAutomationNodeKinds";
+import type { JsonObject } from "../utils/json";
+import type {
+  NodeKindEntry,
+  NodeKindUI,
+  PortRef,
+} from "./useAutomationNodeKinds";
 
 /**
  * Node kind is a free-form string keyed off the runtime kind registry
@@ -12,23 +17,30 @@ export interface GraphNode {
   id: string;
   kind: NodeKind;
   typeId?: string;
-  // The step's name, set in the inspector (a group's falls back to config.name).
+  /** The step's name, set in the inspector (a group's falls back to config.name). */
   label?: string;
-  config: Record<string, unknown>;
+  config: JsonObject;
   position: { x: number; y: number };
-  // Group-only extras — present iff kind === 'group'.
+  /** Group only: present iff kind === 'group'. */
   ports?: GroupPort[];
+  /** Group only. */
   templateId?: string;
+  /** Group only. */
   subgraph?: ProcedureGraph;
 }
 
 export interface TriggerEdge {
   id: string;
   from: { node: string; branch?: string };
-  // `to.branch` carries the target's trigger-in port name when the target is
-  // a group node or groupOutput sentinel. Absent for ordinary nodes whose
-  // trigger-in is a fixed single handle.
-  to: { node: string; branch?: string };
+  to: {
+    node: string;
+    /**
+     * The target's trigger-in port name when the target is a group node or a
+     * groupOutput sentinel; absent for ordinary nodes, whose trigger-in is a
+     * fixed single handle.
+     */
+    branch?: string;
+  };
 }
 
 export interface DataEdge {
@@ -49,20 +61,18 @@ export interface JsonSchemaProperty {
   description?: string;
   enum?: unknown[];
   default?: unknown;
-  [key: string]: unknown;
-}
-
-export interface JsonSchema {
-  type?: string;
   properties?: Record<string, JsonSchemaProperty>;
   required?: string[];
-  [key: string]: unknown;
 }
 
-// `module` names the AntelopeJS module that registered the type, and is set
-// only for types coming from ANOTHER module (see src/runtime/typeOrigin.ts).
-// The builder palette groups catalog entries by it, listing the unattributed
-// ones — our own built-ins — first.
+export type JsonSchema = JsonSchemaProperty;
+
+/**
+ * `module` names the AntelopeJS module that registered the type, and is set
+ * only for types coming from ANOTHER module (see src/runtime/typeOrigin.ts).
+ * The builder palette groups catalog entries by it, listing the unattributed
+ * ones, our own built-ins, first.
+ */
 export interface TriggerType {
   id: string;
   name: string;
@@ -96,14 +106,18 @@ export interface DataNodeType {
   module?: string;
   inputSchema: JsonSchema;
   outputSchema: JsonSchema;
-  // Optional editor-only config form. When set, the inspector renders this
-  // (not `inputSchema`) as the node's editable fields; data-in ports still
-  // derive from `inputSchema`. Used by constant nodes (value typed, not wired).
+  /**
+   * Editor-only config form. When set, the inspector renders it (not
+   * `inputSchema`) as the node's editable fields; data-in ports still derive
+   * from `inputSchema`. Used by constant nodes (value typed, not wired).
+   */
   configSchema?: JsonSchema;
 }
 
-// Mirror of backend `GroupPort`. Local copy so the composable doesn't import
-// from `src/types/graph.ts` (server-only path).
+/**
+ * Mirror of backend `GroupPort`, kept local so the composable does not import
+ * from `src/types/graph.ts` (a server-only path).
+ */
 export interface GroupPort {
   name: string;
   kind: "data" | "trigger";
@@ -151,33 +165,35 @@ export type ConnectResult =
   | { ok: true }
   | { ok: false; code: ConnectRefusal; params?: Record<string, string> };
 
-// Optional context for canConnect / schema lookups. `parentGroupPorts` is the
-// declared port list of the outer group when the canvas is editing that
-// group's inner subgraph — the sentinel nodes (`groupInput` / `groupOutput`)
-// don't carry ports themselves, so their schemas must be looked up against
-// the parent group. Undefined at the procedure-graph root.
+/**
+ * Optional context for `canConnect` and the schema lookups. `parentGroupPorts`
+ * is the declared port list of the outer group when the canvas edits that
+ * group's inner subgraph: the sentinels (`groupInput` / `groupOutput`) carry no
+ * ports themselves, so their schemas are looked up against the parent group.
+ * Undefined at the procedure-graph root.
+ */
 interface ConnectContext {
   parentGroupPorts?: GroupPort[];
 }
 
-// --- handle prefix table ---------------------------------------------------
-//
-// Ordinary nodes:
-//   trigger-in                              (single fixed handle id)
-//   trigger-out-<branch>
-//   data-out-<port>  / data-in-<field>
-//
-// Outer group node (kind === "group"):
-//   group-trigger-in-<port>  / group-trigger-out-<port>
-//   group-data-in-<port>     / group-data-out-<port>
-//
-// Sentinels inside a group's subgraph:
-//   groupInput-trigger-out-<port>           (source side)
-//   groupInput-data-out-<port>              (source side)
-//   groupOutput-trigger-in-<port>           (target side)
-//   groupOutput-data-in-<port>              (target side)
-//
-// Ordered longest-first so a prefix scan returns the most specific match.
+/** The registries a node's schemas are looked up in. */
+export interface TypeCatalog {
+  nodeKinds: NodeKindEntry[];
+  triggerTypes: TriggerType[];
+  actionTypes: ActionType[];
+  dataNodeTypes: DataNodeType[];
+}
+
+/**
+ * The handle ids of the canvas. Ordinary nodes: `trigger-in` (one fixed
+ * handle), `trigger-out-<branch>`, `data-out-<port>`, `data-in-<field>`. An
+ * outer group node: `group-trigger-in-<port>`, `group-trigger-out-<port>`,
+ * `group-data-in-<port>`, `group-data-out-<port>`. The sentinels inside its
+ * subgraph: `groupInput-trigger-out-<port>`, `groupInput-data-out-<port>`
+ * (source side), `groupOutput-trigger-in-<port>`, `groupOutput-data-in-<port>`
+ * (target side). Each prefix list is ordered longest-first, so a scan returns
+ * the most specific match (`group-trigger-out-` must beat `trigger-`).
+ */
 const TRIGGER_PREFIX = "trigger-";
 const DATA_OUT_PREFIX = "data-out-";
 const DATA_IN_PREFIX = "data-in-";
@@ -193,7 +209,6 @@ const GROUPINPUT_TRIGGER_OUT_PREFIX = "groupInput-trigger-out-";
 const GROUPOUTPUT_DATA_IN_PREFIX = "groupOutput-data-in-";
 const GROUPOUTPUT_TRIGGER_IN_PREFIX = "groupOutput-trigger-in-";
 
-// Match longest-first — `group-trigger-out-` must beat `trigger-`.
 const DATA_OUT_PREFIXES = [
   GROUPINPUT_DATA_OUT_PREFIX,
   GROUP_DATA_OUT_PREFIX,
@@ -232,34 +247,34 @@ export function connectionKind(
   handle: string | null | undefined,
 ): ConnectKind | null {
   if (!handle) return null;
-  // Data first — `group-data-*` / `groupInput-data-*` / `groupOutput-data-*`
-  // would otherwise be ambiguous with the unrelated `trigger-` prefix only by
-  // length, but they don't share a leading token. Safe either way.
   for (const p of DATA_OUT_PREFIXES) if (handle.startsWith(p)) return "data";
   for (const p of DATA_IN_PREFIXES) if (handle.startsWith(p)) return "data";
   for (const p of TRIGGER_OUT_PREFIXES)
     if (handle.startsWith(p)) return "trigger";
   for (const p of TRIGGER_IN_PREFIXES)
     if (handle.startsWith(p)) return "trigger";
-  // Ordinary `trigger-in` / `trigger-out-…` fall through to this guard.
   if (handle.startsWith(TRIGGER_PREFIX)) return "trigger";
   return null;
 }
 
+/**
+ * The branch a trigger-out handle names, "main" for an ordinary edge without
+ * a recognized prefix (`from.branch` is optional and stored as "main"
+ * elsewhere).
+ */
 export function parseSourceBranch(
   sourceHandle: string | null | undefined,
 ): string {
-  // Any of the trigger-out flavors yields a branch name. Ordinary edges
-  // without a recognized prefix default to "main" (`from.branch` is optional
-  // and stored as "main" elsewhere).
   const branch = stripPrefix(sourceHandle, TRIGGER_OUT_PREFIXES);
   return branch ?? "main";
 }
 
-// Pull the target port name out of a parametric trigger-in handle
-// (`group-trigger-in-<port>` / `groupOutput-trigger-in-<port>`). Returns
-// `undefined` for the fixed single `trigger-in` handle since ordinary
-// nodes have no per-target port name.
+/**
+ * The target port name of a parametric trigger-in handle
+ * (`group-trigger-in-<port>` / `groupOutput-trigger-in-<port>`); `undefined`
+ * for the fixed single `trigger-in` handle, since ordinary nodes have no
+ * per-target port name.
+ */
 export function parseTargetBranch(
   targetHandle: string | null | undefined,
 ): string | undefined {
@@ -283,10 +298,11 @@ function findNode(graph: ProcedureGraph, id: string): GraphNode | undefined {
   return graph.nodes.find((n) => n.id === id);
 }
 
-// Build a JsonSchema synthesizing one property per port. Each property carries
-// the port's declared schema verbatim — this lets the standard
-// `schema.properties[port]` lookup work uniformly for ordinary nodes and
-// group/sentinel kinds.
+/**
+ * A schema with one property per data port of the given direction, each
+ * carrying the port's declared schema verbatim, so the `schema.properties[port]`
+ * lookup works alike for ordinary nodes and group/sentinel kinds.
+ */
 function portsToSchema(
   ports: GroupPort[] | undefined,
   direction: "in" | "out",
@@ -296,21 +312,21 @@ function portsToSchema(
   for (const p of ports) {
     if (p.kind !== "data") continue;
     if (p.direction !== direction) continue;
-    properties[p.name] = (p.schema as JsonSchemaProperty | undefined) ?? {};
+    properties[p.name] = p.schema ?? {};
   }
   return { properties };
 }
 
-// `group` nodes carry `ports` directly on the node.
 function getNodePorts(node: GraphNode): GroupPort[] | undefined {
   if (!isGroupNode(node)) return undefined;
   return Array.isArray(node.ports) ? node.ports : undefined;
 }
 
-// Synthesize a JsonSchema from a kind's declared static port list. Each
-// port becomes a property keyed by name; its declared `type`, if any,
-// drops straight into the `type` field so the existing
-// `typesCompatible(outProp.type, inProp.type)` check keeps working.
+/**
+ * A schema from a kind's declared static port list: each port becomes a
+ * property keyed by name, its declared `type` dropping into the `type` field so
+ * the `typesCompatible` check keeps working.
+ */
 function portsToSyntheticSchema(ports: PortRef[]): JsonSchema {
   const properties: Record<string, JsonSchemaProperty> = {};
   for (const p of ports) {
@@ -319,83 +335,79 @@ function portsToSyntheticSchema(ports: PortRef[]): JsonSchema {
   return { properties };
 }
 
-// Type-registry schemas have a small set of source schemas
-// (`inputSchema`, `outputSchema`, `configSchema`); the per-kind UI
-// metadata picks one via the `dataInsFromTypeSchema`/`dataOutsFromTypeSchema`
-// hints.
+type SchemaHint = "inputSchema" | "outputSchema" | "configSchema";
+
 function pickTypeSchema(
-  hint: "inputSchema" | "outputSchema" | "configSchema" | undefined,
+  hint: SchemaHint,
   type: TriggerType | ActionType | DataNodeType | undefined,
 ): JsonSchema | undefined {
-  if (!hint || !type) return undefined;
-  const t = type as TriggerType & ActionType & Partial<DataNodeType>;
-  if (hint === "inputSchema") return t.inputSchema;
-  if (hint === "outputSchema") return t.outputSchema;
-  return t.configSchema;
+  if (!type) return undefined;
+  if (hint === "outputSchema") return type.outputSchema;
+  if (hint === "inputSchema")
+    return "inputSchema" in type ? type.inputSchema : undefined;
+  return "configSchema" in type ? type.configSchema : undefined;
 }
 
 function lookupTypeForRegistry(
-  registry: "triggers" | "actions" | "dataNodes" | undefined,
+  registry: NodeKindUI["typeRegistry"],
   typeId: string | undefined,
-  triggerTypes: TriggerType[],
-  actionTypes: ActionType[],
-  dataNodeTypes: DataNodeType[],
+  catalog: TypeCatalog,
 ): TriggerType | ActionType | DataNodeType | undefined {
   if (!registry || !typeId) return undefined;
-  if (registry === "triggers") return triggerTypes.find((t) => t.id === typeId);
-  if (registry === "actions") return actionTypes.find((a) => a.id === typeId);
-  return dataNodeTypes.find((d) => d.id === typeId);
+  if (registry === "triggers")
+    return catalog.triggerTypes.find((t) => t.id === typeId);
+  if (registry === "actions")
+    return catalog.actionTypes.find((a) => a.id === typeId);
+  return catalog.dataNodeTypes.find((d) => d.id === typeId);
 }
 
+/**
+ * The schema of a registry-backed kind on one side: the selected type's schema
+ * the kind's UI metadata names, else the static port list. A `trigger` node
+ * with no type yet still exposes whatever static ports it declared (usually
+ * none).
+ */
+export function schemaFromKind(
+  node: GraphNode,
+  catalog: TypeCatalog,
+  side: "in" | "out",
+): JsonSchema | undefined {
+  const ui = catalog.nodeKinds.find((k) => k.kind === node.kind)?.meta.ui;
+  if (!ui) return undefined;
+  const hint =
+    side === "in" ? ui.dataInsFromTypeSchema : ui.dataOutsFromTypeSchema;
+  const staticPorts = side === "in" ? ui.staticDataIns : ui.staticDataOuts;
+  if (ui.typeRegistry && hint) {
+    const type = lookupTypeForRegistry(ui.typeRegistry, node.typeId, catalog);
+    const schema = pickTypeSchema(hint, type);
+    if (schema) return schema;
+  }
+  if (staticPorts.length === 0) return undefined;
+  return portsToSyntheticSchema(staticPorts);
+}
+
+/**
+ * `group` and `groupInput` carry their port lists out-of-band, so they bypass
+ * the kind registry: the outer group stores `ports` on the node, and a
+ * `groupInput` sentinel reflects the enclosing group's data-in ports.
+ */
 function getOutputSchema(
   node: GraphNode,
-  nodeKinds: NodeKindEntry[],
-  triggerTypes: TriggerType[],
-  actionTypes: ActionType[],
-  dataNodeTypes: DataNodeType[],
+  catalog: TypeCatalog,
   context?: ConnectContext,
 ): JsonSchema | undefined {
-  // `group`/`groupInput` carry their port lists out-of-band: the outer
-  // group node stores `ports` directly, and `groupInput` sentinels reflect
-  // the enclosing group's data-in ports. Neither resolves through the `ui`
-  // lookup below (`group` isn't in the kind registry at all; `groupInput`
-  // registers without a `ui` block), so they need their own branches.
   if (node.kind === "group") {
     return portsToSchema(getNodePorts(node), "out");
   }
   if (node.kind === "groupInput") {
     return portsToSchema(context?.parentGroupPorts, "in");
   }
-
-  const ui = nodeKinds.find((k) => k.kind === node.kind)?.meta.ui;
-  if (!ui) return undefined;
-
-  // Type-registry-backed kinds pull their data-out shape from the
-  // selected type's schema. Falling back to the static port list is
-  // intentional — a `trigger` node with no type yet still exposes
-  // whatever staticDataOuts it declared (usually none).
-  if (ui.typeRegistry && ui.dataOutsFromTypeSchema) {
-    const type = lookupTypeForRegistry(
-      ui.typeRegistry,
-      node.typeId,
-      triggerTypes,
-      actionTypes,
-      dataNodeTypes,
-    );
-    const schema = pickTypeSchema(ui.dataOutsFromTypeSchema, type);
-    if (schema) return schema;
-  }
-
-  if (ui.staticDataOuts.length === 0) return undefined;
-  return portsToSyntheticSchema(ui.staticDataOuts);
+  return schemaFromKind(node, catalog, "out");
 }
 
 function getInputSchema(
   node: GraphNode,
-  nodeKinds: NodeKindEntry[],
-  triggerTypes: TriggerType[],
-  actionTypes: ActionType[],
-  dataNodeTypes: DataNodeType[],
+  catalog: TypeCatalog,
   context?: ConnectContext,
 ): JsonSchema | undefined {
   if (node.kind === "group") {
@@ -404,58 +416,40 @@ function getInputSchema(
   if (node.kind === "groupOutput") {
     return portsToSchema(context?.parentGroupPorts, "out");
   }
-
-  const ui = nodeKinds.find((k) => k.kind === node.kind)?.meta.ui;
-  if (!ui) return undefined;
-
-  if (ui.typeRegistry && ui.dataInsFromTypeSchema) {
-    const type = lookupTypeForRegistry(
-      ui.typeRegistry,
-      node.typeId,
-      triggerTypes,
-      actionTypes,
-      dataNodeTypes,
-    );
-    const schema = pickTypeSchema(ui.dataInsFromTypeSchema, type);
-    if (schema) return schema;
-  }
-
-  if (ui.staticDataIns.length === 0) return undefined;
-  return portsToSyntheticSchema(ui.staticDataIns);
+  return schemaFromKind(node, catalog, "in");
 }
 
+/**
+ * Permissive: unknown or unspecified types are compatible, and so is any
+ * overlap between what the source produces and what the target accepts. A JSON
+ * Schema `type` may be a string or a union array.
+ */
 function typesCompatible(
   a: string | string[] | undefined,
   b: string | string[] | undefined,
 ): boolean {
-  // Treat unknown / unspecified types as compatible.
   if (!a || !b) return true;
   const sa = Array.isArray(a) ? a : [a];
   const sb = Array.isArray(b) ? b : [b];
   if (sa.length === 0 || sb.length === 0) return true;
-  // Permissive: connect if there is any overlap between what the source can
-  // produce and what the target accepts. JSON Schema `type` may be a string
-  // or an array of strings (union).
   return sa.some((t) => sb.includes(t));
 }
 
-// A trigger source handle is any of the recognized trigger-out flavors.
 function isTriggerSourceHandle(handle: string | null | undefined): boolean {
   if (!handle) return false;
   return TRIGGER_OUT_PREFIXES.some((p) => handle.startsWith(p));
 }
 
-// A trigger target handle is either the fixed single `trigger-in` (ordinary
-// nodes) or one of the parametric `group-trigger-in-<port>` /
-// `groupOutput-trigger-in-<port>` flavors.
 function isTriggerTargetHandle(handle: string | null | undefined): boolean {
   if (!handle) return false;
   if (handle === "trigger-in") return true;
   return TRIGGER_IN_PREFIXES.some((p) => handle.startsWith(p));
 }
 
-// True when `to` can be reached from `from` by following `next`: linking
-// `to` back to `from` would then close a loop.
+/**
+ * True when `to` can be reached from `from` by following `next`: linking `to`
+ * back to `from` would then close a loop.
+ */
 function reaches(
   from: string,
   to: string,
@@ -463,8 +457,7 @@ function reaches(
 ): boolean {
   const seen = new Set<string>();
   const stack = [from];
-  while (stack.length > 0) {
-    const node = stack.pop()!;
+  for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
     if (node === to) return true;
     if (seen.has(node)) continue;
     seen.add(node);
@@ -473,7 +466,95 @@ function reaches(
   return false;
 }
 
-export function canConnect(
+/**
+ * Vue Flow calls `isValidConnection` on every edge during prop sync, so an edge
+ * already in the graph is a re-validation: its persisted state is trusted.
+ */
+function isPersistedEdge(graph: ProcedureGraph, id: string | undefined) {
+  return (
+    !!id &&
+    (graph.triggerEdges.some((e) => e.id === id) ||
+      graph.dataEdges.some((e) => e.id === id))
+  );
+}
+
+/**
+ * Handles of a trigger link, checked for the shape the server accepts. The
+ * server refuses a trigger cycle, so it is refused while drawing: the edge
+ * this one may replace leaves `source`, so it cannot be on a path that ends
+ * there. Replacing an existing outgoing edge is the connect handler's job, and
+ * divergence is enforced server-side by `validate.ts`.
+ */
+function canConnectTrigger(
+  graph: ProcedureGraph,
+  source: string,
+  target: string,
+  handles: { source?: string | null; target?: string | null },
+): ConnectResult {
+  if (
+    !isTriggerSourceHandle(handles.source) ||
+    !isTriggerTargetHandle(handles.target)
+  )
+    return { ok: false, code: "invalidPorts" };
+  const closesLoop = reaches(target, source, (n) =>
+    graph.triggerEdges.filter((e) => e.from.node === n).map((e) => e.to.node),
+  );
+  return closesLoop ? { ok: false, code: "cycle" } : { ok: true };
+}
+
+interface DataLink {
+  sourceNode: GraphNode;
+  targetNode: GraphNode;
+  port: string;
+  field: string;
+}
+
+/**
+ * A loop of data nodes fails at run time ("data node cycle detected"). A loop
+ * through a step only reads that step's last output, so it stays.
+ */
+function closesDataLoop(graph: ProcedureGraph, link: DataLink): boolean {
+  const isData = (id: string) => findNode(graph, id)?.kind === "data";
+  const { sourceNode, targetNode } = link;
+  return (
+    isData(sourceNode.id) &&
+    isData(targetNode.id) &&
+    reaches(targetNode.id, sourceNode.id, (n) =>
+      graph.dataEdges
+        .filter((e) => e.from.node === n && isData(e.to.node))
+        .map((e) => e.to.node),
+    )
+  );
+}
+
+function typeText(type: string | string[] | undefined): string {
+  return Array.isArray(type) ? type.join(" / ") : (type ?? "");
+}
+
+/** A data link overwrites freely: the caller replaces what it overwrites. */
+function canConnectData(
+  graph: ProcedureGraph,
+  link: DataLink,
+  catalog: TypeCatalog,
+  context?: ConnectContext,
+): ConnectResult {
+  if (closesDataLoop(graph, link)) return { ok: false, code: "cycle" };
+  const outSchema = getOutputSchema(link.sourceNode, catalog, context);
+  const inSchema = getInputSchema(link.targetNode, catalog, context);
+  const outProp = outSchema?.properties?.[link.port];
+  const inProp = inSchema?.properties?.[link.field];
+  if ((outSchema && !outProp) || (inSchema && !inProp))
+    return { ok: false, code: "invalidPorts" };
+  if (!typesCompatible(outProp?.type, inProp?.type))
+    return {
+      ok: false,
+      code: "typeMismatch",
+      params: { from: typeText(outProp?.type), to: typeText(inProp?.type) },
+    };
+  return { ok: true };
+}
+
+type CanConnectArguments = [
   graph: ProcedureGraph,
   nodeKinds: NodeKindEntry[],
   triggerTypes: TriggerType[],
@@ -481,114 +562,52 @@ export function canConnect(
   dataNodeTypes: DataNodeType[],
   connection: ConnectionLike,
   context?: ConnectContext,
+];
+
+/**
+ * Whether a connection may be drawn. A connection missing an endpoint is
+ * accepted: Vue Flow may call this during prop sync before the connection is
+ * populated, and rejecting it would drop the existing edge from the render.
+ */
+export function canConnect(
+  ...[
+    graph,
+    nodeKinds,
+    triggerTypes,
+    actionTypes,
+    dataNodeTypes,
+    connection,
+    context,
+  ]: CanConnectArguments
 ): ConnectResult {
   const { source, target, sourceHandle, targetHandle } = connection;
-
-  // Defensive: Vue Flow may invoke `isValidConnection` during prop sync
-  // before the connection is fully populated. Don't reject these — return
-  // `ok` so the existing edge keeps rendering. The real connect path
-  // always supplies both endpoints.
   if (!source || !target) return { ok: true };
-
-  const selfId = connection.id;
-  // If the edge being validated is already in the graph (Vue Flow calls
-  // isValidConnection on every edge during prop sync / setEdges), it's a
-  // re-validation — trust the persisted state and skip stateful checks.
-  const isReValidation =
-    !!selfId &&
-    (graph.triggerEdges.some((e) => e.id === selfId) ||
-      graph.dataEdges.some((e) => e.id === selfId));
-  if (isReValidation) return { ok: true };
+  if (isPersistedEdge(graph, connection.id)) return { ok: true };
 
   const fromKind = connectionKind(sourceHandle);
   const toKind = connectionKind(targetHandle);
   if (!fromKind || !toKind) return { ok: false, code: "invalidPorts" };
   if (fromKind !== toKind) return { ok: false, code: "kindMismatch" };
-  // A step wired to itself either never ends (trigger) or reads an output it
-  // has not produced yet (data).
   if (source === target) return { ok: false, code: "selfLoop" };
 
   const sourceNode = findNode(graph, source);
   const targetNode = findNode(graph, target);
   if (!sourceNode || !targetNode) return { ok: false, code: "invalidPorts" };
 
-  if (fromKind === "trigger") {
-    // Source must be one of the trigger-out flavors; target one of the
-    // trigger-in flavors. (No literal-handle check — the new prefixes
-    // `group-trigger-in-<port>` / `groupOutput-trigger-in-<port>` are
-    // valid in addition to the fixed `trigger-in`.)
-    if (
-      !isTriggerSourceHandle(sourceHandle) ||
-      !isTriggerTargetHandle(targetHandle)
-    )
-      return { ok: false, code: "invalidPorts" };
-    // The server refuses a trigger cycle: refuse it while drawing. The edge
-    // this one may replace leaves `source`, so it can't be on a path that
-    // ends there.
-    if (
-      reaches(target, source, (n) =>
-        graph.triggerEdges
-          .filter((e) => e.from.node === n)
-          .map((e) => e.to.node),
-      )
-    )
-      return { ok: false, code: "cycle" };
-    // Replacement of an existing outgoing edge is handled by the connect
-    // handler, not by rejection here. Divergence is enforced server-side by
-    // `validate.ts` via `nodeKinds.mayDiverge(kind)`.
-    return { ok: true };
-  }
+  if (fromKind === "trigger")
+    return canConnectTrigger(graph, source, target, {
+      source: sourceHandle,
+      target: targetHandle,
+    });
 
-  // data edge — overwrite is allowed; replacement is handled by the caller.
   const port = parseDataPort(sourceHandle);
   const field = parseDataField(targetHandle);
   if (!port || !field) return { ok: false, code: "invalidPorts" };
-
-  // A loop of data nodes fails at run time ("data node cycle detected"). A
-  // loop through a step only reads that step's last output, so it stays.
-  const isData = (id: string) => findNode(graph, id)?.kind === "data";
-  if (
-    isData(source) &&
-    isData(target) &&
-    reaches(target, source, (n) =>
-      graph.dataEdges
-        .filter((e) => e.from.node === n && isData(e.to.node))
-        .map((e) => e.to.node),
-    )
-  )
-    return { ok: false, code: "cycle" };
-
-  const outSchema = getOutputSchema(
-    sourceNode,
-    nodeKinds,
-    triggerTypes,
-    actionTypes,
-    dataNodeTypes,
+  const catalog = { nodeKinds, triggerTypes, actionTypes, dataNodeTypes };
+  return canConnectData(
+    graph,
+    { sourceNode, targetNode, port, field },
+    catalog,
     context,
   );
-  const inSchema = getInputSchema(
-    targetNode,
-    nodeKinds,
-    triggerTypes,
-    actionTypes,
-    dataNodeTypes,
-    context,
-  );
-  const outProp = outSchema?.properties?.[port];
-  const inProp = inSchema?.properties?.[field];
-  if ((outSchema && !outProp) || (inSchema && !inProp))
-    return { ok: false, code: "invalidPorts" };
-
-  if (!typesCompatible(outProp?.type, inProp?.type))
-    return {
-      ok: false,
-      code: "typeMismatch",
-      params: { from: typeText(outProp?.type), to: typeText(inProp?.type) },
-    };
-
-  return { ok: true };
-}
-
-function typeText(type: string | string[] | undefined): string {
-  return Array.isArray(type) ? type.join(" / ") : (type ?? "");
 }

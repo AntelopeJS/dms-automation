@@ -1,5 +1,6 @@
 import { type MaybeRefOrGetter, toValue } from "vue";
 import type { StepName, TriggerSummary } from "../utils/describe";
+import type { JsonObject } from "../utils/json";
 
 export type LogLevel = "info" | "warn" | "error";
 
@@ -77,7 +78,7 @@ interface GraphNodeLite {
   kind: string;
   typeId?: string;
   label?: string;
-  config?: Record<string, unknown>;
+  config?: JsonObject;
   position: { x: number; y: number };
 }
 
@@ -193,12 +194,19 @@ export interface RunReadOptions {
   refreshOnPageRefresh?: boolean;
 }
 
+/**
+ * The path of a run. A run id from the URL goes into it encoded, so
+ * "../procedures" stays a run id that does not exist instead of reaching
+ * another route.
+ */
+function runPath(apiUrl: string, id: string): string {
+  return `${apiUrl}/runs/${encodeURIComponent(id)}`;
+}
+
 /** The run endpoints the drawer, the trace and the builder share. */
 export function useAutomationRuns(apiUrl = "/api/automation") {
   const { $authFetch } = useAuthFetch();
-  // A run id from the URL goes into a path: encoded, "../procedures" stays
-  // a run id that does not exist instead of reaching another route.
-  const runUrl = (id: string) => `${apiUrl}/runs/${encodeURIComponent(id)}`;
+  const runUrl = (id: string) => runPath(apiUrl, id);
 
   return {
     /** One run, read with the page: nothing while `id` is empty. */

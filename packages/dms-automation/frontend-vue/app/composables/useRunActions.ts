@@ -6,7 +6,9 @@ import { type RerunResult, useAutomationRuns } from "./useAutomationRuns";
  * builder: it asks first, in the server's words (side effects are real, the
  * procedure may be paused, some headers are replayed redacted, or the run
  * cannot be re-run at all), runs, says how the new run ended and opens its
- * trace.
+ * trace. A second click while the first is under way does nothing: the button
+ * shows it loading, and the server also refuses a re-run asked twice in a
+ * row, its message shown in the dialog.
  */
 export function useRunActions(options: { apiUrl: string; traceUrl: string }) {
   const { t } = useI18n();
@@ -19,9 +21,6 @@ export function useRunActions(options: { apiUrl: string; traceUrl: string }) {
   let asking = false;
 
   async function rerun(runId: string, procedureName: string): Promise<void> {
-    // A second click while the first is under way does nothing: the button
-    // shows it loading. The server also refuses a re-run asked twice in a
-    // row, and the dialog shows its message.
     if (asking || rerunning.value) return;
     asking = true;
     let result: RerunResult | undefined;

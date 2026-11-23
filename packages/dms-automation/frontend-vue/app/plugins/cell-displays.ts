@@ -1,12 +1,12 @@
-import { h, type VNodeChild } from "vue";
+import { h, isVNode, type VNodeChild } from "vue";
 import { defineDmsPlugin, DmsLink } from "#dms/frontend-module";
+import { isAbsentOr, isNumber, isRecord, isString } from "../utils/json";
 
-// The cell displays the procedures table names (src/displays/index.ts):
-// `automation:last-runs`, the strip of last runs over the last run's date, and
-// `automation:procedure-link`, a procedure's identity cell as a link. A
-// universal plugin, so the server render draws the cells. The trigger and
-// failed-step cells are the DMS `two_line` display, over texts the server
-// composes (src/runtime/wording.ts).
+type DataTypeDefinition = Parameters<
+  ReturnType<typeof useDataTypes>["registerDataType"]
+>[0];
+type CellFormatter = NonNullable<DataTypeDefinition["formatter"]>["default"];
+type CellRow = Parameters<CellFormatter>[3];
 
 /**
  * A run of the strip, as the procedures summary lists it. A type alias, not an
@@ -26,24 +26,63 @@ interface LastRunsOptions {
   emptyLabel?: string;
 }
 
-const STATUS_BAR_CLASS: Record<string, string> = {
-  ok: "bg-success",
-  failed: "bg-error",
-};
+const STATUS_BAR_CLASS = new Map([
+  ["ok", "bg-success"],
+  ["failed", "bg-error"],
+]);
 const DEFAULT_RUN_STRIP = 12;
 const BAR_CLASS = "h-4 w-[5px] rounded-[1px]";
 
 function isRecentRun(value: unknown): value is RecentRun {
-  return typeof value === "object" && value !== null && "runId" in value;
+  return (
+    isRecord(value) &&
+    isString(value.runId) &&
+    isString(value.status) &&
+    isString(value.startedAt) &&
+    (value.errorMessage === null || isString(value.errorMessage))
+  );
+}
+
+function isLastRunsOptions(value: unknown): value is LastRunsOptions {
+  return (
+    isRecord(value) &&
+    isAbsentOr(value.limit, isNumber) &&
+    isAbsentOr(value.runsField, isString) &&
+    isAbsentOr(value.runUrl, isString) &&
+    isAbsentOr(value.emptyLabel, isString)
+  );
+}
+
+function isUrlOptions(value: unknown): value is { url?: string } {
+  return isRecord(value) && isAbsentOr(value.url, isString);
+}
+
+function isVNodeChild(value: unknown): value is VNodeChild {
+  if (
+    value === null ||
+    value === undefined ||
+    isString(value) ||
+    isNumber(value) ||
+    typeof value === "boolean"
+  )
+    return true;
+  if (isVNode(value)) return true;
+  return Array.isArray(value) && value.every(isVNodeChild);
+}
+
+/** The runs a row lists under `field`, the ones that read as runs. */
+function recentRunsOf(row: CellRow, field: string): RecentRun[] {
+  const listed = row && Object.hasOwn(row, field) ? row[field] : undefined;
+  return Array.isArray(listed) ? listed.filter(isRecentRun) : [];
 }
 
 /** "Failed · 12 Oct 2026, 13:59 · HTTP 404 Not Found". */
 function runTitle(run: RecentRun): string {
-  const { t, te } = useI18n();
+  const i18n = useI18n();
   const { formatDateTime } = useRegionalFormat();
   const statusKey = `dms_automation.runs.status.${run.status}`;
   return [
-    te(statusKey) ? t(statusKey) : run.status,
+    i18n.te(statusKey) ? i18n.t(statusKey) : run.status,
     formatDateTime(run.startedAt),
     run.errorMessage,
   ]
@@ -58,7 +97,7 @@ function runTitle(run: RecentRun): string {
  */
 function renderRunBar(run: RecentRun, runUrl: string | undefined) {
   const title = runTitle(run);
-  const bar = [BAR_CLASS, STATUS_BAR_CLASS[run.status] ?? "bg-accented"];
+  const bar = [BAR_CLASS, STATUS_BAR_CLASS.get(run.status) ?? "bg-accented"];
   return runUrl
     ? h(DmsLink, {
         to: interpolateUrl(runUrl, run),
@@ -74,23 +113,16 @@ function renderRunBar(run: RecentRun, runUrl: string | undefined) {
  * The strip of the row's last runs, over the column's date written like the
  * DMS `relative_date` cell ("2 hr. ago", the exact moment in its tooltip).
  */
-function renderLastRuns(
-  value: unknown,
-  locale: string,
-  options: unknown,
-  row: Record<string, unknown> | undefined,
-) {
+const renderLastRuns: CellFormatter = (value, locale, options, row) => {
   const { t } = useI18n();
+  const settings: LastRunsOptions = isLastRunsOptions(options) ? options : {};
   const {
     limit = DEFAULT_RUN_STRIP,
     runsField = "lastRuns",
     runUrl,
     emptyLabel,
-  } = (options ?? {}) as LastRunsOptions;
-  const listed = row?.[runsField];
-  const runs = Array.isArray(listed)
-    ? listed.filter(isRecentRun).slice(-limit)
-    : [];
+  } = settings;
+  const runs = recentRunsOf(row, runsField).slice(-limit);
   const count = (status: string) =>
     runs.filter((run) => run.status === status).length;
   const label = runs.length
@@ -113,30 +145,24 @@ function renderLastRuns(
   );
   const relativeDate = useDataTypes().getDataType("relative_date")?.formatter;
   const dateOptions = { emptyLabel, emptyTone: "dimmed" };
-  const date = (
-    value
-      ? relativeDate?.default(value, locale, dateOptions, row)
-      : relativeDate?.empty?.(value, locale, dateOptions, row)
-  ) as VNodeChild;
+  const formatted = value
+    ? relativeDate?.default(value, locale, dateOptions, row)
+    : relativeDate?.empty?.(value, locale, dateOptions, row);
+  const date = isVNodeChild(formatted) ? formatted : null;
   return h("span", { class: "flex min-w-0 flex-col items-start gap-1" }, [
     strip,
     date,
   ]);
-}
+};
 
 /**
  * The DMS identity cell (icon, name, description) inside a link to the
  * row's page: a click, a middle-click or Enter opens it.
  */
-function renderProcedureLink(
-  value: unknown,
-  locale: string,
-  options: unknown,
-  row: Record<string, unknown> | undefined,
-) {
+const renderProcedureLink: CellFormatter = (value, locale, options, row) => {
   const identity = useDataTypes().getDataType("identity")?.formatter;
   const cell = identity?.default(value, locale, options, row) ?? String(value);
-  const url = (options as { url?: string } | undefined)?.url;
+  const url = isUrlOptions(options) ? options.url : undefined;
   if (!url || !row) return cell;
   return h(
     DmsLink,
@@ -147,17 +173,23 @@ function renderProcedureLink(
     },
     () => cell,
   );
-}
+};
 
+/**
+ * The cell displays the procedures table names (src/displays/index.ts):
+ * `automation:last-runs`, the strip of last runs over the last run's date, and
+ * `automation:procedure-link`, a procedure's identity cell as a link. A
+ * universal plugin, so the server render draws the cells. The trigger and
+ * failed-step cells are the DMS `two_line` display, over texts the server
+ * composes (src/runtime/wording.ts).
+ */
 export default defineDmsPlugin(() => {
   const { registerDataType } = useDataTypes();
   registerDataType({
     id: "automation:last-runs",
     formatter: {
-      default: (value, locale, options, row) =>
-        renderLastRuns(value, locale, options, row),
-      empty: (value, locale, options, row) =>
-        renderLastRuns(value, locale, options, row),
+      default: renderLastRuns,
+      empty: renderLastRuns,
     },
   });
   registerDataType({
