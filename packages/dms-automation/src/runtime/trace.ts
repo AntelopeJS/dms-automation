@@ -196,6 +196,13 @@ export function traceOf(
   return trace;
 }
 
+function stepAt(
+  steps: readonly TraceStep[],
+  index: number | undefined,
+): TraceStep | undefined {
+  return index === undefined ? undefined : steps[index];
+}
+
 function readSteps(
   log: RunLog | undefined,
   steps: TraceStep[],
@@ -209,19 +216,22 @@ function readSteps(
     const key = `${entry.fireId}#${entry.nodeId}`;
     if (entry.source === "log") {
       const branch = BRANCH_MESSAGE.exec(entry.message)?.[1];
-      const index = open.get(key);
-      if (branch && index !== undefined) steps[index]!.branch = branch;
+      const step = stepAt(steps, open.get(key));
+      if (branch && step) step.branch = branch;
       continue;
     }
     if (entry.message === "executing") {
-      open.set(key, steps.push(openStep(entry, fires, open, name)) - 1);
+      open.set(
+        key,
+        steps.push(openStep(entry, entry.nodeId, fires, open, name)) - 1,
+      );
       continue;
     }
-    const index = open.get(key);
-    if (index === undefined) continue;
-    if (entry.message === "executed") closeStep(steps[index]!, entry, "ok");
+    const step = stepAt(steps, open.get(key));
+    if (!step) continue;
+    if (entry.message === "executed") closeStep(step, entry, "ok");
     else if (entry.level === "error") {
-      closeStep(steps[index]!, entry, "failed");
+      closeStep(step, entry, "failed");
     } else continue;
     open.delete(key);
   }
@@ -230,11 +240,11 @@ function readSteps(
 /** The step that fired this port is still running while its port runs. */
 function openStep(
   entry: LogEntry,
+  nodeId: string,
   fires: Map<string, FireNode>,
   open: Map<string, number>,
   name: (id: string, kind?: string) => StepName,
 ): TraceStep {
-  const nodeId = entry.nodeId!;
   const step: TraceStep = {
     nodeId,
     name: name(nodeId, entry.nodeKind),
@@ -295,13 +305,13 @@ function markCut(steps: TraceStep[]) {
 function markHandled(steps: TraceStep[]) {
   for (const step of steps) {
     if (step.status !== "failed") continue;
-    let parent = step.parent;
-    while (parent !== undefined) {
-      if (steps[parent]!.status === "ok") {
+    let ancestor = stepAt(steps, step.parent);
+    while (ancestor) {
+      if (ancestor.status === "ok") {
         step.handled = true;
         break;
       }
-      parent = steps[parent]!.parent;
+      ancestor = stepAt(steps, ancestor.parent);
     }
   }
 }
@@ -338,8 +348,7 @@ function skippedSteps(
 function downstreamOf(graph: ProcedureGraph, from: string[]): Set<string> {
   const seen = new Set<string>();
   const queue = [...from];
-  while (queue.length) {
-    const id = queue.shift()!;
+  for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
     for (const edge of graph.triggerEdges) {
       if (edge.from.node !== id || seen.has(edge.to.node)) continue;
       seen.add(edge.to.node);

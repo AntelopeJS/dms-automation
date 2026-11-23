@@ -1,16 +1,14 @@
 const assert = require("node:assert/strict");
-const path = require("node:path");
 const { beforeEach, after, test } = require("node:test");
-const { FRONTEND } = require("../../tests/helpers/frontend.cjs");
-const { componentSetup, clientComposable } = require("./helpers/setup.cjs");
-const { ref, computed, effectScope } = require("vue");
+require("../../tests/helpers/frontend.cjs");
+const {
+  componentSetup,
+  clientApiErrorPresenter,
+  isRecord,
+} = require("./helpers/setup.cjs");
+const { ref, computed, effectScope, isRef } = require("vue");
 const { createFetch } = require("ofetch");
-const { useApiErrorPresenter } = clientComposable(
-  path.join(
-    FRONTEND,
-    "node_modules/@antelopejs/dms/frontend-vue/layers/dms-core/app/composables/useApiErrorPresenter.ts",
-  ),
-);
+const useApiErrorPresenter = clientApiErrorPresenter();
 const {
   useBuilderSave,
 } = require("../app/build/composables/editor/useBuilderSave.ts");
@@ -24,12 +22,23 @@ const {
   useForkToLocal,
 } = require("../app/build/composables/editor/useForkToLocal.ts");
 
+/** @type {{ title: string; color: string }[]} */
 const notices = [];
 const readonlyTitle = "Read-only demo, changes are not saved";
 const noop = () => {};
-let scope;
-let request;
+let scope = effectScope();
+/** @type {(...args: unknown[]) => Promise<unknown>} */
+let request = () => Promise.resolve(undefined);
+/** @type {unknown} */
 let failure;
+const toast = {
+  add: (/** @type {{ title: string; color: string }} */ notice) => {
+    notices.push(notice);
+    return { id: notices.length };
+  },
+};
+const authFetch = (/** @type {unknown[]} */ ...args) => request(...args);
+const keyOf = (/** @type {string} */ key) => key;
 const read = () => ({
   data: ref(null),
   error: ref(null),
@@ -38,38 +47,35 @@ const read = () => ({
 });
 
 beforeEach(() => {
-  scope?.stop();
+  scope.stop();
   scope = effectScope();
   notices.length = 0;
   const presented = ref(new WeakMap());
   Object.assign(globalThis, {
     useApiErrorPresenter,
-    useToast: () => ({
-      add: (notice) => {
-        notices.push(notice);
-        return { id: notices.length };
-      },
-    }),
+    useToast: () => toast,
     useDmsState: () => presented,
     getPluginI18n: () => ({
       i18n: {
-        tm: (key) => {
+        tm: (/** @type {string} */ key) => {
           if (key === "error.read_only_demo") return readonlyTitle;
           if (key === "dms_automation.editor.dock.invalidJson")
             return "Invalid JSON";
           if (key === "error.500.description") return "Unexpected error";
           return {};
         },
-        rt: (message) => message,
+        rt: keyOf,
       },
     }),
     describeApiError: () => "Forbidden",
-    apiErrorStatus: (error) => error?.response?.status,
+    apiErrorStatus: (
+      /** @type {{ response?: { status?: number } } | undefined} */ error,
+    ) => error?.response?.status,
     useApiData: read,
     useFieldErrors: () => ({ clear: noop }),
-    useAuthFetch: () => ({ $authFetch: (...args) => request(...args) }),
-    useI18n: () => ({ t: (key) => key, te: () => false }),
-    useTranslation: () => ({ processI18n: (key) => key }),
+    useAuthFetch: () => ({ $authFetch: authFetch }),
+    useI18n: () => ({ t: keyOf, te: () => false }),
+    useTranslation: () => ({ processI18n: keyOf }),
     useRegionalFormat: () => ({}),
     useChartFetch: () => ({
       data: ref(null),
@@ -78,17 +84,17 @@ beforeEach(() => {
     }),
   });
 });
-after(() => scope?.stop());
+after(() => scope.stop());
 
 function context() {
   const selected = ref({ _id: "p1", name: "Draft", graph: { nodes: [] } });
   return {
-    $authFetch: (...args) => request(...args),
+    $authFetch: authFetch,
     selected,
     editorMode: ref("procedure"),
     props: { apiUrl: "/api/automation" },
-    t: (key) => key,
-    toast: globalThis.useToast(),
+    t: keyOf,
+    toast,
     saving: ref(false),
     testing: ref(false),
     dockTab: ref("payload"),
@@ -109,6 +115,29 @@ function context() {
   };
 }
 
+/**
+ * @typedef {ReturnType<typeof context>} EditorContext
+ * @typedef {{ act: () => Promise<unknown>; pending: { value: boolean } }} Scenario
+ */
+
+/**
+ * @param {unknown} bindings
+ * @returns {bindings is {
+ *   act: (
+ *     row: { procedureId: string },
+ *     change: { url: string; method: string },
+ *     undo: Record<string, unknown>,
+ *     message: string,
+ *   ) => Promise<void>;
+ *   busy: import("vue").Ref<string | null>;
+ * }} Whether the bindings hold the action and its busy flag.
+ */
+const bindsAttentionAct = (bindings) =>
+  isRecord(bindings) &&
+  bindings.act instanceof Function &&
+  isRef(bindings.busy);
+
+/** @type {[string, (ctx: EditorContext) => Scenario][]} */
 const scenarios = [
   [
     "builder save",
@@ -151,9 +180,11 @@ const scenarios = [
   [
     "attention action",
     () => {
-      const actions = componentSetup("AttentionList.vue", {
-        apiUrl: "/api/automation",
-      });
+      const actions = componentSetup(
+        "AttentionList.vue",
+        { apiUrl: "/api/automation" },
+        bindsAttentionAct,
+      );
       return {
         act: () =>
           actions.act(
@@ -188,7 +219,9 @@ for (const [name, setup] of scenarios) {
       const core = useApiErrorPresenter();
       request = async () => {
         try {
-          return await fetch("https://example.test/write");
+          /** @type {unknown} */
+          const response = await fetch("https://example.test/write");
+          return response;
         } catch (error) {
           failure = error;
           if (corePresented)
@@ -209,7 +242,7 @@ for (const [name, setup] of scenarios) {
   }
 }
 
-test("fork refusal resolves the server key and warning inline without adding a toast", async () => {
+void test("fork refusal resolves the server key and warning inline without adding a toast", async () => {
   const ctx = context();
   ctx.selectedNode.value.templateId = "t1";
   const fetch = createFetch({
@@ -237,7 +270,7 @@ test("fork refusal resolves the server key and warning inline without adding a t
   assert.deepEqual(notices, []);
 });
 
-test("invalid test payload stays a local validation error and makes no request", async () => {
+void test("invalid test payload stays a local validation error and makes no request", async () => {
   const ctx = context();
   ctx.testPayload.value = "{";
   request = () => assert.fail("Invalid JSON must not reach the backend");

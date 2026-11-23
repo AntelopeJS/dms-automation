@@ -39,13 +39,11 @@ const DAY_NAMES = {
 
 const SECONDS: FieldSpec = { min: 0, max: 59 };
 
-const FIELDS: FieldSpec[] = [
-  { min: 0, max: 59 },
-  { min: 0, max: 23 },
-  { min: 1, max: 31 },
-  { min: 1, max: 12, names: MONTH_NAMES },
-  { min: 0, max: 7, names: DAY_NAMES },
-];
+const MINUTES: FieldSpec = { min: 0, max: 59 };
+const HOURS: FieldSpec = { min: 0, max: 23 };
+const DAYS_OF_MONTH: FieldSpec = { min: 1, max: 31 };
+const MONTHS: FieldSpec = { min: 1, max: 12, names: MONTH_NAMES };
+const DAYS_OF_WEEK: FieldSpec = { min: 0, max: 7, names: DAY_NAMES };
 
 const MINUTE_FIELDS = 5;
 const SECOND_FIELDS = 6;
@@ -111,13 +109,25 @@ function parseCron(expression: string): ParsedCron {
   }
   const withSeconds = parts.length === SECOND_FIELDS;
   const fields = withSeconds ? parts.slice(1) : parts;
-  const seconds = withSeconds ? parseField(parts[0]!, SECONDS) : new Set([0]);
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = fields.map((f, i) =>
-    parseField(f, FIELDS[i]!),
-  );
-  if (!minute || !hour || !dayOfMonth || !month || !dayOfWeek) {
+  const [minuteText, hourText, dayOfMonthText, monthText, dayOfWeekText] =
+    fields;
+  if (
+    minuteText === undefined ||
+    hourText === undefined ||
+    dayOfMonthText === undefined ||
+    monthText === undefined ||
+    dayOfWeekText === undefined
+  ) {
     throw new Error(`invalid cron expression "${expression}"`);
   }
+  const secondsText = withSeconds ? parts[0] : undefined;
+  const seconds =
+    secondsText === undefined ? new Set([0]) : parseField(secondsText, SECONDS);
+  const minute = parseField(minuteText, MINUTES);
+  const hour = parseField(hourText, HOURS);
+  const dayOfMonth = parseField(dayOfMonthText, DAYS_OF_MONTH);
+  const month = parseField(monthText, MONTHS);
+  const dayOfWeek = parseField(dayOfWeekText, DAYS_OF_WEEK);
   if (dayOfWeek.has(SUNDAY_ALIAS)) dayOfWeek.add(0);
   return {
     seconds: [...seconds].sort((a, b) => a - b),
@@ -126,8 +136,8 @@ function parseCron(expression: string): ParsedCron {
     daysOfMonth: dayOfMonth,
     months: month,
     daysOfWeek: dayOfWeek,
-    anyDayOfMonth: fields[2] === "*",
-    anyDayOfWeek: fields[4] === "*",
+    anyDayOfMonth: dayOfMonthText === "*",
+    anyDayOfWeek: dayOfWeekText === "*",
   };
 }
 

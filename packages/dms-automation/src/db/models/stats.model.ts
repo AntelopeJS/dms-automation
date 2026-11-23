@@ -576,9 +576,10 @@ export async function getProceduresSummary(
 ): Promise<ProcedureSummaryRow[]> {
   const ctx = await loadStatsContext(undefined, now);
   const health = await healthByProcedure(ctx);
-  return ctx.procedures.map((facts) =>
-    summaryRow(ctx, facts, health.get(facts.procedure._id)!),
-  );
+  return ctx.procedures.flatMap((facts) => {
+    const factsHealth = health.get(facts.procedure._id);
+    return factsHealth ? [summaryRow(ctx, facts, factsHealth)] : [];
+  });
 }
 
 /** One procedure's row, without the summary of every other one. */
@@ -589,6 +590,6 @@ export async function getProcedureSummary(
   const ctx = await loadStatsContext(undefined, now, procedureId);
   const facts = ctx.byId.get(procedureId);
   if (!facts) return undefined;
-  const health = await healthByProcedure(ctx);
-  return summaryRow(ctx, facts, health.get(procedureId)!);
+  const factsHealth = (await healthByProcedure(ctx)).get(procedureId);
+  return factsHealth ? summaryRow(ctx, facts, factsHealth) : undefined;
 }

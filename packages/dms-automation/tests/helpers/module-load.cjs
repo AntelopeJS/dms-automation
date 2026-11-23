@@ -13,8 +13,4 @@ const load = Module._load;
 if (!isLoader(load))
   throw new Error("Module._load is not available in this Node");
 
-/**
- * Node's own `Module._load`, captured before a test replaces it, for the
- * stand-in loaders that fall through to the real one.
- */
 module.exports = { load };
