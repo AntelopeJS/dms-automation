@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { isText } from './Editor/jsonValue'
 import type { NodeKindEntry, PortRef } from '../composables/useAutomationNodeKinds'
 import type { JsonSchema } from '../composables/useGraphConnect'
 
@@ -82,7 +83,7 @@ const { confirm } = useConfirm()
 const route = useDmsRoute()
 const router = useDmsRouter()
 
-const listRead = useApiData<CatalogEntry[] | NodeKindEntry[]>(`${props.apiUrl}/${ENDPOINTS[props.kind]}`)
+const listRead = useApiData<Array<CatalogEntry | NodeKindEntry>>(`${props.apiUrl}/${ENDPOINTS[props.kind]}`)
 const usageRead = useApiData<Record<string, TypeUsage[]>>(`${props.apiUrl}/library/usage/${props.kind}`)
 const usage = computed(() => new Map(Object.entries(usageRead.data.value ?? {})))
 const loading = computed(() => listRead.pending.value || usageRead.pending.value)
@@ -125,12 +126,14 @@ function flowEntries(kinds: NodeKindEntry[]): CatalogEntry[] {
 
 function queryItem(): string | null {
 	const q = route.query.item
-	return typeof q === 'string' && q ? q : null
+	return isText(q) && q ? q : null
 }
 
 const entries = computed<CatalogEntry[]>(() => {
 	const listed = listRead.data.value ?? []
-	return props.kind === 'flow' ? flowEntries(listed as NodeKindEntry[]) : (listed as CatalogEntry[])
+	return props.kind === 'flow'
+		? flowEntries(listed.flatMap((entry) => ('meta' in entry ? [entry] : [])))
+		: listed.flatMap((entry) => ('id' in entry ? [entry] : []))
 })
 
 function load() {
@@ -141,7 +144,7 @@ function load() {
 function replaceEntry(id: string, change: Partial<CatalogEntry>) {
 	const listed = listRead.data.value
 	if (!listed || props.kind === 'flow') return
-	listRead.data.value = (listed as CatalogEntry[]).map((entry) => (entry.id === id ? { ...entry, ...change } : entry))
+	listRead.data.value = listed.map((entry) => ('id' in entry && entry.id === id ? { ...entry, ...change } : entry))
 }
 
 /**
@@ -188,8 +191,9 @@ const selectedId = computed<string | null>(() => {
 
 watch(groups, (shown) => {
 	if (loading.value || shown.length === 0) return
-	if (!shown.some(([, items]) => items.some((e) => e.id === selectedId.value))) {
-		picked.value = shown[0]![1][0]!.id
+	const firstId = shown[0]?.[1][0]?.id
+	if (firstId && !shown.some(([, items]) => items.some((e) => e.id === selectedId.value))) {
+		picked.value = firstId
 	}
 })
 
@@ -218,10 +222,14 @@ const enabledUses = computed(() => new Set(uses.value.filter((u) => u.enabled).m
 
 /** "Used by", one line per procedure with the nodes placing the entry under it, by state then name. */
 const procedureUses = computed(() => {
-	const byProcedure = new Map<string, TypeUsage[]>()
-	for (const use of uses.value) byProcedure.set(use.procedureId, [...(byProcedure.get(use.procedureId) ?? []), use])
+	const byProcedure = new Map<string, [TypeUsage, ...TypeUsage[]]>()
+	for (const use of uses.value) {
+		const group = byProcedure.get(use.procedureId)
+		if (group) group.push(use)
+		else byProcedure.set(use.procedureId, [use])
+	}
 	return [...byProcedure.values()].sort(
-		([a], [b]) => STATE_ORDER.indexOf(a!.state) - STATE_ORDER.indexOf(b!.state) || a!.procedureName.localeCompare(b!.procedureName),
+		([a], [b]) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state) || a.procedureName.localeCompare(b.procedureName),
 	)
 })
 const shownProcedureUses = computed(() => (showAllUses.value ? procedureUses.value : procedureUses.value.slice(0, USES_SHOWN)))
