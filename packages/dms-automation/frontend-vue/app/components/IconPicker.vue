@@ -11,6 +11,7 @@ const ICON_API_PATH = '/api/_dms/icons/'
 
 <script setup lang="ts">
 import { computed, ref, useId, watch } from 'vue'
+import { isText } from './Editor/jsonValue'
 
 const ICONS = [
 	'i-ph-package', 'i-ph-stack', 'i-ph-flow-arrow', 'i-ph-lightning', 'i-ph-webhooks-logo',
@@ -43,13 +44,19 @@ watch(
 	{ immediate: true },
 )
 
+function isIconLookup(value: unknown): value is { not_found?: string[] } {
+	if (typeof value !== 'object' || value === null) return false
+	if (!('not_found' in value)) return true
+	return Array.isArray(value.not_found) && value.not_found.every(isText)
+}
+
 async function lookUp(icon: string) {
-	const [, prefix, name] = icon.match(/^i-([a-z0-9]+)-(.+)$/) ?? []
+	const [, prefix = '', name = ''] = icon.match(/^i-([a-z0-9]+)-(.+)$/) ?? []
 	try {
 		const response = await fetch(`${ICON_API_PATH}${prefix}.json?icons=${name}`)
 		if (!response.ok) return
-		const data = (await response.json()) as { not_found?: string[] }
-		if (model.value === icon) unknown.value = !!data.not_found?.includes(name!)
+		const data: unknown = await response.json()
+		if (isIconLookup(data) && model.value === icon) unknown.value = !!data.not_found?.includes(name)
 	} catch {
 	}
 }

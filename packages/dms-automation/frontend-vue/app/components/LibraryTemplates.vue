@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { isIconName } from './IconPicker.vue'
+import { isText } from './Editor/jsonValue'
 import { queryString } from '../utils/automation'
 import {
 	schemaTypeOf,
@@ -143,8 +144,15 @@ interface RefusalBody {
 }
 
 /** The `code` a refused request answered with, if any. */
+function isRefusal(value: unknown): value is { data?: RefusalBody } {
+	if (typeof value !== 'object' || value === null || !('data' in value)) return false
+	const data = value.data
+	if (data === undefined) return true
+	return typeof data === 'object' && data !== null && (!('code' in data) || data.code === undefined || isText(data.code))
+}
+
 function errorCode(e: unknown): string | undefined {
-	return (e as { data?: RefusalBody }).data?.code
+	return isRefusal(e) ? e.data?.code : undefined
 }
 
 async function onSave() {
@@ -228,7 +236,8 @@ function ownersOf(found: TemplateUsages): string {
 		procedureCount ? t('dms_automation.templates.ownerProcedures', { count: procedureCount }, procedureCount) : '',
 		templateCount ? t('dms_automation.templates.ownerTemplates', { count: templateCount }, templateCount) : '',
 	].filter(Boolean)
-	return parts.length === 2 ? t('dms_automation.templates.ownersAnd', { first: parts[0], second: parts[1] }) : parts[0]!
+	const [first = '', second] = parts
+	return second === undefined ? first : t('dms_automation.templates.ownersAnd', { first, second })
 }
 </script>
 
