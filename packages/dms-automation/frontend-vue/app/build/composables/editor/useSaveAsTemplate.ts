@@ -15,6 +15,33 @@ export const TEMPLATE_ROW = {
 
 export const TEMPLATE_NAME_ID = "save-template-name";
 
+const DEFAULT_TEMPLATE_ICON = "i-ph-package";
+
+/** The group node as an instance of a template: it keeps its place and loses its inline subgraph. */
+function asTemplateInstance(group: GraphNode, templateId: string): GraphNode {
+  const updated: GraphNode = { ...group, templateId };
+  delete updated.subgraph;
+  return updated;
+}
+
+/** The save-as-template form: its fields, its state, and the errors shown under its fields. */
+function useTemplateForm() {
+  const saveAsTemplateName = ref<string>("");
+  const templateFieldErrors = useFieldErrors({
+    fields: { name: TEMPLATE_NAME_ID },
+  });
+  watch(saveAsTemplateName, () => templateFieldErrors.clear("name"));
+  return {
+    saveAsTemplateOpen: ref<boolean>(false),
+    saveAsTemplateName,
+    saveAsTemplateDescription: ref<string>(""),
+    saveAsTemplateIcon: ref<string>(DEFAULT_TEMPLATE_ICON),
+    saveAsTemplateSubmitting: ref<boolean>(false),
+    saveAsTemplateError: ref<string | null>(null),
+    templateFieldErrors,
+  };
+}
+
 /** Saving a local group as a template, and linking the group to it. */
 export function useSaveAsTemplate(
   ctx: EditorContext,
@@ -22,7 +49,7 @@ export function useSaveAsTemplate(
   nav: SubgraphNavigation,
   save: BuilderSave,
 ) {
-  const { presentError } = useApiErrorPresenter();
+  const errorPresenter = useApiErrorPresenter();
   const {
     $authFetch,
     currentGraph,
@@ -37,14 +64,6 @@ export function useSaveAsTemplate(
   const { groupName, onUpdateNode } = nav;
   const { onSave } = save;
 
-  // Visible when the user has selected a single local group (kind === 'group',
-  // no templateId). On submit:
-  //   1. POST /api/automation/templates with { name, description, icon, ports,
-  //      subgraph } from the local group.
-  //   2. On success: mutate the in-graph node — set templateId = res._id, drop
-  //      subgraph. The save flow (onGraphUpdate → onSave by user) propagates.
-  //   3. On failure (Zod or template cycle): render the error body inline in
-  //      the modal; the graph is NOT touched.
   const selectedLocalGroupNode = computed<GraphNode | null>(() => {
     const n = selectedNode.value;
     if (!n || n.kind !== "group") return null;
@@ -58,30 +77,18 @@ export function useSaveAsTemplate(
     return selectedLocalGroupNode.value !== null;
   });
 
-  const saveAsTemplateOpen = ref<boolean>(false);
-  const saveAsTemplateName = ref<string>("");
-  const saveAsTemplateDescription = ref<string>("");
-  const saveAsTemplateIcon = ref<string>("i-ph-package");
-  const saveAsTemplateSubmitting = ref<boolean>(false);
-  const saveAsTemplateError = ref<string | null>(null);
-
-  // A missing name shows under its field; what the server refuses (issues, a
-  // reference cycle) stays in the banner above the buttons.
-  const templateFieldErrors = useFieldErrors({
-    fields: { name: TEMPLATE_NAME_ID },
-  });
-  watch(saveAsTemplateName, () => templateFieldErrors.clear("name"));
+  const form = useTemplateForm();
 
   function openSaveAsTemplate() {
     const n = selectedLocalGroupNode.value;
     if (!n) return;
-    saveAsTemplateName.value = groupName(n);
-    saveAsTemplateDescription.value = "";
-    saveAsTemplateIcon.value = "i-ph-package";
-    saveAsTemplateError.value = null;
-    templateFieldErrors.clear();
-    saveAsTemplateSubmitting.value = false;
-    saveAsTemplateOpen.value = true;
+    form.saveAsTemplateName.value = groupName(n);
+    form.saveAsTemplateDescription.value = "";
+    form.saveAsTemplateIcon.value = DEFAULT_TEMPLATE_ICON;
+    form.saveAsTemplateError.value = null;
+    form.templateFieldErrors.clear();
+    form.saveAsTemplateSubmitting.value = false;
+    form.saveAsTemplateOpen.value = true;
   }
 
   function convertLocalGroupToTemplateInstance(
@@ -92,35 +99,33 @@ export function useSaveAsTemplate(
     if (!g) return;
     const existing = g.nodes.find((n) => n.id === nodeId && n.kind === "group");
     if (!existing) return;
-    const updated: GraphNode = { ...existing, templateId };
-    delete updated.subgraph;
-    onUpdateNode(updated);
+    onUpdateNode(asTemplateInstance(existing, templateId));
   }
 
   async function submitSaveAsTemplate() {
     const n = selectedLocalGroupNode.value;
     if (!n) return;
-    const name = saveAsTemplateName.value.trim();
+    const name = form.saveAsTemplateName.value.trim();
     if (!name) {
-      await templateFieldErrors.setError(
+      await form.templateFieldErrors.setError(
         "name",
         t("dms_automation.editor.saveTemplateModal.nameRequired"),
       );
       return;
     }
     if (!n.subgraph) {
-      saveAsTemplateError.value = t(
+      form.saveAsTemplateError.value = t(
         "dms_automation.editor.saveTemplateModal.noSubgraph",
       );
       return;
     }
-    saveAsTemplateSubmitting.value = true;
-    saveAsTemplateError.value = null;
+    form.saveAsTemplateSubmitting.value = true;
+    form.saveAsTemplateError.value = null;
     try {
       const body = {
         name,
-        description: saveAsTemplateDescription.value.trim(),
-        icon: saveAsTemplateIcon.value.trim() || "i-ph-package",
+        description: form.saveAsTemplateDescription.value.trim(),
+        icon: form.saveAsTemplateIcon.value.trim() || DEFAULT_TEMPLATE_ICON,
         ports: Array.isArray(n.ports) ? n.ports : [],
         subgraph: n.subgraph,
       };
@@ -128,12 +133,9 @@ export function useSaveAsTemplate(
         "/api/automation/templates",
         { method: "POST", body },
       );
-      // The template exists now: the procedure links to it once saved. A
-      // draft with nothing else unsaved is saved at once; one with other
-      // changes is left to the user, who is told.
       const linkOnly = !isDirty.value;
       convertLocalGroupToTemplateInstance(n.id, created._id);
-      saveAsTemplateOpen.value = false;
+      form.saveAsTemplateOpen.value = false;
       void templatesRead.refresh();
       toast.add({
         title: t("dms_automation.templates.saved", { name }),
@@ -146,24 +148,20 @@ export function useSaveAsTemplate(
       if (linkOnly) await onSave();
     } catch (e) {
       const validation = formatTemplateError(e);
-      if (validation) saveAsTemplateError.value = validation;
+      if (validation) form.saveAsTemplateError.value = validation;
       else
-        presentError(e, { fallbackKey: "dms_automation.templates.saveError" });
+        errorPresenter.presentError(e, {
+          fallbackKey: "dms_automation.templates.saveError",
+        });
     } finally {
-      saveAsTemplateSubmitting.value = false;
+      form.saveAsTemplateSubmitting.value = false;
     }
   }
 
   return {
     selectedLocalGroupNode,
     canSaveAsTemplate,
-    saveAsTemplateOpen,
-    saveAsTemplateName,
-    saveAsTemplateDescription,
-    saveAsTemplateIcon,
-    saveAsTemplateSubmitting,
-    saveAsTemplateError,
-    templateFieldErrors,
+    ...form,
     openSaveAsTemplate,
     submitSaveAsTemplate,
   };

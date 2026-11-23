@@ -5,6 +5,28 @@ import type {
 } from "../../../composables/useGraphConnect";
 import type { ProcedureRecord } from "../../types/editor";
 
+interface AutomationTemplateApi {
+  _id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  ports: GroupPort[];
+  subgraph: ProcedureGraph;
+}
+
+const PROCEDURES_PAGE_SIZE = 200;
+
+/** A template as the record the editor works on; `enabled` is pinned to true so the disabled banner never shows for it. */
+function templateAsProcedure(tpl: AutomationTemplateApi): ProcedureRecord {
+  return {
+    _id: tpl._id,
+    name: tpl.name,
+    description: tpl.description ?? "",
+    enabled: true,
+    graph: tpl.subgraph,
+  };
+}
+
 /** Reads what the builder opens, the procedure list or the template `?template=` names, and opens it. */
 export function useEditorLoad(ctx: EditorContext) {
   const {
@@ -22,18 +44,12 @@ export function useEditorLoad(ctx: EditorContext) {
     templatePorts,
   } = ctx;
 
-  const PROCEDURES_PAGE_SIZE = 200;
-
-  // What the builder opens, read with the page: every procedure, or the
-  // template `?template=` names. The editor works on its own copy of what they
-  // answered (`procedures`), which its drafts change.
   const procedureListRead = useApiData<ProcedureRecord[]>(
     () =>
       editorMode.value === "procedure"
         ? "dms-automation-builder-procedures"
         : null,
     async ({ $authFetch, signal }) => {
-      // The API serves pages of PROCEDURES_PAGE_SIZE at most: read them all.
       const list: ProcedureRecord[] = [];
       for (let page = 0; ; page++) {
         const { results } = await $authFetch<{ results: ProcedureRecord[] }>(
@@ -47,22 +63,12 @@ export function useEditorLoad(ctx: EditorContext) {
     },
   );
 
-  interface AutomationTemplateApi {
-    _id: string;
-    name: string;
-    description?: string;
-    icon?: string;
-    ports: GroupPort[];
-    subgraph: ProcedureGraph;
-  }
-
   const templateRead = useApiData<AutomationTemplateApi>(() =>
     editorTemplateId.value
       ? `/api/automation/templates/${editorTemplateId.value}`
       : null,
   );
 
-  /** Opens what the procedure list answered: `?selected=`, else the procedure open, else the first. */
   function openList() {
     const error = procedureListRead.error.value;
     if (error) {
@@ -70,7 +76,6 @@ export function useEditorLoad(ctx: EditorContext) {
       return;
     }
     loadError.value = null;
-    // Copies: a draft changes the editor's records, not the read's.
     procedures.value = (procedureListRead.data.value ?? []).map((p) => ({
       ...p,
     }));
@@ -84,8 +89,6 @@ export function useEditorLoad(ctx: EditorContext) {
     if (requested && procedures.value.some((p) => p._id === requested)) {
       selectedId.value = requested;
     } else if (requested && !selectedId.value) {
-      // A link to a deleted procedure opens none: the builder says so
-      // and offers the switcher (see onMounted).
       missingProcedureId.value = requested;
       return;
     }
@@ -95,7 +98,6 @@ export function useEditorLoad(ctx: EditorContext) {
     }
   }
 
-  /** Reads the procedure list again (one was created) and opens it. */
   async function loadList() {
     loading.value = true;
     await procedureListRead.refresh();
@@ -103,7 +105,6 @@ export function useEditorLoad(ctx: EditorContext) {
     openList();
   }
 
-  /** Opens what the template read answered, or says why there is none. */
   function openTemplate() {
     const id = editorTemplateId.value;
     if (!id) {
@@ -114,8 +115,6 @@ export function useEditorLoad(ctx: EditorContext) {
     const error = templateRead.error.value;
     const tpl = templateRead.data.value;
     if (error || !tpl) {
-      // Worded for users, the same on the server and in the browser (the
-      // raw fetch error names an internal URL that differs between them).
       templateNotFound.value = apiErrorStatus(error) === 404;
       loadError.value = templateNotFound.value
         ? t("dms_automation.editor.templateNotFound")
@@ -127,17 +126,7 @@ export function useEditorLoad(ctx: EditorContext) {
     }
     templateNotFound.value = false;
     loadError.value = null;
-    // Adapt the template into the ProcedureRecord shape so the rest of
-    // the editor (history, dirty-tracking, sentinel sync, group toolbar)
-    // keeps working unchanged. `enabled` is meaningless for templates;
-    // pin it to true so the "disabled" warning banner never appears.
-    const adapted: ProcedureRecord = {
-      _id: tpl._id,
-      name: tpl.name,
-      description: tpl.description ?? "",
-      enabled: true,
-      graph: tpl.subgraph,
-    };
+    const adapted = templateAsProcedure(tpl);
     procedures.value = [adapted];
     selectedId.value = adapted._id;
     templateIcon.value = tpl.icon || "i-ph-package";

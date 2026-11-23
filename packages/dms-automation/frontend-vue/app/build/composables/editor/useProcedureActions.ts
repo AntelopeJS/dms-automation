@@ -42,7 +42,6 @@ export function useProcedureActions(
     const current = selected.value;
     if (!current) return;
     const name = savedName.value;
-    // The server words the dialog, as the procedures table's delete does.
     await confirmFrom(`${props.apiUrl}/procedures/{{row.id}}/delete-confirm`, {
       params: { id: current._id },
       onConfirm: async () => {

@@ -4,6 +4,18 @@ import { describeDateTime } from "../../../utils/describe";
 import type { ProcedureTriggers } from "../../types/editor";
 import type { DraftProblems } from "./useDraftProblems";
 
+/**
+ * Data of the procedure open, or nothing while another one's is still on
+ * screen or once its read failed.
+ */
+function ofSelected<T>(read: {
+  data: Ref<T | null>;
+  placeholder: Readonly<Ref<boolean>>;
+  error: Ref<unknown>;
+}): T | null {
+  return read.placeholder.value || read.error.value ? null : read.data.value;
+}
+
 /** The triggers of the saved procedure, what the paused banner says of them, and the save state label. */
 export function useSavedTriggers(ctx: EditorContext, problems: DraftProblems) {
   const {
@@ -18,10 +30,6 @@ export function useSavedTriggers(ctx: EditorContext, problems: DraftProblems) {
   } = ctx;
   const { changeCount, currentSummary, savedName } = problems;
 
-  /**
-   * A URL of the procedure open, for the reads that follow it: none in
-   * template mode or while no procedure is open.
-   */
   function selectedProcedureUrl(path: string): () => string | null {
     return () =>
       selectedId.value && editorMode.value === "procedure"
@@ -29,20 +37,6 @@ export function useSavedTriggers(ctx: EditorContext, problems: DraftProblems) {
         : null;
   }
 
-  /**
-   * Data of the procedure open, or nothing while another one's is still on
-   * screen or once its read failed.
-   */
-  function ofSelected<T>(read: {
-    data: Ref<T | null>;
-    placeholder: Readonly<Ref<boolean>>;
-    error: Ref<unknown>;
-  }): T | null {
-    return read.placeholder.value || read.error.value ? null : read.data.value;
-  }
-
-  // The saved triggers: what a paused procedure will not fire, and what Run
-  // now offers.
   const savedTriggersRead = useApiData<ProcedureTriggers>(
     selectedProcedureUrl("triggers"),
   );
@@ -50,14 +44,13 @@ export function useSavedTriggers(ctx: EditorContext, problems: DraftProblems) {
     () => ofSelected(savedTriggersRead)?.triggers ?? [],
   );
 
-  /** The banner of a disabled procedure names what will not fire (AU-16). */
   const pausedBanner = computed(() => {
     const current = selected.value;
     if (!current || current.enabled || editorMode.value !== "procedure")
       return null;
     const triggers = savedTriggers.value.filter((tr) => tr.typeId !== "manual");
-    if (triggers.length === 0) return null;
-    const first = triggers[0]!;
+    const [first] = triggers;
+    if (!first) return null;
     const what = processText(first.text);
     const isDraft = currentSummary.value?.status === "draft";
     return {
