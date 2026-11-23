@@ -63,7 +63,7 @@ const templateBodySchema = z.object({
       const key = `${port.direction}/${port.kind}/${port.name}`;
       if (seen.has(key)) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: [index, "name"],
           message: `duplicate port ${key}`,
         });

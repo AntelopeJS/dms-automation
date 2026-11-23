@@ -68,7 +68,7 @@ export async function webhookPathComesFromTheName(ctx) {
 export async function validatesLimits(ctx) {
   const before = await procedureCount(ctx);
   const padded = await newProcedure(ctx, { name: `   ${"é".repeat(200)}   `, trigger: "manual" });
-  const longest = await newProcedure(ctx, { name: "x".repeat(200), trigger: "manual", description: "😀".repeat(1000) });
+  const longest = await newProcedure(ctx, { name: "x".repeat(200), trigger: "manual", description: "😀".repeat(2000) });
   const tooLong = await newProcedure(ctx, { name: "x".repeat(201), trigger: "manual" });
   const descTooLong = await newProcedure(ctx, { name: "ok", trigger: "manual", description: "😀".repeat(2001) });
   const desc2001 = await newProcedure(ctx, { name: "ok", trigger: "manual", description: "a".repeat(2001) });
@@ -85,7 +85,7 @@ export async function validatesLimits(ctx) {
   const tooBig = (/** @type {import("../../auto.mjs").Answer} */ a) => list(a.body, "issues")[0];
   await ctx.verify("limits", [
     same("200 characters between spaces is accepted trimmed", [padded.status, saved.name], [200, "é".repeat(200)]),
-    same("200 characters name with a 2000-unit description is accepted", [longest.status, savedLongest.description === "😀".repeat(1000), String(savedLongest.name).length], [200, true, 200]),
+    same("200 characters name with a 2000-character description of 4000 UTF-16 units is accepted", [longest.status, savedLongest.description === "😀".repeat(2000), String(savedLongest.name).length], [200, true, 200]),
     ...refusedBody(tooLong, "name of 201", ["name"]),
     same("the 201 issue says too_big, maximum 200", [tooBig(tooLong)?.code, tooBig(tooLong)?.maximum], ["too_big", 200]),
     ...refusedBody(descTooLong, "description of 2001 characters outside the BMP", ["description"]),

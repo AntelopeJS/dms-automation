@@ -42,7 +42,7 @@ void test("a node config holding a function is refused", () => {
   assert.equal(parsed.success, false);
 });
 
-void test("an import names why it is not a procedure: a missing name or graph, an unknown kind, another shape", () => {
+void test("an import missing its name or graph is not a procedure, which an importErrorOf reading zod 3's `received` calls an invalid graph", () => {
   const {
     exportedSchema,
     importErrorOf,

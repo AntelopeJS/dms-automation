@@ -79,15 +79,16 @@ const graphBodySchema: z.ZodType<ProcedureGraph> = z.lazy(() =>
 
 export const procedureGraphSchema: z.ZodType<ProcedureGraph, unknown> = z
   .unknown()
-  .refine((graph): boolean => isDataValue(graph), { abort: true })
-  .refine(
-    (graph) =>
-      !isDataValue(graph) ||
-      groupDepthOf(graph, MAX_GROUP_DEPTH) <= MAX_GROUP_DEPTH,
-    {
-      message: `groups are nested more than ${MAX_GROUP_DEPTH} levels deep`,
-    },
-  )
+  .superRefine((graph, ctx) => {
+    if (!isDataValue(graph)) {
+      ctx.addIssue({ code: "custom", message: "Invalid input" });
+    } else if (groupDepthOf(graph, MAX_GROUP_DEPTH) > MAX_GROUP_DEPTH) {
+      ctx.addIssue({
+        code: "custom",
+        message: `groups are nested more than ${MAX_GROUP_DEPTH} levels deep`,
+      });
+    }
+  })
   .pipe(graphBodySchema);
 
 /**
