@@ -70,7 +70,7 @@ export async function validatesLimits(ctx) {
   const padded = await newProcedure(ctx, { name: `   ${"é".repeat(200)}   `, trigger: "manual" });
   const longest = await newProcedure(ctx, { name: "x".repeat(200), trigger: "manual", description: "😀".repeat(1000) });
   const tooLong = await newProcedure(ctx, { name: "x".repeat(201), trigger: "manual" });
-  const descTooLong = await newProcedure(ctx, { name: "ok", trigger: "manual", description: "😀".repeat(1001) });
+  const descTooLong = await newProcedure(ctx, { name: "ok", trigger: "manual", description: "😀".repeat(2001) });
   const desc2001 = await newProcedure(ctx, { name: "ok", trigger: "manual", description: "a".repeat(2001) });
   const blank = await newProcedure(ctx, { name: " \t ", trigger: "manual" });
   const noName = await newProcedure(ctx, { trigger: "manual" });
@@ -88,14 +88,14 @@ export async function validatesLimits(ctx) {
     same("200 characters name with a 2000-unit description is accepted", [longest.status, savedLongest.description === "😀".repeat(1000), String(savedLongest.name).length], [200, true, 200]),
     ...refusedBody(tooLong, "name of 201", ["name"]),
     same("the 201 issue says too_big, maximum 200", [tooBig(tooLong)?.code, tooBig(tooLong)?.maximum], ["too_big", 200]),
-    ...refusedBody(descTooLong, "description of 2002 UTF-16 units", ["description"]),
+    ...refusedBody(descTooLong, "description of 2001 characters outside the BMP", ["description"]),
     ...refusedBody(desc2001, "description of 2001", ["description"]),
     same("the 2001 issue says maximum 2000", [tooBig(desc2001)?.code, tooBig(desc2001)?.maximum], ["too_big", 2000]),
     ...refusedBody(blank, "blank name", ["name"]),
     same("the blank issue says too_small, minimum 1", [tooBig(blank)?.code, tooBig(blank)?.minimum], ["too_small", 1]),
     ...refusedBody(noName, "missing name", ["name"]),
     ...refusedBody(badTrigger, "unknown trigger", ["trigger"]),
-    same("the unknown trigger issue lists the three starters", tooBig(badTrigger)?.options, ["webhook", "schedule.cron", "manual"]),
+    same("the unknown trigger issue lists the three starters", tooBig(badTrigger)?.values, ["webhook", "schedule.cron", "manual"]),
     ...refusedBody(noTrigger, "missing trigger", ["trigger"]),
     ...refusedBody(notText, "name that is a number", ["name"]),
     same("no body: 400 and an issue on the body itself", [empty.status, list(empty.body, "issues")[0]?.path], [400, []]),

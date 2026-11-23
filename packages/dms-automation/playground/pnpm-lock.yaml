@@ -37,7 +37,7 @@ importers:
         version: file:../../interface-dms-automation(@antelopejs/interface-core@0.5.1)
     devDependencies:
       '@antelopejs/core':
-        specifier: ~1.24.5
+        specifier: ~1.24.6
         version: 1.24.7
       '@antelopejs/dms-frontend':
         specifier: '>=0.11.4 <0.12.0'
