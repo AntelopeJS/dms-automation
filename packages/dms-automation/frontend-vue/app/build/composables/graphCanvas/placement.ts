@@ -115,9 +115,9 @@ function templateInstanceNode(template: TemplateSummary): AppGraphNode {
 /**
  * The config a new node of `kind` starts from. Constant data nodes seed from
  * `configSchema` (their value lives there), wired-port data nodes also seed
- * the defaults of `inputSchema`. A static config is deep-cloned through JSON so
- * each instance gets its own copy and the Vue reactive proxy of
- * `props.nodeKinds` goes: `structuredClone` throws on it.
+ * the defaults of `inputSchema`. A static config is deep-cloned so each instance
+ * gets its own copy, read through the Vue reactive proxy of `props.nodeKinds`,
+ * on which `structuredClone` throws.
  */
 function defaultConfigFor(
   props: Readonly<CanvasProps>,
@@ -149,8 +149,8 @@ function defaultConfigFor(
  * dropped.
  *
  * A template instance is a group node carrying the `templateId` and a copy of
- * the template's ports, cloned through JSON as `structuredClone` throws on the
- * palette's reactive proxy. It has no inline `subgraph`: the executor resolves
+ * the template's ports, copied through the palette's reactive proxy, on which
+ * `structuredClone` throws. It has no inline `subgraph`: the executor resolves
  * the live one from the template cache, so editing the template changes what
  * the instance executes, while a port rename on the template does not
  * invalidate the instance's outer wiring.

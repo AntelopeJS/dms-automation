@@ -25,7 +25,7 @@ import type {
   SubgraphFrame,
   SubgraphPathSegment,
 } from "../../types/editor";
-import { isRecord, isString } from "../../../utils/json";
+import { isList, isRecord, isString } from "../../../utils/json";
 import { isGroupPort } from "./valueGuards";
 
 /** What the builder takes from its props. */
@@ -70,20 +70,16 @@ function isTemplateListRow(value: unknown): value is TemplateListRow {
 }
 
 interface TemplateList {
-  results: TemplateListRow[];
+  results: unknown[];
 }
 
 function isTemplateList(value: unknown): value is TemplateList {
-  return (
-    isRecord(value) &&
-    Array.isArray(value.results) &&
-    value.results.every(isTemplateListRow)
-  );
+  return isRecord(value) && isList(value.results);
 }
 
-/** Only the fields the palette and the creation of a template instance need: the list endpoint also returns the description, the usage count and the hydrated subgraph. An answer that is not a list of templates is none. */
+/** Only the fields the palette and the creation of a template instance need: the list endpoint also returns the description, the usage count and the hydrated subgraph. An answer that is not a list is none, and a row that is not a template is left out. */
 function paletteTemplates(list: TemplateList): TemplateSummary[] {
-  return list.results.map((row) => ({
+  return list.results.filter(isTemplateListRow).map((row) => ({
     _id: row._id,
     name: row.name,
     icon: row.icon,

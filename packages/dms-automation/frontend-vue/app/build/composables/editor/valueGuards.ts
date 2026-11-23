@@ -5,6 +5,7 @@ import type {
 } from "../../../composables/useGraphConnect";
 import {
   isAbsentOr,
+  isList,
   isRecord,
   isString,
   isStringList,
@@ -14,10 +15,6 @@ import {
 export function configName(node: GraphNode): string | undefined {
   const name = node.config?.name;
   return isString(name) ? name : undefined;
-}
-
-function isList(value: unknown): value is unknown[] {
-  return Array.isArray(value);
 }
 
 function isSchemaType(value: unknown): value is string | string[] {

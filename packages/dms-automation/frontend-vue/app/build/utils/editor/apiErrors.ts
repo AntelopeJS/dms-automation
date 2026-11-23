@@ -1,9 +1,11 @@
 import {
   isAbsentOr,
   isJsonValue,
+  isList,
   isNumber,
   isRecord,
   isString,
+  isStringList,
 } from "../../../utils/json";
 import type { JsonValue } from "../../../utils/json";
 import type { GraphIssue } from "../../types/editor";
@@ -34,10 +36,6 @@ interface TemplateErrorData {
   cycle?: string[];
 }
 
-function isUnknownList(value: unknown): value is unknown[] {
-  return Array.isArray(value);
-}
-
 function isJsonParams(value: unknown): value is Record<string, JsonValue> {
   return isRecord(value) && Object.values(value).every(isJsonValue);
 }
@@ -50,7 +48,7 @@ function isRefusalIssue(value: unknown): value is RefusalIssue {
     isAbsentOr(value.code, isString) &&
     isAbsentOr(value.params, isJsonParams) &&
     isAbsentOr(value.nodeId, isString) &&
-    isAbsentOr(value.path, isUnknownList)
+    isAbsentOr(value.path, isList)
   );
 }
 
@@ -116,10 +114,6 @@ function isTemplateIssue(value: unknown): value is TemplateIssue | string {
   );
 }
 
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every(isString);
-}
-
 function isTemplateIssueList(
   value: unknown,
 ): value is Array<TemplateIssue | string> {
@@ -131,7 +125,7 @@ function isTemplateErrorData(value: unknown): value is TemplateErrorData {
     isRecord(value) &&
     isAbsentOr(value.error, isString) &&
     isAbsentOr(value.issues, isTemplateIssueList) &&
-    isAbsentOr(value.cycle, isStringArray)
+    isAbsentOr(value.cycle, isStringList)
   );
 }
 

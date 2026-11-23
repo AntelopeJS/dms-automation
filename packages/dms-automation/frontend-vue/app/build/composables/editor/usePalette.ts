@@ -14,9 +14,7 @@ function readStoredHidden(): string | null {
 function storeHidden(hidden: boolean): void {
   try {
     window.localStorage.setItem(PALETTE_HIDDEN_KEY, hidden ? "1" : "0");
-  } catch {
-    return;
-  }
+  } catch {}
 }
 
 /** Whether the node palette is put away, remembered per browser; folded by default below xl, where it would leave the canvas too little. */

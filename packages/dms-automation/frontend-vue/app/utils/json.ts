@@ -78,6 +78,11 @@ export function isScalar(value: unknown): value is string | number | boolean {
   );
 }
 
+/** A list, its elements unchecked. */
+export function isList(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
 /** A list whose every element is a string. */
 export function isStringList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(isString);

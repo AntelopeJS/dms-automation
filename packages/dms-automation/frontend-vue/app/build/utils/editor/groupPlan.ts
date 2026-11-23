@@ -54,17 +54,17 @@ export function uniqueName(desired: string, taken: Set<string>): string {
 export interface NewGroupPlan {
   groupId: string;
   groupPorts: GroupPort[];
-  /**
-   * Sentinel node ids, generated up front so the inner edges reference real
-   * ids; the caller installs the sentinel nodes under them.
-   */
+  /** The input sentinel's id, generated up front so the inner edges reference it; the caller installs the sentinel under it. */
   groupInputId: string;
+  /** The output sentinel's id, generated up front like `groupInputId`. */
   groupOutputId: string;
-  /** Edges to add to the outer graph, replacing the cut edges. */
+  /** Trigger edges to add to the outer graph, replacing the cut ones. */
   outerTriggerEdges: TriggerEdge[];
+  /** Data edges to add to the outer graph, replacing the cut ones. */
   outerDataEdges: DataEdge[];
-  /** Edges to add inside the new subgraph, joining sentinels to the inner ends of the cut edges. */
+  /** Trigger edges inside the new subgraph, joining the sentinels to the inner ends of the cut edges. */
   innerTriggerEdges: TriggerEdge[];
+  /** Data edges inside the new subgraph, joining the sentinels to the inner ends of the cut edges. */
   innerDataEdges: DataEdge[];
 }
 
@@ -117,10 +117,13 @@ interface PlanState {
   outerDataEdges: DataEdge[];
   innerTriggerEdges: TriggerEdge[];
   innerDataEdges: DataEdge[];
-  /** Name reservations per (kind, direction), so a data-in "input" and a data-out "output" coexist. */
+  /** Port names taken by data inputs; each (kind, direction) has its own set, so a data-in "input" and a data-out "output" coexist. */
   takenDataIn: Set<string>;
+  /** Port names taken by data outputs. */
   takenDataOut: Set<string>;
+  /** Port names taken by trigger inputs. */
   takenTriggerIn: Set<string>;
+  /** Port names taken by trigger outputs. */
   takenTriggerOut: Set<string>;
 }
 

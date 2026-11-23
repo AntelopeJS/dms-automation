@@ -201,16 +201,6 @@ export function prettyJson(value: unknown): string {
   return isJsonValue(value) ? JSON.stringify(value, null, 2) : "";
 }
 
-/** Parse a stored payload string, keeping the text when it is not JSON. */
-export function parsePayload(raw: string): JsonValue {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return isJsonValue(parsed) ? parsed : raw;
-  } catch {
-    return raw;
-  }
-}
-
 /**
  * A run's inputs or output as the backend describes them (`{ type, value }`
  * per value), reduced to the values.

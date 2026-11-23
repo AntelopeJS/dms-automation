@@ -92,9 +92,7 @@ function useDraftValidation(ctx: EditorContext) {
       });
       issues.value = res.issues ?? [];
       draftTriggers.value = res.triggers ?? [];
-    } catch {
-      return;
-    }
+    } catch {}
   }
 
   function scheduleValidation() {
