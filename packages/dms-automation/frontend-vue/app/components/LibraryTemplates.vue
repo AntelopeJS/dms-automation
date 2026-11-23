@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { isIconName } from './IconPicker.vue'
-import { isText } from './Editor/jsonValue'
+import { isString } from '../utils/json'
 import { queryString } from '../utils/automation'
 import {
 	schemaTypeOf,
@@ -148,7 +148,7 @@ function isRefusal(value: unknown): value is { data?: RefusalBody } {
 	if (typeof value !== 'object' || value === null || !('data' in value)) return false
 	const data = value.data
 	if (data === undefined) return true
-	return typeof data === 'object' && data !== null && (!('code' in data) || data.code === undefined || isText(data.code))
+	return typeof data === 'object' && data !== null && (!('code' in data) || data.code === undefined || isString(data.code))
 }
 
 function errorCode(e: unknown): string | undefined {

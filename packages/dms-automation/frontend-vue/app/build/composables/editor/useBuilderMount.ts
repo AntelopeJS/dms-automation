@@ -4,7 +4,7 @@ import type { TriggerSummary } from "../../../utils/describe";
 import type { SubgraphNavigation } from "./useSubgraphNavigation";
 import type { DraftProblems } from "./useDraftProblems";
 import type { RunOverlay } from "./useRunOverlay";
-import { isString } from "./valueGuards";
+import { isString } from "../../../utils/json";
 
 /** What the builder does when another procedure opens, when it mounts, and when its triggers change. */
 export function useBuilderMount(

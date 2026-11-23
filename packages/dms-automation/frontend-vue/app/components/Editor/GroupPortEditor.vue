@@ -105,8 +105,8 @@ function updateName(index: number, name: string) {
 	emitPorts(next)
 }
 
-function isSchemaTypeChoice(type: string | undefined): type is SchemaTypeChoice {
-	const choices: ReadonlyArray<string | undefined> = SCHEMA_TYPE_CHOICES
+function isSchemaTypeChoice(type: unknown): type is SchemaTypeChoice {
+	const choices: ReadonlyArray<unknown> = SCHEMA_TYPE_CHOICES
 	return choices.includes(type)
 }
 

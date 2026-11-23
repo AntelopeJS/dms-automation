@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { isNumber } from './Editor/jsonValue'
+import { isNumber } from '../utils/json'
 import {
 	builderRunUrl,
 	opensInBuilder,

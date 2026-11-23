@@ -12,7 +12,7 @@ import type { DraftProblems } from "./useDraftProblems";
 import type { SavedTriggers } from "./useSavedTriggers";
 import type { UnsavedGuards } from "./useUnsavedGuards";
 import { seedSubgraphPath } from "./useSubgraphNavigation";
-import { isNumber, isRecord } from "./valueGuards";
+import { isNumber, isRecord } from "../../../utils/json";
 
 type SaveDependencies = [
   history: GraphHistory,

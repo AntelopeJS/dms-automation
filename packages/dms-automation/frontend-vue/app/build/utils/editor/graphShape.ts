@@ -31,7 +31,7 @@ function cloneSchema(schema: JsonSchema): JsonSchema {
   return copy;
 }
 
-function clonePort(port: GroupPort): GroupPort {
+export function clonePort(port: GroupPort): GroupPort {
   const copy: GroupPort = { ...port };
   if (port.schema) copy.schema = cloneSchema(port.schema);
   return copy;

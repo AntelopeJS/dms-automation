@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { SkippedStep, TraceStep } from '../../composables/useAutomationRuns'
-import { describeDuration, prettyJson, stepTitle } from '../../utils/describe'
-import { isJsonContainer, isJsonObject, isJsonValue, isNumber } from '../Editor/jsonValue'
-import type { JsonValue } from '../Editor/jsonValue'
+import { describeDuration, prettyJson, stepTitle, unwrapDescribed } from '../../utils/describe'
+import { isJsonContainer, isJsonObject, isJsonValue, isNumber } from '../../utils/json'
 
 const props = defineProps<{
 	steps: TraceStep[]
@@ -219,14 +218,8 @@ function outcome(step: TraceStep): string {
 	return keys.length ? `→ { ${keys.slice(0, 3).join(', ')}${keys.length > 3 ? ', …' : ''} }` : ''
 }
 
-function unwrap(described: JsonValue): JsonValue {
-	if (!isJsonContainer(described)) return described
-	if (isJsonObject(described) && 'value' in described && 'type' in described) return described.value
-	return Object.fromEntries(Object.entries(described).map(([k, v]) => [k, unwrap(v)]))
-}
-
 function shownJson(value: unknown): string {
-	return isJsonValue(value) ? prettyJson(unwrap(value)) : ''
+	return isJsonValue(value) ? prettyJson(unwrapDescribed(value)) : ''
 }
 
 const QUARTERS = [0, 0.25, 0.5, 0.75, 1]

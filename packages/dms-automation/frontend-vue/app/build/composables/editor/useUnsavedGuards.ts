@@ -3,7 +3,7 @@ import type { EditorContext } from "./useEditorContext";
 import type { ChoiceQuestion } from "../../types/editor";
 import type { GraphHistory } from "./useGraphHistory";
 import type { DraftProblems } from "./useDraftProblems";
-import { isBoolean, isRecord, isString } from "./valueGuards";
+import { isBoolean, isRecord, isString } from "../../../utils/json";
 
 type ChoiceDialogState = ChoiceQuestion<string> & {
   open: boolean;

@@ -25,7 +25,8 @@ import type {
   SubgraphFrame,
   SubgraphPathSegment,
 } from "../../types/editor";
-import { isGroupPort, isRecord, isString } from "./valueGuards";
+import { isRecord, isString } from "../../../utils/json";
+import { isGroupPort } from "./valueGuards";
 
 /** What the builder takes from its props. */
 export interface EditorProps {

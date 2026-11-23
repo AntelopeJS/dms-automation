@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
-import { isText } from './Editor/jsonValue'
+import { isString } from '../utils/json'
 import type { NodeKindEntry, PortRef } from '../composables/useAutomationNodeKinds'
 import type { JsonSchema } from '../composables/useGraphConnect'
 
@@ -126,7 +126,7 @@ function flowEntries(kinds: NodeKindEntry[]): CatalogEntry[] {
 
 function queryItem(): string | null {
 	const q = route.query.item
-	return isText(q) && q ? q : null
+	return isString(q) && q ? q : null
 }
 
 const entries = computed<CatalogEntry[]>(() => {

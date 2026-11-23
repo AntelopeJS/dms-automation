@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { prettyJson } from '../../utils/describe'
-import { isJsonObject, isNumber, isText, parseJsonText } from '../Editor/jsonValue'
+import { isJsonObject, isNumber, isString, parseJsonText } from '../../utils/json'
 
 const props = defineProps<{
 	raw: string | undefined
@@ -17,7 +17,7 @@ const preview = computed(() => {
 	if (props.kept) return null
 	const marker = isJsonObject(parsed.value) ? parsed.value : null
 	return {
-		text: isText(marker?.preview) ? marker.preview : '',
+		text: isString(marker?.preview) ? marker.preview : '',
 		bytes: isNumber(marker?.originalBytes) ? marker.originalBytes : null,
 	}
 })
@@ -26,10 +26,10 @@ const preview = computed(() => {
 const textBody = computed(() => {
 	if (!props.kept) return null
 	const envelope = isJsonObject(parsed.value) ? parsed.value : null
-	if (!isText(envelope?.body)) return null
+	if (!isString(envelope?.body)) return null
 	const headers = isJsonObject(envelope.headers) ? envelope.headers : null
 	const type = headers?.['content-type']
-	return { text: envelope.body, type: isText(type) ? type : null }
+	return { text: envelope.body, type: isString(type) ? type : null }
 })
 
 const text = computed(() => {

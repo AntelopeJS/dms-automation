@@ -3,10 +3,11 @@ import { computed, ref, watch } from 'vue'
 import type { TraceStep } from '../../composables/useAutomationRuns'
 import { describeDateTime } from '../../utils/describe'
 import JsonField from './JsonField.vue'
-import { isJsonValue, isText } from './jsonValue'
-import type { JsonValue } from './jsonValue'
+import { isJsonValue, isString } from '../../utils/json'
+import type { JsonValue } from '../../utils/json'
 import NodeInspectorDocs from '../../build/components/editor/NodeInspectorDocs.vue'
 import NodeInspectorRun from '../../build/components/editor/NodeInspectorRun.vue'
+import { configName } from '../../build/composables/editor/valueGuards'
 import {
 	arrayToText,
 	asBool,
@@ -89,7 +90,7 @@ const tabs = computed(() => [
 const label = computed({
 	get: () => {
 		const n = props.node
-		return n?.label || (n?.kind === 'group' ? String(n.config?.name ?? '') : '')
+		return n?.label || (n?.kind === 'group' ? (configName(n) ?? '') : '')
 	},
 	set: (value: string) => {
 		if (!props.node) return
@@ -142,8 +143,9 @@ const issueText = computed(() => {
 	const key = `dms_automation.editor.problems.codes.${issue.code}`
 	if (!issue.code || !te(key)) return issue.message
 	const field = issue.params?.field
-	const prop = isText(field) ? schema.value?.properties?.[field] : undefined
-	return t(key, prop ? { ...issue.params, label: fieldLabel(String(field), prop) } : (issue.params ?? {}))
+	const prop = isString(field) ? schema.value?.properties?.[field] : undefined
+	if (!isString(field) || !prop) return t(key, issue.params ?? {})
+	return t(key, { ...issue.params, label: fieldLabel(field, prop) })
 })
 
 const SENTINEL_KINDS: ReadonlySet<string> = new Set(['groupInput', 'groupOutput'])
@@ -241,7 +243,7 @@ function fieldLabel(name: string, prop: JsonSchemaProperty): string {
 const nextRunText = computed(() => {
 	const n = props.node
 	const cron = n?.config?.cron
-	if (!n || n.kind !== 'trigger' || !isText(cron) || !cron) return ''
+	if (!n || n.kind !== 'trigger' || !isString(cron) || !cron) return ''
 	const saved = props.savedTriggers?.find((tr) => tr.nodeId === n.id)
 	if (saved?.cron !== cron) return t('dms_automation.editor.inspector.nextRunAfterSave')
 	if (!saved.nextAt) return ''

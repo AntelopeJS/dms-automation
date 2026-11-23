@@ -18,6 +18,7 @@ import {
   propsOf,
   vfTypeFor,
 } from "./handles";
+import { configName } from "../editor/valueGuards";
 import type { NodePorts } from "./handles";
 import type { CanvasProps, CanvasText, NodeIssue } from "./types";
 import { SENTINEL_KINDS } from "./types";
@@ -182,11 +183,10 @@ function groupNodeData(
   text: CanvasText,
   node: AppGraphNode,
 ): NodeData {
-  const configName = node.config?.name;
   return {
     label:
       node.label ||
-      (configName ? String(configName) : undefined) ||
+      configName(node) ||
       text.t("dms_automation.nodes.role.group"),
     run: props.runStates?.get(node.id) ?? null,
     issue: issueOf(props, text, node.id),

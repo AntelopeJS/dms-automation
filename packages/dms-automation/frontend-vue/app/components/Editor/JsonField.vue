@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { isJsonValue, isText } from './jsonValue'
-import type { JsonValue } from './jsonValue'
+import { isJsonValue, isString } from '../../utils/json'
+import type { JsonValue } from '../../utils/json'
 
 const props = defineProps<{
 	modelValue: JsonValue | undefined
@@ -13,7 +13,7 @@ const emit = defineEmits<{
 
 function serialize(v: JsonValue | undefined): string {
 	if (v === undefined) return ''
-	if (isText(v)) return v
+	if (isString(v)) return v
 	try {
 		return JSON.stringify(v, null, 2)
 	} catch {

@@ -10,9 +10,9 @@ export type JsonValue =
 /** A JSON object. A key may hold `undefined` for a field left unset. */
 export type JsonObject = { [key: string]: JsonValue | undefined };
 
-/** What `typeof` calls an object (an array too), `null` aside, read by key. */
+/** An object read by key: not `null`, not an array. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** A string. */
@@ -25,11 +25,33 @@ export function isNumber(value: unknown): value is number {
   return typeof value === "number";
 }
 
+/** A boolean. */
+export function isBoolean(value: unknown): value is boolean {
+  return typeof value === "boolean";
+}
+
 /** A JSON array or object: the values that hold others. */
 export function isJsonContainer(
   value: JsonValue | undefined,
 ): value is JsonValue[] | JsonObject {
   return typeof value === "object" && value !== null;
+}
+
+/** A JSON object, not an array or a scalar. */
+export function isJsonObject(
+  value: JsonValue | undefined,
+): value is JsonObject {
+  return isJsonContainer(value) && !Array.isArray(value);
+}
+
+/** Parses JSON text, keeping the text itself when it is not JSON. */
+export function parseJsonText(text: string): JsonValue {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return isJsonValue(parsed) ? parsed : text;
+  } catch {
+    return text;
+  }
 }
 
 /** Whether an optional field is absent or accepted by `accepts`. */
