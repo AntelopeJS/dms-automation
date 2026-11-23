@@ -9,8 +9,9 @@
     "typecheck": "pnpm --dir \"${DMS_FRONTEND_WORKSPACE:?Set DMS_FRONTEND_WORKSPACE to the generated Inertia workspace}\" typecheck",
     "format": "prettier --write .",
     "test": "node --test tests/*.test.cjs",
-    "lint": "eslint . --max-warnings=3 && node node_modules/@antelopejs/dms/frontend-vue/scripts/check-api-error-presentation.mjs app && node --input-type=module -e \"import { assertDmsComponents } from '@antelopejs/dms/checks/dms-components'; await assertDmsComponents({ layer: '.', sources: ['../src'] });\"",
-    "lint:fix": "eslint . --fix"
+    "lint": "pnpm -s run types && eslint . && node node_modules/@antelopejs/dms/frontend-vue/scripts/check-api-error-presentation.mjs app && node --input-type=module -e \"import { assertDmsComponents } from '@antelopejs/dms/checks/dms-components'; await assertDmsComponents({ layer: '.', sources: ['../src'] });\"",
+    "lint:fix": "pnpm -s run types && eslint . --fix",
+    "types": "pnpm --dir .. exec ajs dms prepare-types -q --module frontend-vue --out frontend-vue/.dms-types"
   },
   "dependencies": {
     "@vue-flow/core": "^1.48.2",
@@ -19,12 +20,10 @@
   "devDependencies": {
     "@antelopejs/dms": ">=0.23.0 <0.24.0",
     "@antelopejs/dms-frontend": ">=0.11.4 <0.12.0",
-    "@antelopejs/tooling-configs": ">=0.9.4 <0.10.0",
-    "@eslint/js": "^9.0.0",
+    "@antelopejs/tooling-configs": ">=0.10.0 <0.11.0",
+    "@nuxt/eslint-config": "^1.17.0",
     "@nuxt/ui": "4.10.0",
-    "eslint": "^9.0.0",
-    "eslint-plugin-vue": "^10.0.0",
-    "globals": "^16.0.0",
+    "eslint": "^10.9.1",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "typescript": "^5.8.2",
