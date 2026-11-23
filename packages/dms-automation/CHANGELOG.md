@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.11.6
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.5...v0.11.6)
+
+### 📦 Build
+
+- **deps:** Move to @antelopejs/interface-dms 0.16 and dms 0.23 on zod 4 ([#241](https://github.com/AntelopeJS/dms-automation/pull/241))
+
+### 🏡 Chore
+
+- **deps:** Adopt tooling-configs 0.10 and its comment rule ([#242](https://github.com/AntelopeJS/dms-automation/pull/242))
+
+### 🤖 CI
+
+- Re-sync the AntelopeJS pack for the release app ([#239](https://github.com/AntelopeJS/dms-automation/pull/239))
+- Stop forwarding the retired RELEASE_GITHUB_TOKEN ([#240](https://github.com/AntelopeJS/dms-automation/pull/240))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.11.5
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.4...v0.11.5)
