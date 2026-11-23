@@ -1,3 +1,4 @@
+import type { JsonObject } from "../utils/json";
 import type { GroupPort, JsonSchema } from "./useGraphConnect";
 
 export interface PortRef {
@@ -23,7 +24,7 @@ export interface NodeKindUI {
   iconFromType?: boolean;
   categoryFromType?: boolean;
   category?: string;
-  defaultConfig?: Record<string, unknown>;
+  defaultConfig?: JsonObject;
   configSchema?: JsonSchema;
 }
 
