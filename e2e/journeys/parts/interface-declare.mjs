@@ -126,10 +126,10 @@ export const declareJourneys = [
         enabled: false,
       });
       await ctx.verify("required fields", [
-        same("enabled left out", noEnabled.error, refusal("shape.no-enabled", "enabled: Required")),
+        same("enabled left out", noEnabled.error, refusal("shape.no-enabled", "enabled: Invalid input: expected boolean, received undefined")),
         check("enabled must be a boolean", !stringEnabled.ok && stringEnabled.error.startsWith(refusal("shape.string-enabled", "enabled: ")), stringEnabled.error),
-        same("graph left out", noGraph.error, refusal("shape.no-graph", "graph: Required")),
-        same("name left out", noName.error, refusal("shape.no-name", "name: Required")),
+        same("graph left out", noGraph.error, refusal("shape.no-graph", "graph: Invalid input: expected object, received undefined")),
+        same("name left out", noName.error, refusal("shape.no-name", "name: Invalid input: expected string, received undefined")),
         same("none of them stored", await Promise.all(["shape.no-enabled", "shape.string-enabled", "shape.no-graph", "shape.no-name"].map((id) => stored(ctx, id))), [null, null, null, null]),
       ]);
       const both = await declareProcedure(ctx, {

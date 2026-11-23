@@ -259,7 +259,7 @@ void test("a malformed declaration is refused with what is wrong", async () => {
   );
   await assert.rejects(
     declareProcedure({ ...declaration(), enabled: undefined }),
-    /refused: enabled: Required/,
+    /refused: enabled: Invalid input: expected boolean, received undefined/,
   );
   await assert.rejects(
     declareProcedure({ ...declaration(), graph: { nodes: "no" } }),
