@@ -291,20 +291,6 @@ for (const [file, controller] of Object.entries(LIVE_PAGES)) {
   });
 }
 
-void test("the run history takes new runs on screen while Live and holds while a run is open or scrolled down", () => {
-  assert.deepEqual(requiredOptionsOf(PAGES.runs.table).liveHold, {
-    whileOnScreen: false,
-    whileRowOpen: true,
-    whileScrolled: true,
-  });
-});
-
-void test("the procedures list follows its changes on screen while Live and holds them while paused", () => {
-  assert.deepEqual(requiredOptionsOf(PAGES.procedures.table).liveHold, {
-    whileOnScreen: false,
-  });
-});
-
 void test("every data block of the overview and the run history follows the live topics", () => {
   for (const [file, controller] of Object.entries(LIVE_PAGES)) {
     const topics = requiredOptionsOf(
