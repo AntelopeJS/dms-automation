@@ -8,14 +8,6 @@ import {
   type JsonValue,
 } from "./json";
 
-/**
- * Wording of automation objects the backend sends structured: a step, a
- * duration, a date. Every function takes the translator, so cells, cards and
- * the builder say the same thing in the reader's language. Triggers and
- * schedules are worded by the server, which sends their text next to them
- * (`src/runtime/wording.ts`), written with `useComposedText().processText`.
- */
-
 /** `processI18n` of the DMS translation composable. */
 export type Translate = (
   key: string,

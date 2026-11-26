@@ -10,14 +10,6 @@ const {
 } = require("./server-render.cjs");
 
 /**
- * What a server render of each page reads from the backend, and that it
- * hands the browser every response it read: a read the page does not hand
- * over is made again by the browser, after a server request for nothing.
- * The pages render on the renderer's real data layer and the DMS's real
- * `useApiData`, as installed by frontend-vue.
- */
-
-/**
  * What the builder hands over under keys of its own: the procedure list,
  * read in pages, and the templates its palette places.
  */

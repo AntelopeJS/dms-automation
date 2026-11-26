@@ -32,7 +32,7 @@ function scheduleImpact(cron: string, params: DialogParams): string {
     key = `${API_MESSAGES.slice(1)}.weekly.${weekday}`;
     delete own.day;
   }
-  if (Object.keys(own).some((name) => name in params)) return cron;
+  if (Object.keys(own).some((name) => Object.hasOwn(params, name))) return cron;
   Object.assign(params, own);
   return `$${key}`;
 }

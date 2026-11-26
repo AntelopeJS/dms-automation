@@ -6,12 +6,6 @@ const {
 } = require("../dist/runtime/resolveSubgraph.js");
 
 /**
- * How the library finds where a block is used, and how deleting a template
- * turns its instances into local groups: through nested groups and through
- * the templates a procedure places.
- */
-
-/**
  * @typedef {import("../dist/types/graph.js").GraphNode & {
  *   templateId?: string;
  *   ports?: import("../dist/types/graph.js").GroupPort[];

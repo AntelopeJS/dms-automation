@@ -10,13 +10,6 @@ import type {
 import { asParam, stepText } from "../runtime/wording";
 import type { HealthHero } from "./overview";
 
-/**
- * The overview's opening line as the DMS `Banner` draws it from a route: how
- * automation is doing over the selected window, said in one sentence, with
- * the next action. With no procedure yet it is the first-run state instead:
- * recipes that open "New procedure" with their trigger picked.
- */
-
 const HEALTH = "dms_automation.health";
 
 /** The links the banner points to, and the recipe dialogs it opens. */

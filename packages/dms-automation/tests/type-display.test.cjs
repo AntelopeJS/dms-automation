@@ -3,22 +3,11 @@ const { test } = require("node:test");
 const { component } = require("./helpers/frontend.cjs");
 const { isPropertyBag, isString } = require("../dist/types/guards.js");
 
-/**
- * Registered trigger / action / data-node types may declare `name` and
- * `description` as `$`-prefixed DMS i18n keys. These tests render the
- * components that display them and check both forms: keys come out
- * translated, plain strings come out as written.
- */
-
 const vue = require("../frontend-vue/node_modules/vue");
 const {
   renderToString,
 } = require("../frontend-vue/node_modules/vue/server-renderer");
 
-/**
- * Stand-in for the host's `processI18n`: `$` marks a key, anything else is
- * returned verbatim (dms-core `resolveI18nKey`).
- */
 /** @type {Record<string, string>} */
 const MESSAGES = {
   "acme.trigger.name": "Déclencheur traduit",

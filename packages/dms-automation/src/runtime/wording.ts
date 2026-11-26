@@ -3,14 +3,6 @@ import type { StepName, TriggerSummary } from "./describe";
 import { scheduleTimeZone } from "./schedule";
 import { isString } from "../types/guards";
 
-/**
- * The texts the pages draw for a trigger or a step, composed in the reader's
- * language by the DMS: the server sends i18n keys and raw values, never a
- * finished sentence. The only wording of triggers and schedules: the table
- * cells use it, and the routes the builder, the trace and the library read
- * send it next to the trigger they describe.
- */
-
 const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const NUMBER = /^\d+$/;
 const EVERY_N = /^\*\/(\d+)$/;

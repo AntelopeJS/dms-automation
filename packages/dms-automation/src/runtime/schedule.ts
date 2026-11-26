@@ -1,11 +1,3 @@
-/**
- * Next occurrence of a cron expression, for the builder's "paused" banner
- * ("next would be Oct 5"). node-cron computes it only for a running task, and
- * a paused procedure has none, so the expression is matched here: five fields
- * (minute, hour, day of month, month, day of week), or six with seconds first,
- * with `*`, lists, ranges, steps and English month and day names.
- */
-
 interface FieldSpec {
   min: number;
   max: number;
@@ -55,7 +47,11 @@ const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60_000;
 
 function valueOf(token: string, spec: FieldSpec): number {
-  const named = spec.names?.[token.toLowerCase().slice(0, 3)];
+  const abbreviation = token.toLowerCase().slice(0, 3);
+  const named =
+    spec.names && Object.hasOwn(spec.names, abbreviation)
+      ? spec.names[abbreviation]
+      : undefined;
   const value = named ?? Number(token);
   if (!Number.isInteger(value) || value < spec.min || value > spec.max) {
     throw new Error(`invalid cron value "${token}"`);

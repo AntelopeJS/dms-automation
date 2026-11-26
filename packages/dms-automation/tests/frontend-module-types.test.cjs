@@ -3,15 +3,6 @@ const path = require("node:path");
 const { test } = require("node:test");
 const ts = require("../frontend-vue/node_modules/typescript");
 
-/**
- * The tests load dms-frontend's frontend runtime from its `templates/vue`
- * sources, which the package authors for bundler resolution (extensionless
- * relative imports). The tests' own compiler options must resolve those
- * sources the same way: under any other resolution the barrel's re-exports
- * fall out of the program and every member of the module becomes an
- * `error` typed value for the type-aware lint.
- */
-
 const SERVER_RENDER = path.join(__dirname, "server-render.cjs");
 const CONFIG = path.join(__dirname, "tsconfig.json");
 
