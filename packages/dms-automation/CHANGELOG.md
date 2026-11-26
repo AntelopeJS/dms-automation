@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.11.7
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.6...v0.11.7)
+
+### 🏡 Chore
+
+- **deps:** Update dependency oxlint-tsgolint to v7.0.2008 ([#245](https://github.com/AntelopeJS/dms-automation/pull/245))
+- **deps:** Update dependency rimraf to v6.1.4 ([#248](https://github.com/AntelopeJS/dms-automation/pull/248))
+- **deps:** Update dependency @antelopejs/core to v1.24.8 ([#247](https://github.com/AntelopeJS/dms-automation/pull/247))
+
+### ✅ Tests
+
+- Drop the liveHold option pins the interface-dms type now covers ([#243](https://github.com/AntelopeJS/dms-automation/pull/243))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.11.6
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.5...v0.11.6)
