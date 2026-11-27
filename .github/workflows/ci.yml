@@ -44,7 +44,7 @@ jobs:
   # ci-node.yml exposes no outputs, so the shared ci-tier action picks the tier
   # for the jobs declared here: a draft and the next to main pull request skip them.
   select:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     outputs:
       tier: ${{ steps.tier.outputs.tier }}
@@ -77,7 +77,7 @@ jobs:
   formal-leader-triggers:
     needs: select
     if: needs.select.outputs.tier != 'none' && needs.select.outputs.tier != 'draft'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -104,7 +104,7 @@ jobs:
   e2e:
     needs: select
     if: needs.select.outputs.e2e != 'none'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -175,7 +175,7 @@ jobs:
   journeys:
     needs: select
     if: needs.select.outputs.e2e == 'full'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -221,7 +221,7 @@ jobs:
   e2e-report:
     needs: [select, e2e]
     if: always() && needs.select.outputs.e2e == 'full'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -254,7 +254,7 @@ jobs:
   ubuntu:
     if: always()
     needs: [select, ci, formal-leader-triggers, e2e, journeys]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
       - if: >-
