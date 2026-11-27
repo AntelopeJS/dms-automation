@@ -56,7 +56,7 @@ jobs:
         uses: AntelopeJS/.github/.github/actions/ci-tier@v2
       # A pull request runs the @smoke journeys, or every journey with the
       # ci:full label; the merge queue, the nightly run and a dispatch run
-      # every journey over two shards.
+      # every journey over four shards.
       - name: Pick the journeys the e2e job runs
         id: e2e
         env:
@@ -70,7 +70,7 @@ jobs:
             */pull_request/* | */push/*) suite=smoke ;;
             *) suite=full ;;
           esac
-          if [[ "$suite" == full ]]; then shards='[1, 2]'; else shards='[1]'; fi
+          if [[ "$suite" == full ]]; then shards='[1, 2, 3, 4]'; else shards='[1]'; fi
           echo "suite=${suite}" >> "$GITHUB_OUTPUT"
           echo "shards=${shards}" >> "$GITHUB_OUTPUT"
 
