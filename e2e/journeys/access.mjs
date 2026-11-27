@@ -22,8 +22,9 @@ const ROUTES = [
   ["GET", "/tables/runs/list"], ["GET", "/tables/runs/count"],
 ];
 
-/** The text of the refusal: the run table's routes name the permission they check, every other route says Owner-only. */
-const refusalOf = (/** @type {string} */ route) => (route.includes("/tables/runs/") ? "Forbidden: missing permission modules.automation.runs.table.list" : "Owner-only");
+/** The refusal key dms answers: the run table's routes name the permission they check, every other route is owner-only. */
+const refusalOf = (/** @type {string} */ route) =>
+  route.includes("/tables/runs/") ? { message: "$dms.refusals.permissions.missing_permission", params: { permissionId: "modules.automation.runs.table.list" } } : "$dms.refusals.auth.owner_only";
 
 /** @param {Ctx} ctx @param {string} method @param {string} path @param {string | undefined} who */
 async function call(ctx, method, path, who) {
@@ -39,7 +40,7 @@ async function sweep(ctx, id, who) {
     if (who === "admin" && (method === "DELETE" && template === "/procedures/:id")) continue;
     const path = template.replace(":id", id);
     const answer = await call(ctx, method, path, who);
-    results.push({ route: `${method} ${template}`, status: answer.status, message: answer.text.slice(0, 80) });
+    results.push({ route: `${method} ${template}`, status: answer.status, message: answer.json ?? answer.text });
   }
   return results;
 }
@@ -57,7 +58,7 @@ const all = guarded([
       const after = await auto(ctx, "read it as the owner", "GET", `/procedures/${id}`);
       const bogus = await call(ctx, "GET", "/procedures/summary", "anon");
       await ctx.verify("nobody", [
-        ...results.map((r) => same(`${r.route} is 401 "No jwt token provided"`, [r.status, r.message], [401, "No jwt token provided"])),
+        ...results.map((r) => same(`${r.route} is 401 with the no_token_provided key`, [r.status, r.message], [401, "$dms.refusals.auth.no_token_provided"])),
         same("the procedure is untouched: still enabled, graph kept", [text(after.body, "name"), pick(after.body, "enabled"), list(after.body, "graph", "nodes").length], ["Guarded", true, 2]),
         same("an unknown session token is no better", bogus.status === 401 || bogus.status === 404, true),
       ]);
