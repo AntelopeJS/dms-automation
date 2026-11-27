@@ -11,7 +11,6 @@ const vite = require("../frontend-vue/node_modules/vite/dist/node/index.js");
 
 /** @typedef {import("../frontend-vue/node_modules/vite/dist/node/index.js").Plugin} VitePlugin */
 
-/** A scratch repository: the backend package, another package, and the frontend module inside the backend package. */
 /** @type {string} */
 let repository;
 /** @type {string} */

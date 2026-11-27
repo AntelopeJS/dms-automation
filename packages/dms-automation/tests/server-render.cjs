@@ -7,13 +7,6 @@ const {
 } = require("../dist/types/guards.js");
 const { component } = require("./helpers/frontend.cjs");
 
-/**
- * Server renders of the pages and components, for the render tests: what a
- * render reads from the backend (answered by `respond`) and what it hands
- * the browser. The pages render on the renderer's real data layer and the
- * DMS's real `useApiData`, as installed by frontend-vue.
- */
-
 const vue = require("../frontend-vue/node_modules/vue");
 const {
   renderToString,
@@ -177,10 +170,6 @@ globalThis.useAuthFetch = () => ({
 });
 globalThis.useI18n = () => ({ t, te: () => false, locale: vue.ref("en") });
 
-/**
- * Every DMS, Nuxt UI and module component the templates use renders its
- * default slot, its props as attributes.
- */
 /** @type {Map<string, import("../frontend-vue/node_modules/vue").Component>} */
 const stubs = new Map();
 /** @param {string} name */
@@ -234,7 +223,10 @@ async function serverRender(root, props, options = {}) {
   await new Promise((resolve) => setTimeout(resolve, options.settle ?? 50));
   const payload = engine.serializeDmsPayload(runtime);
   const keyed = Object.entries(options.keyed ?? {})
-    .filter(([key]) => key in payload.data || key in payload.errors)
+    .filter(
+      ([key]) =>
+        Object.hasOwn(payload.data, key) || Object.hasOwn(payload.errors, key),
+    )
     .map(([, matches]) => matches);
   const made = [...reads];
   return {
@@ -243,8 +235,8 @@ async function serverRender(root, props, options = {}) {
     reads: made,
     untransferred: made.filter(
       (read) =>
-        !(fetchKey(read) in payload.data) &&
-        !(fetchKey(read) in payload.errors) &&
+        !Object.hasOwn(payload.data, fetchKey(read)) &&
+        !Object.hasOwn(payload.errors, fetchKey(read)) &&
         !keyed.some((matches) => matches(read)),
     ),
   };

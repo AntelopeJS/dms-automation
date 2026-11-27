@@ -110,11 +110,14 @@ function slugOf(name: string): string {
   return slug || "procedure";
 }
 
-const STARTER_CONFIG: Record<Starter, (name: string) => DataRecord> = {
-  webhook: (name) => ({ path: `/webhooks/${slugOf(name)}`, method: "POST" }),
-  "schedule.cron": () => ({ cron: DEFAULT_SCHEDULE }),
-  manual: () => ({}),
-};
+const STARTER_CONFIG = new Map<Starter, (name: string) => DataRecord>([
+  [
+    "webhook",
+    (name) => ({ path: `/webhooks/${slugOf(name)}`, method: "POST" }),
+  ],
+  ["schedule.cron", () => ({ cron: DEFAULT_SCHEDULE })],
+  ["manual", () => ({})],
+]);
 
 /** A graph holding only the trigger picked in the "New procedure" dialog. */
 function starterGraph(trigger: Starter, name: string): ProcedureGraph {
@@ -122,7 +125,7 @@ function starterGraph(trigger: Starter, name: string): ProcedureGraph {
     id: newNodeId(),
     kind: "trigger",
     typeId: trigger,
-    config: STARTER_CONFIG[trigger](name),
+    config: STARTER_CONFIG.get(trigger)?.(name) ?? {},
     position: { x: 80, y: 160 },
   };
   return { ...emptyGraph(), nodes: [node] };

@@ -3,8 +3,6 @@ import { type DataValue, isDataValue } from "../types/dataValue";
 import { isPropertyBag } from "../types/guards";
 import { procedureGraphSchema } from "./graphSchema";
 
-/** The bodies the procedures routes accept. */
-
 /** What a run hands its trigger: a value of the JSON body. */
 const payloadSchema = z.custom<DataValue>(isDataValue);
 

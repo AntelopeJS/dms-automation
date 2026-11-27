@@ -13,12 +13,6 @@ import { failedStepOf, healthByProcedure, healthOf, stepText } from "./stats-ref
  * @typedef {{ runsUrl: string, runsPeriod?: { scope: string, preset: string }, traceUrl: string, proceduresUrl: string }} BannerLinks
  */
 
-/**
- * The old algorithm of the procedures list (`summaryRow` of `src/db/models/stats.model.ts`), of the health banner
- * (`src/stats/health-banner.ts`) and of the Library usage state, copied as it was at commit 285f4b8. The fixture uses no
- * schedule trigger: the words of a cron expression are not run data.
- */
-
 const DETAIL = "dms_automation.procedures.detail";
 const HEALTH = "dms_automation.health";
 const STATE_ORDER = ["failing", "degraded", "healthy", "paused", "draft"];

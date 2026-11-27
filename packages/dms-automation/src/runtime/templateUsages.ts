@@ -18,12 +18,6 @@ import {
 import { labelOf } from "./describe";
 import { validateGraph } from "./validate";
 
-/**
- * What a template change does to the procedures placing it: their version
- * moves on, a now-invalid one is disabled, a usage is forked to a local group
- * before the template goes.
- */
-
 /** The next version of a procedure: its graph, as runs see it, changed. */
 function nextVersion(procedure: Procedure): number {
   return procedure.version + 1;

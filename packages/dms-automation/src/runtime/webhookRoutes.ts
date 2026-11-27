@@ -6,12 +6,6 @@ import { webhookRouteOf, webhookTrigger } from "./builtins/triggers/webhook";
 import { parseGraphSafe } from "./describe";
 import type { GraphIssue } from "./graphIssues";
 
-/**
- * The routes the webhooks of the procedures answer on, across procedures:
- * the router hands a call to the first handler registered for its route, so
- * two procedures on one route means one of them never runs.
- */
-
 function webhookNodesOf(graph: ProcedureGraph | undefined): GraphNode[] {
   return (graph?.nodes ?? []).filter(
     (n) => n.kind === "trigger" && n.typeId === webhookTrigger.id,

@@ -13,8 +13,6 @@ import { DATABASE_NAME } from "../types/constants";
 import type { ProcedureGraph } from "../types/graph";
 import { API_MESSAGES as API, invalid } from "./requests";
 
-/** What the procedures routes check before they save or run a graph. */
-
 /** The toast of a refused graph, after its first blocking issue. */
 const REFUSAL_OF_ISSUE = new Map([
   ["noTrigger", `${API}.noTrigger`],

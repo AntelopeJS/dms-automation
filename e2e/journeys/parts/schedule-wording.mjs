@@ -5,7 +5,6 @@ import { cronGraph } from "./triggers-common.mjs";
 /** @typedef {import("../../auto.mjs").Ctx} Ctx */
 /** @typedef {import("../../auto.mjs").Row} Row */
 
-/** [expression, the words the Starts when column shows in UTC] */
 /** @type {[string, string][]} */
 const WORDING = [
   ["* * * * * *", "Every second"],

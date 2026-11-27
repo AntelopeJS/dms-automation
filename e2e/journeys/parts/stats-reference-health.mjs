@@ -8,12 +8,6 @@ import { text } from "../../auto.mjs";
  * @typedef {{ from: Date, to: Date, compareFrom?: Date, compareTo?: Date }} RefWindow
  */
 
-/**
- * The old algorithm of `src/stats/health.ts` and `src/stats/kpi.ts`, copied as it was at commit 285f4b8: the reference
- * every stats answer is compared with. A change that moves this work into database queries must keep every answer
- * these functions give on the same rows.
- */
-
 export const MS_PER_HOUR = 3_600_000;
 export const MS_PER_DAY = 24 * MS_PER_HOUR;
 export const MIN_COMPARED_RUNS = 10;

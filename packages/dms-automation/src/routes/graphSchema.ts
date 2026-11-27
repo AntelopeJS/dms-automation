@@ -11,14 +11,6 @@ import type { GraphNode, GroupPort, ProcedureGraph } from "../types/graph";
 import { isObject } from "../types/guards";
 import { zodIssuesJson } from "./zodJson";
 
-/**
- * Shared Zod schemas for ProcedureGraph and its constituents. Imported by
- * both `routes/procedures.ts` and `routes/templates.ts` so the two stay
- * in lockstep (the previous hand-duplicated copies had already drifted —
- * procedures was accepting `z.record(z.unknown())` for ports while
- * templates used the typed groupPortSchema).
- */
-
 const nodeKindSchema = nodeKindZodSchema();
 
 export const groupPortSchema: z.ZodType<GroupPort> = z.object({

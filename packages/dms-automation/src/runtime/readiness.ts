@@ -1,10 +1,3 @@
-/**
- * Whether the module has started: its schema registered and its triggers
- * hydrated. Interface calls that read or write procedures (DeclareProcedure)
- * wait for it, since another module may call them from its own start(),
- * which runs in parallel with ours.
- */
-
 let isStarted = false;
 let markStarted: () => void = () => {};
 let started: Promise<void> = Promise.resolve();

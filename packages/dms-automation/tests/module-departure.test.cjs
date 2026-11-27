@@ -205,8 +205,6 @@ void test("a departing project's triggers go quietly and its run fails", async (
   await subscriptions._deactivateAll();
 });
 
-/** The executor alone: a module gone mid-run is an ordinary step error. */
-
 const { ModuleContextInvalidatedError } = require("@antelopejs/interface-core");
 const { builtinTriggers } = require("../dist/runtime/builtins");
 const { registry } = require("../dist/runtime/registry.js");

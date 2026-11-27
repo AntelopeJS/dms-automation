@@ -4,13 +4,6 @@ const { test } = require("node:test");
 const { isPropertyBag } = require("../dist/types/guards.js");
 const { FRONTEND } = require("./helpers/frontend.cjs");
 
-/**
- * The dialogs the server words are read by the host's `confirmFrom(url, …)`,
- * which fills only the URL's `{{row.X}}` tokens from its `params`: any other
- * token (`{id}`) reaches the API as it is, `%7Bid%7D`, and the dialog never
- * opens.
- */
-
 /** The host's rule (dms-core `interpolateUrl`), for the run below. */
 const ROW_TOKEN = /\{\{\s*row\.([^{}\s]+)\s*\}\}/g;
 

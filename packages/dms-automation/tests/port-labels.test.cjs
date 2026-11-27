@@ -4,13 +4,6 @@ const { load } = require("./helpers/module-load.cjs");
 const { test } = require("node:test");
 const { component } = require("./helpers/frontend.cjs");
 
-/**
- * A node's data ports read as their field's title on the canvas (a `$` key
- * translated, plain text as written), and as the key when no title is
- * declared. The key stays the handle id, since edges wire by it, and the
- * label's hover text when the title hides it.
- */
-
 const vue = require("../frontend-vue/node_modules/vue");
 const {
   renderToString,

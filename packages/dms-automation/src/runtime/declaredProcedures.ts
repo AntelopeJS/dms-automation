@@ -15,13 +15,6 @@ import { type GraphIssue, hasBlockingIssue } from "./graphIssues";
 import { subscriptions } from "./subscriptions";
 import { isObject, isString } from "../types/guards";
 
-/**
- * Procedures a module ships as code (DeclareProcedure). The declared id is
- * the procedure's id. A declaration is stored once, when no procedure has its
- * id; from then on the procedure belongs to its users, and a later
- * declaration leaves it as it is.
- */
-
 const DECLARED_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const MAX_ID_LENGTH = 120;
 

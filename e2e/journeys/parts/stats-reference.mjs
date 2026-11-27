@@ -19,11 +19,6 @@ import { MS_PER_DAY, bucketStarts, byProcedure, durationOf, kpiPayload, procedur
  * @typedef {{ procedureId: string, name: string, state: string, runs: number, failed: number, streak: number, since: string | null, lastRunId: string | null, lastFailure: FailureRef | null, recovered: boolean, armError: Row | null, pausedAt: string | null, pausedBy: string | null, triggerType: string | null }} AttentionRow
  */
 
-/**
- * The old algorithm of `loadStatsContext` (`src/db/models/stats.model.ts`) and of `src/stats/overview.ts`, copied as it was
- * at commit 285f4b8. It reads what the database stores, never an answer of the module under test.
- */
-
 const STATE_WINDOW_MS = 7 * MS_PER_DAY;
 const DEFAULT_RETENTION_DAYS = 30;
 const MAX_ATTENTION_ROWS = 5;

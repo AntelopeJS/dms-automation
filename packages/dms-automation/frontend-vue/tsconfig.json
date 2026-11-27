@@ -1,5 +1,5 @@
 {
   "extends": "./.dms-types/tsconfig.json",
-  "compilerOptions": { "allowJs": true },
+  "compilerOptions": { "allowJs": true, "moduleDetection": "force" },
   "files": ["./.dms-types/types.d.ts", "./eslint.config.mjs"]
 }

@@ -1,9 +1,4 @@
 /**
- * Reader's view of LeaderTriggers.tla for /statechart: one region for the
- * leader key in Redis and one per instance.
- */
-
-/**
  * The variables of LeaderTriggers.tla this view reads, as /statechart passes
  * them: a function of instances is an object keyed by instance name.
  * @typedef {object} Vars
