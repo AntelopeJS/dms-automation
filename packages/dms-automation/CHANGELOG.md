@@ -1,5 +1,49 @@
 # Changelog
 
+## v0.12.0
+
+[compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.7...v0.12.0)
+
+### 🩹 Fixes
+
+- **release:** Install the workspace root and frontend-vue before the release lint ([#266](https://github.com/AntelopeJS/dms-automation/pull/266))
+- **release:** Drop the release hook's workspace install, which the shared release workflow takes over ([#267](https://github.com/AntelopeJS/dms-automation/pull/267))
+
+### 📦 Build
+
+- **deps:** Require @antelopejs/dms-frontend 0.11.11 ([#264](https://github.com/AntelopeJS/dms-automation/pull/264))
+
+### 🏡 Chore
+
+- Bump tooling-configs to 0.10.7 and pnpm to 10.34.9 with a 24 hour release age ([#249](https://github.com/AntelopeJS/dms-automation/pull/249))
+- **deps:** Update dependency vite to v8.3.8 ([#251](https://github.com/AntelopeJS/dms-automation/pull/251))
+- **build:** Build and typecheck the interface by its path ([#253](https://github.com/AntelopeJS/dms-automation/pull/253))
+- **deps:** Update dependency vue to v3.5.46 ([#252](https://github.com/AntelopeJS/dms-automation/pull/252))
+- **deps:** Update dependency @antelopejs/dms to v0.24.2 ([#250](https://github.com/AntelopeJS/dms-automation/pull/250))
+- **deps:** Pin dms 0.24.3 in the playgrounds ([#255](https://github.com/AntelopeJS/dms-automation/pull/255))
+- **deps:** Update dependency @antelopejs/core to v1.24.9 ([#258](https://github.com/AntelopeJS/dms-automation/pull/258))
+- **deps:** Move to @antelopejs/dms 0.25.0 and tooling-configs 0.10.13 ([#260](https://github.com/AntelopeJS/dms-automation/pull/260))
+- **deps:** Move to tooling-configs 0.10.14 and sync ([#262](https://github.com/AntelopeJS/dms-automation/pull/262))
+- **deps:** Pin @antelopejs/dms 0.25.2 ([#265](https://github.com/AntelopeJS/dms-automation/pull/265))
+- **deps:** Pin @antelopejs/dms 0.25.3 ([#268](https://github.com/AntelopeJS/dms-automation/pull/268))
+
+### ✅ Tests
+
+- **e2e:** Assert the dms refusal keys in the access journeys ([#254](https://github.com/AntelopeJS/dms-automation/pull/254))
+
+### 🤖 CI
+
+- Bump tooling-configs to 0.10.11 and gate e2e-report through ubuntu ([#257](https://github.com/AntelopeJS/dms-automation/pull/257))
+
+#### ⚠️ Breaking Changes
+
+- **deps:** Require @antelopejs/dms-frontend 0.11.11 ([#264](https://github.com/AntelopeJS/dms-automation/pull/264))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+- dada-sudo
+
 ## v0.11.7
 
 [compare changes](https://github.com/AntelopeJS/dms-automation/compare/v0.11.6...v0.11.7)
