@@ -73,7 +73,7 @@ RegisterActionType({
 The `@antelopejs/interface-dms-automation` row is the interface range this release implements. The module also needs these:
 
 - A DMS backend that implements the `@antelopejs/interface-dms` range in the table above.
-- The `@antelopejs/dms-frontend` renderer in the range that `engines["@antelopejs/dms-frontend"]` of `frontend-vue/package.json` declares. The `ajs dms` CLI refuses to build the module with a renderer outside that range.
+- The `@antelopejs/dms-frontend` renderer 0.11.11 or later, below 0.12.0: the range that `engines["@antelopejs/dms-frontend"]` of `frontend-vue/package.json` declares. The `ajs dms` CLI refuses to build the module with a renderer outside that range. A project that locks it below 0.11.11 must raise it first.
 - An API provider, `@antelopejs/api`, for webhooks.
 - An `@antelopejs/interface-database` implementation.
 - `@antelopejs/interface-redis`, only to run several instances. See [Clustering](https://dms.antelopejs.com/docs/modules/automation/configuration#clustering).
