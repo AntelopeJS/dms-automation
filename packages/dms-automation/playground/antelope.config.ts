@@ -24,7 +24,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/dms",
-        version: "0.25.2",
+        version: "0.25.3",
       },
       config: {
         homepage: "/modules/automation/overview",
