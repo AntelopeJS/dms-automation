@@ -1,6 +1,5 @@
-import { createServer } from "node:http";
+import { createServer, type Server } from "node:http";
 import type { JsonObject } from "@antelopejs/interface-dms-automation";
-import { z } from "zod";
 
 /** Where the sink listens, once `startSink` ran. */
 export let sinkPort = 0;
@@ -8,11 +7,38 @@ export let sinkPort = 0;
 /** The requests the sink received, newest last. */
 export const received: JsonObject[] = [];
 
-const listening = z.object({ port: z.number() });
 const BIG_DEFAULT = 1024;
 
 /**
- * A plain HTTP server on a free loopback port that the HTTP request action
+ * The ports the sink picks from: below the range the kernel hands out for
+ * `listen(0)` (from 32768 on Linux, 49152 on Windows and macOS), where the e2e
+ * kit picks each backend's port, so the sink of one backend never takes the
+ * port picked for the next.
+ */
+const SINK_PORTS = { first: 20_000, last: 32_767 };
+const LISTEN_ATTEMPTS = 20;
+
+/**
+ * Listens on a random port of `SINK_PORTS`, trying another while one is taken.
+ *
+ * @param server The sink
+ * @param attempt The attempts made, this one included
+ */
+function listenOnSinkPort(server: Server, attempt = 1): void {
+  const port = SINK_PORTS.first + Math.floor(Math.random() * (SINK_PORTS.last - SINK_PORTS.first + 1));
+  const retry = (error: NodeJS.ErrnoException) => {
+    if (error.code !== "EADDRINUSE" || attempt >= LISTEN_ATTEMPTS) throw error;
+    listenOnSinkPort(server, attempt + 1);
+  };
+  server.once("error", retry);
+  server.listen(port, "127.0.0.1", () => {
+    server.off("error", retry);
+    sinkPort = port;
+  });
+}
+
+/**
+ * A plain HTTP server on a free loopback port of `SINK_PORTS` that the HTTP request action
  * calls: it echoes what it received and can answer a given status, redirect,
  * a body of a given size, or slowly. It answers every method.
  */
@@ -80,8 +106,5 @@ export function startSink(): void {
       response.end(JSON.stringify({ method: request.method, path: url.pathname, query: Object.fromEntries(url.searchParams), headers: request.headers, body: body.toString("utf8") }));
     });
   });
-  server.listen(0, "127.0.0.1", () => {
-    const address = listening.safeParse(server.address());
-    if (address.success) sinkPort = address.data.port;
-  });
+  listenOnSinkPort(server);
 }
