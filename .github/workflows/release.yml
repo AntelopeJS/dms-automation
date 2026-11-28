@@ -34,7 +34,9 @@ permissions:
 
 jobs:
   release-packages-dms-automation:
-    if: github.event_name != 'workflow_dispatch' || inputs.package-directory == 'packages/dms-automation'
+    needs:
+      - release-packages-interface-dms-automation
+    if: ${{ !failure() && !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.package-directory == 'packages/dms-automation' || inputs.preview == true && inputs.package-directory == '') }}
     uses: AntelopeJS/.github/.github/workflows/release-npm-public.yml@v2
     with:
       release-version: ${{ inputs.release-version }}
@@ -47,7 +49,7 @@ jobs:
       RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
   release-packages-interface-dms-automation:
-    if: github.event_name != 'workflow_dispatch' || inputs.package-directory == 'packages/interface-dms-automation'
+    if: github.event_name != 'workflow_dispatch' || inputs.package-directory == 'packages/interface-dms-automation' || inputs.preview == true && inputs.package-directory == ''
     uses: AntelopeJS/.github/.github/workflows/release-npm-public.yml@v2
     with:
       release-version: ${{ inputs.release-version }}
